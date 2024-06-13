@@ -1,0 +1,28 @@
+{
+  "name": "@marinade.finance/ds-sam-sdk",
+  "version": "1.0.0",
+  "author": "Marinade Finance",
+  "license": "ISC",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "keywords": [
+    "solana",
+    "marinade.finance"
+  ],
+  "dependencies": {
+    "axios": "^1.7.2",
+    "decimal.js": "^10.4.3",
+    "semver": "^7.6.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.2",
+    "@types/semver": "^7.5.8"
+  }
+}
