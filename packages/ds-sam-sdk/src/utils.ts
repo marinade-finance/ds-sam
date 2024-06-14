@@ -1,4 +1,6 @@
-import { RevShare, Rewards, AggregatedValidator, AuctionValidator, StakeConcentration } from './types'
+import { RevShare, Rewards, AggregatedValidator, AuctionValidator, StakeConcEntity, StakeConcEntityType } from './types'
+
+export const MNDE_VOTE_DELEGATION_STRATEGY = 'MarinadeA1gorithmicDe1egationStrategy111111'
 
 export const calcValidatorRevShare = (validator: AggregatedValidator, rewards: Rewards): RevShare => {
   const inflationPmpe = Math.max(0, rewards.inflationPmpe * (1 - validator.inflationCommissionDec))
@@ -8,19 +10,15 @@ export const calcValidatorRevShare = (validator: AggregatedValidator, rewards: R
   return { totalPmpe: inflationPmpe + mevPmpe + bidPmpe, inflationPmpe, mevPmpe, bidPmpe }
 }
 
-export const calcValidatorAuctionStakeSol = (validator: AuctionValidator): number =>
-  validator.totalActivatedStake
-    .sub(validator.marinadeActivatedStake)
-    .add(validator.marinadeTargetStake)
-    .div(1e9).toNumber()
+export const validatorTotalAuctionStakeSol = (validator: AuctionValidator): number =>
+  validator.auctionStake.externalActivatedSol + validator.auctionStake.marinadeMndeTargetSol + validator.auctionStake.marinadeSamTargetSol
 
-export const zeroStakeConcentration = (caps: { total: number, marinade: number }): StakeConcentration => ({
+export const zeroStakeConcentration = (type: StakeConcEntityType, name: string, caps: { totalSol: number, marinadeSol: number }): StakeConcEntity => ({
+  entityType: type,
+  entityName: name,
   totalStakeSol: 0,
-  totalStakeShareDec: 0,
-  totalLeftToCapSol: caps.total,
+  totalLeftToCapSol: caps.totalSol,
   marinadeStakeSol: 0,
-  marinadeTvlShareDec: 0,
-  marinadeLeftToCapSol: caps.marinade,
+  marinadeLeftToCapSol: caps.marinadeSol,
+  validators: [],
 })
-
-export const zeroEligibilityAndTargetStake = () => ({ samEligible: false, mndeEligible: false, marinadeTargetStake: 0 })

@@ -1,10 +1,10 @@
 import { DEFAULT_CONFIG, DsSamConfig } from './config'
 import { DataProvider } from './data-provider/data-provider'
-import { AggregatedData, AuctionValidator, AuctionData } from './types'
+import { AggregatedData, AuctionValidator, AuctionData, ValidatorAuctionStake } from './types'
 import semver from 'semver'
 import Decimal from 'decimal.js'
 import { Auction } from './auction'
-import { calcValidatorRevShare, zeroEligibilityAndTargetStake } from './utils'
+import { calcValidatorRevShare } from './utils'
 import { AuctionConstraints } from './constraints'
 
 export class DsSamSDK {
@@ -17,13 +17,14 @@ export class DsSamSDK {
   }
 
   getAuctionConstraints ({ stakeAmounts }: AggregatedData): AuctionConstraints {
+    const { networkTotalSol, marinadeMndeTvlSol, marinadeSamTvlSol } = stakeAmounts
+    const marinadeTotalTvlSol = marinadeMndeTvlSol + marinadeSamTvlSol
     return new AuctionConstraints({
-      mndeDirectedStakeSol: stakeAmounts.marinadeTvlSol * this.config.mndeDirectedStakeShareDec,
-      totalCountryStakeCapSol: stakeAmounts.totalSol * this.config.maxNetworkStakeConcentrationPerCountryDec,
-      totalAsoStakeCapSol: stakeAmounts.totalSol * this.config.maxNetworkStakeConcentrationPerAsoDec,
-      marinadeCountryStakeCapSol: stakeAmounts.marinadeTvlSol * this.config.maxMarinadeStakeConcentrationPerCountryDec,
-      marinadeAsoStakeCapSol: stakeAmounts.marinadeTvlSol * this.config.maxMarinadeStakeConcentrationPerAsoDec,
-      marinadeValidatorStakeCapSol: stakeAmounts.marinadeTvlSol * this.config.maxMarinadeTvlSharePerValidatorDec,
+      totalCountryStakeCapSol: networkTotalSol * this.config.maxNetworkStakeConcentrationPerCountryDec,
+      totalAsoStakeCapSol: networkTotalSol * this.config.maxNetworkStakeConcentrationPerAsoDec,
+      marinadeCountryStakeCapSol: marinadeTotalTvlSol * this.config.maxMarinadeStakeConcentrationPerCountryDec,
+      marinadeAsoStakeCapSol: marinadeTotalTvlSol * this.config.maxMarinadeStakeConcentrationPerAsoDec,
+      marinadeValidatorSamStakeCapSol: marinadeTotalTvlSol * this.config.maxMarinadeTvlSharePerValidatorDec,
     })
   }
 
@@ -59,27 +60,31 @@ export class DsSamSDK {
 
     return validators.map((validator): AuctionValidator => {
       const revShare = calcValidatorRevShare(validator, rewards)
-
+      const auctionStake: ValidatorAuctionStake = {
+        externalActivatedSol: validator.totalActivatedStakeSol - validator.marinadeActivatedStakeSol,
+        marinadeMndeTargetSol: 0,
+        marinadeSamTargetSol: 0,
+      }
       if (blacklist.has(validator.voteAccount)) {
-        return { ...validator, revShare, ...zeroEligibilityAndTargetStake() }
+        return { ...validator, revShare, auctionStake, samEligible: false, mndeEligible: false }
       }
       if (!semver.satisfies(validator.clientVersion, this.config.validatorsClientVersionSemverExpr)) {
-        return { ...validator, revShare, ...zeroEligibilityAndTargetStake() }
+        return { ...validator, revShare, auctionStake, samEligible: false, mndeEligible: false }
       }
       for (let epoch = minEpoch; epoch <= maxEpoch; epoch++) {
         const es = validator.epochStats.find(es => es.epoch === epoch)
         const threshold = epochCreditsThresholds.get(epoch)
         if (!es || !threshold || es.voteCredits < threshold) {
-          return { ...validator, revShare, ...zeroEligibilityAndTargetStake() }
+          return { ...validator, revShare, auctionStake, samEligible: false, mndeEligible: false }
         }
       }
-      if (!validator.bondBalance) {
-        return { ...validator, revShare, ...zeroEligibilityAndTargetStake() }
+      if (validator.bondBalanceSol === null) {
+        return { ...validator, revShare, auctionStake, samEligible: false, mndeEligible: false }
       }
       const samEligible = revShare.totalPmpe >= minEffectiveRevSharePmpe
       const mndeEligible = revShare.inflationPmpe + revShare.mevPmpe >= minEffectiveRevSharePmpe
 
-      return { ...validator, revShare, samEligible, mndeEligible, marinadeTargetStake: 0 }
+      return { ...validator, revShare, auctionStake, samEligible, mndeEligible }
     })
   }
 

@@ -6,10 +6,11 @@ import {
   RawMevInfoResponseDto, RawMndeVotesResponseDto, RawRewardsRecordDto,
   RawRewardsResponseDto, RawSourceData, RawTvlResponseDto,
   RawValidatorsResponseDto
-} from './data-provider.types'
+} from './data-provider.dto'
 import Decimal from 'decimal.js'
 import { AggregatedData, AggregatedValidator } from '../types'
 import fs from 'fs'
+import { MNDE_VOTE_DELEGATION_STRATEGY } from '../utils'
 
 export class DataProvider {
   constructor (
@@ -51,19 +52,7 @@ export class DataProvider {
     return rewardsTotal.total.div(rewardsTotal.epochs).toNumber()
   }
 
-  aggregateValidators (data: RawSourceData): AggregatedValidator[] {
-    let totalMndeVotes = new Decimal(0)
-    const validatorsMndeVotes = data.mndeVotes.records.reduce((agg, { validatorVoteAccount, amount }) => {
-      const votes = agg.get(validatorVoteAccount) ?? new Decimal(0)
-      agg.set(validatorVoteAccount, votes.add(amount ?? 0))
-      totalMndeVotes = totalMndeVotes.add(amount ?? 0)
-      return agg
-    }, new Map<string, Decimal>())
-
-    const tvl = data.tvlInfo.total_virtual_staked_sol + data.tvlInfo.marinade_native_stake_sol
-    const solPerMnde = new Decimal(tvl * this.config.mndeDirectedStakeShareDec).div(totalMndeVotes)
-    console.log('total mnde votes', totalMndeVotes)
-    console.log('SOL per MNDE', solPerMnde)
+  aggregateValidators (data: RawSourceData, validatorsMndeVotes: Map<string, Decimal>, solPerMnde: number): AggregatedValidator[] {
 
     return data.validators.validators.map((validator): AggregatedValidator => {
       const bond = data.bonds.bonds.find(({ vote_account }) => validator.vote_account === vote_account)
@@ -72,16 +61,16 @@ export class DataProvider {
         voteAccount: validator.vote_account,
         clientVersion: validator.version ?? '0.0.0',
         voteCredits: validator.credits,
-        aso: validator.dc_aso,
-        country: validator.dc_country,
-        bondBalance: bond ? new Decimal(bond.effective_amount).mul(1e9) : null, // TODO units
-        totalActivatedStake: new Decimal(validator.activated_stake), // TODO units
-        marinadeActivatedStake: new Decimal(validator.marinade_stake).add(validator.marinade_native_stake), // TODO units
+        aso: validator.dc_aso ?? 'Unknown',
+        country: validator.dc_country ?? 'Unknown',
+        bondBalanceSol: bond ? new Decimal(bond.effective_amount).div(1e9).toNumber() : null, // TODO units
+        totalActivatedStakeSol: new Decimal(validator.activated_stake).div(1e9).toNumber(), // TODO units
+        marinadeActivatedStakeSol: new Decimal(validator.marinade_stake).add(validator.marinade_native_stake).div(1e9).toNumber(), // TODO units
         inflationCommissionDec: (validator.commission_effective ?? validator.commission_advertised ?? 100) / 100,
         mevCommissionDec: mev ? mev.mev_commission_bps / 10_000 : null,
         bidCpmpe: bond ? Number(bond.cpmpe) : null,
-        maxStakeWanted: new Decimal(100000), // TODO source number missing
-        mndeVotesSolValue: (validatorsMndeVotes.get(validator.vote_account) ?? new Decimal(0)).mul(solPerMnde),
+        maxStakeWanted: new Decimal(100000).toNumber(), // TODO source number missing
+        mndeVotesSolValue: (validatorsMndeVotes.get(validator.vote_account) ?? new Decimal(0)).mul(solPerMnde).toNumber(),
         epochStats: validator.epoch_stats.filter(({ epoch_end_at }) => !!epoch_end_at).map(es => ({
           epoch: es.epoch,
           totalActivatedStake: new Decimal(es.activated_stake),
@@ -103,19 +92,38 @@ export class DataProvider {
       externalStakeTotal = externalStakeTotal.add(activated_stake).sub(marinade_stake).sub(marinade_native_stake)
     })
 
-    const marinadeTvlSol = data.tvlInfo.total_virtual_staked_sol + data.tvlInfo.marinade_native_stake_sol
-    console.log('tvl', marinadeTvlSol)
+    let totalMndeVotes = new Decimal(0)
+    let delStratVotes = new Decimal(0)
+    const validatorsMndeVotes = data.mndeVotes.records.reduce((agg, { validatorVoteAccount, amount }) => {
+      const mndeAmount = amount ?? '0'
+      const votes = agg.get(validatorVoteAccount) ?? new Decimal(0)
+      agg.set(validatorVoteAccount, votes.add(mndeAmount))
+      totalMndeVotes = totalMndeVotes.add(mndeAmount)
+      if (validatorVoteAccount === MNDE_VOTE_DELEGATION_STRATEGY) {
+        delStratVotes = delStratVotes.add(mndeAmount)
+      }
+      return agg
+    }, new Map<string, Decimal>())
+
+    const tvlSol = data.tvlInfo.total_virtual_staked_sol + data.tvlInfo.marinade_native_stake_sol
+    const delStratVotesShare = delStratVotes.div(totalMndeVotes).toNumber()
+    const effectiveMndeTvlShareSol = (1 - delStratVotesShare) * this.config.mndeDirectedStakeShareDec * tvlSol
+    const solPerMnde = new Decimal(effectiveMndeTvlShareSol).div(totalMndeVotes).toNumber()
+    console.log('total mnde votes', totalMndeVotes)
+    console.log('SOL per MNDE', solPerMnde)
+    console.log('tvl', tvlSol)
     return {
-      validators: this.aggregateValidators(data),
+      validators: this.aggregateValidators(data, validatorsMndeVotes, solPerMnde),
       rewards: {
         inflationPmpe: this.aggregateRewardsRecords(activatedStakePerEpochs, data.rewards.rewards_inflation_est),
         mevPmpe: this.aggregateRewardsRecords(activatedStakePerEpochs, data.rewards.rewards_mev),
       },
       stakeAmounts: {
-        totalSol: externalStakeTotal.div(1e9).add(marinadeTvlSol).toNumber(),
-        externalSol: externalStakeTotal.div(1e9).toNumber(),
-        marinadeTvlSol,
-        marinadeRemainingSol: marinadeTvlSol,
+        networkTotalSol: externalStakeTotal.div(1e9).add(tvlSol).toNumber(),
+        marinadeMndeTvlSol: effectiveMndeTvlShareSol,
+        marinadeSamTvlSol: tvlSol - effectiveMndeTvlShareSol,
+        marinadeRemainingMndeSol: effectiveMndeTvlShareSol,
+        marinadeRemainingSamSol: tvlSol - effectiveMndeTvlShareSol,
       },
       blacklist: new Set(data.blacklist
         .split('\n')

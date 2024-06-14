@@ -1,50 +1,83 @@
-import { AuctionConstraintsConfig, AuctionData, StakeConcentration } from './types'
-import { calcValidatorAuctionStakeSol, zeroStakeConcentration } from './utils'
+import { AuctionConstraintsConfig, AuctionData, StakeConcEntity, StakeConcEntityType } from './types'
+import { validatorTotalAuctionStakeSol, zeroStakeConcentration } from './utils'
 
 export class AuctionConstraints {
-  private countriesConcentrations = new Map<string, StakeConcentration>()
-  private asosConcentrations = new Map<string, StakeConcentration>()
+  private stakeConcentrationEntities: StakeConcEntity[] = []
 
   constructor (private readonly config: AuctionConstraintsConfig) {}
 
-  evaluateState ({ validators, stakeAmounts }: AuctionData) {
-    const countries = new Map<string, StakeConcentration>()
-    const asos = new Map<string, StakeConcentration>()
+  getMinCapStakeConcentrationEntity (): StakeConcEntity {
+    const minCapEntity = this.stakeConcentrationEntities.reduce((minCapEntity: StakeConcEntity | null, entity): StakeConcEntity | null => {
+      const entityCap = Math.min(entity.totalLeftToCapSol, entity.marinadeLeftToCapSol)
+      if (entityCap <= 0) {
+        return minCapEntity
+      }
+      if (!minCapEntity) {
+        return entity
+      }
+      const minCap = Math.min(minCapEntity.totalLeftToCapSol, minCapEntity.marinadeLeftToCapSol)
+      return entityCap < minCap ? entity : minCapEntity
+    }, null)
+    if (!minCapEntity) {
+      throw new Error('Failed to find stake concentration entity with min cap')
+    }
+    return minCapEntity
+  }
+
+  updateState ({ validators }: AuctionData) {
+    const countries = new Map<string, StakeConcEntity>()
+    const asos = new Map<string, StakeConcEntity>()
+    const entities: StakeConcEntity[] = []
 
     validators.forEach(validator => {
-      // TODO update when clarified
-      if (!validator.country) validator.country = 'Unknown'
-      if (!validator.aso) validator.aso = 'Unknown'
+      const stake = validatorTotalAuctionStakeSol(validator)
 
-      const stake = calcValidatorAuctionStakeSol(validator)
-
-      const countryStake = countries.get(validator.country) ?? zeroStakeConcentration({
-        total: this.config.totalCountryStakeCapSol,
-        marinade: this.config.marinadeCountryStakeCapSol,
+      const countryStakeCon = countries.get(validator.country) ?? zeroStakeConcentration(StakeConcEntityType.COUNTRY, validator.country, {
+        totalSol: this.config.totalCountryStakeCapSol,
+        marinadeSol: this.config.marinadeCountryStakeCapSol,
       })
+      countryStakeCon.validators.push(validator)
       countries.set(validator.country, {
-        totalStakeSol: countryStake.totalStakeSol + stake,
-        totalStakeShareDec: countryStake.totalStakeShareDec + (stake / stakeAmounts.totalSol),
-        totalLeftToCapSol: countryStake.totalLeftToCapSol - stake,
-        marinadeStakeSol: countryStake.marinadeStakeSol + validator.marinadeTargetStake,
-        marinadeTvlShareDec: countryStake.marinadeTvlShareDec + (validator.marinadeTargetStake / stakeAmounts.marinadeTvlSol),
-        marinadeLeftToCapSol: countryStake.marinadeLeftToCapSol - validator.marinadeTargetStake,
+        entityType: StakeConcEntityType.COUNTRY,
+        entityName: validator.country,
+        totalStakeSol: countryStakeCon.totalStakeSol + stake,
+        totalLeftToCapSol: countryStakeCon.totalLeftToCapSol - stake,
+        marinadeStakeSol: countryStakeCon.marinadeStakeSol + validator.auctionStake.marinadeMndeTargetSol + validator.auctionStake.marinadeSamTargetSol,
+        marinadeLeftToCapSol: countryStakeCon.marinadeLeftToCapSol - validator.auctionStake.marinadeMndeTargetSol - validator.auctionStake.marinadeSamTargetSol,
+        validators: countryStakeCon.validators,
       })
 
-      const asoStake = asos.get(validator.aso) ?? zeroStakeConcentration({
-        total: this.config.totalAsoStakeCapSol,
-        marinade: this.config.marinadeAsoStakeCapSol,
+      // TODO? wrap countries and ASOs processing into a reused function
+      const asoStakeCon = asos.get(validator.aso) ?? zeroStakeConcentration(StakeConcEntityType.ASO, validator.aso, {
+        totalSol: this.config.totalAsoStakeCapSol,
+        marinadeSol: this.config.marinadeAsoStakeCapSol,
       })
+      asoStakeCon.validators.push(validator)
       asos.set(validator.aso, {
-        totalStakeSol: asoStake.totalStakeSol + stake,
-        totalStakeShareDec: asoStake.totalStakeShareDec + (stake / stakeAmounts.totalSol),
-        totalLeftToCapSol: asoStake.totalLeftToCapSol - stake,
-        marinadeStakeSol: asoStake.marinadeStakeSol + validator.marinadeTargetStake,
-        marinadeTvlShareDec: asoStake.marinadeTvlShareDec + (validator.marinadeTargetStake / stakeAmounts.marinadeTvlSol),
-        marinadeLeftToCapSol: asoStake.marinadeLeftToCapSol - validator.marinadeTargetStake,
+        entityType: StakeConcEntityType.ASO,
+        entityName: validator.aso,
+        totalStakeSol: asoStakeCon.totalStakeSol + stake,
+        totalLeftToCapSol: asoStakeCon.totalLeftToCapSol - stake,
+        marinadeStakeSol: asoStakeCon.marinadeStakeSol + validator.auctionStake.marinadeMndeTargetSol + validator.auctionStake.marinadeSamTargetSol,
+        marinadeLeftToCapSol: asoStakeCon.marinadeLeftToCapSol - validator.auctionStake.marinadeMndeTargetSol - validator.auctionStake.marinadeSamTargetSol,
+        validators: asoStakeCon.validators,
+      })
+      entities.push({
+        entityType: StakeConcEntityType.VALIDATOR,
+        entityName: validator.voteAccount,
+        totalStakeSol: validatorTotalAuctionStakeSol(validator),
+        totalLeftToCapSol: Infinity,
+        marinadeStakeSol: validator.auctionStake.marinadeMndeTargetSol + validator.auctionStake.marinadeSamTargetSol,
+        // TODO? this needs to be kept in sync with the fact that only SAM stake is limited per validator, not MNDE stake
+        marinadeLeftToCapSol: this.config.marinadeValidatorSamStakeCapSol - validator.auctionStake.marinadeSamTargetSol,
+        validators: [validator],
       })
     })
-    this.countriesConcentrations = countries
-    this.asosConcentrations = asos
+    countries.forEach(country => entities.push(country))
+    asos.forEach(aso => entities.push(aso))
+
+    console.log('entities', entities.slice(0, 5), entities.slice(countries.size, countries.size + 5), entities.slice(countries.size + asos.size, countries.size + asos.size + 5))
+
+    this.stakeConcentrationEntities = entities
   }
 }

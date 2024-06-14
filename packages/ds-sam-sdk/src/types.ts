@@ -7,10 +7,11 @@ export type AuctionData = Omit<AggregatedData, 'validators'> & {
 }
 
 export type StakeAmounts = {
-  totalSol: number
-  externalSol: number
-  marinadeTvlSol: number
-  marinadeRemainingSol: number
+  networkTotalSol: number
+  marinadeMndeTvlSol: number
+  marinadeSamTvlSol: number
+  marinadeRemainingMndeSol: number
+  marinadeRemainingSamSol: number
 }
 
 export type AggregatedData = {
@@ -27,27 +28,33 @@ export type EpochStats = {
   voteCredits: number
 }
 
+export type ValidatorAuctionStake = {
+  externalActivatedSol: number
+  marinadeMndeTargetSol: number
+  marinadeSamTargetSol: number
+}
+
 export type AuctionValidator = AggregatedValidator & {
   revShare: RevShare
   mndeEligible: boolean
   samEligible: boolean
-  marinadeTargetStake: number
+  auctionStake: ValidatorAuctionStake
 }
 
 export type AggregatedValidator = {
   voteAccount: string
   clientVersion: string
   voteCredits: number
-  aso: string | null
-  country: string | null
-  bondBalance: Decimal | null
-  totalActivatedStake: Decimal
-  marinadeActivatedStake: Decimal
+  aso: string
+  country: string
+  bondBalanceSol: number | null
+  totalActivatedStakeSol: number
+  marinadeActivatedStakeSol: number
   inflationCommissionDec: number
   mevCommissionDec: number | null
   bidCpmpe: number | null
-  maxStakeWanted: Decimal | null // TODO not yet available
-  mndeVotesSolValue: Decimal
+  maxStakeWanted: number | null // TODO not yet available
+  mndeVotesSolValue: number
   epochStats: EpochStats[]
 }
 
@@ -64,19 +71,25 @@ export type RevShare = {
 }
 
 export type AuctionConstraintsConfig = {
-  mndeDirectedStakeSol: number
   totalCountryStakeCapSol: number
   totalAsoStakeCapSol: number
   marinadeCountryStakeCapSol: number
   marinadeAsoStakeCapSol: number
-  marinadeValidatorStakeCapSol: number
+  marinadeValidatorSamStakeCapSol: number
 }
 
-export type StakeConcentration = {
-  totalStakeSol: number
-  totalStakeShareDec: number
+export enum StakeConcEntityType {
+  COUNTRY = 'COUNTRY',
+  ASO = 'ASO',
+  VALIDATOR = 'VALIDATOR'
+}
+
+export type StakeConcEntity = {
+  entityType: StakeConcEntityType
+  entityName: string
+  totalStakeSol: number // TODO not needed?
   totalLeftToCapSol: number
-  marinadeStakeSol: number
-  marinadeTvlShareDec: number
+  marinadeStakeSol: number // TODO not needed?
   marinadeLeftToCapSol: number
+  validators: AuctionValidator[]
 }
