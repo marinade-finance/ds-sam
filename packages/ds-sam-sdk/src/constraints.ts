@@ -1,13 +1,13 @@
-import { AuctionConstraintsConfig, AuctionData, AuctionValidator, StakeConcEntity, StakeConcEntityType } from './types'
+import { AuctionConstraintsConfig, AuctionData, AuctionValidator, BondConfig, AuctionConstraint, AuctionConstraintType } from './types'
 import { validatorTotalAuctionStakeSol, zeroStakeConcentration } from './utils'
 
 export class AuctionConstraints {
-  private stakeConcentrationEntities: StakeConcEntity[] = []
+  private constraints: AuctionConstraint[] = []
 
-  constructor (private readonly config: AuctionConstraintsConfig) {}
+  constructor(private readonly config: AuctionConstraintsConfig) { }
 
-  getMinCapStakeConcentrationEntity (filter = (stakeConcEntity: StakeConcEntity) => true): StakeConcEntity {
-    const minCapEntity = this.stakeConcentrationEntities.filter(filter).reduce((minCapEntity: StakeConcEntity | null, entity): StakeConcEntity | null => {
+  getMinCapStakeConcentrationEntity(filter = (AuctionConstraint: AuctionConstraint) => true): AuctionConstraint {
+    const minCapEntity = this.constraints.filter(filter).reduce((minCapEntity: AuctionConstraint | null, entity): AuctionConstraint | null => {
       const entityCap = Math.min(entity.totalLeftToCapSol, entity.marinadeLeftToCapSol)
       if (entityCap <= 0) {
         return minCapEntity
@@ -24,8 +24,9 @@ export class AuctionConstraints {
     return minCapEntity
   }
 
-  getMinCapForEvenDistribution (voteAccounts: Set<string>): number {
-    const minCapEntity = this.stakeConcentrationEntities.reduce((globalMinCap: number | null, entity): number | null => {
+  getMinCapForEvenDistribution(voteAccounts: Set<string>): number {
+    const minCap = this.constraints.reduce((globalMinCap: number | null, entity): number | null => {
+      const log = (...args: any[]) => void 0 //console.log('get min cap', {...entity, validators: entity.validators.length}, ...args)
       const affectedValidators = entity.validators.reduce((sum, validator) => sum + Number(voteAccounts.has(validator.voteAccount)), 0)
 
       if (affectedValidators === 0) {
@@ -33,78 +34,149 @@ export class AuctionConstraints {
       }
 
       const entityCap = Math.min(entity.totalLeftToCapSol, entity.marinadeLeftToCapSol) / affectedValidators
+      log('entity cap = ', entityCap, 'globalMinCap = ', globalMinCap)
       if (entityCap <= 0) {
+        log('setting min to 0')
         return 0
       }
-      if (!globalMinCap) {
+      if (globalMinCap === null) {
+        log('first entity considered, setting it as minimum')
         return entityCap
       }
-      return entityCap < globalMinCap ? entityCap : globalMinCap
+      return Math.min(entityCap, globalMinCap)
     }, null)
-    if (minCapEntity === null) {
+    if (minCap === null) {
       throw new Error('Failed to find stake concentration entity with min cap')
     }
-    return minCapEntity
+    return minCap
   }
 
-  findCapForValidator (validator: AuctionValidator): number {
+  findCapForValidator(validator: AuctionValidator): number {
     return this.getMinCapForEvenDistribution(new Set([validator.voteAccount]))
   }
 
-  updateState ({ validators }: AuctionData) {
-    const countries = new Map<string, StakeConcEntity>()
-    const asos = new Map<string, StakeConcEntity>()
-    const entities: StakeConcEntity[] = []
+  updateStateForSam(auctionData: AuctionData) {
+    this.constraints = [
+      ...this.buildCountryConcentrationConstraints(auctionData),
+      ...this.buildAsoConcentrationConstraints(auctionData),
+      ...this.buildSamBondConstraints(auctionData),
+      ...this.buildValidatorConcentrationConstraints(auctionData),
+    ]
+  }
+
+  updateStateForMnde(auctionData: AuctionData) {
+    this.constraints = [
+      ...this.buildCountryConcentrationConstraints(auctionData),
+      ...this.buildAsoConcentrationConstraints(auctionData),
+      ...this.buildMndeBondConstraints(auctionData),
+    ]
+  }
+
+  private buildCountryConcentrationConstraints({ validators }: AuctionData) {
+    const countries = new Map<string, AuctionConstraint>()
 
     validators.forEach(validator => {
       const stake = validatorTotalAuctionStakeSol(validator)
 
-      const countryStakeCon = countries.get(validator.country) ?? zeroStakeConcentration(StakeConcEntityType.COUNTRY, validator.country, {
+      const countryStakeCon = countries.get(validator.country) ?? zeroStakeConcentration(AuctionConstraintType.COUNTRY, validator.country, {
         totalSol: this.config.totalCountryStakeCapSol,
         marinadeSol: this.config.marinadeCountryStakeCapSol,
       })
       countryStakeCon.validators.push(validator)
       countries.set(validator.country, {
-        entityType: StakeConcEntityType.COUNTRY,
-        entityName: validator.country,
+        constraintType: AuctionConstraintType.COUNTRY,
+        constraintName: validator.country,
         totalStakeSol: countryStakeCon.totalStakeSol + stake,
         totalLeftToCapSol: countryStakeCon.totalLeftToCapSol - stake,
         marinadeStakeSol: countryStakeCon.marinadeStakeSol + validator.auctionStake.marinadeMndeTargetSol + validator.auctionStake.marinadeSamTargetSol,
         marinadeLeftToCapSol: countryStakeCon.marinadeLeftToCapSol - validator.auctionStake.marinadeMndeTargetSol - validator.auctionStake.marinadeSamTargetSol,
         validators: countryStakeCon.validators,
       })
+    })
+    return [...countries.values()]
+  }
 
-      // TODO? wrap countries and ASOs processing into a reused function
-      const asoStakeCon = asos.get(validator.aso) ?? zeroStakeConcentration(StakeConcEntityType.ASO, validator.aso, {
+  private buildAsoConcentrationConstraints({ validators }: AuctionData) {
+    const asos = new Map<string, AuctionConstraint>()
+
+    validators.forEach(validator => {
+      const stake = validatorTotalAuctionStakeSol(validator)
+
+      const asoStakeCon = asos.get(validator.aso) ?? zeroStakeConcentration(AuctionConstraintType.ASO, validator.aso, {
         totalSol: this.config.totalAsoStakeCapSol,
         marinadeSol: this.config.marinadeAsoStakeCapSol,
       })
       asoStakeCon.validators.push(validator)
       asos.set(validator.aso, {
-        entityType: StakeConcEntityType.ASO,
-        entityName: validator.aso,
+        constraintType: AuctionConstraintType.ASO,
+        constraintName: validator.aso,
         totalStakeSol: asoStakeCon.totalStakeSol + stake,
         totalLeftToCapSol: asoStakeCon.totalLeftToCapSol - stake,
         marinadeStakeSol: asoStakeCon.marinadeStakeSol + validator.auctionStake.marinadeMndeTargetSol + validator.auctionStake.marinadeSamTargetSol,
         marinadeLeftToCapSol: asoStakeCon.marinadeLeftToCapSol - validator.auctionStake.marinadeMndeTargetSol - validator.auctionStake.marinadeSamTargetSol,
         validators: asoStakeCon.validators,
       })
-      entities.push({
-        entityType: StakeConcEntityType.VALIDATOR,
-        entityName: validator.voteAccount,
-        totalStakeSol: validatorTotalAuctionStakeSol(validator),
-        totalLeftToCapSol: Infinity,
-        marinadeStakeSol: validator.auctionStake.marinadeMndeTargetSol + validator.auctionStake.marinadeSamTargetSol,
-        // TODO? this needs to be kept in sync with the fact that only SAM stake is limited per validator, not MNDE stake
-        marinadeLeftToCapSol: this.config.marinadeValidatorSamStakeCapSol - validator.auctionStake.marinadeSamTargetSol,
-        validators: [validator],
-      })
     })
-    countries.forEach(country => entities.push(country))
-    asos.forEach(aso => entities.push(aso))
-
-    // console.log('entities', entities.slice(0, 5), entities.slice(countries.size, countries.size + 5), entities.slice(countries.size + asos.size, countries.size + asos.size + 5))
-
-    this.stakeConcentrationEntities = entities
+    return [...asos.values()]
   }
+
+  private buildSamBondConstraints({ validators }: AuctionData) {
+    return validators.map(validator => ({
+      constraintType: AuctionConstraintType.BOND,
+      constraintName: validator.voteAccount,
+      totalStakeSol: validatorTotalAuctionStakeSol(validator),
+      totalLeftToCapSol: Infinity,
+      marinadeStakeSol: validator.auctionStake.marinadeMndeTargetSol + validator.auctionStake.marinadeSamTargetSol,
+      marinadeLeftToCapSol: bondStakeCapSam({} as any, validator) - validator.auctionStake.marinadeSamTargetSol,
+      validators: [validator],
+    }))
+  }
+
+  private buildMndeBondConstraints({ validators }: AuctionData) {
+    return validators.map(validator => ({
+      constraintType: AuctionConstraintType.BOND,
+      constraintName: validator.voteAccount,
+      totalStakeSol: validatorTotalAuctionStakeSol(validator),
+      totalLeftToCapSol: Infinity,
+      marinadeStakeSol: validator.auctionStake.marinadeMndeTargetSol + validator.auctionStake.marinadeSamTargetSol,
+      marinadeLeftToCapSol: bondStakeCapMnde({} as any, validator) - validator.auctionStake.marinadeMndeTargetSol,
+      validators: [validator],
+    }))
+  }
+
+  private buildValidatorConcentrationConstraints({ validators }: AuctionData) {
+    return validators.map(validator => ({
+      constraintType: AuctionConstraintType.VALIDATOR,
+      constraintName: validator.voteAccount,
+      totalStakeSol: validatorTotalAuctionStakeSol(validator),
+      totalLeftToCapSol: Infinity,
+      marinadeStakeSol: validator.auctionStake.marinadeMndeTargetSol + validator.auctionStake.marinadeSamTargetSol,
+      marinadeLeftToCapSol: this.config.marinadeValidatorSamStakeCapSol - validator.auctionStake.marinadeSamTargetSol,
+      validators: [validator],
+    }))
+  }
+}
+
+export const bondStakeCapSam = (bondConfig: BondConfig, validator: AuctionValidator): number => {
+  // refundableDepositPerStake * stakeCap + downtimeProtectionPerStake * stakeCap + bidPerStake * stakeCap = bondBalanceSol
+  // stakeCap = bondBalanceSol / (refundableDepositPerStake + downtimeProtectionPerStake + bidPerStake)
+  const bidPerStake = (validator.bidCpmpe ?? 0) / 1000
+  const downtimeProtectionPerStake = 1 / 10000
+  const refundableDepositPerStake = validator.revShare.totalPmpe / 1000
+  const bondBalanceSol = Math.max((validator.bondBalanceSol ?? 0) - bondBalanceUsedForMnde(bondConfig, validator), 0)
+  return bondBalanceSol / (refundableDepositPerStake + downtimeProtectionPerStake + bidPerStake)
+}
+
+export const bondStakeCapMnde = (bondConfig: BondConfig, validator: AuctionValidator): number => {
+  // downtimeProtectionPerStake * stakeCap = bondBalanceSol
+  // stakeCap = bondBalanceSol / downtimeProtectionPerStake
+  const downtimeProtectionPerStake = 1 / 10000
+  const bondBalanceSol = validator.bondBalanceSol ?? 0
+  return bondBalanceSol / downtimeProtectionPerStake
+}
+
+export const bondBalanceUsedForMnde = (bondConfig: BondConfig, validator: AuctionValidator): number => {
+  // downtimeProtectionPerStake * stake = bondBalanceSol
+  const downtimeProtectionPerStake = 1 / 10000
+  return validator.auctionStake.marinadeMndeTargetSol * downtimeProtectionPerStake
 }

@@ -8,6 +8,8 @@ const logValidators = (validators: AuctionValidator[]) => {
   }
 }
 
+const EPSILON = 1e-4
+
 export class Auction {
 
   constructor (private data: AuctionData, private constraints: AuctionConstraints) { }
@@ -23,9 +25,9 @@ export class Auction {
     this.data.stakeAmounts.marinadeRemainingMndeSol -= solToCap
   }
 
-  evaluate (): AuctionResult {
+  evaluate (): AuctionData {
     this.data.validators.sort((a, b) => b.revShare.totalPmpe - a.revShare.totalPmpe)
-    this.constraints.updateState(this.data)
+    this.constraints.updateStateForSam(this.data)
 
     // logValidators(this.data.validators)
 
@@ -35,10 +37,16 @@ export class Auction {
 
       console.log('========= new round ==========')
 
+      if (this.data.stakeAmounts.marinadeRemainingSamSol < EPSILON) {
+        console.log("No stake remaining to distribute")
+        break
+      }
+
       while (group.validators.length > 0) {
         const remainingStakeToDistribute = this.data.stakeAmounts.marinadeRemainingSamSol
         const groupVoteAccounts = new Set([...group.validators.map((validator) => validator.voteAccount)])
         const evenDistributionCap = Math.min(this.constraints.getMinCapForEvenDistribution(groupVoteAccounts), remainingStakeToDistribute / group.validators.length)
+        console.log("distributing", evenDistributionCap, "to every validator in the group")
 
         for (const groupValidator of group.validators) {
           const validator = this.data.validators.find((validator) => validator.voteAccount === groupValidator.voteAccount)
@@ -51,15 +59,22 @@ export class Auction {
 
         logValidators(group.validators)
 
-        this.constraints.updateState(this.data)
+        this.constraints.updateStateForSam(this.data)
         group.validators = group.validators.filter((validator) => {
           const validatorCap = this.constraints.findCapForValidator(validator)
-          if (validatorCap === 0) {
-            console.log('removing validator', validator.voteAccount, 'from the group because the cap has been reached')
+          if (validatorCap < EPSILON) {
+            console.log('removing validfator', validator.voteAccount, 'from the group because the cap has been reached')
             return false
           }
           return true
         })
+
+        if (this.data.stakeAmounts.marinadeRemainingSamSol < EPSILON) {
+          console.log("No stake remaining to distribute")
+          break
+        } else {
+          console.log("Stake remaining", this.data.stakeAmounts.marinadeRemainingSamSol)
+        }
       }
 
       previousGroupPmpe = group.totalPmpe
@@ -80,7 +95,7 @@ export class Auction {
     //   mndeVotesSolValue: v.mndeVotesSolValue,
     // })).slice(0, 20))
 
-    return 'auction done'
+    return this.data
   }
 
   findNextPmpeGroup (totalPmpe: number): { totalPmpe: number, validators: AuctionValidator[] } | null {

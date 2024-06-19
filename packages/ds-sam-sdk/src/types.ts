@@ -78,18 +78,23 @@ export type AuctionConstraintsConfig = {
   marinadeValidatorSamStakeCapSol: number
 }
 
-export enum StakeConcEntityType {
+export enum AuctionConstraintType {
   COUNTRY = 'COUNTRY',
   ASO = 'ASO',
-  VALIDATOR = 'VALIDATOR'
+  VALIDATOR = 'VALIDATOR',
+  BOND = 'BOND',
 }
 
-export type StakeConcEntity = {
-  entityType: StakeConcEntityType
-  entityName: string
+export type AuctionConstraint = {
+  constraintType: AuctionConstraintType
+  constraintName: string
   totalStakeSol: number // TODO not needed?
   totalLeftToCapSol: number
   marinadeStakeSol: number // TODO not needed?
   marinadeLeftToCapSol: number
   validators: AuctionValidator[]
+}
+
+export type BondConfig = {
+
 }

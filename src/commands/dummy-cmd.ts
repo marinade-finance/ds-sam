@@ -18,6 +18,10 @@ export class DummyCommand extends CommandRunner {
     const dsSam = new DsSamSDK({ inputsCacheDirPath: 'data' })
     // const dsSam = new DsSamSDK({ inputsCacheDirPath: 'data', inputsSource: InputsSource.APIS, cacheInputs: true })
     const result = await dsSam.dummy()
-    this.logger.log('Finished "dummy" command', { result })
+    this.logger.log('Finished "dummy" command')
+
+    for (const validator of result.validators) {
+      console.log(`${validator.voteAccount}\t${validator.auctionStake.marinadeMndeTargetSol}\t${validator.auctionStake.marinadeSamTargetSol}\t${validator.revShare.totalPmpe}`)
+    }
   }
 }
