@@ -13,6 +13,7 @@
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "noUncheckedIndexedAccess": true,
+    "sourceMap": true,
     "noImplicitAny": true,
     "lib": ["es2021", "dom"]
   },

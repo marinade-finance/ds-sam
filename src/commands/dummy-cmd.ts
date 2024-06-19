@@ -1,6 +1,6 @@
 import { Command, CommandRunner } from 'nest-commander'
 import { Logger } from '@nestjs/common'
-import { DsSamSDK } from '@marinade.finance/ds-sam-sdk'
+import { DsSamSDK, InputsSource } from '@marinade.finance/ds-sam-sdk'
 
 @Command({
   name: 'dummy',
@@ -16,6 +16,7 @@ export class DummyCommand extends CommandRunner {
   async run (): Promise<void> {
     this.logger.log('Running "dummy" command...')
     const dsSam = new DsSamSDK({ inputsCacheDirPath: 'data' })
+    // const dsSam = new DsSamSDK({ inputsCacheDirPath: 'data', inputsSource: InputsSource.APIS, cacheInputs: true })
     const result = await dsSam.dummy()
     this.logger.log('Finished "dummy" command', { result })
   }

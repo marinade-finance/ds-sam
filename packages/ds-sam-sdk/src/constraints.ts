@@ -1,4 +1,4 @@
-import { AuctionConstraintsConfig, AuctionData, StakeConcEntity, StakeConcEntityType } from './types'
+import { AuctionConstraintsConfig, AuctionData, AuctionValidator, StakeConcEntity, StakeConcEntityType } from './types'
 import { validatorTotalAuctionStakeSol, zeroStakeConcentration } from './utils'
 
 export class AuctionConstraints {
@@ -6,8 +6,8 @@ export class AuctionConstraints {
 
   constructor (private readonly config: AuctionConstraintsConfig) {}
 
-  getMinCapStakeConcentrationEntity (): StakeConcEntity {
-    const minCapEntity = this.stakeConcentrationEntities.reduce((minCapEntity: StakeConcEntity | null, entity): StakeConcEntity | null => {
+  getMinCapStakeConcentrationEntity (filter = (stakeConcEntity: StakeConcEntity) => true): StakeConcEntity {
+    const minCapEntity = this.stakeConcentrationEntities.filter(filter).reduce((minCapEntity: StakeConcEntity | null, entity): StakeConcEntity | null => {
       const entityCap = Math.min(entity.totalLeftToCapSol, entity.marinadeLeftToCapSol)
       if (entityCap <= 0) {
         return minCapEntity
@@ -22,6 +22,33 @@ export class AuctionConstraints {
       throw new Error('Failed to find stake concentration entity with min cap')
     }
     return minCapEntity
+  }
+
+  getMinCapForEvenDistribution (voteAccounts: Set<string>): number {
+    const minCapEntity = this.stakeConcentrationEntities.reduce((globalMinCap: number | null, entity): number | null => {
+      const affectedValidators = entity.validators.reduce((sum, validator) => sum + Number(voteAccounts.has(validator.voteAccount)), 0)
+
+      if (affectedValidators === 0) {
+        return globalMinCap
+      }
+
+      const entityCap = Math.min(entity.totalLeftToCapSol, entity.marinadeLeftToCapSol) / affectedValidators
+      if (entityCap <= 0) {
+        return 0
+      }
+      if (!globalMinCap) {
+        return entityCap
+      }
+      return entityCap < globalMinCap ? entityCap : globalMinCap
+    }, null)
+    if (minCapEntity === null) {
+      throw new Error('Failed to find stake concentration entity with min cap')
+    }
+    return minCapEntity
+  }
+
+  findCapForValidator (validator: AuctionValidator): number {
+    return this.getMinCapForEvenDistribution(new Set([validator.voteAccount]))
   }
 
   updateState ({ validators }: AuctionData) {
@@ -76,7 +103,7 @@ export class AuctionConstraints {
     countries.forEach(country => entities.push(country))
     asos.forEach(aso => entities.push(aso))
 
-    console.log('entities', entities.slice(0, 5), entities.slice(countries.size, countries.size + 5), entities.slice(countries.size + asos.size, countries.size + asos.size + 5))
+    // console.log('entities', entities.slice(0, 5), entities.slice(countries.size, countries.size + 5), entities.slice(countries.size + asos.size, countries.size + asos.size + 5))
 
     this.stakeConcentrationEntities = entities
   }
