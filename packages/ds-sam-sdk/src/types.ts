@@ -1,6 +1,9 @@
 import Decimal from 'decimal.js'
 
-export type AuctionResult = any // TODO
+export type AuctionResult = {
+  auctionData: AuctionData
+  winningTotalPmpe: number
+} // TODO
 
 export type AuctionData = Omit<AggregatedData, 'validators'> & {
   validators: AuctionValidator[]

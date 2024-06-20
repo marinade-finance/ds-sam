@@ -6,24 +6,6 @@ export class AuctionConstraints {
 
   constructor(private readonly config: AuctionConstraintsConfig) { }
 
-  getMinCapStakeConcentrationEntity(filter = (AuctionConstraint: AuctionConstraint) => true): AuctionConstraint {
-    const minCapEntity = this.constraints.filter(filter).reduce((minCapEntity: AuctionConstraint | null, entity): AuctionConstraint | null => {
-      const entityCap = Math.min(entity.totalLeftToCapSol, entity.marinadeLeftToCapSol)
-      if (entityCap <= 0) {
-        return minCapEntity
-      }
-      if (!minCapEntity) {
-        return entity
-      }
-      const minCap = Math.min(minCapEntity.totalLeftToCapSol, minCapEntity.marinadeLeftToCapSol)
-      return entityCap < minCap ? entity : minCapEntity
-    }, null)
-    if (!minCapEntity) {
-      throw new Error('Failed to find stake concentration entity with min cap')
-    }
-    return minCapEntity
-  }
-
   getMinCapForEvenDistribution(voteAccounts: Set<string>): number {
     const minCap = this.constraints.reduce((globalMinCap: number | null, entity): number | null => {
       const log = (...args: any[]) => void 0 //console.log('get min cap', {...entity, validators: entity.validators.length}, ...args)

@@ -20,7 +20,7 @@ export class DummyCommand extends CommandRunner {
     const result = await dsSam.dummy()
     this.logger.log('Finished "dummy" command')
 
-    for (const validator of result.validators) {
+    for (const validator of result.auctionData.validators) {
       console.log(`${validator.voteAccount}\t${validator.auctionStake.marinadeMndeTargetSol}\t${validator.auctionStake.marinadeSamTargetSol}\t${validator.revShare.totalPmpe}`)
     }
   }

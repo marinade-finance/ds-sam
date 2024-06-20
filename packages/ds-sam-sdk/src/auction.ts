@@ -20,21 +20,17 @@ export class Auction {
     let remEligibleValidators = this.data.validators.filter(validator => validator.mndeEligible)
     
     while (remEligibleValidators.length > 0) {
-      const remainingStakeToDistribute = this.data.stakeAmounts.marinadeRemainingMndeSol
-      const eligibleVoteAccounts = new Set([...remEligibleValidators.map((validator) => validator.voteAccount)])
+      const eligibleValidators = new Map(remEligibleValidators.map(validator => [validator.voteAccount, validator]))
+      const eligibleVoteAccounts = new Set(eligibleValidators.keys())
       const evenDistributionCap = this.constraints.getMinCapForEvenDistribution(eligibleVoteAccounts)
       console.log("distributing", evenDistributionCap, "to every validator in the group")
 
-      for (const groupValidator of remEligibleValidators) {
-        const validator = this.data.validators.find((validator) => validator.voteAccount === groupValidator.voteAccount)
-        if (!validator) {
-          throw new Error("Validator not found!")
-        }
+      for (const [_, validator] of eligibleValidators.entries()) {
         validator.auctionStake.marinadeMndeTargetSol += evenDistributionCap
         this.data.stakeAmounts.marinadeRemainingMndeSol -= evenDistributionCap
       }
 
-      logValidators(remEligibleValidators)
+      // logValidators(remEligibleValidators)
 
       this.constraints.updateStateForMnde(this.data)
       remEligibleValidators = remEligibleValidators.filter((validator) => {
@@ -55,12 +51,7 @@ export class Auction {
     }
   }
 
-  evaluate (): AuctionData {
-    this.distributeMndeStake()
-    // if (Math.random()) {
-    //   return this.data
-    // }
-
+  distributeSamStake () {
     this.data.validators.sort((a, b) => b.revShare.totalPmpe - a.revShare.totalPmpe)
     this.constraints.updateStateForSam(this.data)
 
@@ -68,7 +59,11 @@ export class Auction {
 
     let previousGroupPmpe = Infinity
     let group = null
+    let winningTotalPmpe = Infinity
+    let groups = 0
+    let rounds = 0
     while (group = this.findNextPmpeGroup(previousGroupPmpe)) {
+      groups++
       group.validators = group.validators.filter(validator => validator.samEligible)
 
       console.log('========= new round ==========')
@@ -79,18 +74,18 @@ export class Auction {
       }
 
       while (group.validators.length > 0) {
+        rounds++
         const remainingStakeToDistribute = this.data.stakeAmounts.marinadeRemainingSamSol
-        const groupVoteAccounts = new Set([...group.validators.map((validator) => validator.voteAccount)])
+        const groupValidators = new Map(group.validators.map(validator => [validator.voteAccount, validator]))
+        const groupVoteAccounts = new Set(groupValidators.keys())
+
         const evenDistributionCap = Math.min(this.constraints.getMinCapForEvenDistribution(groupVoteAccounts), remainingStakeToDistribute / group.validators.length)
         console.log("distributing", evenDistributionCap, "to every validator in the group")
 
-        for (const groupValidator of group.validators) {
-          const validator = this.data.validators.find((validator) => validator.voteAccount === groupValidator.voteAccount)
-          if (!validator) {
-            throw new Error("Validator not found!")
-          }
+        for (const [_, validator] of groupValidators.entries()) {
           validator.auctionStake.marinadeSamTargetSol += evenDistributionCap
           this.data.stakeAmounts.marinadeRemainingSamSol -= evenDistributionCap
+          winningTotalPmpe = validator.revShare.totalPmpe
         }
 
         logValidators(group.validators)
@@ -116,7 +111,19 @@ export class Auction {
       previousGroupPmpe = group.totalPmpe
     }
 
-    return this.data
+    console.log("rounds", rounds, "groups", groups)
+
+    return winningTotalPmpe
+  }
+
+  evaluate (): AuctionResult {
+    this.distributeMndeStake()
+    const winningTotalPmpe = this.distributeSamStake()
+
+    return {
+      auctionData: this.data,
+      winningTotalPmpe: 0,
+    }
   }
 
   findNextPmpeGroup (totalPmpe: number): { totalPmpe: number, validators: AuctionValidator[] } | null {
