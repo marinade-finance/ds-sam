@@ -3,11 +3,17 @@ import { validatorTotalAuctionStakeSol, zeroStakeConcentration } from './utils'
 
 export class AuctionConstraints {
   private constraints: AuctionConstraint[] = []
+  private constraintsPerValidator: Map<string, AuctionConstraint[]> = new Map()
 
   constructor(private readonly config: AuctionConstraintsConfig) { }
 
   getMinCapForEvenDistribution(voteAccounts: Set<string>): number {
-    const minCap = this.constraints.reduce((globalMinCap: number | null, entity): number | null => {
+    const constraints: AuctionConstraint[] = []
+    for (const voteAccount of voteAccounts) {
+      constraints.push(...(this.constraintsPerValidator.get(voteAccount) ?? []))
+    }
+
+    const minCap = constraints.reduce((globalMinCap: number | null, entity): number | null => {
       const log = (...args: any[]) => void 0 //console.log('get min cap', {...entity, validators: entity.validators.length}, ...args)
       const affectedValidators = entity.validators.reduce((sum, validator) => sum + Number(voteAccounts.has(validator.voteAccount)), 0)
 
@@ -44,6 +50,7 @@ export class AuctionConstraints {
       ...this.buildSamBondConstraints(auctionData),
       ...this.buildValidatorConcentrationConstraints(auctionData),
     ]
+    this.updateConstraintsPerValidator()
   }
 
   updateStateForMnde(auctionData: AuctionData) {
@@ -53,6 +60,21 @@ export class AuctionConstraints {
       ...this.buildMndeBondConstraints(auctionData),
       ...this.buildMndeVoteConstraints(auctionData)
     ]
+    this.updateConstraintsPerValidator()
+  }
+
+  private updateConstraintsPerValidator() {
+    this.constraintsPerValidator = new Map()
+    for (const constraint of this.constraints) {
+      for (const validator of constraint.validators) {
+        const validatorContstraints = this.constraintsPerValidator.get(validator.voteAccount)
+        if (validatorContstraints) {
+          validatorContstraints.push(constraint)
+        } else {
+          this.constraintsPerValidator.set(validator.voteAccount, [constraint])
+        }
+      }
+    }
   }
 
   private buildCountryConcentrationConstraints({ validators }: AuctionData) {
