@@ -69,6 +69,7 @@ export class AuctionConstraints {
       ...this.buildCountryConcentrationConstraints(auctionData),
       ...this.buildAsoConcentrationConstraints(auctionData),
       ...this.buildMndeBondConstraints(auctionData),
+      ...this.buildMndeVoteConstraints(auctionData)
     ]
   }
 
@@ -152,6 +153,18 @@ export class AuctionConstraints {
       totalLeftToCapSol: Infinity,
       marinadeStakeSol: validator.auctionStake.marinadeMndeTargetSol + validator.auctionStake.marinadeSamTargetSol,
       marinadeLeftToCapSol: this.config.marinadeValidatorSamStakeCapSol - validator.auctionStake.marinadeSamTargetSol,
+      validators: [validator],
+    }))
+  }
+
+  private buildMndeVoteConstraints({ validators }: AuctionData) {
+    return validators.map(validator => ({
+      constraintType: AuctionConstraintType.VALIDATOR,
+      constraintName: validator.voteAccount,
+      totalStakeSol: validatorTotalAuctionStakeSol(validator),
+      totalLeftToCapSol: Infinity,
+      marinadeStakeSol: validator.auctionStake.marinadeMndeTargetSol,
+      marinadeLeftToCapSol: validator.mndeVotesSolValue - validator.auctionStake.marinadeMndeTargetSol,
       validators: [validator],
     }))
   }

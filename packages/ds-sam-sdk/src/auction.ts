@@ -14,26 +14,62 @@ export class Auction {
 
   constructor (private data: AuctionData, private constraints: AuctionConstraints) { }
 
-  // TODO WIP function
   distributeMndeStake () {
-    const minCapEntity = this.constraints.getMinCapStakeConcentrationEntity()
-    console.log('min cap entity', minCapEntity)
+    this.constraints.updateStateForMnde(this.data)
 
-    const eligibleValidators = minCapEntity.validators.filter(validator => validator.mndeEligible)
-    const solToCap = Math.min(minCapEntity.totalLeftToCapSol, minCapEntity.marinadeLeftToCapSol)
+    let remEligibleValidators = this.data.validators.filter(validator => validator.mndeEligible)
+    
+    while (remEligibleValidators.length > 0) {
+      const remainingStakeToDistribute = this.data.stakeAmounts.marinadeRemainingMndeSol
+      const eligibleVoteAccounts = new Set([...remEligibleValidators.map((validator) => validator.voteAccount)])
+      const evenDistributionCap = this.constraints.getMinCapForEvenDistribution(eligibleVoteAccounts)
+      console.log("distributing", evenDistributionCap, "to every validator in the group")
 
-    this.data.stakeAmounts.marinadeRemainingMndeSol -= solToCap
+      for (const groupValidator of remEligibleValidators) {
+        const validator = this.data.validators.find((validator) => validator.voteAccount === groupValidator.voteAccount)
+        if (!validator) {
+          throw new Error("Validator not found!")
+        }
+        validator.auctionStake.marinadeMndeTargetSol += evenDistributionCap
+        this.data.stakeAmounts.marinadeRemainingMndeSol -= evenDistributionCap
+      }
+
+      logValidators(remEligibleValidators)
+
+      this.constraints.updateStateForMnde(this.data)
+      remEligibleValidators = remEligibleValidators.filter((validator) => {
+        const validatorCap = this.constraints.findCapForValidator(validator)
+        if (validatorCap < EPSILON) {
+          console.log('removing validfator', validator.voteAccount, 'from the group because the cap has been reached')
+          return false
+        }
+        return true
+      })
+
+      if (this.data.stakeAmounts.marinadeRemainingMndeSol < EPSILON) {
+        console.log("No stake remaining to distribute")
+        break
+      } else {
+        console.log("Stake remaining", this.data.stakeAmounts.marinadeRemainingMndeSol)
+      }
+    }
   }
 
   evaluate (): AuctionData {
+    this.distributeMndeStake()
+    // if (Math.random()) {
+    //   return this.data
+    // }
+
     this.data.validators.sort((a, b) => b.revShare.totalPmpe - a.revShare.totalPmpe)
     this.constraints.updateStateForSam(this.data)
 
-    // logValidators(this.data.validators)
+    logValidators(this.data.validators)
 
     let previousGroupPmpe = Infinity
     let group = null
     while (group = this.findNextPmpeGroup(previousGroupPmpe)) {
+      group.validators = group.validators.filter(validator => validator.samEligible)
 
       console.log('========= new round ==========')
 
@@ -79,21 +115,6 @@ export class Auction {
 
       previousGroupPmpe = group.totalPmpe
     }
-
-    // this.distributeMndeStake()
-    // console.log('VALIDATORS', this.data.validators.map(v => ({
-    //   revShare: v.revShare,
-    //   voteAccount: v.voteAccount,
-    //   voteCredits: v.voteCredits,
-    //   samEligible: v.samEligible,
-    //   mndeEligible: v.mndeEligible,
-    //   bondBalanceSol: v.bondBalanceSol,
-    //   mevCommissionDec: v.mevCommissionDec,
-    //   inflationCommissionDec: v.inflationCommissionDec,
-    //   bidCpmpe: v.bidCpmpe,
-    //   totalActivatedStakeSol: v.totalActivatedStakeSol,
-    //   mndeVotesSolValue: v.mndeVotesSolValue,
-    // })).slice(0, 20))
 
     return this.data
   }

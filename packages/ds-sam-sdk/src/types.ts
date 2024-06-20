@@ -83,6 +83,7 @@ export enum AuctionConstraintType {
   ASO = 'ASO',
   VALIDATOR = 'VALIDATOR',
   BOND = 'BOND',
+  VOTE = 'VOTE',
 }
 
 export type AuctionConstraint = {
