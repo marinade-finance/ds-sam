@@ -1,13 +1,14 @@
 {
   "name": "@marinade.finance/ds-sam-sdk",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "author": "Marinade Finance",
   "license": "ISC",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
-    "test": "jest"
+    "test": "jest",
+    "prepack": "pnpm test && pnpm build"
   },
   "files": [
     "dist",
