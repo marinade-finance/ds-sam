@@ -17,7 +17,7 @@ export class DummyCommand extends CommandRunner {
     this.logger.log('Running "dummy" command...')
     const dsSam = new DsSamSDK({ inputsCacheDirPath: 'data' })
     // const dsSam = new DsSamSDK({ inputsCacheDirPath: 'data', inputsSource: InputsSource.APIS, cacheInputs: true })
-    const result = await dsSam.dummy()
+    const result = await dsSam.run()
     this.logger.log('Finished "dummy" command')
 
     for (const validator of result.auctionData.validators) {

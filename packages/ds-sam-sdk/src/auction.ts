@@ -122,7 +122,7 @@ export class Auction {
 
     return {
       auctionData: this.data,
-      winningTotalPmpe: 0,
+      winningTotalPmpe,
     }
   }
 

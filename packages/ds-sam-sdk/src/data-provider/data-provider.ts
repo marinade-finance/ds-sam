@@ -13,14 +13,14 @@ import fs from 'fs'
 import { MNDE_VOTE_DELEGATION_STRATEGY } from '../utils'
 
 export class DataProvider {
-  constructor (
-    private readonly config: DsSamConfig,
+  constructor(
+    protected readonly config: DsSamConfig,
     private readonly dataSource: InputsSource,
   ) {
     this.validateConfig()
   }
 
-  private validateConfig () {
+  private validateConfig() {
     switch (this.dataSource) {
       case InputsSource.APIS:
         if (this.config.cacheInputs && !this.config.inputsCacheDirPath) {
@@ -42,7 +42,7 @@ export class DataProvider {
     }
   }
 
-  aggregateRewardsRecords (activatedStakePerEpochs: Map<number, Decimal>, rawRewardsRecord: RawRewardsRecordDto[]): number {
+  aggregateRewardsRecords(activatedStakePerEpochs: Map<number, Decimal>, rawRewardsRecord: RawRewardsRecordDto[]): number {
     const rewardsTotal = rawRewardsRecord.reduce((agg, [epoch, rewards]) => {
       const stake = activatedStakePerEpochs.get(epoch)
       // Rewards in SOL (1e9) + stake in lamports (1e-0) + result in PMPE (1e3) = 1e12
@@ -52,7 +52,7 @@ export class DataProvider {
     return rewardsTotal.total.div(rewardsTotal.epochs).toNumber()
   }
 
-  aggregateValidators (data: RawSourceData, validatorsMndeVotes: Map<string, Decimal>, solPerMnde: number): AggregatedValidator[] {
+  aggregateValidators(data: RawSourceData, validatorsMndeVotes: Map<string, Decimal>, solPerMnde: number): AggregatedValidator[] {
 
     return data.validators.validators.map((validator): AggregatedValidator => {
       const bond = data.bonds.bonds.find(({ vote_account }) => validator.vote_account === vote_account)
@@ -68,8 +68,8 @@ export class DataProvider {
         marinadeActivatedStakeSol: new Decimal(validator.marinade_stake).add(validator.marinade_native_stake).div(1e9).toNumber(), // TODO units
         inflationCommissionDec: (validator.commission_effective ?? validator.commission_advertised ?? 100) / 100,
         mevCommissionDec: mev ? mev.mev_commission_bps / 10_000 : null,
-        bidCpmpe: bond ? Number(bond.cpmpe) : null,
-        maxStakeWanted: new Decimal(100000).toNumber(), // TODO source number missing
+        bidCpmpe: bond ? new Decimal(bond.cpmpe).div(1e9).toNumber() : null,
+        maxStakeWanted: bond?.max_stake_wanted ? new Decimal(bond?.max_stake_wanted).div(1e9).toNumber() : new Decimal(100000).toNumber(), // TODO remove default once API field is deployed
         mndeVotesSolValue: (validatorsMndeVotes.get(validator.vote_account) ?? new Decimal(0)).mul(solPerMnde).toNumber(),
         epochStats: validator.epoch_stats.filter(({ epoch_end_at }) => !!epoch_end_at).map(es => ({
           epoch: es.epoch,
@@ -81,7 +81,7 @@ export class DataProvider {
     })
   }
 
-  aggregateData (data: RawSourceData): AggregatedData {
+  aggregateData(data: RawSourceData): AggregatedData {
     const activatedStakePerEpochs = new Map<number, Decimal>()
     let externalStakeTotal = new Decimal(0)
     data.validators.validators.forEach(({ epoch_stats, activated_stake, marinade_stake, marinade_native_stake }) => {
@@ -134,7 +134,7 @@ export class DataProvider {
     }
   }
 
-  cacheSourceData (data: RawSourceData) {
+  cacheSourceData(data: RawSourceData) {
     if (!this.config.inputsCacheDirPath) {
       throw new Error('Cannot cache data without cache directory path configured')
     }
@@ -147,7 +147,7 @@ export class DataProvider {
     fs.writeFileSync(`${this.config.inputsCacheDirPath}/rewards.json`, JSON.stringify(data.rewards, null, 2))
   }
 
-  parseCachedSourceData (): RawSourceData {
+  parseCachedSourceData(): RawSourceData {
     if (!this.config.inputsCacheDirPath) {
       throw new Error('Cannot parse cached data without cache directory path configured')
     }
@@ -162,14 +162,24 @@ export class DataProvider {
     return { validators, mevInfo, bonds, tvlInfo, mndeVotes, rewards, blacklist }
   }
 
-  async fetchSourceData (): Promise<RawSourceData> {
-    const validators = await this.fetchValidators()
-    const mevInfo = await this.fetchMevInfo()
-    const bonds = await this.fetchBonds()
-    const tvlInfo = await this.fetchTvlInfo()
-    const blacklist = await this.fetchBlacklist()
-    const mndeVotes = await this.fetchMndeVotes()
-    const rewards = await this.fetchRewards()
+  async fetchSourceData(): Promise<RawSourceData> {
+    const [
+      validators,
+      mevInfo,
+      bonds,
+      tvlInfo,
+      blacklist,
+      mndeVotes,
+      rewards,
+    ] = await Promise.all([
+      this.fetchValidators(),
+      this.fetchMevInfo(),
+      this.fetchBonds(),
+      this.fetchTvlInfo(),
+      this.fetchBlacklist(),
+      this.fetchMndeVotes(),
+      this.fetchRewards(),
+    ])
 
     const data = { validators, mevInfo, bonds, tvlInfo, blacklist, mndeVotes, rewards }
     if (this.config.cacheInputs) {
@@ -178,7 +188,7 @@ export class DataProvider {
     return data
   }
 
-  async fetchValidators (): Promise<RawValidatorsResponseDto> {
+  async fetchValidators(): Promise<RawValidatorsResponseDto> {
     // The API returns epoch stats also for the current epoch which is not finished and can't be used
     const epochsCount = 1 + Math.max(this.config.validatorsUptimeEpochsCount, this.config.rewardsEpochsCount)
 
@@ -187,37 +197,37 @@ export class DataProvider {
     return response.data
   }
 
-  async fetchBonds (): Promise<RawBondsResponseDto> {
+  async fetchBonds(): Promise<RawBondsResponseDto> {
     const url = `${this.config.bondsApiBaseUrl}/bonds`
     const response = await axios.get<RawBondsResponseDto>(url)
     return response.data
   }
 
-  async fetchTvlInfo (): Promise<RawTvlResponseDto> {
+  async fetchTvlInfo(): Promise<RawTvlResponseDto> {
     const url = `${this.config.tvlInfoApiBaseUrl}/tlv`
     const response = await axios.get<RawTvlResponseDto>(url)
     return response.data
   }
 
-  async fetchBlacklist (): Promise<RawBlacklistResponseDto> {
+  async fetchBlacklist(): Promise<RawBlacklistResponseDto> {
     const url = `${this.config.blacklistApiBaseUrl}/blacklist.csv`
     const response = await axios.get<RawBlacklistResponseDto>(url)
     return response.data
   }
 
-  async fetchMndeVotes (): Promise<RawMndeVotesResponseDto> {
+  async fetchMndeVotes(): Promise<RawMndeVotesResponseDto> {
     const url = `${this.config.snapshotsApiBaseUrl}/v1/votes/vemnde/latest`
     const response = await axios.get<RawMndeVotesResponseDto>(url)
     return response.data
   }
 
-  async fetchRewards (): Promise<RawRewardsResponseDto> {
+  async fetchRewards(): Promise<RawRewardsResponseDto> {
     const url = `${this.config.validatorsApiBaseUrl}/rewards?epochs=${this.config.rewardsEpochsCount}`
     const response = await axios.get<RawRewardsResponseDto>(url)
     return response.data
   }
 
-  async fetchMevInfo (): Promise<RawMevInfoResponseDto> {
+  async fetchMevInfo(): Promise<RawMevInfoResponseDto> {
     const url = `${this.config.mevInfoApiBaseUrl}/api/v1/validators`
     const response = await axios.get<RawMevInfoResponseDto>(url)
     return response.data

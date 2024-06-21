@@ -1,4 +1,4 @@
-import { DEFAULT_CONFIG, DsSamConfig } from './config'
+import { DEFAULT_CONFIG, DsSamConfig, InputsSource } from './config'
 import { DataProvider } from './data-provider/data-provider'
 import { AggregatedData, AuctionValidator, AuctionData, ValidatorAuctionStake } from './types'
 import semver from 'semver'
@@ -7,13 +7,15 @@ import { Auction } from './auction'
 import { calcValidatorRevShare } from './utils'
 import { AuctionConstraints } from './constraints'
 
+export const defaultDataProviderBuilder = (config: DsSamConfig) => new DataProvider({ ...config }, config.inputsSource)
+
 export class DsSamSDK {
   readonly config: DsSamConfig
   private readonly dataProvider: DataProvider
 
-  constructor (config: Partial<DsSamConfig> = {}) {
+  constructor (config: Partial<DsSamConfig> = {}, dataProviderBuilder = defaultDataProviderBuilder) {
     this.config = { ...DEFAULT_CONFIG, ...config }
-    this.dataProvider = new DataProvider({ ...this.config }, this.config.inputsSource)
+    this.dataProvider = dataProviderBuilder(this.config)
   }
 
   getAuctionConstraints ({ stakeAmounts }: AggregatedData): AuctionConstraints {
@@ -88,10 +90,11 @@ export class DsSamSDK {
     })
   }
 
-  async dummy () {
-    // const sourceData = await this.dataProvider.fetchSourceData()
-    // this.dataProvider.cacheSourceData(sourceData)
-    const sourceData = this.dataProvider.parseCachedSourceData()
+  async run () {
+    const sourceData = this.config.inputsSource === InputsSource.FILES ? this.dataProvider.parseCachedSourceData() : await this.dataProvider.fetchSourceData()
+    if (this.config.inputsCacheDirPath) {
+      this.dataProvider.cacheSourceData(sourceData)
+    }
     const aggregatedData = this.dataProvider.aggregateData(sourceData)
     const constraints = this.getAuctionConstraints(aggregatedData)
 
