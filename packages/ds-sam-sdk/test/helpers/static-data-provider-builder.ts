@@ -1,4 +1,4 @@
-import { DsSamConfig } from "src";
+import { DsSamConfig } from "../../src";
 import { ValidatorMockBuilder } from "./validator-mock-builder";
 import { StaticDataProvider } from "./static-data-provider";
 

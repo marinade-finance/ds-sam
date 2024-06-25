@@ -1,5 +1,5 @@
 import Decimal from "decimal.js"
-import { RawBondDto, RawEpochStatDto, RawMndeVoteDto, RawValidatorDto, RawValidatorMevInfoDto } from "src"
+import { RawBondDto, RawMndeVoteDto, RawValidatorDto, RawValidatorMevInfoDto } from "../../src"
 
 const infiniteGenerator = function* (prefix: string, padding: number) {
     for (let i = 0; ; i++) {

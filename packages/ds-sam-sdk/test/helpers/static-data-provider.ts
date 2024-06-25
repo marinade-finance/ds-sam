@@ -1,4 +1,4 @@
-import { DsSamConfig, RawBlacklistResponseDto, RawBondsResponseDto, RawMevInfoResponseDto, RawMndeVotesResponseDto, RawRewardsRecordDto, RawRewardsResponseDto, RawTvlResponseDto, RawValidatorsResponseDto } from "src";
+import { DsSamConfig, RawBlacklistResponseDto, RawBondsResponseDto, RawMevInfoResponseDto, RawMndeVotesResponseDto, RawRewardsRecordDto, RawRewardsResponseDto, RawTvlResponseDto, RawValidatorsResponseDto } from "../../src";
 import { DataProvider } from "../../src/data-provider/data-provider";
 import { ValidatorMockBuilder } from "./validator-mock-builder";
 import { isNotNull } from "./utils";

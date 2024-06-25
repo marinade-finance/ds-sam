@@ -1,4 +1,4 @@
-import { AuctionResult } from "src"
+import { AuctionResult } from "../../src"
 
 export const isNotNull = <T>(value: T | null): value is T => value !== null
 

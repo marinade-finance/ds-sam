@@ -15,7 +15,7 @@ export class DummyCommand extends CommandRunner {
 
   async run (): Promise<void> {
     this.logger.log('Running "dummy" command...')
-    const dsSam = new DsSamSDK({ inputsCacheDirPath: 'data' })
+    const dsSam = new DsSamSDK({ inputsCacheDirPath: 'data', inputsSource: InputsSource.FILES })
     // const dsSam = new DsSamSDK({ inputsCacheDirPath: 'data', inputsSource: InputsSource.APIS, cacheInputs: true })
     const result = await dsSam.run()
     this.logger.log('Finished "dummy" command')
