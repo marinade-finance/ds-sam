@@ -18,14 +18,14 @@ export class Auction {
     this.constraints.updateStateForMnde(this.data)
 
     let remEligibleValidators = this.data.validators.filter(validator => validator.mndeEligible)
-    
+
     while (remEligibleValidators.length > 0) {
       const eligibleValidators = new Map(remEligibleValidators.map(validator => [validator.voteAccount, validator]))
       const eligibleVoteAccounts = new Set(eligibleValidators.keys())
       const evenDistributionCap = this.constraints.getMinCapForEvenDistribution(eligibleVoteAccounts)
       console.log("distributing", evenDistributionCap, "to every validator in the group")
 
-      for (const [_, validator] of eligibleValidators.entries()) {
+      for (const validator of eligibleValidators.values()) {
         validator.auctionStake.marinadeMndeTargetSol += evenDistributionCap
         this.data.stakeAmounts.marinadeRemainingMndeSol -= evenDistributionCap
       }
@@ -36,7 +36,7 @@ export class Auction {
       remEligibleValidators = remEligibleValidators.filter((validator) => {
         const validatorCap = this.constraints.findCapForValidator(validator)
         if (validatorCap < EPSILON) {
-          console.log('removing validfator', validator.voteAccount, 'from the group because the cap has been reached')
+          console.log('removing validator', validator.voteAccount, 'from the group because the cap has been reached')
           return false
         }
         return true
@@ -94,7 +94,7 @@ export class Auction {
         group.validators = group.validators.filter((validator) => {
           const validatorCap = this.constraints.findCapForValidator(validator)
           if (validatorCap < EPSILON) {
-            console.log('removing validfator', validator.voteAccount, 'from the group because the cap has been reached')
+            console.log('removing validator', validator.voteAccount, 'from the group because the cap has been reached')
             return false
           }
           return true

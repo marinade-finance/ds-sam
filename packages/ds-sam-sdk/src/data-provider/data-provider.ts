@@ -63,9 +63,9 @@ export class DataProvider {
         voteCredits: validator.credits,
         aso: validator.dc_aso ?? 'Unknown',
         country: validator.dc_country ?? 'Unknown',
-        bondBalanceSol: bond ? new Decimal(bond.effective_amount).div(1e9).toNumber() : null, // TODO units
-        totalActivatedStakeSol: new Decimal(validator.activated_stake).div(1e9).toNumber(), // TODO units
-        marinadeActivatedStakeSol: new Decimal(validator.marinade_stake).add(validator.marinade_native_stake).div(1e9).toNumber(), // TODO units
+        bondBalanceSol: bond ? new Decimal(bond.effective_amount).div(1e9).toNumber() : null,
+        totalActivatedStakeSol: new Decimal(validator.activated_stake).div(1e9).toNumber(),
+        marinadeActivatedStakeSol: new Decimal(validator.marinade_stake).add(validator.marinade_native_stake).div(1e9).toNumber(),
         inflationCommissionDec: (validator.commission_effective ?? validator.commission_advertised ?? 100) / 100,
         mevCommissionDec: mev ? mev.mev_commission_bps / 10_000 : null,
         bidCpmpe: bond ? new Decimal(bond.cpmpe).div(1e9).toNumber() : null,
