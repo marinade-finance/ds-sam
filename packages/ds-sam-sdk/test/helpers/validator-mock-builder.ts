@@ -23,6 +23,20 @@ export class ValidatorMockBuilder {
 
   constructor(public readonly voteAccount: string, public readonly identity: string,) { }
 
+  withEligibleDefaults() {
+    this.inflationCommission = 5
+    this.mevCommission = 80
+    this.isBlacklisted = false
+    this.mndeVotes = 100
+    this.credits = Array.from({ length: 10 }, () => 432_000 - Math.round(Math.random() * 10_000))
+    this.nativeStake = 50_000
+    this.liquidStake = 100_000
+    this.externalStake = 200_000
+    this.version = '1.18.15'
+    this.bond = { stakeWanted: 150_000, cpmpe: 0, balance: 1000 }
+    return this
+  }
+
   withInflationCommission(commission: number) {
     this.inflationCommission = commission
     return this
@@ -71,8 +85,13 @@ export class ValidatorMockBuilder {
     return this
   }
 
-  withBond(bond: { stakeWanted: number, cpmpe: number, balance: number }) {
+  withBond(bond: { stakeWanted: number, cpmpe: number, balance: number } | null) {
     this.bond = bond
+    return this
+  }
+
+  withVersion(version: string) {
+    this.version = version
     return this
   }
 
@@ -145,7 +164,7 @@ export class ValidatorMockBuilder {
         version: this.version,
         commission_advertised: inflationCommission,
         credits: credits,
-        epoch_end_at: "TODO",
+        epoch_end_at: e === 0 ? null : "TODO",
       })),
     }
   }

@@ -2,6 +2,7 @@ import { DsSamSDK } from "../src"
 import { StaticDataProviderBuilder, defaultStaticDataProviderBuilder } from "./helpers/static-data-provider-builder"
 import { prettyPrintAuctionResult } from "./helpers/utils"
 import { ValidatorMockBuilder, generateIdentities, generateVoteAccounts } from "./helpers/validator-mock-builder"
+import { MNDE_VOTE_DELEGATION_STRATEGY } from '../src/utils'
 
 describe('sam', () => {
   describe('distribution', () => {
@@ -74,6 +75,45 @@ describe('sam', () => {
       const result = await dsSam.run()
 
       expect(prettyPrintAuctionResult(result)).toMatchSnapshot()
+    })
+
+    it('distributes MNDE stake directed to DelStrat as part of SAM', async () => {
+      const voteAccounts = generateVoteAccounts()
+      const identities = generateIdentities()
+      const validators = [
+        new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
+          .withEligibleDefaults()
+          .withExternalStake(1_000_000)
+          .withNativeStake(5_000)
+          .withLiquidStake(5_000)
+          .withMndeVotes(50),
+        new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
+          .withEligibleDefaults()
+          .withExternalStake(1_000_000)
+          .withNativeStake(5_000)
+          .withLiquidStake(5_000)
+          .withMndeVotes(50),
+        ...Array.from({ length: 8 }, () => new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
+          .withEligibleDefaults()
+          .withExternalStake(1_000_000)
+          .withNativeStake(5_000)
+          .withLiquidStake(5_000)
+          .withMndeVotes(50),
+        ),
+        new ValidatorMockBuilder(MNDE_VOTE_DELEGATION_STRATEGY, 'marinade-delstrat-virtual-validator')
+          .blacklisted() // avoid distributing stake to this virtual validator
+          .withNativeStake(0)
+          .withLiquidStake(0)
+          .withMndeVotes(500),
+      ]
+      const dsSam = new DsSamSDK({}, defaultStaticDataProviderBuilder(validators))
+      const result = await dsSam.run()
+
+      const totalMndeStake = result.auctionData.validators.reduce((sum, validator) => sum + validator.auctionStake.marinadeMndeTargetSol, 0)
+      // 100k total TVL => 10k MNDE TVL & 50% of votes for DelStrat => 5k MNDE stake distributed
+      expect(result.auctionData.stakeAmounts.marinadeMndeTvlSol).toStrictEqual(5_000)
+      expect(result.auctionData.stakeAmounts.marinadeSamTvlSol).toStrictEqual(95_000)
+      expect(totalMndeStake).toStrictEqual(5_000)
     })
   })
 })

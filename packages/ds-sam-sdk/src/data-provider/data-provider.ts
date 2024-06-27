@@ -108,7 +108,7 @@ export class DataProvider {
     const tvlSol = data.tvlInfo.total_virtual_staked_sol + data.tvlInfo.marinade_native_stake_sol
     const delStratVotesShare = delStratVotes.div(totalMndeVotes).toNumber()
     const effectiveMndeTvlShareSol = (1 - delStratVotesShare) * this.config.mndeDirectedStakeShareDec * tvlSol
-    const solPerMnde = new Decimal(effectiveMndeTvlShareSol).div(totalMndeVotes).toNumber()
+    const solPerMnde = new Decimal(effectiveMndeTvlShareSol).div(totalMndeVotes.sub(delStratVotes)).toNumber()
     console.log('total mnde votes', totalMndeVotes)
     console.log('SOL per MNDE', solPerMnde)
     console.log('tvl', tvlSol)
