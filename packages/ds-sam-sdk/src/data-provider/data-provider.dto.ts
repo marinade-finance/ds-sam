@@ -27,7 +27,7 @@ export type RawBondDto = {
   remainining_settlement_claim_amount: string
   updated_at: string
   epoch: number
-  max_stake_wanted?: string // TODO remove optional once API field is deployed
+  max_stake_wanted: string
 }
 export type RawBondsResponseDto = {
   bonds: RawBondDto[]

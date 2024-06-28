@@ -56,7 +56,7 @@ export type AggregatedValidator = {
   inflationCommissionDec: number
   mevCommissionDec: number | null
   bidCpmpe: number | null
-  maxStakeWanted: number | null // TODO not yet available
+  maxStakeWanted: number | null
   mndeVotesSolValue: number
   epochStats: EpochStats[]
 }

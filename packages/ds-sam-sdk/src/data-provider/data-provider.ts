@@ -69,7 +69,7 @@ export class DataProvider {
         inflationCommissionDec: (validator.commission_effective ?? validator.commission_advertised ?? 100) / 100,
         mevCommissionDec: mev ? mev.mev_commission_bps / 10_000 : null,
         bidCpmpe: bond ? new Decimal(bond.cpmpe).div(1e9).toNumber() : null,
-        maxStakeWanted: bond?.max_stake_wanted ? new Decimal(bond?.max_stake_wanted).div(1e9).toNumber() : new Decimal(100000).toNumber(), // TODO remove default once API field is deployed
+        maxStakeWanted: bond?.max_stake_wanted ? (bond.max_stake_wanted === '0' ? 1e6 : new Decimal(bond.max_stake_wanted).div(1e9).toNumber()) : null, // TODO remove '0'=>1e6 override once more validators set this
         mndeVotesSolValue: (validatorsMndeVotes.get(validator.vote_account) ?? new Decimal(0)).mul(solPerMnde).toNumber(),
         epochStats: validator.epoch_stats.filter(({ epoch_end_at }) => !!epoch_end_at).map(es => ({
           epoch: es.epoch,

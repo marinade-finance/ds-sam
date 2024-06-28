@@ -1,4 +1,10 @@
-import { AuctionConstraintsConfig, AuctionData, AuctionValidator, BondConfig, AuctionConstraint, AuctionConstraintType } from './types'
+import {
+  AuctionConstraint,
+  AuctionConstraintsConfig,
+  AuctionConstraintType,
+  AuctionData,
+  AuctionValidator
+} from './types'
 import { validatorTotalAuctionStakeSol, zeroStakeConcentration } from './utils'
 
 export class AuctionConstraints {
@@ -18,24 +24,22 @@ export class AuctionConstraints {
       const affectedValidators = entity.validators.reduce((sum, validator) => sum + Number(voteAccounts.has(validator.voteAccount)), 0)
 
       if (affectedValidators === 0) {
+        log('no validators affected')
         return globalMinCap
       }
 
       const entityCap = Math.min(entity.totalLeftToCapSol, entity.marinadeLeftToCapSol) / affectedValidators
       log('entity cap = ', entityCap, 'globalMinCap = ', globalMinCap)
-      if (entityCap <= 0) {
-        log('setting min to 0')
-        return 0
-      }
       if (globalMinCap === null) {
         log('first entity considered, setting it as minimum')
-        return entityCap
+        return Math.max(0, entityCap)
       }
-      return Math.min(entityCap, globalMinCap)
+      return Math.max(0, Math.min(entityCap, globalMinCap))
     }, null)
     if (minCap === null) {
       throw new Error('Failed to find stake concentration entity with min cap')
     }
+    console.log(`min cap ${minCap} found for ${voteAccounts.size} validators`)
     return minCap
   }
 

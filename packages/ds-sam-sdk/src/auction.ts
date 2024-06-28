@@ -6,6 +6,7 @@ const logValidators = (validators: AuctionValidator[]) => {
   for (const validator of validators) {
     console.log(validator.voteAccount, validator.revShare.totalPmpe, validator.auctionStake.marinadeMndeTargetSol, validator.auctionStake.marinadeSamTargetSol)
   }
+  console.log('----------------------------- validators')
 }
 
 const EPSILON = 1e-4
@@ -55,7 +56,7 @@ export class Auction {
     this.data.validators.sort((a, b) => b.revShare.totalPmpe - a.revShare.totalPmpe)
     this.constraints.updateStateForSam(this.data)
 
-    logValidators(this.data.validators)
+    // logValidators(this.data.validators)
 
     let previousGroupPmpe = Infinity
     let group = null
@@ -80,15 +81,15 @@ export class Auction {
         const groupVoteAccounts = new Set(groupValidators.keys())
 
         const evenDistributionCap = Math.min(this.constraints.getMinCapForEvenDistribution(groupVoteAccounts), remainingStakeToDistribute / group.validators.length)
-        console.log("distributing", evenDistributionCap, "to every validator in the group")
+        console.log("distributing", evenDistributionCap, "to every validator in the group", groupValidators.size)
 
-        for (const [_, validator] of groupValidators.entries()) {
+        for (const validator of groupValidators.values()) {
           validator.auctionStake.marinadeSamTargetSol += evenDistributionCap
           this.data.stakeAmounts.marinadeRemainingSamSol -= evenDistributionCap
           winningTotalPmpe = validator.revShare.totalPmpe
         }
 
-        logValidators(group.validators)
+        // logValidators(group.validators)
 
         this.constraints.updateStateForSam(this.data)
         group.validators = group.validators.filter((validator) => {
@@ -117,9 +118,11 @@ export class Auction {
   }
 
   evaluate (): AuctionResult {
+    console.log('stake amounts before', this.data.stakeAmounts)
     this.distributeMndeStake()
     const winningTotalPmpe = this.distributeSamStake()
 
+    console.log('stake amounts after', this.data.stakeAmounts)
     return {
       auctionData: this.data,
       winningTotalPmpe,
@@ -127,13 +130,16 @@ export class Auction {
   }
 
   findNextPmpeGroup (totalPmpe: number): { totalPmpe: number, validators: AuctionValidator[] } | null {
+    console.log('finding next pmpe group...', totalPmpe)
     const nextGroupCandidates = this.data.validators.filter((validator) => validator.revShare.totalPmpe < totalPmpe)
     if (nextGroupCandidates.length === 0) {
+      console.log('...no pmpe group remaining', totalPmpe)
       return null
     }
     const maxPmpe = nextGroupCandidates.reduce((max, validator) => Math.max(validator.revShare.totalPmpe, max), 0)
     const validators = nextGroupCandidates.filter((validator) => validator.revShare.totalPmpe === maxPmpe)
 
+    console.log('...found next pmpe group', maxPmpe, validators.length)
     return {
       totalPmpe: maxPmpe,
       validators,
