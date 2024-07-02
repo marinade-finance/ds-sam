@@ -2,5 +2,5 @@
 
 Running the CLI
 ```bash
-pnpm run cli -- dummy
+pnpm run cli -- auction
 ```

@@ -22,3 +22,11 @@ export const zeroStakeConcentration = (type: AuctionConstraintType, name: string
   marinadeLeftToCapSol: caps.marinadeSol,
   validators: [],
 })
+
+export const minCapFromConstraint = (constraint: AuctionConstraint, voteAccounts: Set<string>): { cap: number, affectedValidators: number } => {
+  const affectedValidators = constraint.validators.reduce((sum, { voteAccount }) => voteAccounts.has(voteAccount) ? sum + 1 : sum, 0)
+  return {
+    affectedValidators,
+    cap: Math.max(0, Math.min(constraint.totalLeftToCapSol, constraint.marinadeLeftToCapSol)) / affectedValidators
+  }
+}

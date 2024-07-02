@@ -92,13 +92,9 @@ export enum AuctionConstraintType {
 export type AuctionConstraint = {
   constraintType: AuctionConstraintType
   constraintName: string
-  totalStakeSol: number // TODO not needed?
+  totalStakeSol: number
   totalLeftToCapSol: number
-  marinadeStakeSol: number // TODO not needed?
+  marinadeStakeSol: number
   marinadeLeftToCapSol: number
   validators: AuctionValidator[]
-}
-
-export type BondConfig = {
-
 }

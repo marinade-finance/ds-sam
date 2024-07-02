@@ -26,7 +26,6 @@ export class DataProvider {
         if (this.config.cacheInputs && !this.config.inputsCacheDirPath) {
           throw new Error(`Cannot cache inputs without cache directory path configured`)
         }
-        // TODO?
         break
       case InputsSource.FILES:
         if (!this.config.inputsCacheDirPath) {
@@ -35,7 +34,6 @@ export class DataProvider {
         if (this.config.cacheInputs) {
           throw new Error(`Caching inputs not supported for inputs source: ${this.dataSource}`)
         }
-        // TODO?
         break
       default:
         throw new Error(`Unsupported inputs source: ${this.dataSource}`)

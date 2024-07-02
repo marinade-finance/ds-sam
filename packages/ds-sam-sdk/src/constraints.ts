@@ -5,7 +5,7 @@ import {
   AuctionData,
   AuctionValidator
 } from './types'
-import { validatorTotalAuctionStakeSol, zeroStakeConcentration } from './utils'
+import { minCapFromConstraint, validatorTotalAuctionStakeSol, zeroStakeConcentration } from './utils'
 
 export class AuctionConstraints {
   private constraints: AuctionConstraint[] = []
@@ -18,29 +18,24 @@ export class AuctionConstraints {
     for (const voteAccount of voteAccounts) {
       constraints.push(...(this.constraintsPerValidator.get(voteAccount) ?? []))
     }
-
-    const minCap = constraints.reduce((globalMinCap: number | null, entity): number | null => {
-      const log = (...args: any[]) => void 0 //console.log('get min cap', {...entity, validators: entity.validators.length}, ...args)
-      const affectedValidators = entity.validators.reduce((sum, validator) => sum + Number(voteAccounts.has(validator.voteAccount)), 0)
+    const min = constraints.reduce((minConstraint: AuctionConstraint | null, constraint): AuctionConstraint | null => {
+      const { cap, affectedValidators } = minCapFromConstraint(constraint, voteAccounts)
 
       if (affectedValidators === 0) {
-        log('no validators affected')
-        return globalMinCap
+        return minConstraint
       }
-
-      const entityCap = Math.min(entity.totalLeftToCapSol, entity.marinadeLeftToCapSol) / affectedValidators
-      log('entity cap = ', entityCap, 'globalMinCap = ', globalMinCap)
-      if (globalMinCap === null) {
-        log('first entity considered, setting it as minimum')
-        return Math.max(0, entityCap)
+      if (minConstraint === null) {
+        return constraint
       }
-      return Math.max(0, Math.min(entityCap, globalMinCap))
+      const { cap: minCap } = minCapFromConstraint(minConstraint, voteAccounts)
+      return cap < minCap ? constraint : minConstraint
     }, null)
-    if (minCap === null) {
+    if (min === null) {
       throw new Error('Failed to find stake concentration entity with min cap')
     }
-    console.log(`min cap ${minCap} found for ${voteAccounts.size} validators`)
-    return minCap
+    const { cap: resultMinCap } = minCapFromConstraint(min, voteAccounts)
+    console.log(`min cap ${resultMinCap} of type ${min.constraintType} (${min.constraintName}) found for ${voteAccounts.size} validators: ${Array.from(voteAccounts.values()).slice(0, 10).join(' ')}`)
+    return resultMinCap
   }
 
   findCapForValidator(validator: AuctionValidator): number {
