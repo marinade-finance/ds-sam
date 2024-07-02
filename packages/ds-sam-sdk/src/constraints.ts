@@ -167,7 +167,7 @@ export class AuctionConstraints {
 
   private buildMndeVoteConstraints({ validators }: AuctionData) {
     return validators.map(validator => ({
-      constraintType: AuctionConstraintType.VALIDATOR,
+      constraintType: AuctionConstraintType.MNDE,
       constraintName: validator.voteAccount,
       totalStakeSol: validatorTotalAuctionStakeSol(validator),
       totalLeftToCapSol: Infinity,

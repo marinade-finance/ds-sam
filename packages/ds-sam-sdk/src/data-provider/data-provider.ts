@@ -106,9 +106,9 @@ export class DataProvider {
     }, new Map<string, Decimal>())
 
     const tvlSol = data.tvlInfo.total_virtual_staked_sol + data.tvlInfo.marinade_native_stake_sol
-    const delStratVotesShare = delStratVotes.div(totalMndeVotes).toNumber()
-    const effectiveMndeTvlShareSol = (1 - delStratVotesShare) * this.config.mndeDirectedStakeShareDec * tvlSol
-    const solPerMnde = new Decimal(effectiveMndeTvlShareSol).div(totalMndeVotes.sub(delStratVotes)).toNumber()
+    const delStratVotesShare = totalMndeVotes.gt(0) ? delStratVotes.div(totalMndeVotes).toNumber() : 0
+    const effectiveMndeTvlShareSol = totalMndeVotes.gt(0) ? (1 - delStratVotesShare) * this.config.mndeDirectedStakeShareDec * tvlSol : 0
+    const solPerMnde = totalMndeVotes.gt(0) ? new Decimal(effectiveMndeTvlShareSol).div(totalMndeVotes.sub(delStratVotes)).toNumber() : 0
     console.log('total mnde votes', totalMndeVotes)
     console.log('SOL per MNDE', solPerMnde)
     console.log('tvl', tvlSol)
