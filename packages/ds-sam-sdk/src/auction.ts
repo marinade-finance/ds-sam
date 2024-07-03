@@ -137,6 +137,18 @@ export class Auction {
     this.debug.pushInfo('start amounts', JSON.stringify(this.data.stakeAmounts))
     this.debug.pushEvent('DISTRIBUTING MNDE STAKE')
     this.distributeMndeStake()
+
+    this.debug.pushInfo('post MNDE amounts', JSON.stringify(this.data.stakeAmounts))
+    console.log(`MNDE overflow: ${this.data.stakeAmounts.marinadeRemainingMndeSol}`)
+    if (this.data.stakeAmounts.marinadeRemainingMndeSol > EPSILON) {
+      this.debug.pushEvent(`MNDE overflow ${this.data.stakeAmounts.marinadeRemainingMndeSol} SOL will be distributed in SAM`)
+      this.data.stakeAmounts.marinadeSamTvlSol += this.data.stakeAmounts.marinadeRemainingMndeSol
+      this.data.stakeAmounts.marinadeRemainingSamSol += this.data.stakeAmounts.marinadeRemainingMndeSol
+      this.data.stakeAmounts.marinadeMndeTvlSol -= this.data.stakeAmounts.marinadeRemainingMndeSol
+      this.data.stakeAmounts.marinadeRemainingMndeSol = 0
+    }
+
+    this.debug.pushInfo('pre SAM amounts', JSON.stringify(this.data.stakeAmounts))
     this.debug.pushEvent('DISTRIBUTING SAM STAKE')
     const winningTotalPmpe = this.distributeSamStake()
     this.debug.pushEvent('STAKE DISTRIBUTED')

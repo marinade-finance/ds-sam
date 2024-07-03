@@ -115,5 +115,38 @@ describe('sam', () => {
       expect(result.auctionData.stakeAmounts.marinadeSamTvlSol).toStrictEqual(95_000)
       expect(totalMndeStake).toStrictEqual(5_000)
     })
+
+    it('distributes overflow MNDE stake as part of SAM', async () => {
+      const voteAccounts = generateVoteAccounts()
+      const identities = generateIdentities()
+      const validators = [
+        new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
+          .withEligibleDefaults()
+          .withExternalStake(1_000_000)
+          .blacklisted()
+          .withMndeVotes(100),
+        new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
+          .withEligibleDefaults()
+          .withExternalStake(1_000_000)
+          .blacklisted()
+          .withMndeVotes(100),
+        ...Array.from({ length: 98 }, () => new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
+          .withEligibleDefaults()
+          .withExternalStake(1_000_000)
+          .withMndeVotes(0),
+        ),
+      ]
+      const dsSam = new DsSamSDK({}, defaultStaticDataProviderBuilder(validators))
+      const result = await dsSam.run()
+      console.error(JSON.stringify(result.auctionData.stakeAmounts))
+      console.error(prettyPrintAuctionResult(result))
+
+      const totalMndeStake = result.auctionData.validators.reduce((sum, validator) => sum + validator.auctionStake.marinadeMndeTargetSol, 0)
+      const totalSamStake = result.auctionData.validators.reduce((sum, validator) => sum + validator.auctionStake.marinadeSamTargetSol, 0)
+      expect(result.auctionData.stakeAmounts.marinadeMndeTvlSol).toStrictEqual(0)
+      expect(result.auctionData.stakeAmounts.marinadeSamTvlSol).toStrictEqual(15_000_000)
+      expect(totalMndeStake).toStrictEqual(0)
+      expect(totalSamStake).toBeGreaterThan(13_500_000)
+    })
   })
 })
