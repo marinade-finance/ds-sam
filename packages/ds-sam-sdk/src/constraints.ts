@@ -6,14 +6,15 @@ import {
   AuctionValidator
 } from './types'
 import { minCapFromConstraint, validatorTotalAuctionStakeSol, zeroStakeConcentration } from './utils'
+import { Debug } from './debug'
 
 export class AuctionConstraints {
   private constraints: AuctionConstraint[] = []
   private constraintsPerValidator: Map<string, AuctionConstraint[]> = new Map()
 
-  constructor(private readonly config: AuctionConstraintsConfig) { }
+  constructor(private readonly config: AuctionConstraintsConfig, private debug: Debug) { }
 
-  getMinCapForEvenDistribution(voteAccounts: Set<string>): number {
+  getMinCapForEvenDistribution(voteAccounts: Set<string>, collectDebug = true): { cap: number, constraint: AuctionConstraint } {
     const constraints: AuctionConstraint[] = []
     for (const voteAccount of voteAccounts) {
       constraints.push(...(this.constraintsPerValidator.get(voteAccount) ?? []))
@@ -34,12 +35,26 @@ export class AuctionConstraints {
       throw new Error('Failed to find stake concentration entity with min cap')
     }
     const { cap: resultMinCap } = minCapFromConstraint(min, voteAccounts)
-    console.log(`min cap ${resultMinCap} of type ${min.constraintType} (${min.constraintName}) found for ${voteAccounts.size} validators: ${Array.from(voteAccounts.values()).slice(0, 10).join(' ')}`)
-    return resultMinCap
+    const event = `min cap ${resultMinCap} of type ${min.constraintType} (${min.constraintName}) found for ${voteAccounts.size} validators: ${Array.from(voteAccounts.values()).slice(0, 5).join(' ')}`
+    if (collectDebug) {
+      this.debug.pushValidatorSetEvent(voteAccounts, event)
+    }
+    console.log(event)
+
+    return { cap: resultMinCap, constraint: min }
   }
 
   findCapForValidator(validator: AuctionValidator): number {
-    return this.getMinCapForEvenDistribution(new Set([validator.voteAccount]))
+    const { cap, constraint } = this.getMinCapForEvenDistribution(new Set([validator.voteAccount]), false)
+    if (cap <= 0) {
+      validator.lastCapConstraint = constraint
+      this.debug.pushValidatorEvent(validator.voteAccount, `reached cap due to ${constraint.constraintType} (${constraint.constraintName}) constraint`)
+    }
+    return cap
+  }
+
+  getValidatorConstraints(voteAccount: string) {
+    return this.constraintsPerValidator.get(voteAccount)
   }
 
   updateStateForSam(auctionData: AuctionData) {

@@ -28,6 +28,8 @@ export type DsSamConfig = {
   maxNetworkStakeConcentrationPerCountryDec: number
   maxNetworkStakeConcentrationPerAsoDec: number
   maxMarinadeTvlSharePerValidatorDec: number
+
+  debugVoteAccounts: string[]
 }
 
 export const DEFAULT_CONFIG: DsSamConfig = {
@@ -52,4 +54,6 @@ export const DEFAULT_CONFIG: DsSamConfig = {
   maxNetworkStakeConcentrationPerCountryDec: 0.3,
   maxNetworkStakeConcentrationPerAsoDec: 0.2,
   maxMarinadeTvlSharePerValidatorDec: 0.02,
+
+  debugVoteAccounts: [],
 }

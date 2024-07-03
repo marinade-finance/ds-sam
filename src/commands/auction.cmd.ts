@@ -17,13 +17,14 @@ export class AuctionCommand extends CommandRunner {
 
   async run (): Promise<void> {
     this.logger.log(`Running "${COMMAND_NAME}" command...`)
-    const dsSam = new DsSamSDK({ inputsCacheDirPath: 'data', inputsSource: InputsSource.FILES })
+    const dsSam = new DsSamSDK({ inputsCacheDirPath: 'data', inputsSource: InputsSource.FILES, debugVoteAccounts: [] })
     // const dsSam = new DsSamSDK({ inputsCacheDirPath: 'data', inputsSource: InputsSource.APIS, cacheInputs: true })
     const result = await dsSam.run()
     this.logger.log(`Finished "${COMMAND_NAME}" command`)
 
     for (const validator of result.auctionData.validators) {
-      console.log(`${validator.voteAccount}\t${validator.auctionStake.marinadeMndeTargetSol}\t${validator.auctionStake.marinadeSamTargetSol}\t${validator.revShare.totalPmpe}`)
+      const lastCapConstraint = validator.lastCapConstraint ? `${validator.lastCapConstraint.constraintType} (${validator.lastCapConstraint.constraintName})` : 'NULL'
+      console.log(`${validator.voteAccount}  \t${validator.auctionStake.marinadeMndeTargetSol}\t${validator.auctionStake.marinadeSamTargetSol}\t${validator.revShare.totalPmpe}\t${lastCapConstraint}`)
     }
   }
 }

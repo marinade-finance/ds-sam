@@ -1,33 +1,38 @@
 import { DEFAULT_CONFIG, DsSamConfig, InputsSource } from './config'
 import { DataProvider } from './data-provider/data-provider'
-import { AggregatedData, AuctionValidator, AuctionData, ValidatorAuctionStake } from './types'
+import { AggregatedData, AuctionValidator, AuctionData, ValidatorAuctionStake, AuctionResult } from './types'
 import semver from 'semver'
 import Decimal from 'decimal.js'
 import { Auction } from './auction'
 import { calcValidatorRevShare } from './utils'
 import { AuctionConstraints } from './constraints'
+import { Debug } from './debug'
 
 export const defaultDataProviderBuilder = (config: DsSamConfig) => new DataProvider({ ...config }, config.inputsSource)
 
 export class DsSamSDK {
   readonly config: DsSamConfig
+  private readonly debug: Debug
   private readonly dataProvider: DataProvider
 
   constructor (config: Partial<DsSamConfig> = {}, dataProviderBuilder = defaultDataProviderBuilder) {
     this.config = { ...DEFAULT_CONFIG, ...config }
     this.dataProvider = dataProviderBuilder(this.config)
+    this.debug = new Debug(new Set(this.config.debugVoteAccounts))
   }
 
-  getAuctionConstraints ({ stakeAmounts }: AggregatedData): AuctionConstraints {
+  getAuctionConstraints ({ stakeAmounts }: AggregatedData, debug: Debug): AuctionConstraints {
     const { networkTotalSol, marinadeMndeTvlSol, marinadeSamTvlSol } = stakeAmounts
     const marinadeTotalTvlSol = marinadeMndeTvlSol + marinadeSamTvlSol
-    return new AuctionConstraints({
+    const constraints = {
       totalCountryStakeCapSol: networkTotalSol * this.config.maxNetworkStakeConcentrationPerCountryDec,
       totalAsoStakeCapSol: networkTotalSol * this.config.maxNetworkStakeConcentrationPerAsoDec,
       marinadeCountryStakeCapSol: marinadeTotalTvlSol * this.config.maxMarinadeStakeConcentrationPerCountryDec,
       marinadeAsoStakeCapSol: marinadeTotalTvlSol * this.config.maxMarinadeStakeConcentrationPerAsoDec,
       marinadeValidatorSamStakeCapSol: marinadeTotalTvlSol * this.config.maxMarinadeTvlSharePerValidatorDec,
-    })
+    }
+    this.debug.pushInfo('auction constraints', JSON.stringify(constraints))
+    return new AuctionConstraints(constraints, debug)
   }
 
   transformValidators ({ validators, rewards, blacklist }: AggregatedData): AuctionValidator[] {
@@ -59,47 +64,50 @@ export class DsSamSDK {
     console.log('min rev share PMPE', minEffectiveRevSharePmpe)
     console.log('rewards', rewards)
     console.log('uptime thresholds', epochCreditsThresholds)
+    this.debug.pushInfo('min effective rev share', minEffectiveRevSharePmpe.toString())
+    this.debug.pushInfo('estimated rewards', JSON.stringify(rewards))
 
     return validators.map((validator): AuctionValidator => {
       const revShare = calcValidatorRevShare(validator, rewards)
+      this.debug.pushValidatorInfo(validator.voteAccount, 'revenue share', JSON.stringify(revShare))
       const auctionStake: ValidatorAuctionStake = {
         externalActivatedSol: validator.totalActivatedStakeSol - validator.marinadeActivatedStakeSol,
         marinadeMndeTargetSol: 0,
         marinadeSamTargetSol: 0,
       }
       if (blacklist.has(validator.voteAccount)) {
-        return { ...validator, revShare, auctionStake, samEligible: false, mndeEligible: false }
+        return { ...validator, revShare, auctionStake, samEligible: false, mndeEligible: false, lastCapConstraint: null }
       }
       if (!semver.satisfies(validator.clientVersion, this.config.validatorsClientVersionSemverExpr)) {
-        return { ...validator, revShare, auctionStake, samEligible: false, mndeEligible: false }
+        return { ...validator, revShare, auctionStake, samEligible: false, mndeEligible: false, lastCapConstraint: null }
       }
       for (let epoch = minEpoch; epoch <= maxEpoch; epoch++) {
         const es = validator.epochStats.find(es => es.epoch === epoch)
         const threshold = epochCreditsThresholds.get(epoch)
         if (!es || !threshold || es.voteCredits < threshold) {
-          return { ...validator, revShare, auctionStake, samEligible: false, mndeEligible: false }
+          return { ...validator, revShare, auctionStake, samEligible: false, mndeEligible: false, lastCapConstraint: null }
         }
       }
       if (validator.bondBalanceSol === null) {
-        return { ...validator, revShare, auctionStake, samEligible: false, mndeEligible: false }
+        return { ...validator, revShare, auctionStake, samEligible: false, mndeEligible: false, lastCapConstraint: null }
       }
       const samEligible = revShare.totalPmpe >= minEffectiveRevSharePmpe
       const mndeEligible = revShare.inflationPmpe + revShare.mevPmpe >= minEffectiveRevSharePmpe
 
-      return { ...validator, revShare, auctionStake, samEligible, mndeEligible }
+      return { ...validator, revShare, auctionStake, samEligible, mndeEligible, lastCapConstraint: null }
     })
   }
 
-  async run () {
+  async run (): Promise<AuctionResult> {
     const sourceData = this.config.inputsSource === InputsSource.FILES ? this.dataProvider.parseCachedSourceData() : await this.dataProvider.fetchSourceData()
-    if (this.config.inputsCacheDirPath) {
-      this.dataProvider.cacheSourceData(sourceData)
-    }
     const aggregatedData = this.dataProvider.aggregateData(sourceData)
-    const constraints = this.getAuctionConstraints(aggregatedData)
 
+    const constraints = this.getAuctionConstraints(aggregatedData, this.debug)
     const auctionData: AuctionData = { ...aggregatedData, validators: this.transformValidators(aggregatedData) }
-    const auction = new Auction(auctionData, constraints)
-    return auction.evaluate()
+
+    const auction = new Auction(auctionData, constraints, this.debug)
+    const result = auction.evaluate()
+    console.log(`==============================\n${this.debug.formatInfo()}\n${this.debug.formatEvents()}\n==============================`)
+    return result
   }
 }
