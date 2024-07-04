@@ -29,7 +29,7 @@ export class DsSamSDK {
       totalAsoStakeCapSol: networkTotalSol * this.config.maxNetworkStakeConcentrationPerAsoDec,
       marinadeCountryStakeCapSol: marinadeTotalTvlSol * this.config.maxMarinadeStakeConcentrationPerCountryDec,
       marinadeAsoStakeCapSol: marinadeTotalTvlSol * this.config.maxMarinadeStakeConcentrationPerAsoDec,
-      marinadeValidatorSamStakeCapSol: marinadeSamTvlSol * this.config.maxMarinadeTvlSharePerValidatorDec,
+      marinadeValidatorSamStakeCapSol: marinadeTotalTvlSol * this.config.maxMarinadeTvlSharePerValidatorDec,
     }
     this.debug.pushInfo('auction constraints', JSON.stringify(constraints))
     return new AuctionConstraints(constraints, debug)

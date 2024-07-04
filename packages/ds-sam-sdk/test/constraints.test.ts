@@ -175,7 +175,7 @@ describe('constraints', () => {
     const dsSam = new DsSamSDK({}, defaultStaticDataProviderBuilder(validators))
     const result = await dsSam.run()
 
-    expect(findValidatorInResult('dummy-validator', result)?.auctionStake.marinadeSamTargetSol).toStrictEqual(100_000*0.9*0.02)
+    expect(findValidatorInResult('dummy-validator', result)?.auctionStake.marinadeSamTargetSol).toStrictEqual(100_000*0.02)
     expect(prettyPrintAuctionResult(result)).toMatchSnapshot()
   })
 })
