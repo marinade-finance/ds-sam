@@ -1,7 +1,7 @@
 import { DsSamSDK } from "../src"
 import { defaultStaticDataProviderBuilder } from "./helpers/static-data-provider-builder"
 import { ValidatorMockBuilder, generateIdentities, generateVoteAccounts } from "./helpers/validator-mock-builder"
-import { prettyPrintAuctionResult } from './helpers/utils'
+import { findValidatorInResult, prettyPrintAuctionResult } from './helpers/utils'
 
 describe('constraints', () => {
   it('applies bond constraints to SAM stake', async () => {
@@ -145,6 +145,37 @@ describe('constraints', () => {
     expect(asoMarinadeStake + asoExternalStake).toStrictEqual(result.auctionData.stakeAmounts.networkTotalSol * 0.2)
     expect(countryMarinadeStake).toBeLessThan(result.auctionData.stakeAmounts.marinadeSamTvlSol * 0.3)
     expect(asoMarinadeStake).toBeLessThan(result.auctionData.stakeAmounts.marinadeSamTvlSol * 0.2)
+    expect(prettyPrintAuctionResult(result)).toMatchSnapshot()
+  })
+
+  it('applies validator stake concentration constraints', async () => {
+    const voteAccounts = generateVoteAccounts()
+    const identities = generateIdentities()
+
+    const validators = [
+      new ValidatorMockBuilder('dummy-validator', identities.next().value)
+        .withEligibleDefaults()
+        .withNativeStake(0)
+        .withLiquidStake(0)
+        .withExternalStake(100_000)
+        .withBond({ stakeWanted: 1_000_000, cpmpe: 1, balance: 10_000 }),
+      ...Array.from({ length: 9 }, () => new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
+        .withEligibleDefaults()
+        .withNativeStake(0)
+        .withLiquidStake(0)
+        .withExternalStake(100_000)
+        .withBond({ stakeWanted: 1_000_000, cpmpe: 1, balance: 1 })),
+      ...Array.from({ length: 10 }, () => new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
+        .withEligibleDefaults()
+        .withNativeStake(0)
+        .withLiquidStake(10_000)
+        .withExternalStake(10_000_000)
+        .withBond({ stakeWanted: 1_000_000, cpmpe: 0, balance: 1 })),
+    ]
+    const dsSam = new DsSamSDK({}, defaultStaticDataProviderBuilder(validators))
+    const result = await dsSam.run()
+
+    expect(findValidatorInResult('dummy-validator', result)?.auctionStake.marinadeSamTargetSol).toStrictEqual(100_000*0.9*0.02)
     expect(prettyPrintAuctionResult(result)).toMatchSnapshot()
   })
 })
