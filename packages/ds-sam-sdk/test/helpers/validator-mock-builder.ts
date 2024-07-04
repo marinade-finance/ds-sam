@@ -18,8 +18,10 @@ export class ValidatorMockBuilder {
   private nativeStake: number = 0
   private liquidStake: number = 0
   private externalStake: number = 0
-  private version = '1.18.15'
+  private version: string = '1.18.15'
   private bond: { stakeWanted: number, cpmpe: number, balance: number } | null = null
+  private country: string | null = null
+  private aso: string | null = null
 
   constructor(public readonly voteAccount: string, public readonly identity: string,) { }
 
@@ -32,8 +34,17 @@ export class ValidatorMockBuilder {
     this.nativeStake = 50_000
     this.liquidStake = 100_000
     this.externalStake = 200_000
-    this.version = '1.18.15'
     this.bond = { stakeWanted: 150_000, cpmpe: 0, balance: 1000 }
+    return this
+  }
+
+  withCountry(country: string) {
+    this.country = country
+    return this
+  }
+
+  withAso(aso: string) {
+    this.aso = aso
     return this
   }
 
@@ -149,9 +160,9 @@ export class ValidatorMockBuilder {
       activated_stake: new Decimal(this.nativeStake + this.liquidStake + this.externalStake).mul(1e9).toString(),
       marinade_stake: new Decimal(this.liquidStake).mul(1e9).toString(),
       marinade_native_stake: new Decimal(this.nativeStake).mul(1e9).toString(),
-      dc_country: "CZ" + Math.random().toString(),
+      dc_country: this.country ?? "CZ" + Math.random().toString(),
       dc_asn: 1000 + Math.random(),
-      dc_aso: "AWS" + Math.random().toString(),
+      dc_aso: this.aso ?? "AWS" + Math.random().toString(),
       version: this.version,
       commission_effective: inflationCommission,
       commission_advertised: inflationCommission,

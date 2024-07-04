@@ -1,6 +1,7 @@
 import { Command, CommandRunner } from 'nest-commander'
 import { Logger } from '@nestjs/common'
 import { DsSamSDK, InputsSource } from '@marinade.finance/ds-sam-sdk'
+import { formatLastCapConstraint } from '../../packages/ds-sam-sdk/src/utils'
 
 const COMMAND_NAME = 'auction'
 
@@ -23,8 +24,7 @@ export class AuctionCommand extends CommandRunner {
     this.logger.log(`Finished "${COMMAND_NAME}" command`)
 
     for (const validator of result.auctionData.validators) {
-      const lastCapConstraint = validator.lastCapConstraint ? `${validator.lastCapConstraint.constraintType} (${validator.lastCapConstraint.constraintName})` : 'NULL'
-      console.log(`${validator.voteAccount}  \t${validator.auctionStake.marinadeMndeTargetSol}\t${validator.auctionStake.marinadeSamTargetSol}\t${validator.revShare.totalPmpe}\t${lastCapConstraint}`)
+      console.log(`${validator.voteAccount}  \t${validator.auctionStake.marinadeMndeTargetSol}\t${validator.auctionStake.marinadeSamTargetSol}\t${validator.revShare.totalPmpe}\t${formatLastCapConstraint(validator.lastCapConstraint)}`)
     }
   }
 }

@@ -138,8 +138,6 @@ describe('sam', () => {
       ]
       const dsSam = new DsSamSDK({}, defaultStaticDataProviderBuilder(validators))
       const result = await dsSam.run()
-      console.error(JSON.stringify(result.auctionData.stakeAmounts))
-      console.error(prettyPrintAuctionResult(result))
 
       const totalMndeStake = result.auctionData.validators.reduce((sum, validator) => sum + validator.auctionStake.marinadeMndeTargetSol, 0)
       const totalSamStake = result.auctionData.validators.reduce((sum, validator) => sum + validator.auctionStake.marinadeSamTargetSol, 0)

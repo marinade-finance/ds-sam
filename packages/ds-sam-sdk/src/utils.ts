@@ -30,3 +30,5 @@ export const minCapFromConstraint = (constraint: AuctionConstraint, voteAccounts
     cap: Math.max(0, Math.min(constraint.totalLeftToCapSol, constraint.marinadeLeftToCapSol)) / affectedValidators
   }
 }
+
+export const formatLastCapConstraint = (constraint: AuctionConstraint | null) => constraint ? `${constraint.constraintType} (${constraint.constraintName})` : 'NULL'
