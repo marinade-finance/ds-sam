@@ -18,7 +18,7 @@ export type DsSamConfig = {
 
   rewardsEpochsCount: number
   validatorsUptimeEpochsCount: number
-  validatorsUptimeThreshold: number
+  validatorsUptimeThresholdDec: number
   validatorsClientVersionSemverExpr: string
   validatorsMaxEffectiveCommissionDec: number
 
@@ -44,7 +44,7 @@ export const DEFAULT_CONFIG: DsSamConfig = {
 
   rewardsEpochsCount: 10,
   validatorsUptimeEpochsCount: 3,
-  validatorsUptimeThreshold: 0.8,
+  validatorsUptimeThresholdDec: 0.8,
   validatorsClientVersionSemverExpr: '*', // TODO eligible versions
   validatorsMaxEffectiveCommissionDec: 0.07,
 

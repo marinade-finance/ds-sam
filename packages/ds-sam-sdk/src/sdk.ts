@@ -56,7 +56,7 @@ export class DsSamSDK {
       if (!epochTotals) {
         throw new Error(`Validator credits data for epoch ${epoch} not available`)
       }
-      const threshold = epochTotals.weightedCredits.div(epochTotals.weight).mul(this.config.validatorsUptimeThreshold).toNumber()
+      const threshold = epochTotals.weightedCredits.div(epochTotals.weight).mul(this.config.validatorsUptimeThresholdDec).toNumber()
       epochCreditsThresholds.set(epoch, threshold)
     }
 
