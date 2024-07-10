@@ -1,6 +1,6 @@
 import { CliUtilityService, Command, CommandRunner, Option } from 'nest-commander'
 import { Logger } from '@nestjs/common'
-import { DsSamConfig, DsSamSDK, InputsSource } from '@marinade.finance/ds-sam-sdk'
+import { AuctionResult, DsSamConfig, DsSamSDK, InputsSource } from '@marinade.finance/ds-sam-sdk'
 import { formatLastCapConstraint } from '../../packages/ds-sam-sdk/src/utils'
 import fs from 'fs'
 
@@ -8,6 +8,7 @@ const COMMAND_NAME = 'auction'
 
 type AuctionCommandOptions = Partial<DsSamConfig & {
   configFilePath: string
+  outputFilePath: string
 }>
 
 @Command({
@@ -33,6 +34,21 @@ export class AuctionCommand extends CommandRunner {
     for (const validator of result.auctionData.validators) {
       console.log(`${validator.voteAccount}  \t${validator.auctionStake.marinadeMndeTargetSol}\t${validator.auctionStake.marinadeSamTargetSol}\t${validator.revShare.totalPmpe}\t${formatLastCapConstraint(validator.lastCapConstraint)}`)
     }
+
+    if (config.outputFilePath) {
+      fs.writeFileSync(config.outputFilePath, this.stringifyAuctionResult(result))
+    }
+  }
+
+  stringifyAuctionResult (result: AuctionResult): string {
+    return JSON.stringify({
+      ...result,
+      auctionData: {
+        ...result.auctionData,
+        validators: result.auctionData.validators.map(({ lastCapConstraint, epochStats: _, ...validator }) =>
+          ({ ...validator, lastCapConstraint: lastCapConstraint && { ...lastCapConstraint, validators: lastCapConstraint.validators.length }}))
+      }
+    }, null, 2)
   }
 
   @Option({
@@ -41,6 +57,14 @@ export class AuctionCommand extends CommandRunner {
     description: 'File to read base config from (overridden by other options)',
   })
   parseOptConfigFilePath(val: string) {
+    return val
+  }
+  @Option({
+    flags: '-o, --output-file-path <string>',
+    name: 'outputFilePath',
+    description: 'File to write the results into',
+  })
+  parseOptOutputFilePath(val: string) {
     return val
   }
 
