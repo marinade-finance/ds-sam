@@ -8,7 +8,7 @@ const COMMAND_NAME = 'auction'
 
 type AuctionCommandOptions = Partial<DsSamConfig & {
   configFilePath: string
-  outputFilePath: string
+  outputDirPath: string
 }>
 
 @Command({
@@ -35,20 +35,40 @@ export class AuctionCommand extends CommandRunner {
       console.log(`${validator.voteAccount}  \t${validator.auctionStake.marinadeMndeTargetSol}\t${validator.auctionStake.marinadeSamTargetSol}\t${validator.revShare.totalPmpe}\t${formatLastCapConstraint(validator.lastCapConstraint)}`)
     }
 
-    if (config.outputFilePath) {
-      fs.writeFileSync(config.outputFilePath, this.stringifyAuctionResult(result))
+    if (config.outputDirPath) {
+      this.storeResults(result, `${config.outputDirPath}/results.json`, `${config.outputDirPath}/summary.md`)
     }
   }
 
-  stringifyAuctionResult (result: AuctionResult): string {
-    return JSON.stringify({
+  storeResults (result: AuctionResult, resultsPath: string, summaryPath: string) {
+    const resultsStr = JSON.stringify({
       ...result,
       auctionData: {
         ...result.auctionData,
+        blacklist: Array.from(result.auctionData.blacklist),
         validators: result.auctionData.validators.map(({ lastCapConstraint, epochStats: _, ...validator }) =>
           ({ ...validator, lastCapConstraint: lastCapConstraint && { ...lastCapConstraint, validators: lastCapConstraint.validators.length }}))
       }
     }, null, 2)
+
+    fs.writeFileSync(resultsPath, resultsStr)
+    fs.writeFileSync(summaryPath, this.formatResultSummary(result))
+  }
+
+  formatResultSummary (result: AuctionResult): string {
+    const { validators, stakeAmounts: { networkTotalSol, marinadeMndeTvlSol, marinadeRemainingMndeSol, marinadeSamTvlSol, marinadeRemainingSamSol }} = result.auctionData
+    const stakedValidators = validators.filter(({ auctionStake: { marinadeMndeTargetSol, marinadeSamTargetSol } }) => marinadeMndeTargetSol + marinadeSamTargetSol > 0).length
+    return [
+      `## Auction summary`,
+      `\n### Stake amounts`,
+      `- Total network stake = \`${networkTotalSol.toLocaleString()}\``,
+      `- Total Marinade stake = \`${(marinadeMndeTvlSol + marinadeSamTvlSol).toLocaleString()}\``,
+      `  - MNDE stake = \`${marinadeMndeTvlSol.toLocaleString()}\``,
+      `  - SAM stake = \`${marinadeSamTvlSol.toLocaleString()}\``,
+      `\n### Results stats`,
+      `- Auction winning APY = \`${result.winningTotalPmpe.toLocaleString()}\``,
+      `- Staked validators count = \`${stakedValidators.toLocaleString()}\``,
+    ].join('\n')
   }
 
   @Option({
@@ -60,8 +80,8 @@ export class AuctionCommand extends CommandRunner {
     return val
   }
   @Option({
-    flags: '-o, --output-file-path <string>',
-    name: 'outputFilePath',
+    flags: '-o, --output-dir-path <string>',
+    name: 'outputDirPath',
     description: 'File to write the results into',
   })
   parseOptOutputFilePath(val: string) {
