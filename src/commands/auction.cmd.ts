@@ -56,7 +56,7 @@ export class AuctionCommand extends CommandRunner {
   }
 
   formatResultSummary (result: AuctionResult): string {
-    const { validators, stakeAmounts: { networkTotalSol, marinadeMndeTvlSol, marinadeRemainingMndeSol, marinadeSamTvlSol, marinadeRemainingSamSol }} = result.auctionData
+    const { validators, stakeAmounts: { networkTotalSol, marinadeMndeTvlSol, marinadeSamTvlSol }} = result.auctionData
     const stakedValidators = validators.filter(({ auctionStake: { marinadeMndeTargetSol, marinadeSamTargetSol } }) => marinadeMndeTargetSol + marinadeSamTargetSol > 0).length
     return [
       `## Auction summary`,
