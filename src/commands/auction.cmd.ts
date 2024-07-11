@@ -61,12 +61,12 @@ export class AuctionCommand extends CommandRunner {
     return [
       `## Auction summary`,
       `\n### Stake amounts`,
-      `- Total network stake = \`${networkTotalSol.toLocaleString()}\``,
-      `- Total Marinade stake = \`${(marinadeMndeTvlSol + marinadeSamTvlSol).toLocaleString()}\``,
-      `  - MNDE stake = \`${marinadeMndeTvlSol.toLocaleString()}\``,
-      `  - SAM stake = \`${marinadeSamTvlSol.toLocaleString()}\``,
+      `- Total network stake = \`${networkTotalSol.toLocaleString()}\` SOL`,
+      `- Total Marinade stake = \`${(marinadeMndeTvlSol + marinadeSamTvlSol).toLocaleString()}\` SOL`,
+      `  - MNDE stake = \`${marinadeMndeTvlSol.toLocaleString()}\` SOL`,
+      `  - SAM stake = \`${marinadeSamTvlSol.toLocaleString()}\` SOL`,
       `\n### Results stats`,
-      `- Auction winning rev share (PMPE) = \`${result.winningTotalPmpe}\``,
+      `- Auction winning rev share = \`${result.winningTotalPmpe}\` PMPE`,
       `- Staked validators count = \`${stakedValidators.toLocaleString()}\``,
       ``,
     ].join('\n')
