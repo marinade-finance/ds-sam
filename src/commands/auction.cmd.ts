@@ -66,8 +66,9 @@ export class AuctionCommand extends CommandRunner {
       `  - MNDE stake = \`${marinadeMndeTvlSol.toLocaleString()}\``,
       `  - SAM stake = \`${marinadeSamTvlSol.toLocaleString()}\``,
       `\n### Results stats`,
-      `- Auction winning APY = \`${result.winningTotalPmpe.toLocaleString()}\``,
+      `- Auction winning rev share (PMPE) = \`${result.winningTotalPmpe}\``,
       `- Staked validators count = \`${stakedValidators.toLocaleString()}\``,
+      ``,
     ].join('\n')
   }
 
