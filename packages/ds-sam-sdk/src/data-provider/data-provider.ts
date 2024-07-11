@@ -192,7 +192,10 @@ export class DataProvider {
 
     const url = `${this.config.validatorsApiBaseUrl}/validators?epochs=${epochsCount}&limit=1000000`
     const response = await axios.get<RawValidatorsResponseDto>(url)
-    return response.data
+
+    // Prevent delinquent validators from being processed and appearing in results
+    const validators = response.data.validators.filter(v => v.epoch_stats.slice(0, 3).some(es => es.credits > 0))
+    return { ...response.data, validators }
   }
 
   async fetchBonds(): Promise<RawBondsResponseDto> {
