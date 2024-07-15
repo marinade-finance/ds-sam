@@ -229,7 +229,7 @@ export class DataProvider {
   }
 
   async fetchMevInfo(): Promise<RawMevInfoResponseDto> {
-    const url = `${this.config.mevInfoApiBaseUrl}/api/v1/validators`
+    const url = `${this.config.validatorsApiBaseUrl}/mev`
     const response = await axios.get<RawMevInfoResponseDto>(url)
     return response.data
   }

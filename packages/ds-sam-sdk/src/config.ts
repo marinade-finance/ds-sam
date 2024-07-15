@@ -10,7 +10,6 @@ export type DsSamConfig = {
 
   // TODO? split into nested config sections
   validatorsApiBaseUrl: string
-  mevInfoApiBaseUrl: string
   bondsApiBaseUrl: string
   tvlInfoApiBaseUrl: string
   blacklistApiBaseUrl: string
@@ -36,7 +35,6 @@ export const DEFAULT_CONFIG: DsSamConfig = {
   inputsSource: InputsSource.APIS,
 
   validatorsApiBaseUrl: 'https://validators-api.marinade.finance',
-  mevInfoApiBaseUrl: 'https://kobe.mainnet.jito.network',
   bondsApiBaseUrl: 'https://validator-bonds-api.marinade.finance',
   tvlInfoApiBaseUrl: 'https://api.marinade.finance',
   blacklistApiBaseUrl: 'https://raw.githubusercontent.com/marinade-finance/delegation-strategy-2/master',

@@ -28,10 +28,8 @@ Config [defaults](./packages/ds-sam-sdk/src/config.ts#L35)
   // Whether to cache input data (optional)
   cacheInputs?: boolean
 
-  // Base URL of the API to get validators from
+  // Base URL of the API to get validators info from
   validatorsApiBaseUrl: string
-  // Base URL of the API to get MEV info from
-  mevInfoApiBaseUrl: string
   // Base URL of the API to get bonds from
   bondsApiBaseUrl: string
   // Base URL of the API to get TVL info from

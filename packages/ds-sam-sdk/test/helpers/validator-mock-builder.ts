@@ -146,9 +146,7 @@ export class ValidatorMockBuilder {
     return mevCommission === null ? null : {
       vote_account: this.voteAccount,
       mev_commission_bps: mevCommission * 100,
-      mev_rewards: 0, // @todo
-      running_jito: true,
-      active_stake: 0, // @todo
+      epoch: 0, // TODO?
     }
   }
 

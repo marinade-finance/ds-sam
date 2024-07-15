@@ -36,9 +36,7 @@ export type RawBondsResponseDto = {
 export type RawValidatorMevInfoDto = {
   vote_account: string
   mev_commission_bps: number
-  mev_rewards: number
-  running_jito: boolean
-  active_stake: number
+  epoch: number
 }
 export type RawMevInfoResponseDto = {
   validators: RawValidatorMevInfoDto[]

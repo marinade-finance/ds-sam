@@ -124,14 +124,6 @@ export class AuctionCommand extends CommandRunner {
     return val
   }
   @Option({
-    flags: '--mev-url <string>',
-    name: 'mevInfoApiBaseUrl',
-    description: 'SDK param `mevInfoApiBaseUrl`',
-  })
-  parseOptMevInfoApiBaseUrl(val: string) {
-    return val
-  }
-  @Option({
     flags: '--bonds-url <string>',
     name: 'bondsApiBaseUrl',
     description: 'SDK param `bondsApiBaseUrl`',
