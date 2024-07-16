@@ -1,0 +1,181 @@
+import { AuctionData, AuctionResult, AuctionValidator } from './types'
+import { AuctionConstraints } from './constraints'
+import { Debug } from './debug'
+
+const logValidators = (validators: AuctionValidator[]) => {
+  console.log('validators -----------------------------')
+  for (const validator of validators) {
+    console.log(validator.voteAccount, validator.revShare.totalPmpe, validator.auctionStake.marinadeMndeTargetSol, validator.auctionStake.marinadeSamTargetSol)
+  }
+  console.log('----------------------------- validators')
+}
+
+const EPSILON = 1e-4
+
+export class Auction {
+
+  constructor (private data: AuctionData, private constraints: AuctionConstraints, private debug: Debug) { }
+
+  distributeMndeStake () {
+    this.constraints.updateStateForMnde(this.data)
+    this.debug.getVoteAccounts().forEach((voteAccount) => {
+      const constraints = this.constraints.getValidatorConstraints(voteAccount)
+      this.debug.pushValidatorEvent(voteAccount, `MNDE start constraints: ${constraints ? `${JSON.stringify(constraints.map(constraint => ({ ...constraint, validators: constraint.validators.length})))}` : 'NULL'}`)
+    })
+
+    let remEligibleValidators = this.data.validators.filter(validator => validator.mndeEligible)
+
+    while (remEligibleValidators.length > 0) {
+      const eligibleValidators = new Map(remEligibleValidators.map(validator => [validator.voteAccount, validator]))
+      const eligibleVoteAccounts = new Set(eligibleValidators.keys())
+      const { cap: evenDistributionCap } = this.constraints.getMinCapForEvenDistribution(eligibleVoteAccounts)
+      console.log("MNDE distributing", evenDistributionCap, "to every validator in the group", eligibleValidators.size)
+
+      for (const validator of eligibleValidators.values()) {
+        validator.auctionStake.marinadeMndeTargetSol += evenDistributionCap
+        this.data.stakeAmounts.marinadeRemainingMndeSol -= evenDistributionCap
+      }
+
+      // logValidators(remEligibleValidators)
+
+      this.constraints.updateStateForMnde(this.data)
+      remEligibleValidators = remEligibleValidators.filter((validator) => {
+        const validatorCap = this.constraints.findCapForValidator(validator)
+        if (validatorCap < EPSILON) {
+          console.log('MNDE removing validator', validator.voteAccount, 'from the group because the cap has been reached')
+          return false
+        }
+        return true
+      })
+
+      if (this.data.stakeAmounts.marinadeRemainingMndeSol < EPSILON) {
+        console.log("MNDE No stake remaining to distribute")
+        break
+      } else {
+        console.log("MNDE Stake remaining", this.data.stakeAmounts.marinadeRemainingMndeSol)
+      }
+    }
+  }
+
+  distributeSamStake () {
+    this.data.validators.sort((a, b) => b.revShare.totalPmpe - a.revShare.totalPmpe)
+    this.constraints.updateStateForSam(this.data)
+    this.debug.getVoteAccounts().forEach((voteAccount) => {
+      const constraints = this.constraints.getValidatorConstraints(voteAccount)
+      this.debug.pushValidatorEvent(voteAccount, `SAM start constraints: ${constraints ? `${JSON.stringify(constraints.map(constraint => ({ ...constraint, validators: constraint.validators.length})))}` : 'NULL'}`)
+    })
+
+    // logValidators(this.data.validators)
+
+    let previousGroupPmpe = Infinity
+    let group = null
+    let winningTotalPmpe = Infinity
+    let groups = 0
+    let rounds = 0
+    while (group = this.findNextPmpeGroup(previousGroupPmpe)) {
+      groups++
+      group.validators = group.validators.filter(validator => validator.samEligible)
+
+      console.log('SAM ========= new round ==========')
+      console.log('SAM', group.validators.length, 'validators eligible')
+      this.debug.pushValidatorSetEvent(new Set(group.validators.map(({ voteAccount }) => voteAccount)), `assigned to PMPE group ${group.totalPmpe} with ${group.validators.length} eligible validators: ${group.validators.slice(0, 5).map(({ voteAccount }) => voteAccount).join(' ')}`)
+
+      if (this.data.stakeAmounts.marinadeRemainingSamSol < EPSILON) {
+        console.log("SAM No stake remaining to distribute")
+        this.debug.pushEvent('SAM No stake remaining to distribute')
+        break
+      }
+
+      while (group.validators.length > 0) {
+        rounds++
+        const remainingStakeToDistribute = this.data.stakeAmounts.marinadeRemainingSamSol
+        const groupValidators = new Map(group.validators.map(validator => [validator.voteAccount, validator]))
+        const groupVoteAccounts = new Set(groupValidators.keys())
+
+        const { cap } = this.constraints.getMinCapForEvenDistribution(groupVoteAccounts)
+        const evenDistributionCap = Math.min(cap, remainingStakeToDistribute / group.validators.length)
+        console.log("SAM distributing", evenDistributionCap, "to every validator in the group", groupValidators.size)
+
+        for (const validator of groupValidators.values()) {
+          validator.auctionStake.marinadeSamTargetSol += evenDistributionCap
+          this.data.stakeAmounts.marinadeRemainingSamSol -= evenDistributionCap
+          winningTotalPmpe = validator.revShare.totalPmpe
+          this.debug.pushValidatorEvent(validator.voteAccount, `received ${evenDistributionCap} SAM stake in PMPE group ${validator.revShare.totalPmpe} with ${groupValidators.size} validators`)
+        }
+
+        // logValidators(group.validators)
+
+        this.constraints.updateStateForSam(this.data)
+        group.validators = group.validators.filter((validator) => {
+          const validatorCap = this.constraints.findCapForValidator(validator)
+          if (validatorCap < EPSILON) {
+            console.log('SAM removing validator', validator.voteAccount, 'from the group because the cap has been reached')
+            return false
+          }
+          return true
+        })
+
+        if (this.data.stakeAmounts.marinadeRemainingSamSol < EPSILON) {
+          console.log("SAM No stake remaining to distribute")
+          this.debug.pushEvent('SAM No stake remaining to distribute')
+          break
+        } else {
+          console.log("SAM Stake remaining", this.data.stakeAmounts.marinadeRemainingSamSol)
+        }
+      }
+
+      previousGroupPmpe = group.totalPmpe
+    }
+
+    console.log("SAM rounds", rounds, "groups", groups)
+
+    return winningTotalPmpe
+  }
+
+  evaluate (): AuctionResult {
+    console.log('stake amounts before', this.data.stakeAmounts)
+    this.debug.pushInfo('start amounts', JSON.stringify(this.data.stakeAmounts))
+    this.debug.pushEvent('DISTRIBUTING MNDE STAKE')
+    this.distributeMndeStake()
+
+    this.debug.pushInfo('post MNDE amounts', JSON.stringify(this.data.stakeAmounts))
+    console.log(`MNDE overflow: ${this.data.stakeAmounts.marinadeRemainingMndeSol}`)
+    if (this.data.stakeAmounts.marinadeRemainingMndeSol > EPSILON) {
+      this.debug.pushEvent(`MNDE overflow ${this.data.stakeAmounts.marinadeRemainingMndeSol} SOL will be distributed in SAM`)
+      this.data.stakeAmounts.marinadeSamTvlSol += this.data.stakeAmounts.marinadeRemainingMndeSol
+      this.data.stakeAmounts.marinadeRemainingSamSol += this.data.stakeAmounts.marinadeRemainingMndeSol
+      this.data.stakeAmounts.marinadeMndeTvlSol -= this.data.stakeAmounts.marinadeRemainingMndeSol
+      this.data.stakeAmounts.marinadeRemainingMndeSol = 0
+    }
+
+    this.debug.pushInfo('pre SAM amounts', JSON.stringify(this.data.stakeAmounts))
+    this.debug.pushEvent('DISTRIBUTING SAM STAKE')
+    const winningTotalPmpe = this.distributeSamStake()
+    this.debug.pushEvent('STAKE DISTRIBUTED')
+
+    console.log('stake amounts after', this.data.stakeAmounts)
+    this.debug.pushInfo('end amounts', JSON.stringify(this.data.stakeAmounts))
+    this.debug.pushInfo('winning total PMPE', winningTotalPmpe.toString())
+    return {
+      auctionData: this.data,
+      winningTotalPmpe,
+    }
+  }
+
+  findNextPmpeGroup (totalPmpe: number): { totalPmpe: number, validators: AuctionValidator[] } | null {
+    console.log('finding next pmpe group...', totalPmpe)
+    const nextGroupCandidates = this.data.validators.filter((validator) => validator.revShare.totalPmpe < totalPmpe)
+    if (nextGroupCandidates.length === 0) {
+      console.log('...no pmpe group remaining', totalPmpe)
+      return null
+    }
+    const maxPmpe = nextGroupCandidates.reduce((max, validator) => Math.max(validator.revShare.totalPmpe, max), 0)
+    const validators = nextGroupCandidates.filter((validator) => validator.revShare.totalPmpe === maxPmpe)
+
+    console.log('...found next pmpe group', maxPmpe, validators.length)
+    return {
+      totalPmpe: maxPmpe,
+      validators,
+    }
+  }
+}

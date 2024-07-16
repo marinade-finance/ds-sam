@@ -1,0 +1,25 @@
+{
+  "name": "ds-sam",
+  "version": "0.0.1",
+  "private": true,
+  "license": "UNLICENSED",
+  "scripts": {
+    "build": "nest build",
+    "cli": "nest start --entryFile ./src/cli"
+  },
+  "dependencies": {
+    "@marinade.finance/ds-sam-sdk": "workspace:*",
+    "@nestjs/axios": "^3.0.2",
+    "@nestjs/cli": "^10.3.2",
+    "@nestjs/common": "^10.3.9",
+    "dotenv": "^16.4.5",
+    "log4js": "^6.9.1",
+    "nest-commander": "^3.13.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.12",
+    "@types/node": "^20.14.2",
+    "gts": "^5.3.0",
+    "typescript": "^5.4.5"
+  }
+}
