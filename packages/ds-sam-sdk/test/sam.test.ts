@@ -1,6 +1,6 @@
 import { DsSamSDK } from "../src"
 import { StaticDataProviderBuilder, defaultStaticDataProviderBuilder } from "./helpers/static-data-provider-builder"
-import { prettyPrintAuctionResult } from "./helpers/utils"
+import { prettyPrintAuctionResult, prettyPrintStakeUnstakePriorities } from "./helpers/utils"
 import { ValidatorMockBuilder, generateIdentities, generateVoteAccounts } from "./helpers/validator-mock-builder"
 import { MNDE_VOTE_DELEGATION_STRATEGY } from '../src/utils'
 
@@ -145,6 +145,37 @@ describe('sam', () => {
       expect(result.auctionData.stakeAmounts.marinadeSamTvlSol).toStrictEqual(15_000_000)
       expect(totalMndeStake).toStrictEqual(0)
       expect(totalSamStake).toBeGreaterThan(13_500_000)
+    })
+  })
+
+  describe('postprocessing', () => {
+    it('assigns stake and unstake priorities', async () => {
+      const identities = generateIdentities()
+      const validators = [
+        ...Array.from({ length: 5 }, (_, index) =>
+          new ValidatorMockBuilder(`ineligible-${index}`, identities.next().value)
+            .withExternalStake(1_000_000)
+            .blacklisted()
+        ),
+        ...Array.from({ length: 10 }, (_, index) =>
+          new ValidatorMockBuilder(`underfunded-${index}`, identities.next().value)
+            .withGoodPerformance()
+            .withExternalStake(10_000_000)
+            .withLiquidStake(10_000 * (index + 1))
+            .withBond({ stakeWanted: 1_000_000, cpmpe: 0.1 * (index + 1), balance: 1 })
+        ),
+        ...Array.from({ length: 10 }, (_, index) =>
+          new ValidatorMockBuilder(`overstaked-${index}`, identities.next().value)
+            .withGoodPerformance()
+            .withExternalStake(10_000_000)
+            .withLiquidStake(100_000 + 10_000 * (index + 1))
+            .withBond({ stakeWanted: 1_000_000, cpmpe: 0, balance: 1_000 })
+        ),
+      ]
+      const dsSam = new DsSamSDK({}, defaultStaticDataProviderBuilder(validators))
+      const result = await dsSam.run()
+
+      expect(prettyPrintStakeUnstakePriorities(result)).toMatchSnapshot()
     })
   })
 })

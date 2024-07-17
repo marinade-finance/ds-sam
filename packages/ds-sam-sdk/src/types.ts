@@ -43,6 +43,8 @@ export type AuctionValidator = AggregatedValidator & {
   samEligible: boolean
   auctionStake: ValidatorAuctionStake
   lastCapConstraint: AuctionConstraint | null
+  stakePriority: number
+  unstakePriority: number
 }
 
 export type AggregatedValidator = {

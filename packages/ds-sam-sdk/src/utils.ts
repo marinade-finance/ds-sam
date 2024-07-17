@@ -10,6 +10,10 @@ export const calcValidatorRevShare = (validator: AggregatedValidator, rewards: R
   return { totalPmpe: inflationPmpe + mevPmpe + bidPmpe, inflationPmpe, mevPmpe, bidPmpe }
 }
 
+export const ineligibleValidatorAggDefaults = () => ({ samEligible: false, mndeEligible: false, ...validatorAggDefaults() })
+
+export const validatorAggDefaults = () => ({ lastCapConstraint: null, stakePriority: NaN, unstakePriority: NaN })
+
 export const validatorTotalAuctionStakeSol = (validator: AuctionValidator): number =>
   validator.auctionStake.externalActivatedSol + validator.auctionStake.marinadeMndeTargetSol + validator.auctionStake.marinadeSamTargetSol
 
