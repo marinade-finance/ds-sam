@@ -163,6 +163,14 @@ export class Auction {
       .forEach(({ validator }, index) => validator.unstakePriority = bondsMaxIndex + index + 1)
   }
 
+  setEffectiveBids(winningTotalPmpe: number) {
+    this.data.validators.forEach(validator => {
+      validator.revShare.auctionEffectiveBidPmpe = Math.round(validator.auctionStake.marinadeSamTargetSol) === 0 ?
+        0 :
+        Math.min(Math.max(validator.revShare.bidPmpe - (validator.revShare.totalPmpe - winningTotalPmpe), 0), validator.revShare.bidPmpe)
+    })
+  }
+
   evaluate (): AuctionResult {
     console.log('stake amounts before', this.data.stakeAmounts)
     this.debug.pushInfo('start amounts', JSON.stringify(this.data.stakeAmounts))
@@ -189,6 +197,7 @@ export class Auction {
     this.debug.pushInfo('winning total PMPE', winningTotalPmpe.toString())
 
     this.setStakeUnstakePriorities()
+    this.setEffectiveBids(winningTotalPmpe)
 
     return {
       auctionData: this.data,

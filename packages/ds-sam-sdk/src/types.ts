@@ -74,6 +74,7 @@ export type RevShare = {
   inflationPmpe: number
   mevPmpe: number
   bidPmpe: number
+  auctionEffectiveBidPmpe: number
 }
 
 export type AuctionConstraintsConfig = {
