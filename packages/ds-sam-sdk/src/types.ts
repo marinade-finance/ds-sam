@@ -82,7 +82,7 @@ export type AuctionConstraintsConfig = {
   totalAsoStakeCapSol: number
   marinadeCountryStakeCapSol: number
   marinadeAsoStakeCapSol: number
-  marinadeValidatorSamStakeCapSol: number
+  marinadeValidatorStakeCapSol: number
 }
 
 export enum AuctionConstraintType {

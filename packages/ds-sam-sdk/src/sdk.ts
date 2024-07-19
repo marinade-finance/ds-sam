@@ -1,6 +1,13 @@
 import { DEFAULT_CONFIG, DsSamConfig, InputsSource } from './config'
 import { DataProvider } from './data-provider/data-provider'
-import { AggregatedData, AuctionValidator, AuctionData, ValidatorAuctionStake, AuctionResult } from './types'
+import {
+  AggregatedData,
+  AuctionValidator,
+  AuctionData,
+  ValidatorAuctionStake,
+  AuctionResult,
+  AuctionConstraintsConfig
+} from './types'
 import semver from 'semver'
 import Decimal from 'decimal.js'
 import { Auction } from './auction'
@@ -24,12 +31,12 @@ export class DsSamSDK {
   getAuctionConstraints ({ stakeAmounts }: AggregatedData, debug: Debug): AuctionConstraints {
     const { networkTotalSol, marinadeMndeTvlSol, marinadeSamTvlSol } = stakeAmounts
     const marinadeTotalTvlSol = marinadeMndeTvlSol + marinadeSamTvlSol
-    const constraints = {
+    const constraints: AuctionConstraintsConfig = {
       totalCountryStakeCapSol: networkTotalSol * this.config.maxNetworkStakeConcentrationPerCountryDec,
       totalAsoStakeCapSol: networkTotalSol * this.config.maxNetworkStakeConcentrationPerAsoDec,
       marinadeCountryStakeCapSol: marinadeTotalTvlSol * this.config.maxMarinadeStakeConcentrationPerCountryDec,
       marinadeAsoStakeCapSol: marinadeTotalTvlSol * this.config.maxMarinadeStakeConcentrationPerAsoDec,
-      marinadeValidatorSamStakeCapSol: marinadeTotalTvlSol * this.config.maxMarinadeTvlSharePerValidatorDec,
+      marinadeValidatorStakeCapSol: marinadeTotalTvlSol * this.config.maxMarinadeTvlSharePerValidatorDec,
     }
     this.debug.pushInfo('auction constraints', JSON.stringify(constraints))
     return new AuctionConstraints(constraints, debug)

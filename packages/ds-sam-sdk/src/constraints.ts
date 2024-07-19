@@ -170,7 +170,7 @@ export class AuctionConstraints {
       totalStakeSol: validatorTotalAuctionStakeSol(validator),
       totalLeftToCapSol: Infinity,
       marinadeStakeSol: validator.auctionStake.marinadeMndeTargetSol + validator.auctionStake.marinadeSamTargetSol,
-      marinadeLeftToCapSol: this.config.marinadeValidatorSamStakeCapSol - validator.auctionStake.marinadeSamTargetSol,
+      marinadeLeftToCapSol: this.config.marinadeValidatorStakeCapSol - validator.auctionStake.marinadeMndeTargetSol - validator.auctionStake.marinadeSamTargetSol,
       validators: [validator],
     }))
   }
