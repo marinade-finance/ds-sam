@@ -11,8 +11,8 @@ export const prettyPrintAuctionResult = (auctionResult: AuctionResult) => {
 }
 
 export const prettyPrintStakeUnstakePriorities = (auctionResult: AuctionResult) =>
-  auctionResult.auctionData.validators.map(({ voteAccount, stakePriority, unstakePriority }) =>
-    `${voteAccount} stake: ${stakePriority} unstake: ${unstakePriority}`).join('\n')
+  auctionResult.auctionData.validators.map(({ voteAccount, revShare, stakePriority, unstakePriority }) =>
+    `${voteAccount} PMPE: ${revShare.totalPmpe} stake: ${stakePriority} unstake: ${unstakePriority}`).join('\n')
 
 export const findValidatorInResult = (validatorVoteAccount: string, result: AuctionResult) =>
   result.auctionData.validators.find(({ voteAccount }) => voteAccount === validatorVoteAccount)

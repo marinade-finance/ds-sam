@@ -1,6 +1,7 @@
 import { AuctionData, AuctionResult, AuctionValidator } from './types'
 import { AuctionConstraints, bondBalanceRequiredForCurrentStake } from './constraints'
 import { Debug } from './debug'
+import fs from 'fs'
 
 const logValidators = (validators: AuctionValidator[]) => {
   console.log('validators -----------------------------')
@@ -134,7 +135,16 @@ export class Auction {
   setStakeUnstakePriorities () {
     this.data.validators.sort((a, b) => b.revShare.totalPmpe - a.revShare.totalPmpe)
 
-    this.data.validators.forEach((validator, index) => validator.stakePriority = index + 1)
+    let currentGroupPmpe = NaN
+    let currentStakePriority = 0
+    this.data.validators.forEach(validator => {
+      if (validator.revShare.totalPmpe === currentGroupPmpe) {
+        validator.stakePriority = currentStakePriority
+      } else {
+        validator.stakePriority = ++currentStakePriority
+        currentGroupPmpe = validator.revShare.totalPmpe
+      }
+    })
 
     this.data.validators
       .filter(({ mndeEligible, samEligible }) => !mndeEligible && !samEligible)
