@@ -1,7 +1,6 @@
 import { AuctionData, AuctionResult, AuctionValidator } from './types'
 import { AuctionConstraints, bondBalanceRequiredForCurrentStake } from './constraints'
 import { Debug } from './debug'
-import fs from 'fs'
 
 const logValidators = (validators: AuctionValidator[]) => {
   console.log('validators -----------------------------')
