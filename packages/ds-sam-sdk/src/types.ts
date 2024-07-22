@@ -43,6 +43,8 @@ export type AuctionValidator = AggregatedValidator & {
   samEligible: boolean
   auctionStake: ValidatorAuctionStake
   lastCapConstraint: AuctionConstraint | null
+  stakePriority: number
+  unstakePriority: number
 }
 
 export type AggregatedValidator = {
@@ -72,6 +74,7 @@ export type RevShare = {
   inflationPmpe: number
   mevPmpe: number
   bidPmpe: number
+  auctionEffectiveBidPmpe: number
 }
 
 export type AuctionConstraintsConfig = {
@@ -79,7 +82,7 @@ export type AuctionConstraintsConfig = {
   totalAsoStakeCapSol: number
   marinadeCountryStakeCapSol: number
   marinadeAsoStakeCapSol: number
-  marinadeValidatorSamStakeCapSol: number
+  marinadeValidatorStakeCapSol: number
 }
 
 export enum AuctionConstraintType {

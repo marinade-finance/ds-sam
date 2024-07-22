@@ -1,6 +1,6 @@
 import { DsSamSDK } from "../src"
 import { StaticDataProviderBuilder, defaultStaticDataProviderBuilder } from "./helpers/static-data-provider-builder"
-import { prettyPrintAuctionResult } from "./helpers/utils"
+import { prettyPrintAuctionResult, prettyPrintStakeUnstakePriorities } from "./helpers/utils"
 import { ValidatorMockBuilder, generateIdentities, generateVoteAccounts } from "./helpers/validator-mock-builder"
 import { MNDE_VOTE_DELEGATION_STRATEGY } from '../src/utils'
 
@@ -145,6 +145,96 @@ describe('sam', () => {
       expect(result.auctionData.stakeAmounts.marinadeSamTvlSol).toStrictEqual(15_000_000)
       expect(totalMndeStake).toStrictEqual(0)
       expect(totalSamStake).toBeGreaterThan(13_500_000)
+    })
+  })
+
+  describe('postprocessing', () => {
+    it('assigns stake priorities', async () => {
+      const voteAccounts = generateVoteAccounts()
+      const identities = generateIdentities()
+      const validators = [
+        ...Array.from({ length: 5 }, (_, index) =>
+          new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
+            .withEligibleDefaults()
+            .withBond({ stakeWanted: 1_000_000, cpmpe: 0, balance: 1_000 })
+        ),
+        ...Array.from({ length: 5 }, (_, index) =>
+          new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
+            .withEligibleDefaults()
+            .withBond({ stakeWanted: 1_000_000, cpmpe: 0.1 + (0.1 * (index % 2)), balance: 1_000 })
+        ),
+        ...Array.from({ length: 5 }, (_, index) =>
+          new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
+            .withEligibleDefaults()
+            .withBond({ stakeWanted: 1_000_000, cpmpe: 0.01 + (0.01 * (index % 2)), balance: 1_000 })
+        ),
+        ...Array.from({ length: 5 }, (_, index) =>
+          new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
+            .withEligibleDefaults()
+            .withBond({ stakeWanted: 1_000_000, cpmpe: 0.2, balance: 1_000 })
+        ),
+      ]
+      const dsSam = new DsSamSDK({}, defaultStaticDataProviderBuilder(validators))
+      const result = await dsSam.run()
+
+      expect(prettyPrintStakeUnstakePriorities(result)).toMatchSnapshot()
+    })
+
+    it('assigns unstake priorities', async () => {
+      const identities = generateIdentities()
+      const validators = [
+        ...Array.from({ length: 5 }, (_, index) =>
+          new ValidatorMockBuilder(`ineligible-${index}`, identities.next().value)
+            .withExternalStake(1_000_000)
+            .blacklisted()
+        ),
+        ...Array.from({ length: 10 }, (_, index) =>
+          new ValidatorMockBuilder(`underfunded-${index}`, identities.next().value)
+            .withGoodPerformance()
+            .withExternalStake(10_000_000)
+            .withLiquidStake(10_000 * (index + 1))
+            .withBond({ stakeWanted: 1_000_000, cpmpe: 0.1 * (index + 1), balance: 1 })
+        ),
+        ...Array.from({ length: 10 }, (_, index) =>
+          new ValidatorMockBuilder(`overstaked-${index}`, identities.next().value)
+            .withGoodPerformance()
+            .withExternalStake(10_000_000)
+            .withLiquidStake(100_000 + 10_000 * (index + 1))
+            .withBond({ stakeWanted: 1_000_000, cpmpe: 0, balance: 1_000 })
+        ),
+      ]
+      const dsSam = new DsSamSDK({}, defaultStaticDataProviderBuilder(validators))
+      const result = await dsSam.run()
+
+      expect(prettyPrintStakeUnstakePriorities(result)).toMatchSnapshot()
+    })
+
+    it('assigns effective bids', async () => {
+      const voteAccounts = generateVoteAccounts()
+      const identities = generateIdentities()
+      const validators = [
+        ...Array.from({ length: 60 }, (_, index) =>
+          new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
+            .withGoodPerformance()
+            .withExternalStake(1_000_000)
+            .withLiquidStake(10_000)
+            .withInflationCommission(index)
+            .withBond({ stakeWanted: 1_000_000, cpmpe: index + 1, balance: 1_000 })
+        ),
+      ]
+      const dsSam = new DsSamSDK({}, defaultStaticDataProviderBuilder(validators))
+      const result = await dsSam.run()
+
+      result.auctionData.validators
+        .filter(validator => validator.revShare.totalPmpe >= result.winningTotalPmpe)
+        .forEach(({ revShare }) => {
+          expect(Math.abs(revShare.mevPmpe + revShare.inflationPmpe + revShare.auctionEffectiveBidPmpe - result.winningTotalPmpe)).toBeLessThan(1e-12)
+        })
+      result.auctionData.validators
+        .filter(validator => validator.revShare.totalPmpe < result.winningTotalPmpe)
+        .forEach(({ revShare }) => {
+          expect(revShare.auctionEffectiveBidPmpe).toStrictEqual(0)
+        })
     })
   })
 })

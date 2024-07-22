@@ -170,7 +170,7 @@ export class AuctionConstraints {
       totalStakeSol: validatorTotalAuctionStakeSol(validator),
       totalLeftToCapSol: Infinity,
       marinadeStakeSol: validator.auctionStake.marinadeMndeTargetSol + validator.auctionStake.marinadeSamTargetSol,
-      marinadeLeftToCapSol: this.config.marinadeValidatorSamStakeCapSol - validator.auctionStake.marinadeSamTargetSol,
+      marinadeLeftToCapSol: this.config.marinadeValidatorStakeCapSol - validator.auctionStake.marinadeMndeTargetSol - validator.auctionStake.marinadeSamTargetSol,
       validators: [validator],
     }))
   }
@@ -210,4 +210,12 @@ export const bondBalanceUsedForMnde = (validator: AuctionValidator): number => {
   // downtimeProtectionPerStake * stake = bondBalanceSol
   const downtimeProtectionPerStake = 1 / 10000
   return validator.auctionStake.marinadeMndeTargetSol * downtimeProtectionPerStake
+}
+
+export const bondBalanceRequiredForCurrentStake = (validator: AuctionValidator): number => {
+  // refundableDepositPerStake * stake + downtimeProtectionPerStake * stake + bidPerStake * stake = bondBalanceSol
+  const bidPerStake = (validator.bidCpmpe ?? 0) / 1000
+  const downtimeProtectionPerStake = 1 / 10000
+  const refundableDepositPerStake = validator.revShare.totalPmpe / 1000
+  return validator.marinadeActivatedStakeSol * (bidPerStake + downtimeProtectionPerStake + refundableDepositPerStake)
 }

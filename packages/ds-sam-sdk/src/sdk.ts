@@ -1,10 +1,17 @@
 import { DEFAULT_CONFIG, DsSamConfig, InputsSource } from './config'
 import { DataProvider } from './data-provider/data-provider'
-import { AggregatedData, AuctionValidator, AuctionData, ValidatorAuctionStake, AuctionResult } from './types'
+import {
+  AggregatedData,
+  AuctionValidator,
+  AuctionData,
+  ValidatorAuctionStake,
+  AuctionResult,
+  AuctionConstraintsConfig
+} from './types'
 import semver from 'semver'
 import Decimal from 'decimal.js'
 import { Auction } from './auction'
-import { calcValidatorRevShare } from './utils'
+import { calcValidatorRevShare, ineligibleValidatorAggDefaults, validatorAggDefaults } from './utils'
 import { AuctionConstraints } from './constraints'
 import { Debug } from './debug'
 
@@ -24,12 +31,12 @@ export class DsSamSDK {
   getAuctionConstraints ({ stakeAmounts }: AggregatedData, debug: Debug): AuctionConstraints {
     const { networkTotalSol, marinadeMndeTvlSol, marinadeSamTvlSol } = stakeAmounts
     const marinadeTotalTvlSol = marinadeMndeTvlSol + marinadeSamTvlSol
-    const constraints = {
+    const constraints: AuctionConstraintsConfig = {
       totalCountryStakeCapSol: networkTotalSol * this.config.maxNetworkStakeConcentrationPerCountryDec,
       totalAsoStakeCapSol: networkTotalSol * this.config.maxNetworkStakeConcentrationPerAsoDec,
       marinadeCountryStakeCapSol: marinadeTotalTvlSol * this.config.maxMarinadeStakeConcentrationPerCountryDec,
       marinadeAsoStakeCapSol: marinadeTotalTvlSol * this.config.maxMarinadeStakeConcentrationPerAsoDec,
-      marinadeValidatorSamStakeCapSol: marinadeTotalTvlSol * this.config.maxMarinadeTvlSharePerValidatorDec,
+      marinadeValidatorStakeCapSol: marinadeTotalTvlSol * this.config.maxMarinadeTvlSharePerValidatorDec,
     }
     this.debug.pushInfo('auction constraints', JSON.stringify(constraints))
     return new AuctionConstraints(constraints, debug)
@@ -76,25 +83,25 @@ export class DsSamSDK {
         marinadeSamTargetSol: 0,
       }
       if (blacklist.has(validator.voteAccount)) {
-        return { ...validator, revShare, auctionStake, samEligible: false, mndeEligible: false, lastCapConstraint: null }
+        return { ...validator, revShare, auctionStake, ...ineligibleValidatorAggDefaults() }
       }
       if (!semver.satisfies(validator.clientVersion, this.config.validatorsClientVersionSemverExpr)) {
-        return { ...validator, revShare, auctionStake, samEligible: false, mndeEligible: false, lastCapConstraint: null }
+        return { ...validator, revShare, auctionStake, ...ineligibleValidatorAggDefaults() }
       }
       for (let epoch = minEpoch; epoch <= maxEpoch; epoch++) {
         const es = validator.epochStats.find(es => es.epoch === epoch)
         const threshold = epochCreditsThresholds.get(epoch)
         if (!es || !threshold || es.voteCredits < threshold) {
-          return { ...validator, revShare, auctionStake, samEligible: false, mndeEligible: false, lastCapConstraint: null }
+          return { ...validator, revShare, auctionStake, ...ineligibleValidatorAggDefaults() }
         }
       }
       if (validator.bondBalanceSol === null) {
-        return { ...validator, revShare, auctionStake, samEligible: false, mndeEligible: false, lastCapConstraint: null }
+        return { ...validator, revShare, auctionStake, ...ineligibleValidatorAggDefaults() }
       }
       const samEligible = revShare.totalPmpe >= minEffectiveRevSharePmpe
       const mndeEligible = revShare.inflationPmpe + revShare.mevPmpe >= minEffectiveRevSharePmpe
 
-      return { ...validator, revShare, auctionStake, samEligible, mndeEligible, lastCapConstraint: null }
+      return { ...validator, revShare, auctionStake, samEligible, mndeEligible, ...validatorAggDefaults() }
     })
   }
 

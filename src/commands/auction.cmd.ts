@@ -57,6 +57,7 @@ export class AuctionCommand extends CommandRunner {
 
   formatResultSummary (result: AuctionResult): string {
     const { validators, stakeAmounts: { networkTotalSol, marinadeMndeTvlSol, marinadeSamTvlSol }} = result.auctionData
+    const eligibleValidators = validators.filter(({ mndeEligible, samEligible }) => mndeEligible || samEligible).length
     const stakedValidators = validators.filter(({ auctionStake: { marinadeMndeTargetSol, marinadeSamTargetSol } }) => marinadeMndeTargetSol + marinadeSamTargetSol > 0).length
     return [
       `## Auction summary`,
@@ -67,6 +68,7 @@ export class AuctionCommand extends CommandRunner {
       `  - SAM stake = \`${marinadeSamTvlSol.toLocaleString()}\` SOL`,
       `\n### Results stats`,
       `- Auction winning rev share = \`${result.winningTotalPmpe}\` PMPE`,
+      `- Eligible validators count = \`${eligibleValidators.toLocaleString()}\``,
       `- Staked validators count = \`${stakedValidators.toLocaleString()}\``,
       ``,
     ].join('\n')

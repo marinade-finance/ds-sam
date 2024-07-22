@@ -7,8 +7,12 @@ export const calcValidatorRevShare = (validator: AggregatedValidator, rewards: R
   const mevPmpe = Math.max(0, rewards.mevPmpe * (1 - (validator.mevCommissionDec ?? 1)))
   const bidPmpe = Math.max(0, validator.bidCpmpe ?? 0)
 
-  return { totalPmpe: inflationPmpe + mevPmpe + bidPmpe, inflationPmpe, mevPmpe, bidPmpe }
+  return { totalPmpe: inflationPmpe + mevPmpe + bidPmpe, inflationPmpe, mevPmpe, bidPmpe, auctionEffectiveBidPmpe: NaN }
 }
+
+export const ineligibleValidatorAggDefaults = () => ({ samEligible: false, mndeEligible: false, ...validatorAggDefaults() })
+
+export const validatorAggDefaults = () => ({ lastCapConstraint: null, stakePriority: NaN, unstakePriority: NaN })
 
 export const validatorTotalAuctionStakeSol = (validator: AuctionValidator): number =>
   validator.auctionStake.externalActivatedSol + validator.auctionStake.marinadeMndeTargetSol + validator.auctionStake.marinadeSamTargetSol

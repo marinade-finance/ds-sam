@@ -1,5 +1,5 @@
 import { AuctionData, AuctionResult, AuctionValidator } from './types'
-import { AuctionConstraints } from './constraints'
+import { AuctionConstraints, bondBalanceRequiredForCurrentStake } from './constraints'
 import { Debug } from './debug'
 
 const logValidators = (validators: AuctionValidator[]) => {
@@ -58,7 +58,6 @@ export class Auction {
   }
 
   distributeSamStake () {
-    this.data.validators.sort((a, b) => b.revShare.totalPmpe - a.revShare.totalPmpe)
     this.constraints.updateStateForSam(this.data)
     this.debug.getVoteAccounts().forEach((voteAccount) => {
       const constraints = this.constraints.getValidatorConstraints(voteAccount)
@@ -132,6 +131,55 @@ export class Auction {
     return winningTotalPmpe
   }
 
+  setStakeUnstakePriorities () {
+    this.data.validators.sort((a, b) => b.revShare.totalPmpe - a.revShare.totalPmpe)
+
+    let currentGroupPmpe = NaN
+    let currentStakePriority = 0
+    this.data.validators.forEach(validator => {
+      if (validator.revShare.totalPmpe === currentGroupPmpe) {
+        validator.stakePriority = currentStakePriority
+      } else {
+        validator.stakePriority = ++currentStakePriority
+        currentGroupPmpe = validator.revShare.totalPmpe
+      }
+    })
+
+    this.data.validators
+      .filter(({ mndeEligible, samEligible }) => !mndeEligible && !samEligible)
+      .forEach(validator => validator.unstakePriority = 0)
+
+    let bondsMaxIndex = 0
+    this.data.validators
+      .filter(({ unstakePriority }) => Number.isNaN(unstakePriority))
+      .map(validator => ({
+        validator,
+        bondBalanceDiff: ((validator.bondBalanceSol ?? 0) - bondBalanceRequiredForCurrentStake(validator)) / validator.marinadeActivatedStakeSol
+      }))
+      .filter(({ bondBalanceDiff }) => bondBalanceDiff < 0) // Infinity and NaN filtered out too
+      .sort((a, b) => a.bondBalanceDiff - b.bondBalanceDiff)
+      .forEach(({ validator }, index) => bondsMaxIndex = validator.unstakePriority = index + 1)
+
+    this.data.validators
+      .filter(({ unstakePriority }) => Number.isNaN(unstakePriority))
+      .map(validator => ({
+        validator,
+        stakeDiff: validator.marinadeActivatedStakeSol <= 0 ?
+          1 :
+          (validator.auctionStake.marinadeMndeTargetSol + validator.auctionStake.marinadeSamTargetSol - validator.marinadeActivatedStakeSol) / validator.marinadeActivatedStakeSol
+      }))
+      .sort((a, b) => a.stakeDiff - b.stakeDiff)
+      .forEach(({ validator }, index) => validator.unstakePriority = bondsMaxIndex + index + 1)
+  }
+
+  setEffectiveBids(winningTotalPmpe: number) {
+    this.data.validators.forEach(validator => {
+      validator.revShare.auctionEffectiveBidPmpe = Math.round(validator.auctionStake.marinadeSamTargetSol) === 0 ?
+        0 :
+        Math.min(Math.max(validator.revShare.bidPmpe - (validator.revShare.totalPmpe - winningTotalPmpe), 0), validator.revShare.bidPmpe)
+    })
+  }
+
   evaluate (): AuctionResult {
     console.log('stake amounts before', this.data.stakeAmounts)
     this.debug.pushInfo('start amounts', JSON.stringify(this.data.stakeAmounts))
@@ -156,6 +204,10 @@ export class Auction {
     console.log('stake amounts after', this.data.stakeAmounts)
     this.debug.pushInfo('end amounts', JSON.stringify(this.data.stakeAmounts))
     this.debug.pushInfo('winning total PMPE', winningTotalPmpe.toString())
+
+    this.setStakeUnstakePriorities()
+    this.setEffectiveBids(winningTotalPmpe)
+
     return {
       auctionData: this.data,
       winningTotalPmpe,
