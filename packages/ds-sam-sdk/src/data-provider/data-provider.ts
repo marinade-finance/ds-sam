@@ -12,6 +12,8 @@ import { AggregatedData, AggregatedValidator } from '../types'
 import fs from 'fs'
 import { MNDE_VOTE_DELEGATION_STRATEGY } from '../utils'
 
+const MAX_STAKE_WANTED_MIN_ALLOWED_VALUE_SOL = 10_000
+
 export class DataProvider {
   constructor(
     protected readonly config: DsSamConfig,
@@ -67,7 +69,8 @@ export class DataProvider {
         inflationCommissionDec: (validator.commission_effective ?? validator.commission_advertised ?? 100) / 100,
         mevCommissionDec: mev ? mev.mev_commission_bps / 10_000 : null,
         bidCpmpe: bond ? new Decimal(bond.cpmpe).div(1e9).toNumber() : null,
-        maxStakeWanted: bond?.max_stake_wanted ? (bond.max_stake_wanted === '0' ? 1e6 : new Decimal(bond.max_stake_wanted).div(1e9).toNumber()) : null, // TODO remove '0'=>1e6 override once more validators set this
+        // TODO remove '0'=>1e6 override for maxStakeWanted once more validators set this
+        maxStakeWanted: bond?.max_stake_wanted ? (bond.max_stake_wanted === '0' && bond.cpmpe === '0' ? 1e6 : Math.max(MAX_STAKE_WANTED_MIN_ALLOWED_VALUE_SOL, new Decimal(bond.max_stake_wanted).div(1e9).toNumber())) : null,
         mndeVotesSolValue: (validatorsMndeVotes.get(validator.vote_account) ?? new Decimal(0)).mul(solPerMnde).toNumber(),
         epochStats: validator.epoch_stats.filter(({ epoch_end_at }) => !!epoch_end_at).map(es => ({
           epoch: es.epoch,

@@ -36,15 +36,15 @@ describe('constraints', () => {
       new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
         .withEligibleDefaults()
         .withMndeVotes(2000)
-        .withBond({ stakeWanted: 10, cpmpe: 0, balance: 20 }),
+        .withBond({ stakeWanted: 11_000, cpmpe: 0, balance: 20 }),
       new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
         .withEligibleDefaults()
         .withMndeVotes(3000)
-        .withBond({ stakeWanted: 10, cpmpe: 0, balance: 0.1 }),
+        .withBond({ stakeWanted: 11_000, cpmpe: 0, balance: 0.1 }),
       ...Array.from({ length: 18 }, () => new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
         .withEligibleDefaults()
         .withMndeVotes(1000)
-        .withBond({ stakeWanted: 10, cpmpe: 0, balance: 1_000 })),
+        .withBond({ stakeWanted: 11_000, cpmpe: 0, balance: 1_000 })),
     ]
     const dsSam = new DsSamSDK({}, defaultStaticDataProviderBuilder(validators))
     const result = await dsSam.run()
