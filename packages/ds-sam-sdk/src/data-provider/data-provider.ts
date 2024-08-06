@@ -5,7 +5,8 @@ import {
   RawBondsResponseDto,
   RawMevInfoResponseDto, RawMndeVotesResponseDto, RawRewardsRecordDto,
   RawRewardsResponseDto, RawSourceData, RawTvlResponseDto,
-  RawValidatorsResponseDto
+  RawValidatorsResponseDto,
+  SourceDataOverrides
 } from './data-provider.dto'
 import Decimal from 'decimal.js'
 import { AggregatedData, AggregatedValidator } from '../types'
@@ -52,11 +53,15 @@ export class DataProvider {
     return rewardsTotal.total.div(rewardsTotal.epochs).toNumber()
   }
 
-  aggregateValidators(data: RawSourceData, validatorsMndeVotes: Map<string, Decimal>, solPerMnde: number): AggregatedValidator[] {
-
+  aggregateValidators(data: RawSourceData, validatorsMndeVotes: Map<string, Decimal>, solPerMnde: number, dataOverrides: SourceDataOverrides | null = null): AggregatedValidator[] {
     return data.validators.validators.map((validator): AggregatedValidator => {
       const bond = data.bonds.bonds.find(({ vote_account }) => validator.vote_account === vote_account)
       const mev = data.mevInfo.validators.find(({ vote_account }) => validator.vote_account === vote_account)
+      const inflationCommissionOverride = dataOverrides?.inflationCommissions.get(validator.vote_account)
+      const mevCommissionOverride = dataOverrides?.mevCommissions.get(validator.vote_account)
+
+      const inflationCommissionDec = (inflationCommissionOverride ?? validator.commission_effective ?? validator.commission_advertised ?? 100) / 100
+      const mevCommissionDec = (mevCommissionOverride !== undefined ? mevCommissionOverride / 10_000 : (mev ? mev.mev_commission_bps / 10_000 : null))
       return {
         voteAccount: validator.vote_account,
         clientVersion: validator.version ?? '0.0.0',
@@ -66,8 +71,8 @@ export class DataProvider {
         bondBalanceSol: bond ? new Decimal(bond.effective_amount).div(1e9).toNumber() : null,
         totalActivatedStakeSol: new Decimal(validator.activated_stake).div(1e9).toNumber(),
         marinadeActivatedStakeSol: new Decimal(validator.marinade_stake).add(validator.marinade_native_stake).div(1e9).toNumber(),
-        inflationCommissionDec: (validator.commission_effective ?? validator.commission_advertised ?? 100) / 100,
-        mevCommissionDec: mev ? mev.mev_commission_bps / 10_000 : null,
+        inflationCommissionDec,
+        mevCommissionDec,
         bidCpmpe: bond ? new Decimal(bond.cpmpe).div(1e9).toNumber() : null,
         // TODO remove '0'=>1e6 override for maxStakeWanted once more validators set this
         maxStakeWanted: bond?.max_stake_wanted ? (bond.max_stake_wanted === '0' && bond.cpmpe === '0' ? 1e6 : Math.max(MAX_STAKE_WANTED_MIN_ALLOWED_VALUE_SOL, new Decimal(bond.max_stake_wanted).div(1e9).toNumber())) : null,
@@ -82,7 +87,7 @@ export class DataProvider {
     })
   }
 
-  aggregateData(data: RawSourceData): AggregatedData {
+  aggregateData(data: RawSourceData, dataOverrides: SourceDataOverrides | null = null): AggregatedData {
     const activatedStakePerEpochs = new Map<number, Decimal>()
     let externalStakeTotal = new Decimal(0)
     data.validators.validators.forEach(({ epoch_stats, activated_stake, marinade_stake, marinade_native_stake }) => {
@@ -114,7 +119,7 @@ export class DataProvider {
     console.log('SOL per MNDE', solPerMnde)
     console.log('tvl', tvlSol)
     return {
-      validators: this.aggregateValidators(data, validatorsMndeVotes, solPerMnde),
+      validators: this.aggregateValidators(data, validatorsMndeVotes, solPerMnde, dataOverrides),
       rewards: {
         inflationPmpe: this.aggregateRewardsRecords(activatedStakePerEpochs, data.rewards.rewards_inflation_est),
         mevPmpe: this.aggregateRewardsRecords(activatedStakePerEpochs, data.rewards.rewards_mev),
