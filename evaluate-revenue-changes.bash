@@ -5,6 +5,7 @@ SAM_EPOCH=652
 # GCP_PATH="gs://marinade-validator-bonds-mainnet/$SAM_EPOCH/validators.json"
 # SNAPSHOT_VALIDATORS="${SAM_EPOCH}_validators.json"
 
+# TMP SETUP TO HELP SHOWCASE INTEGRATION
 GCP_PATH="gs://marinade-validator-bonds-mainnet/650/validators.json"
 SNAPSHOT_VALIDATORS="650_validators.json"
 
