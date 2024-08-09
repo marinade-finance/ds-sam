@@ -21,7 +21,7 @@ export const defaultDataProviderBuilder = (config: DsSamConfig) => new DataProvi
 export class DsSamSDK {
   readonly config: DsSamConfig
   private readonly debug: Debug
-  public readonly dataProvider: DataProvider
+  private readonly dataProvider: DataProvider
 
   constructor (config: Partial<DsSamConfig> = {}, dataProviderBuilder = defaultDataProviderBuilder) {
     this.config = { ...DEFAULT_CONFIG, ...config }
