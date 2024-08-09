@@ -43,7 +43,7 @@ export const DEFAULT_CONFIG: DsSamConfig = {
   rewardsEpochsCount: 10,
   validatorsUptimeEpochsCount: 3,
   validatorsUptimeThresholdDec: 0.8,
-  validatorsClientVersionSemverExpr: '*', // TODO eligible versions
+  validatorsClientVersionSemverExpr: '>=1.18.15',
   validatorsMaxEffectiveCommissionDec: 0.07,
 
   mndeDirectedStakeShareDec: 0.1,
