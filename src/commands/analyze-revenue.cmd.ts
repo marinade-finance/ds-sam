@@ -21,13 +21,13 @@ export type SnapshotValidatorMeta = {
 }
 
 export type SnapshotValidatorsCollection = {
-    epoch: number
-    slot: number
-    capitalization: number
-    epoch_duration_in_years: number
-    validator_rate: number
-    validator_rewards: number
-    validator_metas: SnapshotValidatorMeta[]
+  epoch: number
+  slot: number
+  capitalization: number
+  epoch_duration_in_years: number
+  validator_rate: number
+  validator_rewards: number
+  validator_metas: SnapshotValidatorMeta[]
 }
 
 export type RevenueExpectation = {
