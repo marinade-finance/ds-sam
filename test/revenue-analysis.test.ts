@@ -9,7 +9,7 @@ describe('revenue analysis', () => {
     it('evaluates revenues correctly', async () => {
       const commandFactory = await CommandFactory.createWithoutRunning(CliModule, new Logger())
       const cmd = await commandFactory.resolve(AnalyzeRevenuesCommand)
-      expect(await cmd.getRevenueExpectations({
+      expect(await cmd.getRevenueExpectationCollection({
         inputsCacheDirPath: path.join(__dirname, 'fixtures', 'sam-run-1', 'inputs'),
         samResultsFixtureFilePath: path.join(__dirname, 'fixtures', 'sam-run-1', 'outputs', 'results.json'),
         snapshotValidatorsFilePath: path.join(__dirname, 'fixtures', '650_validators.json'),

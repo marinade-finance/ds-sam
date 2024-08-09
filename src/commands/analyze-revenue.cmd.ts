@@ -30,6 +30,12 @@ export type SnapshotValidatorsCollection = {
   validator_metas: SnapshotValidatorMeta[]
 }
 
+export type RevenueExpectationCollection = {
+  epoch: number
+  slot: number
+  revenueExpectations: RevenueExpectation[]
+}
+
 export type RevenueExpectation = {
   voteAccount: string
   expectedInflationCommission: number
@@ -44,7 +50,7 @@ export type RevenueExpectation = {
   lossPerStake: number
 }
 
-export const loadSnapshotValidatorsCollection = (path: string) => JSON.parse(fs.readFileSync(path).toString())
+export const loadSnapshotValidatorsCollection = (path: string): SnapshotValidatorsCollection => JSON.parse(fs.readFileSync(path).toString())
 
 export const getValidatorOverrides = (snapshotValidatorsCollection: SnapshotValidatorsCollection): SourceDataOverrides => {
   const inflationCommissions = new Map()
@@ -73,15 +79,15 @@ export class AnalyzeRevenuesCommand extends CommandRunner {
   }
 
   async run (inputs: string[], options: AnalyzeRevenuesCommandOptions): Promise<void> {
-    const revenueExpectations = await this.getRevenueExpectations(options)
+    const revenueExpectationCollection = await this.getRevenueExpectationCollection(options)
 
     const { resultsFilePath } = options
     if (resultsFilePath) {
-      this.storeResults(resultsFilePath, revenueExpectations)
+      this.storeResults(resultsFilePath, revenueExpectationCollection)
     }
   }
 
-  async getRevenueExpectations (options: AnalyzeRevenuesCommandOptions): Promise<RevenueExpectation[]> {
+  async getRevenueExpectationCollection (options: AnalyzeRevenuesCommandOptions): Promise<RevenueExpectationCollection> {
     const fileConfig: AnalyzeRevenuesCommandOptions = {
       ...JSON.parse(fs.readFileSync(`${options.inputsCacheDirPath}/config.json`).toString()),
       inputsSource: InputsSource.FILES,
@@ -102,7 +108,13 @@ export class AnalyzeRevenuesCommand extends CommandRunner {
 
     const auctionValidatorsCalculatedWithOverrides = dsSam.transformValidators(await dsSam.getAggregatedData(sourceDataOverrides))
     
-    return this.evaluateRevenueExpectationForAuctionValidators(auctionDataCalculatedFromFixtures.auctionData.validators, auctionValidatorsCalculatedWithOverrides)
+    const revenueExpectations = this.evaluateRevenueExpectationForAuctionValidators(auctionDataCalculatedFromFixtures.auctionData.validators, auctionValidatorsCalculatedWithOverrides)
+
+    return {
+      epoch: snapshotValidatorsCollection.epoch,
+      slot: snapshotValidatorsCollection.slot,
+      revenueExpectations,
+    }
   }
 
   evaluateRevenueExpectationForAuctionValidators = (validatorsBefore: AuctionValidator[], validatorsAfter: AuctionValidator[]): RevenueExpectation[] => {
@@ -138,8 +150,8 @@ export class AnalyzeRevenuesCommand extends CommandRunner {
     return evaluation
   }
 
-  storeResults (path: string, revenueExpectations: RevenueExpectation[]) {
-    const revenueExpectationsStr = JSON.stringify(revenueExpectations, null, 2)
+  storeResults (path: string, revenueExpectationCollection: RevenueExpectationCollection) {
+    const revenueExpectationsStr = JSON.stringify(revenueExpectationCollection, null, 2)
     fs.writeFileSync(path, revenueExpectationsStr)
   }
 
