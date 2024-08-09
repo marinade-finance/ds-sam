@@ -1,4 +1,4 @@
-import { CliUtilityService, Command, CommandRunner, Option } from 'nest-commander'
+import { Command, CommandRunner, Option } from 'nest-commander'
 import { Logger } from '@nestjs/common'
 import { AuctionResult, AuctionValidator, DsSamSDK, InputsSource, SourceDataOverrides } from '@marinade.finance/ds-sam-sdk'
 import fs from 'fs'
@@ -7,7 +7,7 @@ const COMMAND_NAME = 'analyze-revenues'
 
 type AnalyzeRevenuesCommandOptions = {
   inputsCacheDirPath: string
-  resultsFixtureFilePath: string
+  samResultsFixtureFilePath: string
   snapshotValidatorsFilePath: string
   resultsFilePath?: string
 }
@@ -96,7 +96,7 @@ export class AnalyzeRevenuesCommand extends CommandRunner {
 
     const dsSam = new DsSamSDK({ ...config })
     const auctionDataCalculatedFromFixtures = await dsSam.run()
-    const auctionDataParsedFromFixtures: AuctionResult = JSON.parse(fs.readFileSync(options.resultsFixtureFilePath).toString())
+    const auctionDataParsedFromFixtures: AuctionResult = JSON.parse(fs.readFileSync(options.samResultsFixtureFilePath).toString())
     console.log('Winning Total PMPE parsed from static results:', auctionDataParsedFromFixtures.winningTotalPmpe)
     console.log('Winning Total PMPE calculated from static results:', auctionDataCalculatedFromFixtures.winningTotalPmpe)
 
@@ -150,12 +150,12 @@ export class AnalyzeRevenuesCommand extends CommandRunner {
     return val
   }
   @Option({
-    flags: '--results-fixture-file-path <string>',
-    name: 'resultsFixtureFilePath',
+    flags: '--sam-results-fixture-file-path <string>',
+    name: 'samResultsFixtureFilePath',
     required: true,
     description: 'Output JSON from SAM run to check data integrity',
   })
-  parseOptResultsFixtureFilePath(val: string) {
+  parseOptSamResultsFixtureFilePath(val: string) {
     return val
   }
   @Option({

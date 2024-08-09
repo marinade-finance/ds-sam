@@ -40,6 +40,6 @@ pnpm i
 pnpm -r build
 pnpm run cli -- analyze-revenues \
     --cache-dir-path "$SAM_INPUTS_DIR" \
-    --results-fixture-file-path "$SAM_OUTPUTS_DIR/results.json" \
+    --sam-results-fixture-file-path "$SAM_OUTPUTS_DIR/results.json" \
     --snapshot-validators-file-path "$SNAPSHOT_VALIDATORS" \
     --results-file-path evaluation.json | tee out.log

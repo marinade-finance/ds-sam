@@ -11,7 +11,7 @@ describe('revenue analysis', () => {
       const cmd = await commandFactory.resolve(AnalyzeRevenuesCommand)
       expect(await cmd.getRevenueExpectations({
         inputsCacheDirPath: path.join(__dirname, 'fixtures', 'sam-run-1', 'inputs'),
-        resultsFixtureFilePath: path.join(__dirname, 'fixtures', 'sam-run-1', 'outputs', 'results.json'),
+        samResultsFixtureFilePath: path.join(__dirname, 'fixtures', 'sam-run-1', 'outputs', 'results.json'),
         snapshotValidatorsFilePath: path.join(__dirname, 'fixtures', '650_validators.json'),
       })).toMatchSnapshot()
     })
