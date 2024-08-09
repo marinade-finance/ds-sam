@@ -68,7 +68,7 @@ export const getValidatorOverrides = (snapshotValidatorsCollection: SnapshotVali
 export class AnalyzeRevenuesCommand extends CommandRunner {
   private readonly logger = new Logger()
 
-  constructor (private readonly nestCliUtilSvc: CliUtilityService) {
+  constructor () {
     super()
   }
 
