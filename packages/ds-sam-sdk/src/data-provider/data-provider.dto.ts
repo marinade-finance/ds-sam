@@ -89,3 +89,8 @@ export type RawSourceData = {
   mndeVotes: RawMndeVotesResponseDto
   rewards: RawRewardsResponseDto
 }
+
+export type SourceDataOverrides = {
+  inflationCommissions: Map<String, number>
+  mevCommissions: Map<String, number>
+}

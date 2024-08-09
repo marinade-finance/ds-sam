@@ -14,6 +14,7 @@ import { Auction } from './auction'
 import { calcValidatorRevShare, ineligibleValidatorAggDefaults, validatorAggDefaults } from './utils'
 import { AuctionConstraints } from './constraints'
 import { Debug } from './debug'
+import { SourceDataOverrides } from './data-provider/data-provider.dto'
 
 export const defaultDataProviderBuilder = (config: DsSamConfig) => new DataProvider({ ...config }, config.inputsSource)
 
@@ -106,8 +107,7 @@ export class DsSamSDK {
   }
 
   async run (): Promise<AuctionResult> {
-    const sourceData = this.config.inputsSource === InputsSource.FILES ? this.dataProvider.parseCachedSourceData() : await this.dataProvider.fetchSourceData()
-    const aggregatedData = this.dataProvider.aggregateData(sourceData)
+    const aggregatedData = await this.getAggregatedData()
 
     const constraints = this.getAuctionConstraints(aggregatedData, this.debug)
     const auctionData: AuctionData = { ...aggregatedData, validators: this.transformValidators(aggregatedData) }
@@ -116,5 +116,10 @@ export class DsSamSDK {
     const result = auction.evaluate()
     console.log(`==============================\n${this.debug.formatInfo()}\n${this.debug.formatEvents()}\n==============================`)
     return result
+  }
+
+  async getAggregatedData (dataOverrides: SourceDataOverrides | null = null): Promise<AggregatedData> {
+    const sourceData = this.config.inputsSource === InputsSource.FILES ? this.dataProvider.parseCachedSourceData() : await this.dataProvider.fetchSourceData()
+    return this.dataProvider.aggregateData(sourceData, dataOverrides)
   }
 }
