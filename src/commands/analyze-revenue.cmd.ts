@@ -140,7 +140,7 @@ export class AnalyzeRevenuesCommand extends CommandRunner {
         actualMevCommission: validatorAfter.mevCommissionDec,
         expectedNonBidPmpe,
         actualNonBidPmpe,
-        expectedSamPmpe: expectedNonBidPmpe + (validatorBefore.revShare.auctionEffectiveBidPmpe ?? 0),
+        expectedSamPmpe: expectedNonBidPmpe + validatorBefore.revShare.auctionEffectiveBidPmpe,
         maxSamStake: validatorBefore.maxStakeWanted,
         samStakeShare: marinadeMndeTargetSol === 0 ? 1 : marinadeSamTargetSol / (marinadeMndeTargetSol + marinadeSamTargetSol),
         lossPerStake: Math.max(0, expectedNonBidPmpe - actualNonBidPmpe) / 1000,
