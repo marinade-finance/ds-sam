@@ -173,10 +173,12 @@ export class Auction {
   }
 
   setEffectiveBids(winningTotalPmpe: number) {
-    this.data.validators.forEach(validator => {
-      validator.revShare.auctionEffectiveBidPmpe = Math.round(validator.auctionStake.marinadeSamTargetSol) === 0 ?
-        0 :
-        Math.min(Math.max(validator.revShare.bidPmpe - (validator.revShare.totalPmpe - winningTotalPmpe), 0), validator.revShare.bidPmpe)
+    this.data.validators.forEach(({ revShare }) => {
+      if (revShare.totalPmpe < winningTotalPmpe) {
+        revShare.auctionEffectiveBidPmpe = revShare.bidPmpe
+      } else {
+        revShare.auctionEffectiveBidPmpe = Math.max(0, winningTotalPmpe - revShare.inflationPmpe - revShare.mevPmpe)
+      }
     })
   }
 

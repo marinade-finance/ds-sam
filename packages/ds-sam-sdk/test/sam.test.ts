@@ -233,7 +233,7 @@ describe('sam', () => {
       result.auctionData.validators
         .filter(validator => validator.revShare.totalPmpe < result.winningTotalPmpe)
         .forEach(({ revShare }) => {
-          expect(revShare.auctionEffectiveBidPmpe).toStrictEqual(0)
+          expect(revShare.auctionEffectiveBidPmpe).toStrictEqual(revShare.bidPmpe)
         })
     })
   })
