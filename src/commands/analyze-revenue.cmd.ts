@@ -117,6 +117,9 @@ export class AnalyzeRevenuesCommand extends CommandRunner {
       const expectedNonBidPmpe = validatorBefore.revShare.inflationPmpe + validatorBefore.revShare.mevPmpe
       const actualNonBidPmpe = validatorAfter.revShare.inflationPmpe + validatorAfter.revShare.mevPmpe
 
+      const marinadeMndeTargetSol = validatorBefore.auctionStake.marinadeMndeTargetSol
+      const marinadeSamTargetSol = validatorBefore.auctionStake.marinadeSamTargetSol
+
       evaluation.push({
         voteAccount: validatorBefore.voteAccount,
         expectedInflationCommission: validatorBefore.inflationCommissionDec,
@@ -127,7 +130,7 @@ export class AnalyzeRevenuesCommand extends CommandRunner {
         actualNonBidPmpe,
         expectedSamPmpe: expectedNonBidPmpe + (validatorBefore.revShare.auctionEffectiveBidPmpe ?? 0),
         maxSamStake: validatorBefore.maxStakeWanted,
-        samStakeShare: validatorBefore.auctionStake.marinadeMndeTargetSol === 0 ? 1 : validatorBefore.auctionStake.marinadeSamTargetSol / (validatorBefore.auctionStake.marinadeMndeTargetSol + validatorBefore.auctionStake.marinadeSamTargetSol),
+        samStakeShare: marinadeMndeTargetSol === 0 ? 1 : marinadeSamTargetSol / (marinadeMndeTargetSol + marinadeSamTargetSol),
         lossPerStake: Math.max(0, expectedNonBidPmpe - actualNonBidPmpe) / 1000,
       })
     }
