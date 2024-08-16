@@ -1,15 +1,15 @@
 #!/bin/bash
 
 SAM_EPOCH=652
+PAST_EPOCH=$((SAM_EPOCH - 1))
 
-# GCP_PATH="gs://marinade-validator-bonds-mainnet/$SAM_EPOCH/validators.json"
-# SNAPSHOT_VALIDATORS="${SAM_EPOCH}_validators.json"
+GCP_PATH="gs://marinade-validator-bonds-mainnet/"
+SNAPSHOT_VALIDATORS="${SAM_EPOCH}_validators.json"
+gcloud storage cp "${GCP_PATH}/${SAM_EPOCH}/validators.json" "${SNAPSHOT_VALIDATORS}"
 
-# TMP SETUP TO HELP SHOWCASE INTEGRATION
-GCP_PATH="gs://marinade-validator-bonds-mainnet/650/validators.json"
-SNAPSHOT_VALIDATORS="650_validators.json"
+SNAPSHOT_PAST_VALIDATORS="${PAST_EPOCH}_validators.json"
+gcloud storage cp "${GCP_PATH}/${PAST_EPOCH}/validators.json" "${SNAPSHOT_PAST_VALIDATORS}"
 
-gcloud storage cp "gs://marinade-validator-bonds-mainnet/650/validators.json" "$SNAPSHOT_VALIDATORS"
 
 # TODO: handle cases where the scoring is N/A for that specific epoch by iterating back in time epoch by epoch
 SAM_RESPONSE=$(curl -sfLS "https://scoring.marinade.finance/api/v1/scores/sam?epoch=$SAM_EPOCH")
@@ -42,4 +42,5 @@ pnpm run cli -- analyze-revenues \
     --cache-dir-path "$SAM_INPUTS_DIR" \
     --sam-results-fixture-file-path "$SAM_OUTPUTS_DIR/results.json" \
     --snapshot-validators-file-path "$SNAPSHOT_VALIDATORS" \
+    ${SNAPSHOT_PAST_VALIDATORS:+"--snapshot-past-validators-file-path $SNAPSHOT_PAST_VALIDATORS"} \
     --results-file-path evaluation.json | tee out.log
