@@ -32,20 +32,11 @@ export type SnapshotValidatorsCollection = {
   validator_metas: SnapshotValidatorMeta[]
 }
 
-type ChangeCommissionsMap = Map<string, ChangeCommission>
+type PastValidatorCommissionsMap = Map<string, PastValidatorCommissions>
 
-type ChangeCommission = {
-  inflationBefore: number,
-  inflationAfter: number,
-  mevBefore: number | null,
-  mevAfter: number | null,
-}
-
-const DEFAULT_CHANGE_COMMISSION: ChangeCommission = {
-  inflationBefore: 0,
-  inflationAfter: 0,
-  mevBefore: 0,
-  mevAfter: 0,
+type PastValidatorCommissions = {
+  inflation: number,
+  mev: number | null,
 }
 
 export type RevenueExpectationCollection = {
@@ -65,7 +56,7 @@ export type RevenueExpectation = {
   expectedNonBidPmpe: number
   actualNonBidPmpe: number
   expectedSamPmpe: number
-  nonBidCommissionIncreasePmpe: number
+  beforeSamCommissionIncreasePmpe: number
   maxSamStake: number | null
   samStakeShare: number
   lossPerStake: number
@@ -131,8 +122,8 @@ export class AnalyzeRevenuesCommand extends CommandRunner {
     }
 
     const sourceDataOverrides = getValidatorOverrides(snapshotValidatorsCollection)
-    const increaseCommissionsMap = this.getChangeCommissionsMap(
-      snapshotValidatorsCollection, pastSnapshotValidatorsCollection
+    const pastValidatorChangeCommissions = this.getPastValidatorCommissions(
+      pastSnapshotValidatorsCollection
     )
 
     const dsSam = new DsSamSDK({ ...config })
@@ -152,7 +143,7 @@ export class AnalyzeRevenuesCommand extends CommandRunner {
       auctionDataCalculatedFromFixtures.auctionData.validators,
       auctionValidatorsCalculatedWithOverrides,
       auctionDataCalculatedFromFixtures, // TODO: difference between auction calculated and parsed data?
-      increaseCommissionsMap,
+      pastValidatorChangeCommissions,
       aggregatedData.rewards
     )
 
@@ -163,37 +154,32 @@ export class AnalyzeRevenuesCommand extends CommandRunner {
     }
   }
 
-  getChangeCommissionsMap = (
-      validatorCollection: SnapshotValidatorsCollection,
+  getPastValidatorCommissions = (
       pastValidatorCollection: SnapshotValidatorsCollection | null
-  ): ChangeCommissionsMap => {
-    const changeMap: ChangeCommissionsMap = new Map()
+  ): PastValidatorCommissionsMap => {
+    const commissionMap: PastValidatorCommissionsMap = new Map()
+    if (pastValidatorCollection == null) {
+      return commissionMap
+    }
 
-    for (const validatorMeta of validatorCollection.validator_metas) {
+    for (const validatorMeta of pastValidatorCollection.validator_metas) {
       const vote_account = validatorMeta.vote_account
-      const pastValidatorMeta = pastValidatorCollection?.validator_metas.find(
-        v => v.vote_account === vote_account
-      )
-      const inflationAfter = validatorMeta.commission / 100
-      const inflationBefore = (pastValidatorMeta?.commission ?? validatorMeta.commission) / 100
-      const mevAfter = validatorMeta.mev_commission || null
-      const mevBefore = pastValidatorMeta ? (pastValidatorMeta.mev_commission ? (pastValidatorMeta.mev_commission / 100) : null) : null
-      changeMap.set(vote_account, {
-        inflationBefore,
-        inflationAfter,
-        mevBefore,
-        mevAfter,
+      const inflationLastEpoch = validatorMeta.commission / 100
+      const mevLastEpoch = validatorMeta.mev_commission ? validatorMeta.mev_commission / 100 : null
+      commissionMap.set(vote_account, {
+        inflation: inflationLastEpoch,
+        mev: mevLastEpoch,
       })
     }
 
-    return changeMap
+    return commissionMap
   }
 
   evaluateRevenueExpectationForAuctionValidators = (
     validatorsBefore: AuctionValidator[],
     validatorsAfter: AuctionValidator[],
     auctionResult: AuctionResult,
-    changeCommissionsMap: ChangeCommissionsMap,
+    pastValidatorCommissions: PastValidatorCommissionsMap,
     rewards: Rewards
   ): RevenueExpectation[] => {
     const evaluation: RevenueExpectation[] = []
@@ -213,28 +199,27 @@ export class AnalyzeRevenuesCommand extends CommandRunner {
       const marinadeMndeTargetSol = validatorBefore.auctionStake.marinadeMndeTargetSol
       const marinadeSamTargetSol = validatorBefore.auctionStake.marinadeSamTargetSol
 
-      // verification of commission increase (rug)
+      // verification of commission increase (rug) at time before SAM was run in this epoch
+      // validatorBefore is data when SAM was run, validatorAfter is data after SAM was run
+      // this case manages the situation when validator increased commission in time-frame from start of epoch and running the SAM
       // if validator increased commission (in comparison to last epoch) AND his auction bid is under the winning PMPE
       // he requires to top up the difference that is not covered by the bid (the part within winning PMPE range is covered by the bid)
-      let nonBidCommissionIncreasePmpe = 0
-      const changeCommission = changeCommissionsMap.get(validatorBefore.voteAccount) ?? DEFAULT_CHANGE_COMMISSION
+      let beforeSamCommissionIncreasePmpe = 0
+      const lastEpochCommissions = pastValidatorCommissions.get(validatorBefore.voteAccount) ?? {inflation: 0, mev: null}
+      const lastEpochInflationPmpe = rewards.inflationPmpe * (1.0 - lastEpochCommissions.inflation)
       if (
-        changeCommission.inflationAfter > changeCommission.inflationBefore &&
+        // validatorBefore.revShare.inflationPmpe - inflation at time SAM was run
+        validatorBefore.revShare.inflationPmpe > lastEpochInflationPmpe &&
         auctionResult.winningTotalPmpe > validatorAfter.revShare.totalPmpe
       ) {
-        const actualInflationPmpe = validatorAfter.revShare.inflationPmpe
-        const expectedInflationPmpe = rewards.inflationPmpe * (1.0 - changeCommission.inflationBefore) 
-        assert(
-          expectedInflationPmpe > actualInflationPmpe,
-          validatorAfter.voteAccount + ': expected inflation has to be greater to actual'
-        )
-        nonBidCommissionIncreasePmpe = Math.max(0, expectedInflationPmpe - actualInflationPmpe)
+        const samInflationPmpe = validatorBefore.revShare.inflationPmpe
+        beforeSamCommissionIncreasePmpe = Math.max(0, samInflationPmpe - lastEpochInflationPmpe - samInflationPmpe)
         this.logger.debug('Validator increased commission and has not won auction', {
           voteAccount: validatorBefore.voteAccount,
-          pastInflationCommission: changeCommission.inflationBefore,
-          inflationPmpeBefore: expectedInflationPmpe,
-          inflationPmpeAfter: actualInflationPmpe,
-          nonBidCommissionIncreasePmpe,
+          inflationCommissionLastEpoch: lastEpochCommissions.inflation,
+          inflationPmpeLastEpoch: lastEpochInflationPmpe,
+          samInflationPmpe: samInflationPmpe,
+          beforeSamCommissionIncreasePmpe: beforeSamCommissionIncreasePmpe,
           winningPmpe: auctionResult.winningTotalPmpe,
           validatorTotalPmpe: validatorAfter.revShare.totalPmpe,
         })
@@ -245,14 +230,14 @@ export class AnalyzeRevenuesCommand extends CommandRunner {
         voteAccount: validatorBefore.voteAccount,
         expectedInflationCommission: validatorBefore.inflationCommissionDec,
         actualInflationCommission: validatorAfter.inflationCommissionDec,
-        pastInflationCommission: changeCommission.inflationBefore,
+        pastInflationCommission: lastEpochCommissions.inflation,
         expectedMevCommission: validatorBefore.mevCommissionDec,
         actualMevCommission: validatorAfter.mevCommissionDec,
-        pastMevCommission: changeCommission.mevBefore,
+        pastMevCommission: lastEpochCommissions.mev,
         expectedNonBidPmpe,
         actualNonBidPmpe,
         expectedSamPmpe: expectedNonBidPmpe + validatorBefore.revShare.auctionEffectiveBidPmpe,
-        nonBidCommissionIncreasePmpe,
+        beforeSamCommissionIncreasePmpe,
         maxSamStake: validatorBefore.maxStakeWanted,
         samStakeShare: marinadeMndeTargetSol === 0 ? 1 : marinadeSamTargetSol / (marinadeMndeTargetSol + marinadeSamTargetSol),
         lossPerStake: Math.max(0, expectedNonBidPmpe - actualNonBidPmpe) / 1000,
