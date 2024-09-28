@@ -7,6 +7,7 @@ import {
 } from './types'
 import { minCapFromConstraint, validatorTotalAuctionStakeSol, zeroStakeConcentration } from './utils'
 import { Debug } from './debug'
+import { EPSILON } from './auction'
 
 export class AuctionConstraints {
   private constraints: AuctionConstraint[] = []
@@ -46,7 +47,7 @@ export class AuctionConstraints {
 
   findCapForValidator(validator: AuctionValidator): number {
     const { cap, constraint } = this.getMinCapForEvenDistribution(new Set([validator.voteAccount]), false)
-    if (cap <= 0) {
+    if (cap < EPSILON) {
       validator.lastCapConstraint = constraint
       this.debug.pushValidatorEvent(validator.voteAccount, `reached cap due to ${constraint.constraintType} (${constraint.constraintName}) constraint`)
     }

@@ -10,7 +10,7 @@ const logValidators = (validators: AuctionValidator[]) => {
   console.log('----------------------------- validators')
 }
 
-const EPSILON = 1e-4
+export const EPSILON = 1e-4
 
 export class Auction {
 
