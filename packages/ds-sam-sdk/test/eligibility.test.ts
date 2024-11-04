@@ -59,10 +59,11 @@ describe('eligibility', () => {
       [new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value).withEligibleDefaults().withVersion('1.17.99'), false],
       [new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value).withEligibleDefaults().withVersion('1.19.0'), true],
       [new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value).withEligibleDefaults().withVersion('0.113.20007'), true],
-      [new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value).withEligibleDefaults().withVersion('0.113.20008'), true],
-      [new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value).withEligibleDefaults().withVersion('0.113.20006'), false],
-      [new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value).withEligibleDefaults().withVersion('0.114.0'), true],
-      [new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value).withEligibleDefaults().withVersion('0.112.99'), false],
+      [new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value).withEligibleDefaults().withVersion('0.101.20013'), true],
+      [new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value).withEligibleDefaults().withVersion('0.101.20014'), true],
+      [new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value).withEligibleDefaults().withVersion('0.101.20012'), false],
+      [new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value).withEligibleDefaults().withVersion('0.102.0'), true],
+      [new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value).withEligibleDefaults().withVersion('0.100.99'), false],
       [new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value).withEligibleDefaults().withVersion('0.999.99'), true],
       [new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value).withEligibleDefaults().withVersion('1.0.0'), false],
       [new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value).withEligibleDefaults().withVersion('1.0.1'), false],
@@ -70,7 +71,7 @@ describe('eligibility', () => {
       [new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value).withEligibleDefaults().withVersion('2.0.0'), true],
     ]
     const dsSam = new DsSamSDK(
-      { validatorsClientVersionSemverExpr: '>=1.18.15 || >=0.113.20007 <1.0.0' },
+      { validatorsClientVersionSemverExpr: '>=1.18.15 || >=0.101.20013 <1.0.0' },
       defaultStaticDataProviderBuilder(validators.map(([validator]) => validator)),
     )
     const result = await dsSam.run()
