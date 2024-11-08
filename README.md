@@ -52,6 +52,8 @@ Config [defaults](./packages/ds-sam-sdk/src/config.ts#L35)
 
   // Share of Marinade TVL stake controlled by MNDE votes
   mndeDirectedStakeShareDec: number
+  // Total Marinade TVL stake cap multiplier factor
+  mndeStakeCapMultiplier: number,
   // Cap of Marinade stake share in a single country
   maxMarinadeStakeConcentrationPerCountryDec: number
   // Cap of Marinade stake share with a single ASO

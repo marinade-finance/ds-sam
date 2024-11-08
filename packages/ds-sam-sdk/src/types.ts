@@ -60,6 +60,7 @@ export type AggregatedValidator = {
   mevCommissionDec: number | null
   bidCpmpe: number | null
   maxStakeWanted: number | null
+  mndeStakeCapIncrease: number
   mndeVotesSolValue: number
   epochStats: EpochStats[]
 }

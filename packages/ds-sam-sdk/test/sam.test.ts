@@ -111,9 +111,9 @@ describe('sam', () => {
 
       const totalMndeStake = result.auctionData.validators.reduce((sum, validator) => sum + validator.auctionStake.marinadeMndeTargetSol, 0)
       // 100k total TVL => 10k MNDE TVL & 50% of votes for DelStrat => 5k MNDE stake distributed
-      expect(result.auctionData.stakeAmounts.marinadeMndeTvlSol).toStrictEqual(5_000)
-      expect(result.auctionData.stakeAmounts.marinadeSamTvlSol).toStrictEqual(95_000)
-      expect(totalMndeStake).toStrictEqual(5_000)
+      expect(result.auctionData.stakeAmounts.marinadeMndeTvlSol).toStrictEqual(0)
+      expect(result.auctionData.stakeAmounts.marinadeSamTvlSol).toStrictEqual(100_000)
+      expect(totalMndeStake).toStrictEqual(0)
     })
 
     it('distributes overflow MNDE stake as part of SAM', async () => {

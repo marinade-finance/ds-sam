@@ -176,7 +176,10 @@ describe('constraints', () => {
     const result = await dsSam.run()
 
     const { auctionStake } = findValidatorInResult('dummy-validator', result)!
-    expect(auctionStake.marinadeMndeTargetSol + auctionStake.marinadeSamTargetSol).toStrictEqual(100_000*0.02)
+
+    // 100_000 * 0.02 -> TVL * Default cap per validator
+    // (0.1 * 100 / 2000) * 100_000 -> (mndeStakeCapMultiplier * validator MNDE votes / total MNDE votes) * TVL
+    expect(auctionStake.marinadeSamTargetSol).toStrictEqual(100_000 * 0.02 + (0.1 * 100 / 2000) * 100_000)
     expect(prettyPrintAuctionResult(result)).toMatchSnapshot()
   })
 })

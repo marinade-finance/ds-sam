@@ -22,6 +22,7 @@ export type DsSamConfig = {
   validatorsMaxEffectiveCommissionDec: number
 
   mndeDirectedStakeShareDec: number
+  mndeStakeCapMultiplier: number
   maxMarinadeStakeConcentrationPerCountryDec: number
   maxMarinadeStakeConcentrationPerAsoDec: number
   maxNetworkStakeConcentrationPerCountryDec: number
@@ -46,7 +47,8 @@ export const DEFAULT_CONFIG: DsSamConfig = {
   validatorsClientVersionSemverExpr: '>=1.18.15 || >=0.101.20013 <1.0.0',
   validatorsMaxEffectiveCommissionDec: 0.07,
 
-  mndeDirectedStakeShareDec: 0.1,
+  mndeDirectedStakeShareDec: 0,
+  mndeStakeCapMultiplier: 0.1,
   maxMarinadeStakeConcentrationPerCountryDec: 0.3,
   maxMarinadeStakeConcentrationPerAsoDec: 0.2,
   maxNetworkStakeConcentrationPerCountryDec: 0.3,
