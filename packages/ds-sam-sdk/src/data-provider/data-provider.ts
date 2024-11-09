@@ -16,34 +16,34 @@ import { MNDE_VOTE_DELEGATION_STRATEGY } from '../utils'
 const MAX_STAKE_WANTED_MIN_ALLOWED_VALUE_SOL = 10_000
 
 export class DataProvider {
-  constructor(
+  constructor (
     protected readonly config: DsSamConfig,
     private readonly dataSource: InputsSource,
   ) {
     this.validateConfig()
   }
 
-  private validateConfig() {
+  private validateConfig () {
     switch (this.dataSource) {
-      case InputsSource.APIS:
-        if (this.config.cacheInputs && !this.config.inputsCacheDirPath) {
-          throw new Error(`Cannot cache inputs without cache directory path configured`)
-        }
-        break
-      case InputsSource.FILES:
-        if (!this.config.inputsCacheDirPath) {
-          throw new Error(`Missing inputs cache directory path for inputs source: ${this.dataSource}`)
-        }
-        if (this.config.cacheInputs) {
-          throw new Error(`Caching inputs not supported for inputs source: ${this.dataSource}`)
-        }
-        break
-      default:
-        throw new Error(`Unsupported inputs source: ${this.dataSource}`)
+    case InputsSource.APIS:
+      if (this.config.cacheInputs && !this.config.inputsCacheDirPath) {
+        throw new Error('Cannot cache inputs without cache directory path configured')
+      }
+      break
+    case InputsSource.FILES:
+      if (!this.config.inputsCacheDirPath) {
+        throw new Error(`Missing inputs cache directory path for inputs source: ${this.dataSource}`)
+      }
+      if (this.config.cacheInputs) {
+        throw new Error(`Caching inputs not supported for inputs source: ${this.dataSource}`)
+      }
+      break
+    default:
+      throw new Error(`Unsupported inputs source: ${this.dataSource}`)
     }
   }
 
-  aggregateRewardsRecords(activatedStakePerEpochs: Map<number, Decimal>, rawRewardsRecord: RawRewardsRecordDto[]): number {
+  aggregateRewardsRecords (activatedStakePerEpochs: Map<number, Decimal>, rawRewardsRecord: RawRewardsRecordDto[]): number {
     const rewardsTotal = rawRewardsRecord.reduce((agg, [epoch, rewards]) => {
       const stake = activatedStakePerEpochs.get(epoch)
       // Rewards in SOL (1e9) + stake in lamports (1e-0) + result in PMPE (1e3) = 1e12
@@ -53,12 +53,15 @@ export class DataProvider {
     return rewardsTotal.total.div(rewardsTotal.epochs).toNumber()
   }
 
-  aggregateValidators(data: RawSourceData, validatorsMndeVotes: Map<string, Decimal>, solPerMnde: number, dataOverrides: SourceDataOverrides | null = null): AggregatedValidator[] {
+  aggregateValidators (data: RawSourceData, validatorsMndeVotes: Map<string, Decimal>, solPerMnde: number, mndeStakeCapIncreases: Map<string, Decimal>, dataOverrides: SourceDataOverrides | null = null): AggregatedValidator[] {
     return data.validators.validators.map((validator): AggregatedValidator => {
       const bond = data.bonds.bonds.find(({ vote_account }) => validator.vote_account === vote_account)
       const mev = data.mevInfo.validators.find(({ vote_account }) => validator.vote_account === vote_account)
       const inflationCommissionOverride = dataOverrides?.inflationCommissions.get(validator.vote_account)
       const mevCommissionOverride = dataOverrides?.mevCommissions.get(validator.vote_account)
+
+      const validatorMndeVotes = (validatorsMndeVotes.get(validator.vote_account) ?? new Decimal(0))
+      const validatorMndeStakeCapIncrease = (mndeStakeCapIncreases.get(validator.vote_account) ?? new Decimal(0))
 
       const inflationCommissionDec = (inflationCommissionOverride ?? validator.commission_effective ?? validator.commission_advertised ?? 100) / 100
       const mevCommissionDec = (mevCommissionOverride !== undefined ? mevCommissionOverride / 10_000 : (mev ? mev.mev_commission_bps / 10_000 : null))
@@ -75,7 +78,8 @@ export class DataProvider {
         mevCommissionDec,
         bidCpmpe: bond ? new Decimal(bond.cpmpe).div(1e9).toNumber() : null,
         maxStakeWanted: bond?.max_stake_wanted ? Math.max(MAX_STAKE_WANTED_MIN_ALLOWED_VALUE_SOL, new Decimal(bond.max_stake_wanted).div(1e9).toNumber()) : null,
-        mndeVotesSolValue: (validatorsMndeVotes.get(validator.vote_account) ?? new Decimal(0)).mul(solPerMnde).toNumber(),
+        mndeVotesSolValue: validatorMndeVotes.mul(solPerMnde).toNumber(),
+        mndeStakeCapIncrease: validatorMndeStakeCapIncrease.toNumber(),
         epochStats: validator.epoch_stats.filter(({ epoch_end_at }) => !!epoch_end_at).map(es => ({
           epoch: es.epoch,
           totalActivatedStake: new Decimal(es.activated_stake),
@@ -86,7 +90,7 @@ export class DataProvider {
     })
   }
 
-  aggregateData(data: RawSourceData, dataOverrides: SourceDataOverrides | null = null): AggregatedData {
+  aggregateData (data: RawSourceData, dataOverrides: SourceDataOverrides | null = null): AggregatedData {
     const activatedStakePerEpochs = new Map<number, Decimal>()
     let externalStakeTotal = new Decimal(0)
     data.validators.validators.forEach(({ epoch_stats, activated_stake, marinade_stake, marinade_native_stake }) => {
@@ -113,12 +117,20 @@ export class DataProvider {
     const tvlSol = data.tvlInfo.total_virtual_staked_sol + data.tvlInfo.marinade_native_stake_sol
     const delStratVotesShare = totalMndeVotes.gt(0) ? delStratVotes.div(totalMndeVotes).toNumber() : 0
     const effectiveMndeTvlShareSol = totalMndeVotes.gt(0) ? (1 - delStratVotesShare) * this.config.mndeDirectedStakeShareDec * tvlSol : 0
+
+    const effectiveMndeStakeCapIncrease = totalMndeVotes.gt(0) ? (1 - delStratVotesShare) * this.config.mndeStakeCapMultiplier : 0
+
+    const validatorsMndeStakeCapIncreases = new Map<string, Decimal>()
+    for (const [validatorVoteAccount, amount] of validatorsMndeVotes) {
+      validatorsMndeStakeCapIncreases.set(validatorVoteAccount, amount.mul(effectiveMndeStakeCapIncrease).mul(tvlSol).div(totalMndeVotes))
+    }
+
     const solPerMnde = totalMndeVotes.gt(0) ? new Decimal(effectiveMndeTvlShareSol).div(totalMndeVotes.sub(delStratVotes)).toNumber() : 0
     console.log('total mnde votes', totalMndeVotes)
     console.log('SOL per MNDE', solPerMnde)
     console.log('tvl', tvlSol)
     return {
-      validators: this.aggregateValidators(data, validatorsMndeVotes, solPerMnde, dataOverrides),
+      validators: this.aggregateValidators(data, validatorsMndeVotes, solPerMnde, validatorsMndeStakeCapIncreases, dataOverrides),
       rewards: {
         inflationPmpe: this.aggregateRewardsRecords(activatedStakePerEpochs, data.rewards.rewards_inflation_est),
         mevPmpe: this.aggregateRewardsRecords(activatedStakePerEpochs, data.rewards.rewards_mev),
@@ -139,7 +151,7 @@ export class DataProvider {
     }
   }
 
-  cacheSourceData(data: RawSourceData) {
+  cacheSourceData (data: RawSourceData) {
     if (!this.config.inputsCacheDirPath) {
       throw new Error('Cannot cache data without cache directory path configured')
     }
@@ -152,7 +164,7 @@ export class DataProvider {
     fs.writeFileSync(`${this.config.inputsCacheDirPath}/rewards.json`, JSON.stringify(data.rewards, null, 2))
   }
 
-  parseCachedSourceData(): RawSourceData {
+  parseCachedSourceData (): RawSourceData {
     if (!this.config.inputsCacheDirPath) {
       throw new Error('Cannot parse cached data without cache directory path configured')
     }
@@ -167,7 +179,7 @@ export class DataProvider {
     return { validators, mevInfo, bonds, tvlInfo, mndeVotes, rewards, blacklist }
   }
 
-  async fetchSourceData(): Promise<RawSourceData> {
+  async fetchSourceData (): Promise<RawSourceData> {
     const [
       validators,
       mevInfo,
@@ -193,7 +205,7 @@ export class DataProvider {
     return data
   }
 
-  async fetchValidators(): Promise<RawValidatorsResponseDto> {
+  async fetchValidators (): Promise<RawValidatorsResponseDto> {
     // The API returns epoch stats also for the current epoch which is not finished and can't be used
     const epochsCount = 1 + Math.max(this.config.validatorsUptimeEpochsCount, this.config.rewardsEpochsCount)
 
@@ -205,37 +217,37 @@ export class DataProvider {
     return { ...response.data, validators }
   }
 
-  async fetchBonds(): Promise<RawBondsResponseDto> {
+  async fetchBonds (): Promise<RawBondsResponseDto> {
     const url = `${this.config.bondsApiBaseUrl}/bonds`
     const response = await axios.get<RawBondsResponseDto>(url)
     return response.data
   }
 
-  async fetchTvlInfo(): Promise<RawTvlResponseDto> {
+  async fetchTvlInfo (): Promise<RawTvlResponseDto> {
     const url = `${this.config.tvlInfoApiBaseUrl}/tlv`
     const response = await axios.get<RawTvlResponseDto>(url)
     return response.data
   }
 
-  async fetchBlacklist(): Promise<RawBlacklistResponseDto> {
+  async fetchBlacklist (): Promise<RawBlacklistResponseDto> {
     const url = `${this.config.blacklistApiBaseUrl}/blacklist.csv`
     const response = await axios.get<RawBlacklistResponseDto>(url)
     return response.data
   }
 
-  async fetchMndeVotes(): Promise<RawMndeVotesResponseDto> {
+  async fetchMndeVotes (): Promise<RawMndeVotesResponseDto> {
     const url = `${this.config.snapshotsApiBaseUrl}/v1/votes/vemnde/latest`
     const response = await axios.get<RawMndeVotesResponseDto>(url)
     return response.data
   }
 
-  async fetchRewards(): Promise<RawRewardsResponseDto> {
+  async fetchRewards (): Promise<RawRewardsResponseDto> {
     const url = `${this.config.validatorsApiBaseUrl}/rewards?epochs=${this.config.rewardsEpochsCount}`
     const response = await axios.get<RawRewardsResponseDto>(url)
     return response.data
   }
 
-  async fetchMevInfo(): Promise<RawMevInfoResponseDto> {
+  async fetchMevInfo (): Promise<RawMevInfoResponseDto> {
     const url = `${this.config.validatorsApiBaseUrl}/mev`
     const response = await axios.get<RawMevInfoResponseDto>(url)
     return response.data

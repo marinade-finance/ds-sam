@@ -13,9 +13,9 @@ export class AuctionConstraints {
   private constraints: AuctionConstraint[] = []
   private constraintsPerValidator: Map<string, AuctionConstraint[]> = new Map()
 
-  constructor(private readonly config: AuctionConstraintsConfig, private debug: Debug) { }
+  constructor (private readonly config: AuctionConstraintsConfig, private debug: Debug) { }
 
-  getMinCapForEvenDistribution(voteAccounts: Set<string>, collectDebug = true): { cap: number, constraint: AuctionConstraint } {
+  getMinCapForEvenDistribution (voteAccounts: Set<string>, collectDebug = true): { cap: number, constraint: AuctionConstraint } {
     const constraints: AuctionConstraint[] = []
     for (const voteAccount of voteAccounts) {
       constraints.push(...(this.constraintsPerValidator.get(voteAccount) ?? []))
@@ -45,7 +45,7 @@ export class AuctionConstraints {
     return { cap: resultMinCap, constraint: min }
   }
 
-  findCapForValidator(validator: AuctionValidator): number {
+  findCapForValidator (validator: AuctionValidator): number {
     const { cap, constraint } = this.getMinCapForEvenDistribution(new Set([validator.voteAccount]), false)
     if (cap < EPSILON) {
       validator.lastCapConstraint = constraint
@@ -54,11 +54,11 @@ export class AuctionConstraints {
     return cap
   }
 
-  getValidatorConstraints(voteAccount: string) {
+  getValidatorConstraints (voteAccount: string) {
     return this.constraintsPerValidator.get(voteAccount)
   }
 
-  updateStateForSam(auctionData: AuctionData) {
+  updateStateForSam (auctionData: AuctionData) {
     this.constraints = [
       ...this.buildCountryConcentrationConstraints(auctionData),
       ...this.buildAsoConcentrationConstraints(auctionData),
@@ -68,7 +68,7 @@ export class AuctionConstraints {
     this.updateConstraintsPerValidator()
   }
 
-  updateStateForMnde(auctionData: AuctionData) {
+  updateStateForMnde (auctionData: AuctionData) {
     this.constraints = [
       ...this.buildCountryConcentrationConstraints(auctionData),
       ...this.buildAsoConcentrationConstraints(auctionData),
@@ -78,7 +78,7 @@ export class AuctionConstraints {
     this.updateConstraintsPerValidator()
   }
 
-  private updateConstraintsPerValidator() {
+  private updateConstraintsPerValidator () {
     this.constraintsPerValidator = new Map()
     for (const constraint of this.constraints) {
       for (const validator of constraint.validators) {
@@ -92,7 +92,7 @@ export class AuctionConstraints {
     }
   }
 
-  private buildCountryConcentrationConstraints({ validators }: AuctionData) {
+  private buildCountryConcentrationConstraints ({ validators }: AuctionData) {
     const countries = new Map<string, AuctionConstraint>()
 
     validators.forEach(validator => {
@@ -116,7 +116,7 @@ export class AuctionConstraints {
     return [...countries.values()]
   }
 
-  private buildAsoConcentrationConstraints({ validators }: AuctionData) {
+  private buildAsoConcentrationConstraints ({ validators }: AuctionData) {
     const asos = new Map<string, AuctionConstraint>()
 
     validators.forEach(validator => {
@@ -140,7 +140,7 @@ export class AuctionConstraints {
     return [...asos.values()]
   }
 
-  private buildSamBondConstraints({ validators }: AuctionData) {
+  private buildSamBondConstraints ({ validators }: AuctionData) {
     return validators.map(validator => ({
       constraintType: AuctionConstraintType.BOND,
       constraintName: validator.voteAccount,
@@ -152,7 +152,7 @@ export class AuctionConstraints {
     }))
   }
 
-  private buildMndeBondConstraints({ validators }: AuctionData) {
+  private buildMndeBondConstraints ({ validators }: AuctionData) {
     return validators.map(validator => ({
       constraintType: AuctionConstraintType.BOND,
       constraintName: validator.voteAccount,
@@ -164,19 +164,19 @@ export class AuctionConstraints {
     }))
   }
 
-  private buildValidatorConcentrationConstraints({ validators }: AuctionData) {
+  private buildValidatorConcentrationConstraints ({ validators }: AuctionData) {
     return validators.map(validator => ({
       constraintType: AuctionConstraintType.VALIDATOR,
       constraintName: validator.voteAccount,
       totalStakeSol: validatorTotalAuctionStakeSol(validator),
       totalLeftToCapSol: Infinity,
       marinadeStakeSol: validator.auctionStake.marinadeMndeTargetSol + validator.auctionStake.marinadeSamTargetSol,
-      marinadeLeftToCapSol: this.config.marinadeValidatorStakeCapSol - validator.auctionStake.marinadeMndeTargetSol - validator.auctionStake.marinadeSamTargetSol,
+      marinadeLeftToCapSol: (this.config.marinadeValidatorStakeCapSol + validator.mndeStakeCapIncrease) - validator.auctionStake.marinadeMndeTargetSol - validator.auctionStake.marinadeSamTargetSol,
       validators: [validator],
     }))
   }
 
-  private buildMndeVoteConstraints({ validators }: AuctionData) {
+  private buildMndeVoteConstraints ({ validators }: AuctionData) {
     return validators.map(validator => ({
       constraintType: AuctionConstraintType.MNDE,
       constraintName: validator.voteAccount,

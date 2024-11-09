@@ -1,6 +1,6 @@
-import { DsSamSDK } from "../src"
-import { defaultStaticDataProviderBuilder } from "./helpers/static-data-provider-builder"
-import { ValidatorMockBuilder, generateIdentities, generateVoteAccounts } from "./helpers/validator-mock-builder"
+import { DsSamSDK } from '../src'
+import { defaultStaticDataProviderBuilder } from './helpers/static-data-provider-builder'
+import { ValidatorMockBuilder, generateIdentities, generateVoteAccounts } from './helpers/validator-mock-builder'
 import { findValidatorInResult, prettyPrintAuctionResult } from './helpers/utils'
 
 describe('constraints', () => {
@@ -60,10 +60,10 @@ describe('constraints', () => {
 
     const validators = [
       ...Array.from({ length: 10 }, (_, idx) => new ValidatorMockBuilder(`country-validator-${idx}`, identities.next().value)
-          .withEligibleDefaults()
-          .withCountry(country)
-          .withExternalStake(1_000_000)
-          .withBond({ stakeWanted: 1_000_000, cpmpe: 1, balance: 10_000 })),
+        .withEligibleDefaults()
+        .withCountry(country)
+        .withExternalStake(1_000_000)
+        .withBond({ stakeWanted: 1_000_000, cpmpe: 1, balance: 10_000 })),
       ...Array.from({ length: 10 }, (_, idx) => new ValidatorMockBuilder(`country-aso-validator-${idx}`, identities.next().value)
         .withEligibleDefaults()
         .withCountry(country)
@@ -77,7 +77,8 @@ describe('constraints', () => {
         .withBond({ stakeWanted: 1_000_000, cpmpe: 1, balance: 10_000 })),
       ...Array.from({ length: 20 }, () => new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
         .withEligibleDefaults()
-        .withExternalStake(10_000_000)),
+        .withBond({ stakeWanted: 1_000_000, cpmpe: 1, balance: 10_000 })
+        .withExternalStake(10_000_000))
     ]
     const dsSam = new DsSamSDK({}, defaultStaticDataProviderBuilder(validators))
     const result = await dsSam.run()
@@ -176,7 +177,10 @@ describe('constraints', () => {
     const result = await dsSam.run()
 
     const { auctionStake } = findValidatorInResult('dummy-validator', result)!
-    expect(auctionStake.marinadeMndeTargetSol + auctionStake.marinadeSamTargetSol).toStrictEqual(100_000*0.02)
+
+    // 100_000 * 0.02 -> TVL * Default cap per validator
+    // (0.1 * 100 / 2000) * 100_000 -> (mndeStakeCapMultiplier * validator MNDE votes / total MNDE votes) * TVL
+    expect(auctionStake.marinadeSamTargetSol).toStrictEqual(100_000 * 0.02 + (0.1 * 100 / 2000) * 100_000)
     expect(prettyPrintAuctionResult(result)).toMatchSnapshot()
   })
 })
