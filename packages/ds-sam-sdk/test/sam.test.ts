@@ -110,7 +110,8 @@ describe('sam', () => {
       const result = await dsSam.run()
 
       const totalMndeStake = result.auctionData.validators.reduce((sum, validator) => sum + validator.auctionStake.marinadeMndeTargetSol, 0)
-      // 100k total TVL => 10k MNDE TVL & 50% of votes for DelStrat => 5k MNDE stake distributed
+      // 100k total TVL => 0 MNDE TVL & 50% of votes for DelStrat => 0 MNDE stake distributed
+      // Default config has MNDE TVL share = 0%
       expect(result.auctionData.stakeAmounts.marinadeMndeTvlSol).toStrictEqual(0)
       expect(result.auctionData.stakeAmounts.marinadeSamTvlSol).toStrictEqual(100_000)
       expect(totalMndeStake).toStrictEqual(0)
