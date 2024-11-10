@@ -77,6 +77,7 @@ describe('constraints', () => {
         .withBond({ stakeWanted: 1_000_000, cpmpe: 1, balance: 10_000 })),
       ...Array.from({ length: 20 }, () => new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
         .withEligibleDefaults()
+        .withMndeVotes(0)
         .withBond({ stakeWanted: 1_000_000, cpmpe: 1, balance: 10_000 })
         .withExternalStake(10_000_000))
     ]
@@ -89,9 +90,10 @@ describe('constraints', () => {
     const asoMarinadeStake = result.auctionData.validators.reduce((sum, validator) => validator.aso === aso ? sum + validator.auctionStake.marinadeSamTargetSol + validator.auctionStake.marinadeMndeTargetSol : sum, 0)
 
     expect(countryMarinadeStake + countryExternalStake).toBeLessThan(result.auctionData.stakeAmounts.networkTotalSol * 0.3)
-    expect(asoMarinadeStake + asoExternalStake).toBeLessThan(result.auctionData.stakeAmounts.networkTotalSol * 0.2)
-    expect(countryMarinadeStake).toStrictEqual((result.auctionData.stakeAmounts.marinadeMndeTvlSol + result.auctionData.stakeAmounts.marinadeSamTvlSol) * 0.3)
-    expect(asoMarinadeStake).toStrictEqual((result.auctionData.stakeAmounts.marinadeMndeTvlSol + result.auctionData.stakeAmounts.marinadeSamTvlSol) * 0.2)
+    expect(asoMarinadeStake + asoExternalStake).toBeLessThan(result.auctionData.stakeAmounts.networkTotalSol * 0.3)
+    // Currently Mariande stake country and aso constraints are disabled
+    expect(countryMarinadeStake).toBeLessThanOrEqual((result.auctionData.stakeAmounts.marinadeMndeTvlSol + result.auctionData.stakeAmounts.marinadeSamTvlSol) * 1)
+    expect(asoMarinadeStake).toBeLessThanOrEqual((result.auctionData.stakeAmounts.marinadeMndeTvlSol + result.auctionData.stakeAmounts.marinadeSamTvlSol) * 1)
     expect(prettyPrintAuctionResult(result)).toMatchSnapshot()
   })
 
@@ -125,8 +127,8 @@ describe('constraints', () => {
         .withAso(aso)
         .withNativeStake(0)
         .withLiquidStake(0)
-        .withExternalStake(500_000)
-        .withBond({ stakeWanted: 1_000_000, cpmpe: 1, balance: 10_000 })),
+        .withExternalStake(2_000_000)
+        .withBond({ stakeWanted: 1_000_000, cpmpe: 1, balance: 1_000_000 })),
       ...Array.from({ length: 20 }, () => new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
         .withEligibleDefaults()
         .withMndeVotes(0)
@@ -142,10 +144,11 @@ describe('constraints', () => {
     const countryMarinadeStake = result.auctionData.validators.reduce((sum, validator) => validator.country === country ? sum + validator.auctionStake.marinadeSamTargetSol : sum, 0)
     const asoMarinadeStake = result.auctionData.validators.reduce((sum, validator) => validator.aso === aso ? sum + validator.auctionStake.marinadeSamTargetSol : sum, 0)
 
-    expect(countryMarinadeStake + countryExternalStake).toStrictEqual(result.auctionData.stakeAmounts.networkTotalSol * 0.3)
-    expect(asoMarinadeStake + asoExternalStake).toStrictEqual(result.auctionData.stakeAmounts.networkTotalSol * 0.2)
-    expect(countryMarinadeStake).toBeLessThan(result.auctionData.stakeAmounts.marinadeSamTvlSol * 0.3)
-    expect(asoMarinadeStake).toBeLessThan(result.auctionData.stakeAmounts.marinadeSamTvlSol * 0.2)
+    expect(countryMarinadeStake + countryExternalStake).toBeLessThanOrEqual(result.auctionData.stakeAmounts.networkTotalSol * 0.3)
+    expect(asoMarinadeStake + asoExternalStake).toBeLessThanOrEqual(result.auctionData.stakeAmounts.networkTotalSol * 0.3)
+    // Currently Marinade country and aso constraints are disabled
+    expect(countryMarinadeStake).toBeLessThan(result.auctionData.stakeAmounts.marinadeSamTvlSol * 1)
+    expect(asoMarinadeStake).toBeLessThan(result.auctionData.stakeAmounts.marinadeSamTvlSol * 1)
     expect(prettyPrintAuctionResult(result)).toMatchSnapshot()
   })
 

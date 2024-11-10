@@ -49,7 +49,7 @@ export const DEFAULT_CONFIG: DsSamConfig = {
 
   mndeDirectedStakeShareDec: 0,
   mndeStakeCapMultiplier: 0.1,
-  maxMarinadeStakeConcentrationPerCountryDec: 0.3,
+  maxMarinadeStakeConcentrationPerCountryDec: 1,
   maxMarinadeStakeConcentrationPerAsoDec: 1,
   maxNetworkStakeConcentrationPerCountryDec: 0.3,
   maxNetworkStakeConcentrationPerAsoDec: 0.3,
