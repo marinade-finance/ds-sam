@@ -193,7 +193,7 @@ export const bondStakeCapSam = (validator: AuctionValidator): number => {
   // refundableDepositPerStake * stakeCap + downtimeProtectionPerStake * stakeCap + bidPerStake * stakeCap = bondBalanceSol
   // stakeCap = bondBalanceSol / (refundableDepositPerStake + downtimeProtectionPerStake + bidPerStake)
   const bidPerStake = (validator.bidCpmpe ?? 0) / 1000
-  const downtimeProtectionPerStake = 1 / 10000
+  const downtimeProtectionPerStake = 0
   const refundableDepositPerStake = validator.revShare.totalPmpe / 1000
   const bondBalanceSol = Math.max((validator.bondBalanceSol ?? 0) - bondBalanceUsedForMnde(validator), 0)
   return Math.min(bondBalanceSol / (refundableDepositPerStake + downtimeProtectionPerStake + bidPerStake), validator.maxStakeWanted ?? 0)
@@ -202,21 +202,21 @@ export const bondStakeCapSam = (validator: AuctionValidator): number => {
 export const bondStakeCapMnde = (validator: AuctionValidator): number => {
   // downtimeProtectionPerStake * stakeCap = bondBalanceSol
   // stakeCap = bondBalanceSol / downtimeProtectionPerStake
-  const downtimeProtectionPerStake = 1 / 10000
+  const downtimeProtectionPerStake = 0
   const bondBalanceSol = validator.bondBalanceSol ?? 0
   return bondBalanceSol / downtimeProtectionPerStake
 }
 
 export const bondBalanceUsedForMnde = (validator: AuctionValidator): number => {
   // downtimeProtectionPerStake * stake = bondBalanceSol
-  const downtimeProtectionPerStake = 1 / 10000
+  const downtimeProtectionPerStake = 0
   return validator.auctionStake.marinadeMndeTargetSol * downtimeProtectionPerStake
 }
 
 export const bondBalanceRequiredForCurrentStake = (validator: AuctionValidator): number => {
   // refundableDepositPerStake * stake + downtimeProtectionPerStake * stake + bidPerStake * stake = bondBalanceSol
   const bidPerStake = (validator.bidCpmpe ?? 0) / 1000
-  const downtimeProtectionPerStake = 1 / 10000
+  const downtimeProtectionPerStake = 0
   const refundableDepositPerStake = validator.revShare.totalPmpe / 1000
   return validator.marinadeActivatedStakeSol * (bidPerStake + downtimeProtectionPerStake + refundableDepositPerStake)
 }
