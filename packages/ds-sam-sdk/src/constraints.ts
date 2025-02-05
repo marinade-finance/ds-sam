@@ -214,9 +214,13 @@ export const bondBalanceUsedForMnde = (validator: AuctionValidator): number => {
 }
 
 export const bondBalanceRequiredForCurrentStake = (validator: AuctionValidator): number => {
+  return bondBalanceRequiredForStakeAmount(validator.marinadeActivatedStakeSol, validator)
+}
+
+export const bondBalanceRequiredForStakeAmount = (stakeSol: number, validator: AuctionValidator): number => {
   // refundableDepositPerStake * stake + downtimeProtectionPerStake * stake + bidPerStake * stake = bondBalanceSol
-  const bidPerStake = (validator.bidCpmpe ?? 0) / 1000
+  const bidPerStake = validator.revShare.bidPmpe / 1000
   const downtimeProtectionPerStake = 0
   const refundableDepositPerStake = validator.revShare.totalPmpe / 1000
-  return validator.marinadeActivatedStakeSol * (bidPerStake + downtimeProtectionPerStake + refundableDepositPerStake)
+  return stakeSol * (bidPerStake + downtimeProtectionPerStake + refundableDepositPerStake)
 }
