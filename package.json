@@ -5,7 +5,7 @@
   "license": "UNLICENSED",
   "scripts": {
     "build": "nest build",
-    "test": "jest",
+    "test": "jest -- \"$FILE\"",
     "cli": "nest start --entryFile ./src/cli"
   },
   "dependencies": {

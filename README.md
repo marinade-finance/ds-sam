@@ -69,3 +69,21 @@ Config [defaults](./packages/ds-sam-sdk/src/config.ts#L35)
   debugVoteAccounts: string[]
 }
 ```
+
+
+## Development
+
+To build
+
+```sh
+pnpm -r build
+```
+
+To run tests
+
+```sh
+pnpm test
+
+# single test file
+FILE='testfile.test.ts' pnpm test
+```
