@@ -181,9 +181,9 @@ describe('constraints', () => {
 
     const { auctionStake } = findValidatorInResult('dummy-validator', result)!
 
-    // 100_000 * 0.02 -> TVL * Default cap per validator
+    // 100_000 * 0.04 -> TVL * Default cap per validator
     // (0.1 * 100 / 2000) * 100_000 -> (mndeStakeCapMultiplier * validator MNDE votes / total MNDE votes) * TVL
-    expect(auctionStake.marinadeSamTargetSol).toStrictEqual(100_000 * 0.02 + (0.1 * 100 / 2000) * 100_000)
+    expect(auctionStake.marinadeSamTargetSol).toStrictEqual(100_000 * 0.04 + (0.1 * 100 / 2000) * 100_000)
     expect(prettyPrintAuctionResult(result)).toMatchSnapshot()
   })
 })
