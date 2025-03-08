@@ -196,7 +196,7 @@ export const bondStakeCapSam = (validator: AuctionValidator): number => {
   const downtimeProtectionPerStake = 0
   const refundableDepositPerStake = validator.revShare.totalPmpe / 1000
   const bondBalanceSol = Math.max((validator.bondBalanceSol ?? 0) - bondBalanceUsedForMnde(validator), 0)
-  return Math.min(bondBalanceSol / (refundableDepositPerStake + downtimeProtectionPerStake + bidPerStake), validator.maxStakeWanted ?? 0)
+  return bondBalanceSol / (refundableDepositPerStake + downtimeProtectionPerStake + bidPerStake)
 }
 
 export const bondStakeCapMnde = (validator: AuctionValidator): number => {
