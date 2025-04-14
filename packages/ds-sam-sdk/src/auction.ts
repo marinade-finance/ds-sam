@@ -132,18 +132,7 @@ export class Auction {
   }
 
   setStakeUnstakePriorities () {
-    this.data.validators.sort((a, b) => b.revShare.totalPmpe - a.revShare.totalPmpe)
-
-    let currentGroupPmpe = NaN
-    let currentStakePriority = 0
-    this.data.validators.forEach(validator => {
-      if (validator.revShare.totalPmpe === currentGroupPmpe) {
-        validator.stakePriority = currentStakePriority
-      } else {
-        validator.stakePriority = ++currentStakePriority
-        currentGroupPmpe = validator.revShare.totalPmpe
-      }
-    })
+    this.data.validators.sort((a, b) => a.revShare.totalPmpe - b.revShare.totalPmpe)
 
     this.data.validators
       .filter(({ mndeEligible, samEligible }) => !mndeEligible && !samEligible)
@@ -170,6 +159,19 @@ export class Auction {
       }))
       .sort((a, b) => a.stakeDiff - b.stakeDiff)
       .forEach(({ validator }, index) => validator.unstakePriority = bondsMaxIndex + index + 1)
+
+    this.data.validators.sort((a, b) => b.revShare.totalPmpe - a.revShare.totalPmpe)
+
+    let currentGroupPmpe = NaN
+    let currentStakePriority = 0
+    this.data.validators.forEach(validator => {
+      if (validator.revShare.totalPmpe === currentGroupPmpe) {
+        validator.stakePriority = currentStakePriority
+      } else {
+        validator.stakePriority = ++currentStakePriority
+        currentGroupPmpe = validator.revShare.totalPmpe
+      }
+    })
   }
 
   setEffectiveBids(winningTotalPmpe: number) {
