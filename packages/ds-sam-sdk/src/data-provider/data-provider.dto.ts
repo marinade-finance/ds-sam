@@ -1,3 +1,30 @@
+export type RawScoredValidatorDto = {
+  voteAccount: string
+  revShare: {
+    auctionEffectiveBidPmpe: number
+    bidPmpe: number
+    inflationPmpe: number
+    mevPmpe: number
+    totalPmpe: number
+  }
+  marinadeSamTargetSol: number
+  epoch: number
+}
+
+export type AuctionHistory = {
+  epoch: number
+  winningTotalPmpe: number
+  data: RawScoredValidatorDto[]
+}
+
+export type AuctionHistoryStats = {
+  epoch: number
+  winningTotalPmpe: number
+  auctionEffectiveBidPmpe: number
+  effParticipatingBidPmpe: number
+  bidPmpe: number
+}
+
 export type RawMndeVoteDto = {
   amount: string | null
   tokenOwner: string
@@ -88,7 +115,10 @@ export type RawSourceData = {
   blacklist: RawBlacklistResponseDto
   mndeVotes: RawMndeVotesResponseDto
   rewards: RawRewardsResponseDto
+  auctions: RawScoredValidatorDto[]
 }
+
+
 
 export type SourceDataOverrides = {
   inflationCommissions: Map<String, number>

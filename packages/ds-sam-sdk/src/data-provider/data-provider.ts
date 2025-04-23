@@ -6,12 +6,16 @@ import {
   RawMevInfoResponseDto, RawMndeVotesResponseDto, RawRewardsRecordDto,
   RawRewardsResponseDto, RawSourceData, RawTvlResponseDto,
   RawValidatorsResponseDto,
-  SourceDataOverrides
+  RawScoredValidatorDto,
+  SourceDataOverrides,
+  AuctionHistory,
+  AuctionHistoryStats,
+  RawValidatorDto
 } from './data-provider.dto'
 import Decimal from 'decimal.js'
 import { AggregatedData, AggregatedValidator } from '../types'
 import fs from 'fs'
-import { MNDE_VOTE_DELEGATION_STRATEGY } from '../utils'
+import { MNDE_VOTE_DELEGATION_STRATEGY, calcEffParticipatingBidPmpe } from '../utils'
 
 export class DataProvider {
   constructor (
@@ -51,7 +55,50 @@ export class DataProvider {
     return rewardsTotal.total.div(rewardsTotal.epochs).toNumber()
   }
 
+  processAuctions (input: RawScoredValidatorDto[]): AuctionHistory[] {
+    const result: AuctionHistory[] = []
+    let epoch = Infinity
+    let data: RawScoredValidatorDto[] = []
+    input.forEach((entry) => {
+      if (entry.epoch < epoch) {
+        data.sort((a, b) => b.revShare.bidPmpe - a.revShare.bidPmpe)
+        const winningTotalPmpe = data
+          .filter((item) => item.marinadeSamTargetSol > 0)
+          .reduce((acc, item) => item.revShare.totalPmpe, 0)
+        result.push({epoch, winningTotalPmpe, data})
+        data = []
+        epoch = entry.epoch
+      }
+      data.push(entry)
+    })
+    result.shift()
+    return result
+  }
+
+  extractAuctionHistoryStats (auction: AuctionHistory, validator: RawValidatorDto): AuctionHistoryStats {
+    const entry = auction.data.find(({ voteAccount }) => validator.vote_account == voteAccount)
+    const revShare = entry?.revShare
+    if (revShare == null) {
+      console.log(`validator ${validator.vote_account} did not participate in auction in epoch ${auction.epoch}`)
+      return  {
+        epoch: auction.epoch,
+        winningTotalPmpe: auction.winningTotalPmpe,
+        auctionEffectiveBidPmpe: 0,
+        bidPmpe: 0,
+        effParticipatingBidPmpe: 0,
+      }
+    }
+    return {
+      epoch: auction.epoch,
+      winningTotalPmpe: auction.winningTotalPmpe,
+      auctionEffectiveBidPmpe: revShare.auctionEffectiveBidPmpe,
+      bidPmpe: revShare.bidPmpe,
+      effParticipatingBidPmpe: calcEffParticipatingBidPmpe(revShare, auction.winningTotalPmpe)
+    }
+  }
+
   aggregateValidators (data: RawSourceData, validatorsMndeVotes: Map<string, Decimal>, solPerMnde: number, mndeStakeCapIncreases: Map<string, Decimal>, dataOverrides: SourceDataOverrides | null = null): AggregatedValidator[] {
+    const auctionsData = this.processAuctions(data.auctions)
     return data.validators.validators.map((validator): AggregatedValidator => {
       const bond = data.bonds.bonds.find(({ vote_account }) => validator.vote_account === vote_account)
       const mev = data.mevInfo.validators.find(({ vote_account }) => validator.vote_account === vote_account)
@@ -63,6 +110,8 @@ export class DataProvider {
 
       const inflationCommissionDec = (inflationCommissionOverride ?? validator.commission_effective ?? validator.commission_advertised ?? 100) / 100
       const mevCommissionDec = (mevCommissionOverride !== undefined ? mevCommissionOverride / 10_000 : (mev ? mev.mev_commission_bps / 10_000 : null))
+      const auctions = auctionsData.map((auction) => this.extractAuctionHistoryStats(auction, validator))
+
       return {
         voteAccount: validator.vote_account,
         clientVersion: validator.version ?? '0.0.0',
@@ -83,7 +132,8 @@ export class DataProvider {
           totalActivatedStake: new Decimal(es.activated_stake),
           marinadeActivatedStake: new Decimal(es.marinade_stake).add(es.marinade_native_stake),
           voteCredits: es.credits,
-        }))
+        })),
+        auctions,
       }
     })
   }
@@ -160,6 +210,7 @@ export class DataProvider {
     fs.writeFileSync(`${this.config.inputsCacheDirPath}/blacklist.csv`, data.blacklist)
     fs.writeFileSync(`${this.config.inputsCacheDirPath}/mnde-votes.json`, JSON.stringify(data.mndeVotes, null, 2))
     fs.writeFileSync(`${this.config.inputsCacheDirPath}/rewards.json`, JSON.stringify(data.rewards, null, 2))
+    fs.writeFileSync(`${this.config.inputsCacheDirPath}/auctions.json`, JSON.stringify(data.auctions, null, 2))
   }
 
   parseCachedSourceData (): RawSourceData {
@@ -173,8 +224,9 @@ export class DataProvider {
     const blacklist: RawBlacklistResponseDto = fs.readFileSync(`${this.config.inputsCacheDirPath}/blacklist.csv`).toString()
     const mndeVotes: RawMndeVotesResponseDto = JSON.parse(fs.readFileSync(`${this.config.inputsCacheDirPath}/mnde-votes.json`).toString())
     const rewards: RawRewardsResponseDto = JSON.parse(fs.readFileSync(`${this.config.inputsCacheDirPath}/rewards.json`).toString())
+    const auctions: RawScoredValidatorDto[] = JSON.parse(fs.readFileSync(`${this.config.inputsCacheDirPath}/auctions.json`).toString())
 
-    return { validators, mevInfo, bonds, tvlInfo, mndeVotes, rewards, blacklist }
+    return { validators, mevInfo, bonds, tvlInfo, mndeVotes, rewards, blacklist, auctions }
   }
 
   async fetchSourceData (): Promise<RawSourceData> {
@@ -186,6 +238,7 @@ export class DataProvider {
       blacklist,
       mndeVotes,
       rewards,
+      auctions,
     ] = await Promise.all([
       this.fetchValidators(),
       this.fetchMevInfo(),
@@ -194,9 +247,10 @@ export class DataProvider {
       this.fetchBlacklist(),
       this.fetchMndeVotes(),
       this.fetchRewards(),
+      this.fetchAuctions(this.config.bidTooLowPenaltyHistoryEpochs),
     ])
 
-    const data = { validators, mevInfo, bonds, tvlInfo, blacklist, mndeVotes, rewards }
+    const data = { validators, mevInfo, bonds, tvlInfo, blacklist, mndeVotes, rewards, auctions }
     if (this.config.cacheInputs) {
       this.cacheSourceData(data)
     }
@@ -248,6 +302,12 @@ export class DataProvider {
   async fetchMevInfo (): Promise<RawMevInfoResponseDto> {
     const url = `${this.config.validatorsApiBaseUrl}/mev`
     const response = await axios.get<RawMevInfoResponseDto>(url)
+    return response.data
+  }
+
+  async fetchAuctions (n: number): Promise<RawScoredValidatorDto[]> {
+    const url = `${this.config.scoringApiBaseUrl}/api/v1/scores/sam?lastEpochs=${n + 1}`
+    const response = await axios.get<RawScoredValidatorDto[]>(url)
     return response.data
   }
 }

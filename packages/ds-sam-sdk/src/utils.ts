@@ -6,13 +6,32 @@ export const calcValidatorRevShare = (validator: AggregatedValidator, rewards: R
   const inflationPmpe = Math.max(0, rewards.inflationPmpe * (1 - validator.inflationCommissionDec))
   const mevPmpe = Math.max(0, rewards.mevPmpe * (1 - (validator.mevCommissionDec ?? 1)))
   const bidPmpe = Math.max(0, validator.bidCpmpe ?? 0)
+  return {
+    totalPmpe: inflationPmpe + mevPmpe + bidPmpe,
+    inflationPmpe,
+    mevPmpe,
+    bidPmpe,
+    auctionEffectiveBidPmpe: NaN,
+    bidTooLowPenaltyPmpe: NaN,
+    effParticipatingBidPmpe: NaN,
+  }
+}
 
-  return { totalPmpe: inflationPmpe + mevPmpe + bidPmpe, inflationPmpe, mevPmpe, bidPmpe, auctionEffectiveBidPmpe: NaN }
+export const calcEffParticipatingBidPmpe = (revShare: { inflationPmpe: number, mevPmpe: number }, winningTotalPmpe: number) => {
+  return Math.max(0, winningTotalPmpe - revShare.inflationPmpe - revShare.mevPmpe)
 }
 
 export const ineligibleValidatorAggDefaults = () => ({ samEligible: false, mndeEligible: false, ...validatorAggDefaults() })
 
-export const validatorAggDefaults = () => ({ lastCapConstraint: null, stakePriority: NaN, unstakePriority: NaN })
+export const validatorAggDefaults = () => ({
+  lastCapConstraint: null,
+  stakePriority: NaN,
+  unstakePriority: NaN,
+  bidTooLowPenalty: {
+    coef: 0,
+    base: 0,
+  },
+})
 
 export const validatorTotalAuctionStakeSol = (validator: AuctionValidator): number =>
   validator.auctionStake.externalActivatedSol + validator.auctionStake.marinadeMndeTargetSol + validator.auctionStake.marinadeSamTargetSol
