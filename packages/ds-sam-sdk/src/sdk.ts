@@ -112,7 +112,7 @@ export class DsSamSDK {
     const constraints = this.getAuctionConstraints(aggregatedData, this.debug)
     const auctionData: AuctionData = { ...aggregatedData, validators: this.transformValidators(aggregatedData) }
 
-    const auction = new Auction(auctionData, constraints, this.debug)
+    const auction = new Auction(auctionData, constraints, this.config, this.debug)
     const result = auction.evaluate()
     console.log(`==============================\n${this.debug.formatInfo()}\n${this.debug.formatEvents()}\n==============================`)
     return result

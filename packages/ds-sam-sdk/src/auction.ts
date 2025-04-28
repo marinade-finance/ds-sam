@@ -1,5 +1,7 @@
+import { calcEffParticipatingBidPmpe } from './utils'
 import { AuctionData, AuctionResult, AuctionValidator } from './types'
 import { AuctionConstraints, bondBalanceRequiredForCurrentStake } from './constraints'
+import { DsSamConfig } from './config'
 import { Debug } from './debug'
 
 const logValidators = (validators: AuctionValidator[]) => {
@@ -14,7 +16,7 @@ export const EPSILON = 1e-4
 
 export class Auction {
 
-  constructor (private data: AuctionData, private constraints: AuctionConstraints, private debug: Debug) { }
+  constructor (private data: AuctionData, private constraints: AuctionConstraints, private config: DsSamConfig, private debug: Debug) { }
 
   distributeMndeStake () {
     this.constraints.updateStateForMnde(this.data)
@@ -182,6 +184,27 @@ export class Auction {
     })
   }
 
+  setBidTooLowPenalties(winningTotalPmpe: number) {
+    const k = this.config.bidTooLowPenaltyHistoryEpochs
+    this.data.validators.forEach(({ bidTooLowPenalty, revShare, auctions }) => {
+      const historicalPmpe = auctions.slice(0, k).reduce(
+        (acc, { effParticipatingBidPmpe }) => Math.min(acc, effParticipatingBidPmpe ?? Infinity),
+        Infinity
+      )
+      const effParticipatingBidPmpe = calcEffParticipatingBidPmpe(revShare, winningTotalPmpe)
+      const limit = Math.min(effParticipatingBidPmpe, historicalPmpe)
+      const penaltyCoef = Math.min(1, Math.sqrt(1.5 * Math.max(0, limit - revShare.bidPmpe) / limit))
+      bidTooLowPenalty.base = winningTotalPmpe + effParticipatingBidPmpe
+      if (revShare.bidPmpe < 0.99999 * (auctions[0]?.bidPmpe ?? 0)) {
+        bidTooLowPenalty.coef = penaltyCoef
+      } else {
+        bidTooLowPenalty.coef = 0
+      }
+      revShare.effParticipatingBidPmpe = effParticipatingBidPmpe
+      revShare.bidTooLowPenaltyPmpe = bidTooLowPenalty.coef * bidTooLowPenalty.base
+    })
+  }
+
   evaluate (): AuctionResult {
     console.log('stake amounts before', this.data.stakeAmounts)
     this.debug.pushInfo('start amounts', JSON.stringify(this.data.stakeAmounts))
@@ -209,6 +232,7 @@ export class Auction {
 
     this.setStakeUnstakePriorities()
     this.setEffectiveBids(winningTotalPmpe)
+    this.setBidTooLowPenalties(winningTotalPmpe)
 
     return {
       auctionData: this.data,

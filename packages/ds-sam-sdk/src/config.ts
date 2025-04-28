@@ -14,12 +14,14 @@ export type DsSamConfig = {
   tvlInfoApiBaseUrl: string
   blacklistApiBaseUrl: string
   snapshotsApiBaseUrl: string
+  scoringApiBaseUrl: string
 
   rewardsEpochsCount: number
   validatorsUptimeEpochsCount: number
   validatorsUptimeThresholdDec: number
   validatorsClientVersionSemverExpr: string
   validatorsMaxEffectiveCommissionDec: number
+  bidTooLowPenaltyHistoryEpochs: number
 
   mndeDirectedStakeShareDec: number
   mndeStakeCapMultiplier: number
@@ -40,12 +42,14 @@ export const DEFAULT_CONFIG: DsSamConfig = {
   tvlInfoApiBaseUrl: 'https://api.marinade.finance',
   blacklistApiBaseUrl: 'https://raw.githubusercontent.com/marinade-finance/delegation-strategy-2/master',
   snapshotsApiBaseUrl: 'https://snapshots-api.marinade.finance',
+  scoringApiBaseUrl:  'https://scoring.marinade.finance',
 
   rewardsEpochsCount: 10,
   validatorsUptimeEpochsCount: 3,
   validatorsUptimeThresholdDec: 0.8,
   validatorsClientVersionSemverExpr: '>=1.18.15 || >=0.101.20013 <1.0.0',
   validatorsMaxEffectiveCommissionDec: 0.07,
+  bidTooLowPenaltyHistoryEpochs: 3,
 
   mndeDirectedStakeShareDec: 0,
   mndeStakeCapMultiplier: 0.1,

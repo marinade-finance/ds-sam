@@ -1,4 +1,5 @@
 import Decimal from 'decimal.js'
+import { AuctionHistoryStats } from './data-provider/data-provider.dto'
 
 export type AuctionResult = {
   auctionData: AuctionData
@@ -39,6 +40,7 @@ export type ValidatorAuctionStake = {
 
 export type AuctionValidator = AggregatedValidator & {
   revShare: RevShare
+  bidTooLowPenalty: BidTooLowPenalty
   mndeEligible: boolean
   samEligible: boolean
   auctionStake: ValidatorAuctionStake
@@ -63,6 +65,7 @@ export type AggregatedValidator = {
   mndeStakeCapIncrease: number
   mndeVotesSolValue: number
   epochStats: EpochStats[]
+  auctions: AuctionHistoryStats[]
 }
 
 export type Rewards = {
@@ -76,6 +79,13 @@ export type RevShare = {
   mevPmpe: number
   bidPmpe: number
   auctionEffectiveBidPmpe: number
+  bidTooLowPenaltyPmpe: number
+  effParticipatingBidPmpe: number
+}
+
+export type BidTooLowPenalty = {
+  coef: number
+  base: number
 }
 
 export type AuctionConstraintsConfig = {
