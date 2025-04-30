@@ -224,7 +224,12 @@ export class DataProvider {
     const blacklist: RawBlacklistResponseDto = fs.readFileSync(`${this.config.inputsCacheDirPath}/blacklist.csv`).toString()
     const mndeVotes: RawMndeVotesResponseDto = JSON.parse(fs.readFileSync(`${this.config.inputsCacheDirPath}/mnde-votes.json`).toString())
     const rewards: RawRewardsResponseDto = JSON.parse(fs.readFileSync(`${this.config.inputsCacheDirPath}/rewards.json`).toString())
-    const auctions: RawScoredValidatorDto[] = JSON.parse(fs.readFileSync(`${this.config.inputsCacheDirPath}/auctions.json`).toString())
+
+    const auctionsFile = `${this.config.inputsCacheDirPath}/auctions.json`;
+    const auctions: RawScoredValidatorDto[] =
+      fs.existsSync(auctionsFile)
+      ? JSON.parse(fs.readFileSync(auctionsFile).toString())
+      : [];
 
     return { validators, mevInfo, bonds, tvlInfo, mndeVotes, rewards, blacklist, auctions }
   }
