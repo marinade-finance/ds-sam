@@ -6,7 +6,7 @@ import {
   AuctionData,
   ValidatorAuctionStake,
   AuctionResult,
-  AuctionConstraintsConfig
+  AuctionConstraintsConfig,
 } from './types'
 import semver from 'semver'
 import Decimal from 'decimal.js'
@@ -14,14 +14,14 @@ import { Auction } from './auction'
 import { calcValidatorRevShare, ineligibleValidatorAggDefaults, validatorAggDefaults } from './utils'
 import { AuctionConstraints } from './constraints'
 import { Debug } from './debug'
-import { SourceDataOverrides } from './data-provider/data-provider.dto'
+import { SourceDataOverrides, RawSourceData } from './data-provider/data-provider.dto'
 
 export const defaultDataProviderBuilder = (config: DsSamConfig) => new DataProvider({ ...config }, config.inputsSource)
 
 export class DsSamSDK {
   readonly config: DsSamConfig
   private readonly debug: Debug
-  private readonly dataProvider: DataProvider
+  readonly dataProvider: DataProvider
 
   constructor (config: Partial<DsSamConfig> = {}, dataProviderBuilder = defaultDataProviderBuilder) {
     this.config = { ...DEFAULT_CONFIG, ...config }
@@ -106,8 +106,8 @@ export class DsSamSDK {
     })
   }
 
-  async run (): Promise<AuctionResult> {
-    const aggregatedData = await this.getAggregatedData()
+  async run (data: AggregatedData | null = null): Promise<AuctionResult> {
+    const aggregatedData = data ?? await this.getAggregatedData()
 
     const constraints = this.getAuctionConstraints(aggregatedData, this.debug)
     const auctionData: AuctionData = { ...aggregatedData, validators: this.transformValidators(aggregatedData) }
@@ -118,8 +118,8 @@ export class DsSamSDK {
     return result
   }
 
-  async getAggregatedData (dataOverrides: SourceDataOverrides | null = null): Promise<AggregatedData> {
-    const sourceData = this.config.inputsSource === InputsSource.FILES ? this.dataProvider.parseCachedSourceData() : await this.dataProvider.fetchSourceData()
+  async getAggregatedData (dataOverrides: SourceDataOverrides | null = null, data: RawSourceData | null = null): Promise<AggregatedData> {
+    const sourceData = data ?? this.config.inputsSource === InputsSource.FILES ? this.dataProvider.parseCachedSourceData() : await this.dataProvider.fetchSourceData()
     return this.dataProvider.aggregateData(sourceData, dataOverrides)
   }
 }
