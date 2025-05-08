@@ -8,6 +8,8 @@ export type RawScoredValidatorDto = {
     totalPmpe: number
   }
   marinadeSamTargetSol: number
+  spendRobustReputation: number
+  marinadeActivatedStakeSol: number
   epoch: number
 }
 
@@ -22,7 +24,9 @@ export type AuctionHistoryStats = {
   winningTotalPmpe: number
   auctionEffectiveBidPmpe: number
   effParticipatingBidPmpe: number
+  spendRobustReputation: number
   bidPmpe: number
+  marinadeActivatedStakeSol: number
 }
 
 export type RawMndeVoteDto = {

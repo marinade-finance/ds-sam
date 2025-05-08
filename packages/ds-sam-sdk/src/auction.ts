@@ -205,7 +205,45 @@ export class Auction {
     })
   }
 
-  evaluate (): AuctionResult {
+  reset () {
+    this.data.stakeAmounts.marinadeRemainingMndeSol = this.data.stakeAmounts.marinadeMndeTvlSol
+    this.data.stakeAmounts.marinadeRemainingSamSol =  this.data.stakeAmounts.marinadeSamTvlSol
+    this.data.validators.forEach(validator => {
+      validator.auctionStake.marinadeMndeTargetSol = 0
+      validator.auctionStake.marinadeSamTargetSol = 0
+      validator.lastCapConstraint = null
+      validator.stakePriority = NaN
+      validator.unstakePriority = NaN
+      validator.bidTooLowPenalty = {
+        coef: 0,
+        base: 0,
+      }
+    })
+  }
+
+  updateSpendRobustReputations(auction: AuctionResult) {
+    const totalMarinadeSpend = auction.auctionData.validators.reduce((acc, entry) => acc + entry.revShare.auctionEffectiveBidPmpe * entry.marinadeActivatedStakeSol / 1000, 0)
+    this.data.validators.forEach(validator => {
+      if (validator.revShare.totalPmpe >= auction.winningTotalPmpe) {
+        this.reset()
+        const originalEligibility = {
+          samEligible: validator.samEligible,
+          mndeEligible: validator.mndeEligible,
+        }
+        validator.samEligible = false
+        validator.mndeEligible = false
+        const result = this.evaluateOne()
+        const marginalPmpeGain = Math.max(0, auction.winningTotalPmpe / result.winningTotalPmpe - 1)
+        validator.samEligible = originalEligibility.samEligible
+        validator.mndeEligible = originalEligibility.mndeEligible
+        validator.spendRobustReputation += marginalPmpeGain * totalMarinadeSpend
+      }
+      const marinadeActivatedStakeSolUndelegation = Math.abs(validator.marinadeActivatedStakeSol - (validator.auctions[0]?.marinadeActivatedStakeSol ?? 0))
+      validator.spendRobustReputation -= marinadeActivatedStakeSolUndelegation * auction.winningTotalPmpe / 1000
+    })
+  }
+
+  evaluateOne (): AuctionResult {
     console.log('stake amounts before', this.data.stakeAmounts)
     this.debug.pushInfo('start amounts', JSON.stringify(this.data.stakeAmounts))
     this.debug.pushEvent('DISTRIBUTING MNDE STAKE')
@@ -238,6 +276,12 @@ export class Auction {
       auctionData: this.data,
       winningTotalPmpe,
     }
+  }
+
+  evaluate (): AuctionResult {
+    const result = this.evaluateOne()
+    this.updateSpendRobustReputations(result)
+    return result
   }
 
   findNextPmpeGroup (totalPmpe: number): { totalPmpe: number, validators: AuctionValidator[] } | null {

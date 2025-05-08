@@ -19,6 +19,7 @@ export type StakeAmounts = {
 }
 
 export type AggregatedData = {
+  epoch: number
   validators: AggregatedValidator[]
   rewards: Rewards
   stakeAmounts: StakeAmounts
@@ -65,6 +66,7 @@ export type AggregatedValidator = {
   mndeStakeCapIncrease: number
   mndeVotesSolValue: number
   epochStats: EpochStats[]
+  spendRobustReputation: number
   auctions: AuctionHistoryStats[]
 }
 
@@ -94,6 +96,7 @@ export type AuctionConstraintsConfig = {
   marinadeCountryStakeCapSol: number
   marinadeAsoStakeCapSol: number
   marinadeValidatorStakeCapSol: number
+  spendRobustReputationMult: number
 }
 
 export enum AuctionConstraintType {
@@ -102,6 +105,7 @@ export enum AuctionConstraintType {
   VALIDATOR = 'VALIDATOR',
   BOND = 'BOND',
   MNDE = 'MNDE',
+  REPUTATION = 'REPUTATION',
 }
 
 export type AuctionConstraint = {

@@ -86,6 +86,8 @@ export class DataProvider {
         auctionEffectiveBidPmpe: 0,
         bidPmpe: 0,
         effParticipatingBidPmpe: 0,
+        spendRobustReputation: entry?.spendRobustReputation ?? 0,
+        marinadeActivatedStakeSol: entry?.marinadeActivatedStakeSol ?? 0,
       }
     }
     return {
@@ -93,7 +95,9 @@ export class DataProvider {
       winningTotalPmpe: auction.winningTotalPmpe,
       auctionEffectiveBidPmpe: revShare.auctionEffectiveBidPmpe,
       bidPmpe: revShare.bidPmpe,
-      effParticipatingBidPmpe: calcEffParticipatingBidPmpe(revShare, auction.winningTotalPmpe)
+      effParticipatingBidPmpe: calcEffParticipatingBidPmpe(revShare, auction.winningTotalPmpe),
+      spendRobustReputation: entry?.spendRobustReputation ?? 0,
+      marinadeActivatedStakeSol: entry?.marinadeActivatedStakeSol ?? 0,
     }
   }
 
@@ -125,6 +129,7 @@ export class DataProvider {
         mevCommissionDec,
         bidCpmpe: bond ? new Decimal(bond.cpmpe).div(1e9).toNumber() : null,
         maxStakeWanted: null,
+        spendRobustReputation: auctions[0]?.spendRobustReputation ?? 0,
         mndeVotesSolValue: validatorMndeVotes.mul(solPerMnde).toNumber(),
         mndeStakeCapIncrease: validatorMndeStakeCapIncrease.toNumber(),
         epochStats: validator.epoch_stats.filter(({ epoch_end_at }) => !!epoch_end_at).map(es => ({
@@ -173,11 +178,14 @@ export class DataProvider {
       validatorsMndeStakeCapIncreases.set(validatorVoteAccount, amount.mul(effectiveMndeStakeCapIncrease).mul(tvlSol).div(totalMndeVotes))
     }
 
+    const epoch = data.auctions.reduce((epoch, validator) => Math.max(epoch, validator.epoch), 0) + 1
+
     const solPerMnde = totalMndeVotes.gt(0) ? new Decimal(effectiveMndeTvlShareSol).div(totalMndeVotes.sub(delStratVotes)).toNumber() : 0
     console.log('total mnde votes', totalMndeVotes)
     console.log('SOL per MNDE', solPerMnde)
     console.log('tvl', tvlSol)
     return {
+      epoch,
       validators: this.aggregateValidators(data, validatorsMndeVotes, solPerMnde, validatorsMndeStakeCapIncreases, dataOverrides),
       rewards: {
         inflationPmpe: this.aggregateRewardsRecords(activatedStakePerEpochs, data.rewards.rewards_inflation_est),
