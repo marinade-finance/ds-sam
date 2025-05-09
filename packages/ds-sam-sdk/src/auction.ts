@@ -280,7 +280,9 @@ export class Auction {
 
   evaluate (): AuctionResult {
     const result = this.evaluateOne()
-    this.updateSpendRobustReputations(result)
+    if (this.config.spendRobustReputationMult != null) {
+      this.updateSpendRobustReputations(result)
+    }
     return result
   }
 

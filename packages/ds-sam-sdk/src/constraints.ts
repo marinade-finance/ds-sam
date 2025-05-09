@@ -207,7 +207,7 @@ export class AuctionConstraints {
   }
 
   private reputationStakeCap (validator: AuctionValidator) {
-    return 1000 * this.config.spendRobustReputationMult * validator.spendRobustReputation / validator.revShare.totalPmpe
+    return 1000 * (this.config.spendRobustReputationMult ?? Infinity) * validator.spendRobustReputation / validator.revShare.totalPmpe
   }
 
 }

@@ -30,7 +30,7 @@ export type DsSamConfig = {
   maxNetworkStakeConcentrationPerCountryDec: number
   maxNetworkStakeConcentrationPerAsoDec: number
   maxMarinadeTvlSharePerValidatorDec: number
-  spendRobustReputationMult: number
+  spendRobustReputationMult: number | null
 
   debugVoteAccounts: string[]
 }
