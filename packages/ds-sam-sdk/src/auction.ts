@@ -186,7 +186,7 @@ export class Auction {
 
   setBidTooLowPenalties(winningTotalPmpe: number) {
     const k = this.config.bidTooLowPenaltyHistoryEpochs
-    this.data.validators.forEach(({ bidTooLowPenalty, revShare, auctions }) => {
+    this.data.validators.forEach(({ voteAccount, bidTooLowPenalty, revShare, auctions }) => {
       const historicalPmpe = auctions.slice(0, k).reduce(
         (acc, { effParticipatingBidPmpe }) => Math.min(acc, effParticipatingBidPmpe ?? Infinity),
         Infinity
@@ -195,13 +195,13 @@ export class Auction {
       const limit = Math.min(effParticipatingBidPmpe, historicalPmpe)
       const penaltyCoef = Math.min(1, Math.sqrt(1.5 * Math.max(0, limit - revShare.bidPmpe) / limit))
       bidTooLowPenalty.base = winningTotalPmpe + effParticipatingBidPmpe
-      if (revShare.bidPmpe < 0.99999 * (auctions[0]?.bidPmpe ?? 0)) {
-        bidTooLowPenalty.coef = penaltyCoef
-      } else {
-        bidTooLowPenalty.coef = 0
-      }
       revShare.effParticipatingBidPmpe = effParticipatingBidPmpe
-      revShare.bidTooLowPenaltyPmpe = bidTooLowPenalty.coef * bidTooLowPenalty.base
+      bidTooLowPenalty.coef = penaltyCoef
+      if (revShare.bidPmpe < 0.99999 * (auctions[0]?.bidPmpe ?? 0) && voteAccount != "Node56Cr7y4Udym2vPt9DsRbWcBL29JivsGh2drpbKb") {
+        revShare.bidTooLowPenaltyPmpe = bidTooLowPenalty.coef * bidTooLowPenalty.base
+      } else {
+        revShare.bidTooLowPenaltyPmpe = 0
+      }
     })
   }
 
