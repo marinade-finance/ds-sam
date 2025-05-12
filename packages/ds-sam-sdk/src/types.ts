@@ -44,6 +44,7 @@ export type AuctionValidator = AggregatedValidator & {
   bidTooLowPenalty: BidTooLowPenalty
   mndeEligible: boolean
   samEligible: boolean
+  samBlocked: boolean
   auctionStake: ValidatorAuctionStake
   lastCapConstraint: AuctionConstraint | null
   stakePriority: number
@@ -66,8 +67,12 @@ export type AggregatedValidator = {
   mndeStakeCapIncrease: number
   mndeVotesSolValue: number
   epochStats: EpochStats[]
-  spendRobustReputation: number
   auctions: AuctionHistoryStats[]
+  values: AuctionValidatorValues
+}
+
+export type AuctionValidatorValues = {
+  spendRobustReputation: number
 }
 
 export type Rewards = {

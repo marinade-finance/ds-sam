@@ -8,7 +8,9 @@ export type RawScoredValidatorDto = {
     totalPmpe: number
   }
   marinadeSamTargetSol: number
-  spendRobustReputation: number
+  values?: {
+    spendRobustReputation: number
+  }
   marinadeActivatedStakeSol: number
   epoch: number
 }

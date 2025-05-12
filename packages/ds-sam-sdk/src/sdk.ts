@@ -107,20 +107,22 @@ export class DsSamSDK {
     })
   }
 
-  async run (data: AggregatedData | null = null): Promise<AuctionResult> {
-    const aggregatedData = data ?? await this.getAggregatedData()
-
+  async auction (): Promise<Auction> {
+    const aggregatedData = await this.getAggregatedData()
     const constraints = this.getAuctionConstraints(aggregatedData, this.debug)
     const auctionData: AuctionData = { ...aggregatedData, validators: this.transformValidators(aggregatedData) }
+    return new Auction(auctionData, constraints, this.config, this.debug)
+  }
 
-    const auction = new Auction(auctionData, constraints, this.config, this.debug)
+  async run (): Promise<AuctionResult> {
+    const auction = await this.auction()
     const result = auction.evaluate()
     console.log(`==============================\n${this.debug.formatInfo()}\n${this.debug.formatEvents()}\n==============================`)
     return result
   }
 
-  async getAggregatedData (dataOverrides: SourceDataOverrides | null = null, data: RawSourceData | null = null): Promise<AggregatedData> {
-    const sourceData = data ?? this.config.inputsSource === InputsSource.FILES ? this.dataProvider.parseCachedSourceData() : await this.dataProvider.fetchSourceData()
+  async getAggregatedData (dataOverrides: SourceDataOverrides | null = null): Promise<AggregatedData> {
+    const sourceData = this.config.inputsSource === InputsSource.FILES ? this.dataProvider.parseCachedSourceData() : await this.dataProvider.fetchSourceData()
     return this.dataProvider.aggregateData(sourceData, dataOverrides)
   }
 }

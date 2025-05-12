@@ -86,7 +86,7 @@ export class DataProvider {
         auctionEffectiveBidPmpe: 0,
         bidPmpe: 0,
         effParticipatingBidPmpe: 0,
-        spendRobustReputation: entry?.spendRobustReputation ?? 0,
+        spendRobustReputation: entry?.values?.spendRobustReputation ?? 0,
         marinadeActivatedStakeSol: entry?.marinadeActivatedStakeSol ?? 0,
       }
     }
@@ -96,7 +96,7 @@ export class DataProvider {
       auctionEffectiveBidPmpe: revShare.auctionEffectiveBidPmpe,
       bidPmpe: revShare.bidPmpe,
       effParticipatingBidPmpe: calcEffParticipatingBidPmpe(revShare, auction.winningTotalPmpe),
-      spendRobustReputation: entry?.spendRobustReputation ?? 0,
+      spendRobustReputation: entry?.values?.spendRobustReputation ?? 0,
       marinadeActivatedStakeSol: entry?.marinadeActivatedStakeSol ?? 0,
     }
   }
@@ -129,7 +129,9 @@ export class DataProvider {
         mevCommissionDec,
         bidCpmpe: bond ? new Decimal(bond.cpmpe).div(1e9).toNumber() : null,
         maxStakeWanted: null,
-        spendRobustReputation: auctions[0]?.spendRobustReputation ?? 0,
+        values: {
+          spendRobustReputation: auctions[0]?.spendRobustReputation ?? 0,
+        },
         mndeVotesSolValue: validatorMndeVotes.mul(solPerMnde).toNumber(),
         mndeStakeCapIncrease: validatorMndeStakeCapIncrease.toNumber(),
         epochStats: validator.epoch_stats.filter(({ epoch_end_at }) => !!epoch_end_at).map(es => ({

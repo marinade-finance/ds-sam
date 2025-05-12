@@ -16,7 +16,7 @@ export const EPSILON = 1e-4
 
 export class Auction {
 
-  constructor (private data: AuctionData, private constraints: AuctionConstraints, private config: DsSamConfig, private debug: Debug) { }
+  constructor (public data: AuctionData, private constraints: AuctionConstraints, private config: DsSamConfig, private debug: Debug) { }
 
   distributeMndeStake () {
     this.constraints.updateStateForMnde(this.data)
@@ -75,7 +75,7 @@ export class Auction {
     let rounds = 0
     while (group = this.findNextPmpeGroup(previousGroupPmpe)) {
       groups++
-      group.validators = group.validators.filter(validator => validator.samEligible)
+      group.validators = group.validators.filter(validator => validator.samEligible && !validator.samBlocked)
 
       console.log('SAM ========= new round ==========')
       console.log('SAM', group.validators.length, 'validators eligible')
@@ -205,6 +205,13 @@ export class Auction {
     })
   }
 
+  blockInSam (vote: string) {
+    const entry = this.data.validators.find(({ voteAccount }) => voteAccount == vote)
+    if (entry != null) {
+      entry.samBlocked = true
+    }
+  }
+
   reset () {
     this.data.stakeAmounts.marinadeRemainingMndeSol = this.data.stakeAmounts.marinadeMndeTvlSol
     this.data.stakeAmounts.marinadeRemainingSamSol =  this.data.stakeAmounts.marinadeSamTvlSol
@@ -214,6 +221,7 @@ export class Auction {
       validator.lastCapConstraint = null
       validator.stakePriority = NaN
       validator.unstakePriority = NaN
+      validator.samBlocked = false
       validator.bidTooLowPenalty = {
         coef: 0,
         base: 0,
@@ -226,20 +234,13 @@ export class Auction {
     this.data.validators.forEach(validator => {
       if (validator.revShare.totalPmpe >= auction.winningTotalPmpe) {
         this.reset()
-        const originalEligibility = {
-          samEligible: validator.samEligible,
-          mndeEligible: validator.mndeEligible,
-        }
-        validator.samEligible = false
-        validator.mndeEligible = false
+        validator.samBlocked = true
         const result = this.evaluateOne()
         const marginalPmpeGain = Math.max(0, auction.winningTotalPmpe / result.winningTotalPmpe - 1)
-        validator.samEligible = originalEligibility.samEligible
-        validator.mndeEligible = originalEligibility.mndeEligible
-        validator.spendRobustReputation += marginalPmpeGain * totalMarinadeSpend
+        validator.values.spendRobustReputation += marginalPmpeGain * totalMarinadeSpend
       }
-      const marinadeActivatedStakeSolUndelegation = Math.abs(validator.marinadeActivatedStakeSol - (validator.auctions[0]?.marinadeActivatedStakeSol ?? 0))
-      validator.spendRobustReputation -= marinadeActivatedStakeSolUndelegation * auction.winningTotalPmpe / 1000
+      const marinadeActivatedStakeSolUndelegation = -Math.min(0, validator.marinadeActivatedStakeSol - (validator.auctions[0]?.marinadeActivatedStakeSol ?? 0))
+      validator.values.spendRobustReputation -= marinadeActivatedStakeSolUndelegation * auction.winningTotalPmpe / 1000
     })
   }
 
@@ -280,9 +281,7 @@ export class Auction {
 
   evaluate (): AuctionResult {
     const result = this.evaluateOne()
-    if (this.config.spendRobustReputationMult != null) {
-      this.updateSpendRobustReputations(result)
-    }
+    this.updateSpendRobustReputations(result)
     return result
   }
 

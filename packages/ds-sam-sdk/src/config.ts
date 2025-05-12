@@ -59,7 +59,7 @@ export const DEFAULT_CONFIG: DsSamConfig = {
   maxNetworkStakeConcentrationPerCountryDec: 0.3,
   maxNetworkStakeConcentrationPerAsoDec: 0.3,
   maxMarinadeTvlSharePerValidatorDec: 0.04,
-  spendRobustReputationMult: 0.5,
+  spendRobustReputationMult: null,
 
   debugVoteAccounts: [],
 }

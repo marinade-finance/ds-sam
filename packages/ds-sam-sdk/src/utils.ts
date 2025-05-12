@@ -31,6 +31,7 @@ export const validatorAggDefaults = () => ({
     coef: 0,
     base: 0,
   },
+  samBlocked: false,
 })
 
 export const validatorTotalAuctionStakeSol = (validator: AuctionValidator): number =>
