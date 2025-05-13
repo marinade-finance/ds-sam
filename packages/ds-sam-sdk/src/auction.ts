@@ -16,7 +16,7 @@ export const EPSILON = 1e-4
 
 export class Auction {
 
-  constructor (public data: AuctionData, private constraints: AuctionConstraints, private config: DsSamConfig, private debug: Debug) { }
+  constructor (private data: AuctionData, private constraints: AuctionConstraints, private config: DsSamConfig, private debug: Debug) { }
 
   distributeMndeStake () {
     this.constraints.updateStateForMnde(this.data)
@@ -205,6 +205,10 @@ export class Auction {
     })
   }
 
+  getAuctionData (): AuctionData {
+    return this.data
+  }
+
   blockInSam (vote: string) {
     const entry = this.data.validators.find(({ voteAccount }) => voteAccount == vote)
     if (entry != null) {
@@ -241,6 +245,7 @@ export class Auction {
       }
       const marinadeActivatedStakeSolUndelegation = -Math.min(0, validator.marinadeActivatedStakeSol - (validator.auctions[0]?.marinadeActivatedStakeSol ?? 0))
       validator.values.spendRobustReputation -= marinadeActivatedStakeSolUndelegation * auction.winningTotalPmpe / 1000
+      validator.values.spendRobustReputation *= 1 - 1 / this.config.spendRobustReputationDecay
     })
   }
 

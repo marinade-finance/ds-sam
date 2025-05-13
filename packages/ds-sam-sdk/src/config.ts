@@ -31,6 +31,7 @@ export type DsSamConfig = {
   maxNetworkStakeConcentrationPerAsoDec: number
   maxMarinadeTvlSharePerValidatorDec: number
   spendRobustReputationMult: number | null
+  spendRobustReputationDecayEpochs: number
 
   debugVoteAccounts: string[]
 }
@@ -60,6 +61,7 @@ export const DEFAULT_CONFIG: DsSamConfig = {
   maxNetworkStakeConcentrationPerAsoDec: 0.3,
   maxMarinadeTvlSharePerValidatorDec: 0.04,
   spendRobustReputationMult: null,
+  spendRobustReputationDecayEpochs: 30,
 
   debugVoteAccounts: [],
 }

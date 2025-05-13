@@ -86,7 +86,7 @@ export class DataProvider {
         auctionEffectiveBidPmpe: 0,
         bidPmpe: 0,
         effParticipatingBidPmpe: 0,
-        spendRobustReputation: entry?.values?.spendRobustReputation ?? 0,
+        spendRobustReputation: entry?.values?.spendRobustReputation ?? entry.bondBalanceSol,
         marinadeActivatedStakeSol: entry?.marinadeActivatedStakeSol ?? 0,
       }
     }
@@ -96,7 +96,7 @@ export class DataProvider {
       auctionEffectiveBidPmpe: revShare.auctionEffectiveBidPmpe,
       bidPmpe: revShare.bidPmpe,
       effParticipatingBidPmpe: calcEffParticipatingBidPmpe(revShare, auction.winningTotalPmpe),
-      spendRobustReputation: entry?.values?.spendRobustReputation ?? 0,
+      spendRobustReputation: entry?.values?.spendRobustReputation ?? entry.bondBalanceSol,
       marinadeActivatedStakeSol: entry?.marinadeActivatedStakeSol ?? 0,
     }
   }

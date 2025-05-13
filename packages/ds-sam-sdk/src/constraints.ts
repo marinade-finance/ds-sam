@@ -64,13 +64,8 @@ export class AuctionConstraints {
       ...this.buildAsoConcentrationConstraints(auctionData),
       ...this.buildSamBondConstraints(auctionData),
       ...this.buildValidatorConcentrationConstraints(auctionData),
+      ...this.buildReputationConstraints(auctionData),
     ]
-    if (auctionData.epoch >= 785) {
-      this.constraints = [
-        ...this.constraints,
-        ...this.buildReputationConstraints(auctionData),
-      ]
-    }
     this.updateConstraintsPerValidator()
   }
 
@@ -207,7 +202,10 @@ export class AuctionConstraints {
   }
 
   private reputationStakeCap (validator: AuctionValidator) {
-    if (this.config.spendRobustReputationMult != null) {
+    if (
+      this.config.spendRobustReputationMult != null
+        && validator.revShare.totalPmpe > 0
+    ) {
       return 1000 * this.config.spendRobustReputationMult * validator.values.spendRobustReputation / validator.revShare.totalPmpe
     } else {
       return Infinity
