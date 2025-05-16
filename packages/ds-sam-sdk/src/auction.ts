@@ -236,6 +236,7 @@ export class Auction {
   updateSpendRobustReputations(winningTotalPmpe: number, totalMarinadeSpend: number) {
     let marinadeTvlSol = this.data.stakeAmounts.marinadeSamTvlSol + this.data.stakeAmounts.marinadeMndeTvlSol
     this.data.validators.forEach(validator => {
+      const values = validator.values
       if (validator.revShare.totalPmpe >= winningTotalPmpe) {
         // counterfactual auction - the validator is not part of the auction
         this.reset()
@@ -244,38 +245,38 @@ export class Auction {
 
         // baseline auction - the validator is not bounded by its reputation
         this.reset()
-        const origReputation = validator.values.spendRobustReputation
-        validator.values.spendRobustReputation = Infinity
+        const origReputation = values.spendRobustReputation
+        values.spendRobustReputation = Infinity
         const unboundedResult = this.evaluateOne()
-        validator.values.spendRobustReputation = origReputation
+        values.spendRobustReputation = origReputation
 
         // the reputation is the gain the validator's participation brings
         const marginalPmpeGain = Math.max(0, unboundedResult.winningTotalPmpe / counterfactualResult.winningTotalPmpe - 1)
-        validator.values.spendRobustReputation += marginalPmpeGain * totalMarinadeSpend
+        values.spendRobustReputation += marginalPmpeGain * totalMarinadeSpend
       }
       const marinadeActivatedStakeSolUndelegation = -Math.min(
         0,
         validator.marinadeActivatedStakeSol
           - (validator.auctions[0]?.marinadeActivatedStakeSol ?? 0)
       )
-      validator.values.spendRobustReputation -= marinadeActivatedStakeSolUndelegation * winningTotalPmpe / 1000
-      validator.values.spendRobustReputation = Math.max(
+      values.spendRobustReputation -= marinadeActivatedStakeSolUndelegation * winningTotalPmpe / 1000
+      values.spendRobustReputation = Math.max(
         this.config.minSpendRobustReputation,
         Math.min(
           this.config.maxSpendRobustReputation,
-          validator.values.spendRobustReputation
+          values.spendRobustReputation
         )
       )
-      if (validator.values.spendRobustReputation > Math.max(0, this.config.minSpendRobustReputation)) {
-        validator.values.spendRobustReputation *= 1 - 1 / this.config.spendRobustReputationDecayEpochs
+      if (values.spendRobustReputation > Math.max(0, this.config.minSpendRobustReputation)) {
+        values.spendRobustReputation *= 1 - 1 / this.config.spendRobustReputationDecayEpochs
       }
-      validator.adjSpendRobustReputation = validator.values.spendRobustReputation
+      values.adjSpendRobustReputation = values.spendRobustReputation
       if (validator.revShare.totalPmpe > 0 && this.config.spendRobustReputationMult != null) {
         const pm = validator.revShare.totalPmpe / 1000
-        validator.adjMaxSpendRobustDelegation = this.config.spendRobustReputationMult * validator.adjSpendRobustReputation / pm
+        values.adjMaxSpendRobustDelegation = this.config.spendRobustReputationMult * values.adjSpendRobustReputation / pm
         validator.maxBondDelegation = Math.min((validator.bondBalanceSol ?? 0) / pm, 0.04 * marinadeTvlSol)
       } else {
-        validator.adjMaxSpendRobustDelegation = 0
+        values.adjMaxSpendRobustDelegation = 0
         validator.maxBondDelegation = 0
       }
     })
@@ -290,9 +291,10 @@ export class Auction {
       let leftToScale = this.data.stakeAmounts.marinadeSamTvlSol
       let totalScalable = 0
       for (const entry of this.data.validators) {
-        if (entry.adjMaxSpendRobustDelegation < entry.maxBondDelegation) {
-          if (entry.values.spendRobustReputation > this.config.minScaledSpendRobustReputation) {
-            totalScalable += entry.adjMaxSpendRobustDelegation
+        const values = entry.values
+        if (values.adjMaxSpendRobustDelegation < entry.maxBondDelegation) {
+          if (values.spendRobustReputation > this.config.minScaledSpendRobustReputation) {
+            totalScalable += values.adjMaxSpendRobustDelegation
           }
         } else {
           leftToScale -= entry.maxBondDelegation
@@ -303,10 +305,11 @@ export class Auction {
         break;
       }
       for (const entry of this.data.validators) {
+        const values = entry.values
         this.data.adjSpendRobustReputationInflationFactor *= factor
-        entry.adjSpendRobustReputation *= factor
+        values.adjSpendRobustReputation *= factor
         if (entry.revShare.totalPmpe > 0) {
-          entry.adjMaxSpendRobustDelegation = mult * entry.adjSpendRobustReputation / (entry.revShare.totalPmpe / 1000)
+          values.adjMaxSpendRobustDelegation = mult * values.adjSpendRobustReputation / (entry.revShare.totalPmpe / 1000)
         }
       }
     }

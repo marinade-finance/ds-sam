@@ -89,7 +89,7 @@ export class DataProvider {
         auctionEffectiveBidPmpe: 0,
         bidPmpe: 0,
         effParticipatingBidPmpe: 0,
-        spendRobustReputation: entry?.values?.spendRobustReputation ?? this.config.initialSpendRobustReputation,
+        spendRobustReputation: entry?.values?.spendRobustReputation,
         marinadeActivatedStakeSol: entry?.marinadeActivatedStakeSol ?? 0,
       }
     }
@@ -120,9 +120,7 @@ export class DataProvider {
       const inflationCommissionDec = (inflationCommissionOverride ?? validator.commission_effective ?? validator.commission_advertised ?? 100) / 100
       const mevCommissionDec = (mevCommissionOverride !== undefined ? mevCommissionOverride / 10_000 : (mev ? mev.mev_commission_bps / 10_000 : null))
       const auctions = auctionsData.map((auction) => this.extractAuctionHistoryStats(auction, validator, bond))
-
       const bondBalanceSol = bond ? new Decimal(bond.effective_amount).div(1e9).toNumber() : null
-
       return {
         voteAccount: validator.vote_account,
         clientVersion: validator.version ?? '0.0.0',
@@ -137,7 +135,11 @@ export class DataProvider {
         bidCpmpe: bond ? new Decimal(bond.cpmpe).div(1e9).toNumber() : null,
         maxStakeWanted: null,
         values: {
-          spendRobustReputation: override?.values.spendRobustReputation ?? auctions[0]?.spendRobustReputation ?? this.config.initialSpendRobustReputation,
+          spendRobustReputation: override?.values.spendRobustReputation
+            ?? auctions[0]?.spendRobustReputation
+            ?? this.config.initialSpendRobustReputation,
+          adjSpendRobustReputation: 0,
+          adjMaxSpendRobustDelegation: 0,
         },
         mndeVotesSolValue: validatorMndeVotes.mul(solPerMnde).toNumber(),
         mndeStakeCapIncrease: validatorMndeStakeCapIncrease.toNumber(),

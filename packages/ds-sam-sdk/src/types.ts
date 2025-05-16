@@ -51,8 +51,6 @@ export type AuctionValidator = AggregatedValidator & {
   stakePriority: number
   unstakePriority: number
   maxBondDelegation: number
-  adjMaxSpendRobustDelegation: number
-  adjSpendRobustReputation: number
 }
 
 export type AggregatedValidator = {
@@ -77,6 +75,8 @@ export type AggregatedValidator = {
 
 export type AuctionValidatorValues = {
   spendRobustReputation: number
+  adjMaxSpendRobustDelegation: number
+  adjSpendRobustReputation: number
 }
 
 export type Rewards = {

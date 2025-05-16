@@ -11,7 +11,7 @@ export type RawScoredValidatorDto = {
   }
   marinadeSamTargetSol: number
   values?: {
-    spendRobustReputation: number
+    spendRobustReputation?: number
   }
   marinadeActivatedStakeSol: number
   epoch: number
