@@ -210,7 +210,7 @@ export class Auction {
   }
 
   blockInSam (vote: string) {
-    const entry = this.data.validators.find(({ voteAccount }) => voteAccount == vote)
+    const entry = this.data.validators.find(({ voteAccount }) => voteAccount === vote)
     if (entry != null) {
       entry.samBlocked = true
     }

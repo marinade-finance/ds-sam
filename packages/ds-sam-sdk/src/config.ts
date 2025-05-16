@@ -15,6 +15,7 @@ export type DsSamConfig = {
   blacklistApiBaseUrl: string
   snapshotsApiBaseUrl: string
   scoringApiBaseUrl: string
+  overridesApiBaseUrl: string
 
   rewardsEpochsCount: number
   validatorsUptimeEpochsCount: number
@@ -49,6 +50,7 @@ export const DEFAULT_CONFIG: DsSamConfig = {
   bondsApiBaseUrl: 'https://validator-bonds-api.marinade.finance',
   tvlInfoApiBaseUrl: 'https://api.marinade.finance',
   blacklistApiBaseUrl: 'https://raw.githubusercontent.com/marinade-finance/delegation-strategy-2/master',
+  overridesApiBaseUrl: 'https://raw.githubusercontent.com/marinade-finance/ds-sam-pipeline/main/overrides',
   snapshotsApiBaseUrl: 'https://snapshots-api.marinade.finance',
   scoringApiBaseUrl:  'https://scoring.marinade.finance',
 
