@@ -296,9 +296,9 @@ export class Auction {
     let totalFactor = 1
     let factor = 1
     for (let i = 0; i < 100; i++) {
+      totalFactor *= factor
       for (const entry of this.data.validators) {
         const values = entry.values
-        totalFactor *= factor
         values.adjSpendRobustReputation *= factor
         if (entry.revShare.totalPmpe > 0) {
           values.adjMaxSpendRobustDelegation = mult * values.adjSpendRobustReputation / (entry.revShare.totalPmpe / 1000)
@@ -320,7 +320,8 @@ export class Auction {
         }
       }
 
-      factor = leftToScale / totalScalable
+      factor = Math.max(0, leftToScale) / totalScalable
+      console.log(`SCALING round ${i} # ${JSON.stringify({factor, leftToScale, totalScalable})}`)
       if (!isFinite(factor) || factor <= 1) {
         break;
       }
