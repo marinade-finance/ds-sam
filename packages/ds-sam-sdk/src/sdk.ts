@@ -110,7 +110,11 @@ export class DsSamSDK {
   async auction (): Promise<Auction> {
     const aggregatedData = await this.getAggregatedData()
     const constraints = this.getAuctionConstraints(aggregatedData, this.debug)
-    const auctionData: AuctionData = { ...aggregatedData, validators: this.transformValidators(aggregatedData) }
+    const auctionData: AuctionData = {
+      ...aggregatedData,
+      validators: this.transformValidators(aggregatedData),
+      adjSpendRobustReputationInflationFactor: 1,
+    }
     return new Auction(auctionData, constraints, this.config, this.debug)
   }
 

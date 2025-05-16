@@ -206,7 +206,11 @@ export class AuctionConstraints {
       this.config.spendRobustReputationMult != null
         && validator.revShare.totalPmpe > 0
     ) {
-      return 1000 * this.config.spendRobustReputationMult * validator.values.spendRobustReputation / validator.revShare.totalPmpe
+      return Math.max(
+        this.config.spendRobustReputationMult
+          * validator.values.spendRobustReputation / (validator.revShare.totalPmpe / 1000),
+        validator.marinadeActivatedStakeSol
+      )
     } else {
       return Infinity
     }
@@ -221,8 +225,7 @@ export const bondStakeCapSam = (validator: AuctionValidator): number => {
   const downtimeProtectionPerStake = 0
   const refundableDepositPerStake = validator.revShare.totalPmpe / 1000
   const bondBalanceSol = Math.max((validator.bondBalanceSol ?? 0) - bondBalanceUsedForMnde(validator), 0)
-  const scalingCoef = 1 // Math.min(3, Math.max(1, Math.log(bondBalanceSol) / 2))
-  return scalingCoef * bondBalanceSol / (refundableDepositPerStake + downtimeProtectionPerStake + bidPerStake)
+  return bondBalanceSol / (refundableDepositPerStake + downtimeProtectionPerStake + bidPerStake)
 }
 
 export const bondStakeCapMnde = (validator: AuctionValidator): number => {

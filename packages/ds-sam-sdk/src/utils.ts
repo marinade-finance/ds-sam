@@ -32,6 +32,9 @@ export const validatorAggDefaults = () => ({
     base: 0,
   },
   samBlocked: false,
+  maxBondDelegation: NaN,
+  adjMaxSpendRobustDelegation: NaN,
+  adjSpendRobustReputation: NaN,
 })
 
 export const validatorTotalAuctionStakeSol = (validator: AuctionValidator): number =>

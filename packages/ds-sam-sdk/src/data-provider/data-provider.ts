@@ -3,6 +3,7 @@ import { DsSamConfig, InputsSource } from '../config'
 import {
   RawBlacklistResponseDto,
   RawBondsResponseDto,
+  RawBondDto,
   RawMevInfoResponseDto, RawMndeVotesResponseDto, RawRewardsRecordDto,
   RawRewardsResponseDto, RawSourceData, RawTvlResponseDto,
   RawValidatorsResponseDto,
@@ -75,9 +76,10 @@ export class DataProvider {
     return result
   }
 
-  extractAuctionHistoryStats (auction: AuctionHistory, validator: RawValidatorDto): AuctionHistoryStats {
+  extractAuctionHistoryStats (auction: AuctionHistory, validator: RawValidatorDto, bond?: RawBondDto): AuctionHistoryStats {
     const entry = auction.data.find(({ voteAccount }) => validator.vote_account == voteAccount)
     const revShare = entry?.revShare
+    const bondBalanceSol = bond ? new Decimal(bond.effective_amount).div(1e9).toNumber() : 0
     if (revShare == null) {
       console.log(`validator ${validator.vote_account} did not participate in auction in epoch ${auction.epoch}`)
       return  {
@@ -86,7 +88,7 @@ export class DataProvider {
         auctionEffectiveBidPmpe: 0,
         bidPmpe: 0,
         effParticipatingBidPmpe: 0,
-        spendRobustReputation: entry?.values?.spendRobustReputation ?? entry.bondBalanceSol,
+        spendRobustReputation: entry?.values?.spendRobustReputation ?? this.config.initialSpendRobustReputation,
         marinadeActivatedStakeSol: entry?.marinadeActivatedStakeSol ?? 0,
       }
     }
@@ -96,7 +98,7 @@ export class DataProvider {
       auctionEffectiveBidPmpe: revShare.auctionEffectiveBidPmpe,
       bidPmpe: revShare.bidPmpe,
       effParticipatingBidPmpe: calcEffParticipatingBidPmpe(revShare, auction.winningTotalPmpe),
-      spendRobustReputation: entry?.values?.spendRobustReputation ?? entry.bondBalanceSol,
+      spendRobustReputation: entry?.values?.spendRobustReputation ?? this.config.initialSpendRobustReputation,
       marinadeActivatedStakeSol: entry?.marinadeActivatedStakeSol ?? 0,
     }
   }
@@ -114,7 +116,9 @@ export class DataProvider {
 
       const inflationCommissionDec = (inflationCommissionOverride ?? validator.commission_effective ?? validator.commission_advertised ?? 100) / 100
       const mevCommissionDec = (mevCommissionOverride !== undefined ? mevCommissionOverride / 10_000 : (mev ? mev.mev_commission_bps / 10_000 : null))
-      const auctions = auctionsData.map((auction) => this.extractAuctionHistoryStats(auction, validator))
+      const auctions = auctionsData.map((auction) => this.extractAuctionHistoryStats(auction, validator, bond))
+
+      const bondBalanceSol = bond ? new Decimal(bond.effective_amount).div(1e9).toNumber() : null
 
       return {
         voteAccount: validator.vote_account,
@@ -122,7 +126,7 @@ export class DataProvider {
         voteCredits: validator.credits,
         aso: validator.dc_aso ?? 'Unknown',
         country: validator.dc_country ?? 'Unknown',
-        bondBalanceSol: bond ? new Decimal(bond.effective_amount).div(1e9).toNumber() : null,
+        bondBalanceSol,
         totalActivatedStakeSol: new Decimal(validator.activated_stake).div(1e9).toNumber(),
         marinadeActivatedStakeSol: new Decimal(validator.marinade_stake).add(validator.marinade_native_stake).div(1e9).toNumber(),
         inflationCommissionDec,
@@ -130,7 +134,7 @@ export class DataProvider {
         bidCpmpe: bond ? new Decimal(bond.cpmpe).div(1e9).toNumber() : null,
         maxStakeWanted: null,
         values: {
-          spendRobustReputation: auctions[0]?.spendRobustReputation ?? 0,
+          spendRobustReputation: auctions[0]?.spendRobustReputation ?? this.config.initialSpendRobustReputation,
         },
         mndeVotesSolValue: validatorMndeVotes.mul(solPerMnde).toNumber(),
         mndeStakeCapIncrease: validatorMndeStakeCapIncrease.toNumber(),

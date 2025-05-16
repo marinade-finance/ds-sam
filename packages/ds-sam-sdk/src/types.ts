@@ -8,6 +8,7 @@ export type AuctionResult = {
 
 export type AuctionData = Omit<AggregatedData, 'validators'> & {
   validators: AuctionValidator[]
+  adjSpendRobustReputationInflationFactor: number
 }
 
 export type StakeAmounts = {
@@ -49,6 +50,9 @@ export type AuctionValidator = AggregatedValidator & {
   lastCapConstraint: AuctionConstraint | null
   stakePriority: number
   unstakePriority: number
+  maxBondDelegation: number
+  adjMaxSpendRobustDelegation: number
+  adjSpendRobustReputation: number
 }
 
 export type AggregatedValidator = {

@@ -233,20 +233,79 @@ export class Auction {
     })
   }
 
-  updateSpendRobustReputations(auction: AuctionResult) {
-    const totalMarinadeSpend = auction.auctionData.validators.reduce((acc, entry) => acc + entry.revShare.auctionEffectiveBidPmpe * entry.marinadeActivatedStakeSol / 1000, 0)
+  updateSpendRobustReputations(winningTotalPmpe: number, totalMarinadeSpend: number) {
+    let marinadeTvlSol = this.data.stakeAmounts.marinadeSamTvlSol + this.data.stakeAmounts.marinadeMndeTvlSol
     this.data.validators.forEach(validator => {
-      if (validator.revShare.totalPmpe >= auction.winningTotalPmpe) {
+      if (validator.revShare.totalPmpe >= winningTotalPmpe) {
+        // counterfactual auction - the validator is not part of the auction
         this.reset()
         validator.samBlocked = true
-        const result = this.evaluateOne()
-        const marginalPmpeGain = Math.max(0, auction.winningTotalPmpe / result.winningTotalPmpe - 1)
+        const counterfactualResult = this.evaluateOne()
+
+        // baseline auction - the validator is not bounded by its reputation
+        this.reset()
+        const origReputation = validator.values.spendRobustReputation
+        validator.values.spendRobustReputation = Infinity
+        const unboundedResult = this.evaluateOne()
+        validator.values.spendRobustReputation = origReputation
+
+        // the reputation is the gain the validator's participation brings
+        const marginalPmpeGain = Math.max(0, unboundedResult.winningTotalPmpe / counterfactualResult.winningTotalPmpe - 1)
         validator.values.spendRobustReputation += marginalPmpeGain * totalMarinadeSpend
       }
       const marinadeActivatedStakeSolUndelegation = -Math.min(0, validator.marinadeActivatedStakeSol - (validator.auctions[0]?.marinadeActivatedStakeSol ?? 0))
-      validator.values.spendRobustReputation -= marinadeActivatedStakeSolUndelegation * auction.winningTotalPmpe / 1000
-      validator.values.spendRobustReputation *= 1 - 1 / this.config.spendRobustReputationDecay
+      validator.values.spendRobustReputation -= marinadeActivatedStakeSolUndelegation * winningTotalPmpe / 1000
+      validator.values.spendRobustReputation = Math.max(
+        this.config.minSpendRobustReputation,
+        Math.min(
+          this.config.maxSpendRobustReputation,
+          validator.values.spendRobustReputation
+        )
+      )
+      if (validator.values.spendRobustReputation > Math.max(0, this.config.minSpendRobustReputation)) {
+        validator.values.spendRobustReputation *= 1 - 1 / this.config.spendRobustReputationDecayEpochs
+      }
+      validator.adjSpendRobustReputation = validator.values.spendRobustReputation
+      if (validator.revShare.totalPmpe > 0 && this.config.spendRobustReputationMult != null) {
+        const pm = validator.revShare.totalPmpe / 1000
+        validator.adjMaxSpendRobustDelegation = this.config.spendRobustReputationMult * validator.adjSpendRobustReputation / pm
+        validator.maxBondDelegation = Math.min((validator.bondBalanceSol ?? 0) / pm, 0.04 * marinadeTvlSol)
+      } else {
+        validator.adjMaxSpendRobustDelegation = 0
+        validator.maxBondDelegation = 0
+      }
     })
+  }
+
+  scaleReputationToFitTvl () {
+    const mult = this.config.spendRobustReputationMult
+    if (mult == null) {
+      return
+    }
+    for (let i = 0; i < 1000; i++) {
+      let leftToScale = this.data.stakeAmounts.marinadeSamTvlSol
+      let totalScalable = 0
+      for (const entry of this.data.validators) {
+        if (entry.adjMaxSpendRobustDelegation < entry.maxBondDelegation) {
+          if (entry.values.spendRobustReputation > this.config.minScaledSpendRobustReputation) {
+            totalScalable += entry.adjMaxSpendRobustDelegation
+          }
+        } else {
+          leftToScale -= entry.maxBondDelegation
+        }
+      }
+      const factor = leftToScale / totalScalable
+      if (!isFinite(factor) || factor <= 1) {
+        break;
+      }
+      for (const entry of this.data.validators) {
+        this.data.adjSpendRobustReputationInflationFactor *= factor
+        entry.adjSpendRobustReputation *= factor
+        if (entry.revShare.totalPmpe > 0) {
+          entry.adjMaxSpendRobustDelegation = mult * entry.adjSpendRobustReputation / (entry.revShare.totalPmpe / 1000)
+        }
+      }
+    }
   }
 
   evaluateOne (): AuctionResult {
@@ -286,8 +345,14 @@ export class Auction {
 
   evaluate (): AuctionResult {
     const result = this.evaluateOne()
-    this.updateSpendRobustReputations(result)
-    return result
+    const totalMarinadeSpend = result.auctionData.validators.reduce(
+      (acc, entry) => acc + entry.revShare.auctionEffectiveBidPmpe * entry.marinadeActivatedStakeSol / 1000,
+      0
+    )
+    this.updateSpendRobustReputations(result.winningTotalPmpe, totalMarinadeSpend)
+    this.reset()
+    this.scaleReputationToFitTvl()
+    return this.evaluateOne()
   }
 
   findNextPmpeGroup (totalPmpe: number): { totalPmpe: number, validators: AuctionValidator[] } | null {
