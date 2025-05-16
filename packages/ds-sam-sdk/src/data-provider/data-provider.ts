@@ -100,7 +100,7 @@ export class DataProvider {
       bidPmpe: revShare.bidPmpe,
       effParticipatingBidPmpe: calcEffParticipatingBidPmpe(revShare, auction.winningTotalPmpe),
       spendRobustReputation: entry?.values?.spendRobustReputation,
-      marinadeActivatedStakeSol: entry?.marinadeActivatedStakeSol ?? 0,
+      marinadeActivatedStakeSol: entry?.marinadeActivatedStakeSol,
     }
   }
 

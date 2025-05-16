@@ -201,16 +201,9 @@ export class AuctionConstraints {
     }))
   }
 
-  private reputationStakeCap (validator: AuctionValidator) {
-    if (
-      this.config.spendRobustReputationMult != null
-        && validator.revShare.totalPmpe > 0
-    ) {
-      return Math.max(
-        this.config.spendRobustReputationMult
-          * validator.values.spendRobustReputation / (validator.revShare.totalPmpe / 1000),
-        validator.marinadeActivatedStakeSol
-      )
+  private reputationStakeCap (validator: AuctionValidator): number {
+    if (this.config.spendRobustReputationMult != null) {
+      return Math.max(validator.values.adjMaxSpendRobustDelegation, validator.marinadeActivatedStakeSol)
     } else {
       return Infinity
     }

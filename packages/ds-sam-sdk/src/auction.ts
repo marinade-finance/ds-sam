@@ -237,6 +237,7 @@ export class Auction {
     let marinadeTvlSol = this.data.stakeAmounts.marinadeSamTvlSol + this.data.stakeAmounts.marinadeMndeTvlSol
     this.data.validators.forEach(validator => {
       const values = validator.values
+      
       if (validator.revShare.totalPmpe >= winningTotalPmpe) {
         // counterfactual auction - the validator is not part of the auction
         this.reset()
@@ -254,6 +255,7 @@ export class Auction {
         const marginalPmpeGain = Math.max(0, unboundedResult.winningTotalPmpe / counterfactualResult.winningTotalPmpe - 1)
         values.spendRobustReputation += marginalPmpeGain * totalMarinadeSpend
       }
+      
       const marinadeActivatedStakeSolUndelegation = -Math.min(
         0,
         validator.marinadeActivatedStakeSol
@@ -270,13 +272,12 @@ export class Auction {
       if (values.spendRobustReputation > Math.max(0, this.config.minSpendRobustReputation)) {
         values.spendRobustReputation *= 1 - 1 / this.config.spendRobustReputationDecayEpochs
       }
+
       values.adjSpendRobustReputation = values.spendRobustReputation
-      if (validator.revShare.totalPmpe > 0 && this.config.spendRobustReputationMult != null) {
+      if (validator.revShare.totalPmpe > 0) {
         const pm = validator.revShare.totalPmpe / 1000
-        values.adjMaxSpendRobustDelegation = this.config.spendRobustReputationMult * values.adjSpendRobustReputation / pm
         validator.maxBondDelegation = Math.min((validator.bondBalanceSol ?? 0) / pm, 0.04 * marinadeTvlSol)
       } else {
-        values.adjMaxSpendRobustDelegation = 0
         validator.maxBondDelegation = 0
       }
     })
@@ -287,7 +288,20 @@ export class Auction {
     if (mult == null) {
       return
     }
-    for (let i = 0; i < 1000; i++) {
+
+    let factor = 1
+    for (let i = 0; i < 100; i++) {
+      for (const entry of this.data.validators) {
+        const values = entry.values
+        this.data.adjSpendRobustReputationInflationFactor *= factor
+        values.adjSpendRobustReputation *= factor
+        if (entry.revShare.totalPmpe > 0) {
+          values.adjMaxSpendRobustDelegation = mult * values.adjSpendRobustReputation / (entry.revShare.totalPmpe / 1000)
+        } else {
+          values.adjMaxSpendRobustDelegation = 0
+        }
+      }
+
       let leftToScale = this.data.stakeAmounts.marinadeSamTvlSol
       let totalScalable = 0
       for (const entry of this.data.validators) {
@@ -300,17 +314,10 @@ export class Auction {
           leftToScale -= entry.maxBondDelegation
         }
       }
-      const factor = leftToScale / totalScalable
+
+      factor = leftToScale / totalScalable
       if (!isFinite(factor) || factor <= 1) {
         break;
-      }
-      for (const entry of this.data.validators) {
-        const values = entry.values
-        this.data.adjSpendRobustReputationInflationFactor *= factor
-        values.adjSpendRobustReputation *= factor
-        if (entry.revShare.totalPmpe > 0) {
-          values.adjMaxSpendRobustDelegation = mult * values.adjSpendRobustReputation / (entry.revShare.totalPmpe / 1000)
-        }
       }
     }
   }
