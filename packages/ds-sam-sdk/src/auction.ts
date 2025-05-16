@@ -256,12 +256,13 @@ export class Auction {
         values.spendRobustReputation += marginalPmpeGain * totalMarinadeSpend
       }
       
-      const marinadeActivatedStakeSolUndelegation = -Math.min(
+      values.marinadeActivatedStakeSolUndelegation = -Math.min(
         0,
         validator.marinadeActivatedStakeSol
           - (validator.auctions[0]?.marinadeActivatedStakeSol ?? 0)
       )
-      values.spendRobustReputation -= marinadeActivatedStakeSolUndelegation * winningTotalPmpe / 1000
+      const coef = 1 / values.adjSpendRobustReputationInflationFactor
+      values.spendRobustReputation -= coef * values.marinadeActivatedStakeSolUndelegation * winningTotalPmpe / 1000
       values.spendRobustReputation = Math.max(
         this.config.minSpendRobustReputation,
         Math.min(
@@ -284,16 +285,13 @@ export class Auction {
   }
 
   scaleReputationToFitTvl () {
-    const mult = this.config.spendRobustReputationMult
-    if (mult == null) {
-      return
-    }
-
+    const mult = this.config.spendRobustReputationMult ?? 1
+    let totalFactor = 1
     let factor = 1
     for (let i = 0; i < 100; i++) {
       for (const entry of this.data.validators) {
         const values = entry.values
-        this.data.adjSpendRobustReputationInflationFactor *= factor
+        totalFactor *= factor
         values.adjSpendRobustReputation *= factor
         if (entry.revShare.totalPmpe > 0) {
           values.adjMaxSpendRobustDelegation = mult * values.adjSpendRobustReputation / (entry.revShare.totalPmpe / 1000)
@@ -319,6 +317,9 @@ export class Auction {
       if (!isFinite(factor) || factor <= 1) {
         break;
       }
+    }
+    for (const entry of this.data.validators) {
+      entry.values.adjSpendRobustReputationInflationFactor = totalFactor
     }
   }
 

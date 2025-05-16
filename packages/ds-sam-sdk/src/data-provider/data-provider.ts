@@ -1,4 +1,4 @@
-import axios from 'axios'
+ import axios from 'axios'
 import { DsSamConfig, InputsSource } from '../config'
 import {
   RawBlacklistResponseDto,
@@ -140,6 +140,8 @@ export class DataProvider {
             ?? this.config.initialSpendRobustReputation,
           adjSpendRobustReputation: 0,
           adjMaxSpendRobustDelegation: 0,
+          marinadeActivatedStakeSolUndelegation: 0,
+          adjSpendRobustReputationInflationFactor: auctions[0]?.adjSpendRobustReputationInflationFactor ?? 1,
         },
         mndeVotesSolValue: validatorMndeVotes.mul(solPerMnde).toNumber(),
         mndeStakeCapIncrease: validatorMndeStakeCapIncrease.toNumber(),

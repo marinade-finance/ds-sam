@@ -113,7 +113,6 @@ export class DsSamSDK {
     const auctionData: AuctionData = {
       ...aggregatedData,
       validators: this.transformValidators(aggregatedData),
-      adjSpendRobustReputationInflationFactor: 1,
     }
     return new Auction(auctionData, constraints, this.config, this.debug)
   }

@@ -31,6 +31,7 @@ export type AuctionHistoryStats = {
   bidPmpe: number
   spendRobustReputation?: number
   marinadeActivatedStakeSol?: number
+  adjSpendRobustReputationInflationFactor?: number
 }
 
 export type RawMndeVoteDto = {

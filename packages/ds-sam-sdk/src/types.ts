@@ -8,7 +8,6 @@ export type AuctionResult = {
 
 export type AuctionData = Omit<AggregatedData, 'validators'> & {
   validators: AuctionValidator[]
-  adjSpendRobustReputationInflationFactor: number
 }
 
 export type StakeAmounts = {
@@ -77,6 +76,8 @@ export type AuctionValidatorValues = {
   spendRobustReputation: number
   adjMaxSpendRobustDelegation: number
   adjSpendRobustReputation: number
+  marinadeActivatedStakeSolUndelegation: number
+  adjSpendRobustReputationInflationFactor: number
 }
 
 export type Rewards = {
