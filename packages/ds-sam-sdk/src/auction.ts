@@ -217,6 +217,7 @@ export class Auction {
   }
 
   reset () {
+    console.log('----------------------------- resetting auction')
     this.data.stakeAmounts.marinadeRemainingMndeSol = this.data.stakeAmounts.marinadeMndeTvlSol
     this.data.stakeAmounts.marinadeRemainingSamSol =  this.data.stakeAmounts.marinadeSamTvlSol
     this.data.validators.forEach(validator => {
@@ -241,11 +242,13 @@ export class Auction {
       if (validator.revShare.totalPmpe >= winningTotalPmpe) {
         // counterfactual auction - the validator is not part of the auction
         this.reset()
+        console.log(`EVALUATING counterfactual auction for ${validator.voteAccount}`)
         validator.samBlocked = true
         const counterfactualResult = this.evaluateOne()
 
         // baseline auction - the validator is not bounded by its reputation
         this.reset()
+        console.log(`EVALUATING baseline auction for ${validator.voteAccount}`)
         const origReputation = values.spendRobustReputation
         values.spendRobustReputation = Infinity
         const unboundedResult = this.evaluateOne()
@@ -261,7 +264,7 @@ export class Auction {
         validator.marinadeActivatedStakeSol
           - (validator.auctions[0]?.marinadeActivatedStakeSol ?? 0)
       )
-      const coef = 1 / values.adjSpendRobustReputationInflationFactor
+      const coef = 1 / (validator.auctions[0]?.adjSpendRobustReputationInflationFactor ?? 1)
       values.spendRobustReputation -= coef * values.marinadeActivatedStakeSolUndelegation * winningTotalPmpe / 1000
       values.spendRobustReputation = Math.max(
         this.config.minSpendRobustReputation,
@@ -288,6 +291,7 @@ export class Auction {
   }
 
   scaleReputationToFitTvl () {
+    console.log('SCALING reputation to fit tvl')
     const mult = this.config.spendRobustReputationMult ?? 1
     let totalFactor = 1
     let factor = 1
@@ -324,6 +328,7 @@ export class Auction {
     for (const entry of this.data.validators) {
       entry.values.adjSpendRobustReputationInflationFactor = totalFactor
     }
+    console.log(`SCALING factor found: ${totalFactor}`)
   }
 
   evaluateOne (): AuctionResult {
@@ -370,6 +375,7 @@ export class Auction {
     this.updateSpendRobustReputations(result.winningTotalPmpe, totalMarinadeSpend)
     this.reset()
     this.scaleReputationToFitTvl()
+    console.log('EVALUATING final auction')
     return this.evaluateOne()
   }
 
