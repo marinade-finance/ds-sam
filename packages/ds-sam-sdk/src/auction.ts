@@ -253,7 +253,11 @@ export class Auction {
         const marginalPmpeGain = Math.max(0, unboundedResult.winningTotalPmpe / counterfactualResult.winningTotalPmpe - 1)
         validator.values.spendRobustReputation += marginalPmpeGain * totalMarinadeSpend
       }
-      const marinadeActivatedStakeSolUndelegation = -Math.min(0, validator.marinadeActivatedStakeSol - (validator.auctions[0]?.marinadeActivatedStakeSol ?? 0))
+      const marinadeActivatedStakeSolUndelegation = -Math.min(
+        0,
+        validator.marinadeActivatedStakeSol
+          - (validator.auctions[0]?.marinadeActivatedStakeSol ?? 0)
+      )
       validator.values.spendRobustReputation -= marinadeActivatedStakeSolUndelegation * winningTotalPmpe / 1000
       validator.values.spendRobustReputation = Math.max(
         this.config.minSpendRobustReputation,
