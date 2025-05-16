@@ -277,7 +277,10 @@ export class Auction {
       values.adjSpendRobustReputation = values.spendRobustReputation
       if (validator.revShare.totalPmpe > 0) {
         const pm = validator.revShare.totalPmpe / 1000
-        validator.maxBondDelegation = Math.min((validator.bondBalanceSol ?? 0) / pm, 0.04 * marinadeTvlSol)
+        validator.maxBondDelegation = Math.min(
+          (validator.bondBalanceSol ?? 0) / pm,
+          this.config.maxMarinadeTvlSharePerValidatorDec * marinadeTvlSol
+        )
       } else {
         validator.maxBondDelegation = 0
       }
