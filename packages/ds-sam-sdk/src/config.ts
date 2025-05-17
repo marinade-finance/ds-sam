@@ -74,7 +74,7 @@ export const DEFAULT_CONFIG: DsSamConfig = {
   minScaledSpendRobustReputation: 40,
   maxSpendRobustReputation: 1000,
   initialSpendRobustReputation: 1,
-  minBondBalanceSol: 0,
+  minBondBalanceSol: 10,
   spendRobustReputationBondBoostCoef: 0,
 
   debugVoteAccounts: [],

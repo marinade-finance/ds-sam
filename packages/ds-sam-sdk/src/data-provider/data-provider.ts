@@ -232,7 +232,9 @@ export class DataProvider {
     fs.writeFileSync(`${this.config.inputsCacheDirPath}/mnde-votes.json`, JSON.stringify(data.mndeVotes, null, 2))
     fs.writeFileSync(`${this.config.inputsCacheDirPath}/rewards.json`, JSON.stringify(data.rewards, null, 2))
     fs.writeFileSync(`${this.config.inputsCacheDirPath}/auctions.json`, JSON.stringify(data.auctions, null, 2))
-    fs.writeFileSync(`${this.config.inputsCacheDirPath}/overrides.json`, JSON.stringify(data.overrides, null, 2))
+    if (data.overrides) {
+      fs.writeFileSync(`${this.config.inputsCacheDirPath}/overrides.json`, JSON.stringify(data.overrides, null, 2))
+    }
   }
 
   parseCachedSourceData (): RawSourceData {
@@ -286,7 +288,17 @@ export class DataProvider {
     const epoch = rewards.rewards_inflation_est.reduce((epoch, entry) => Math.max(epoch, entry[0]), 0) + 1
     const overrides = await this.fetchOverrides(epoch)
 
-    const data = { validators, mevInfo, bonds, tvlInfo, blacklist, mndeVotes, rewards, auctions, overrides }
+    const data = {
+      validators,
+      mevInfo,
+      bonds,
+      tvlInfo,
+      blacklist,
+      mndeVotes,
+      rewards,
+      auctions,
+      overrides: overrides ?? undefined,
+    }
     if (this.config.cacheInputs) {
       this.cacheSourceData(data)
     }
@@ -347,9 +359,15 @@ export class DataProvider {
     return response.data
   }
 
-  async fetchOverrides (epoch: number): Promise<RawOverrideDataDto> {
+  async fetchOverrides (epoch: number): Promise<RawOverrideDataDto | null> {
     const url = `${this.config.overridesApiBaseUrl}/${epoch}/overrides.json`
     const response = await axios.get<RawOverrideDataDto>(url)
-    return response.data
+    if (response.status == 404) {
+      return null
+    } else if (response.status == 200) {
+      return response.data
+    } else {
+      throw `Failed to load overrides: (${response.status}) ${response.data}`
+    }
   }
 }

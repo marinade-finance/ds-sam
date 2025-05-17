@@ -107,6 +107,7 @@ export type AuctionConstraintsConfig = {
   marinadeAsoStakeCapSol: number
   marinadeValidatorStakeCapSol: number
   spendRobustReputationMult: number | null
+  minBondBalanceSol: number
 }
 
 export enum AuctionConstraintType {
