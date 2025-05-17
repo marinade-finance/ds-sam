@@ -64,6 +64,7 @@ export class AuctionConstraints {
       ...this.buildAsoConcentrationConstraints(auctionData),
       ...this.buildSamBondConstraints(auctionData),
       ...this.buildValidatorConcentrationConstraints(auctionData),
+      ...this.buildReputationConstraints(auctionData),
     ]
     this.updateConstraintsPerValidator()
   }
@@ -140,6 +141,18 @@ export class AuctionConstraints {
     return [...asos.values()]
   }
 
+  private buildReputationConstraints ({ validators }: AuctionData) {
+    return validators.map(validator => ({
+      constraintType: AuctionConstraintType.REPUTATION,
+      constraintName: validator.voteAccount,
+      totalStakeSol: validatorTotalAuctionStakeSol(validator),
+      totalLeftToCapSol: Infinity,
+      marinadeStakeSol: validator.auctionStake.marinadeMndeTargetSol + validator.auctionStake.marinadeSamTargetSol,
+      marinadeLeftToCapSol: this.reputationStakeCap(validator) - validator.auctionStake.marinadeSamTargetSol,
+      validators: [validator],
+    }))
+  }
+
   private buildSamBondConstraints ({ validators }: AuctionData) {
     return validators.map(validator => ({
       constraintType: AuctionConstraintType.BOND,
@@ -187,6 +200,15 @@ export class AuctionConstraints {
       validators: [validator],
     }))
   }
+
+  private reputationStakeCap (validator: AuctionValidator): number {
+    if (this.config.spendRobustReputationMult != null) {
+      return Math.max(validator.values.adjMaxSpendRobustDelegation, validator.marinadeActivatedStakeSol)
+    } else {
+      return Infinity
+    }
+  }
+
 }
 
 export const bondStakeCapSam = (validator: AuctionValidator): number => {

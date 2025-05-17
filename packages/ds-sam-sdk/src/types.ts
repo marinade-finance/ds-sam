@@ -19,6 +19,7 @@ export type StakeAmounts = {
 }
 
 export type AggregatedData = {
+  epoch: number
   validators: AggregatedValidator[]
   rewards: Rewards
   stakeAmounts: StakeAmounts
@@ -43,10 +44,12 @@ export type AuctionValidator = AggregatedValidator & {
   bidTooLowPenalty: BidTooLowPenalty
   mndeEligible: boolean
   samEligible: boolean
+  samBlocked: boolean
   auctionStake: ValidatorAuctionStake
   lastCapConstraint: AuctionConstraint | null
   stakePriority: number
   unstakePriority: number
+  maxBondDelegation: number
 }
 
 export type AggregatedValidator = {
@@ -66,6 +69,15 @@ export type AggregatedValidator = {
   mndeVotesSolValue: number
   epochStats: EpochStats[]
   auctions: AuctionHistoryStats[]
+  values: AuctionValidatorValues
+}
+
+export type AuctionValidatorValues = {
+  spendRobustReputation: number
+  adjMaxSpendRobustDelegation: number
+  adjSpendRobustReputation: number
+  marinadeActivatedStakeSolUndelegation: number
+  adjSpendRobustReputationInflationFactor: number
 }
 
 export type Rewards = {
@@ -94,6 +106,8 @@ export type AuctionConstraintsConfig = {
   marinadeCountryStakeCapSol: number
   marinadeAsoStakeCapSol: number
   marinadeValidatorStakeCapSol: number
+  spendRobustReputationMult: number | null
+  minBondBalanceSol: number
 }
 
 export enum AuctionConstraintType {
@@ -102,6 +116,7 @@ export enum AuctionConstraintType {
   VALIDATOR = 'VALIDATOR',
   BOND = 'BOND',
   MNDE = 'MNDE',
+  REPUTATION = 'REPUTATION',
 }
 
 export type AuctionConstraint = {

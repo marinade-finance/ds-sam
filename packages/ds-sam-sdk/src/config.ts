@@ -15,6 +15,7 @@ export type DsSamConfig = {
   blacklistApiBaseUrl: string
   snapshotsApiBaseUrl: string
   scoringApiBaseUrl: string
+  overridesApiBaseUrl: string
 
   rewardsEpochsCount: number
   validatorsUptimeEpochsCount: number
@@ -30,6 +31,14 @@ export type DsSamConfig = {
   maxNetworkStakeConcentrationPerCountryDec: number
   maxNetworkStakeConcentrationPerAsoDec: number
   maxMarinadeTvlSharePerValidatorDec: number
+  spendRobustReputationMult: number | null
+  spendRobustReputationDecayEpochs: number
+  minSpendRobustReputation: number
+  minScaledSpendRobustReputation: number
+  maxSpendRobustReputation: number
+  initialSpendRobustReputation: number
+  minBondBalanceSol: number
+  spendRobustReputationBondBoostCoef: number
 
   debugVoteAccounts: string[]
 }
@@ -41,6 +50,7 @@ export const DEFAULT_CONFIG: DsSamConfig = {
   bondsApiBaseUrl: 'https://validator-bonds-api.marinade.finance',
   tvlInfoApiBaseUrl: 'https://api.marinade.finance',
   blacklistApiBaseUrl: 'https://raw.githubusercontent.com/marinade-finance/delegation-strategy-2/master',
+  overridesApiBaseUrl: 'https://raw.githubusercontent.com/marinade-finance/ds-sam-pipeline/main/epochs',
   snapshotsApiBaseUrl: 'https://snapshots-api.marinade.finance',
   scoringApiBaseUrl:  'https://scoring.marinade.finance',
 
@@ -58,6 +68,14 @@ export const DEFAULT_CONFIG: DsSamConfig = {
   maxNetworkStakeConcentrationPerCountryDec: 0.3,
   maxNetworkStakeConcentrationPerAsoDec: 0.3,
   maxMarinadeTvlSharePerValidatorDec: 0.04,
+  spendRobustReputationMult: null,
+  spendRobustReputationDecayEpochs: 50,
+  minSpendRobustReputation: -20,
+  minScaledSpendRobustReputation: 40,
+  maxSpendRobustReputation: 1000,
+  initialSpendRobustReputation: 1,
+  minBondBalanceSol: 10,
+  spendRobustReputationBondBoostCoef: 0,
 
   debugVoteAccounts: [],
 }
