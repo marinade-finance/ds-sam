@@ -219,7 +219,7 @@ export class Auction {
   reset () {
     console.log('----------------------------- resetting auction')
     this.data.stakeAmounts.marinadeRemainingMndeSol = this.data.stakeAmounts.marinadeMndeTvlSol
-    this.data.stakeAmounts.marinadeRemainingSamSol =  this.data.stakeAmounts.marinadeSamTvlSol
+    this.data.stakeAmounts.marinadeRemainingSamSol = this.data.stakeAmounts.marinadeSamTvlSol
     this.data.validators.forEach(validator => {
       validator.auctionStake.marinadeMndeTargetSol = 0
       validator.auctionStake.marinadeSamTargetSol = 0
