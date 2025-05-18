@@ -209,13 +209,6 @@ export class Auction {
     return this.data
   }
 
-  blockInSam (vote: string) {
-    const entry = this.data.validators.find(({ voteAccount }) => voteAccount === vote)
-    if (entry != null) {
-      entry.samBlocked = true
-    }
-  }
-
   reset () {
     console.log('----------------------------- resetting auction')
     this.data.stakeAmounts.marinadeRemainingMndeSol = this.data.stakeAmounts.marinadeMndeTvlSol
