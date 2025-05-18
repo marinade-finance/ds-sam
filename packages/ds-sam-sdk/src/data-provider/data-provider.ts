@@ -216,7 +216,7 @@ export class DataProvider {
         .slice(1) // header row
         .map((line) => line.trim().split(',')[0])
         .filter((value): value is string => !!value)
-                        ),
+      ),
     }
   }
 
