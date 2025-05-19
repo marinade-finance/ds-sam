@@ -15,7 +15,8 @@
     "noUncheckedIndexedAccess": true,
     "sourceMap": true,
     "noImplicitAny": true,
-    "lib": ["es2021", "dom"]
+    "lib": ["es2021", "dom"],
+    "composite": true,
   },
   "include": [
     "packages/**/*.ts",

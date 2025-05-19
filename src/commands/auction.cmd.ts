@@ -1,7 +1,6 @@
 import { CliUtilityService, Command, CommandRunner, Option } from 'nest-commander'
 import { Logger } from '@nestjs/common'
-import { AuctionResult, DsSamConfig, DsSamSDK, InputsSource } from '@marinade.finance/ds-sam-sdk'
-import { formatLastCapConstraint } from '../../packages/ds-sam-sdk/src/utils'
+import { AuctionResult, DsSamConfig, DsSamSDK, InputsSource, formatLastCapConstraint } from '@marinade.finance/ds-sam-sdk'
 import fs from 'fs'
 
 const COMMAND_NAME = 'auction'

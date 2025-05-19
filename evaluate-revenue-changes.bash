@@ -14,7 +14,7 @@ gcloud storage cp "${GCP_PATH}/${PAST_EPOCH}/validators.json" "${SNAPSHOT_PAST_V
 # TODO: handle cases where the scoring is N/A for that specific epoch by iterating back in time epoch by epoch
 SAM_RESPONSE=$(curl -sfLS "https://scoring.marinade.finance/api/v1/scores/sam?epoch=$SAM_EPOCH")
 
-SAM_RUN_ID=(<<<"$SAM_RESPONSE" jq '.[0].metadata.scoringId' -r)
+SAM_RUN_ID=$(<<<"$SAM_RESPONSE" jq '.[0].metadata.scoringId' -r)
 SAM_INPUTS_DIR="tmp-sam-inputs"
 SAM_OUTPUTS_DIR="tmp-sam-outputs"
 
