@@ -77,7 +77,7 @@ export class DataProvider {
     return result
   }
 
-  extractAuctionHistoryStats (auction: AuctionHistory, validator: RawValidatorDto, bond?: RawBondDto): AuctionHistoryStats {
+  extractAuctionHistoryStats (auction: AuctionHistory, validator: RawValidatorDto): AuctionHistoryStats {
     const entry = auction.data.find(({ voteAccount }) => validator.vote_account === voteAccount)
     const revShare = entry?.revShare
     const bondBalanceSol = bond ? new Decimal(bond.effective_amount).div(1e9).toNumber() : 0
@@ -119,7 +119,7 @@ export class DataProvider {
 
       const inflationCommissionDec = (inflationCommissionOverride ?? validator.commission_effective ?? validator.commission_advertised ?? 100) / 100
       const mevCommissionDec = (mevCommissionOverride !== undefined ? mevCommissionOverride / 10_000 : (mev ? mev.mev_commission_bps / 10_000 : null))
-      const auctions = auctionsData.map((auction) => this.extractAuctionHistoryStats(auction, validator, bond))
+      const auctions = auctionsData.map((auction) => this.extractAuctionHistoryStats(auction, validator))
       const bondBalanceSol = bond ? new Decimal(bond.effective_amount).div(1e9).toNumber() : null
       return {
         voteAccount: validator.vote_account,
