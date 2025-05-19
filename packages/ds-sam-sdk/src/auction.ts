@@ -26,9 +26,9 @@ const setReputation = (validator: AuctionValidator, values: ReputationValues): R
       adjSpendRobustReputation: validator.values.adjSpendRobustReputation,
       adjMaxSpendRobustDelegation: validator.values.adjMaxSpendRobustDelegation,
     }
-    validator.values.spendRobustReputation = validator.values.spendRobustReputation
-    validator.values.adjSpendRobustReputation = validator.values.adjSpendRobustReputation
-    validator.values.adjMaxSpendRobustDelegation = validator.values.adjMaxSpendRobustDelegation
+    validator.values.spendRobustReputation = values.spendRobustReputation
+    validator.values.adjSpendRobustReputation = values.adjSpendRobustReputation
+    validator.values.adjMaxSpendRobustDelegation = values.adjMaxSpendRobustDelegation
     return oldValues
   }
 
