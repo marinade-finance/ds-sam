@@ -17,7 +17,7 @@ export const calcValidatorRevShare = (validator: AggregatedValidator, rewards: R
   }
 }
 
-export const calcEffParticipatingBidPmpe = (revShare: { inflationPmpe: number, mevPmpe: number }, winningTotalPmpe: number) => {
+export const calcEffParticipatingBidPmpe = (revShare: { inflationPmpe: number, mevPmpe: number }, winningTotalPmpe: number): number => {
   return Math.max(0, winningTotalPmpe - revShare.inflationPmpe - revShare.mevPmpe)
 }
 
@@ -31,6 +31,8 @@ export const validatorAggDefaults = () => ({
     coef: 0,
     base: 0,
   },
+  samBlocked: false,
+  maxBondDelegation: NaN,
 })
 
 export const validatorTotalAuctionStakeSol = (validator: AuctionValidator): number =>

@@ -6,7 +6,7 @@ import {
   AuctionData,
   ValidatorAuctionStake,
   AuctionResult,
-  AuctionConstraintsConfig
+  AuctionConstraintsConfig,
 } from './types'
 import semver from 'semver'
 import Decimal from 'decimal.js'
@@ -14,7 +14,7 @@ import { Auction } from './auction'
 import { calcValidatorRevShare, ineligibleValidatorAggDefaults, validatorAggDefaults } from './utils'
 import { AuctionConstraints } from './constraints'
 import { Debug } from './debug'
-import { SourceDataOverrides } from './data-provider/data-provider.dto'
+import { SourceDataOverrides, RawSourceData } from './data-provider/data-provider.dto'
 
 export const defaultDataProviderBuilder = (config: DsSamConfig) => new DataProvider({ ...config }, config.inputsSource)
 
@@ -38,6 +38,8 @@ export class DsSamSDK {
       marinadeCountryStakeCapSol: marinadeTotalTvlSol * this.config.maxMarinadeStakeConcentrationPerCountryDec,
       marinadeAsoStakeCapSol: marinadeTotalTvlSol * this.config.maxMarinadeStakeConcentrationPerAsoDec,
       marinadeValidatorStakeCapSol: marinadeTotalTvlSol * this.config.maxMarinadeTvlSharePerValidatorDec,
+      spendRobustReputationMult: this.config.spendRobustReputationMult,
+      minBondBalanceSol: this.config.minBondBalanceSol,
     }
     this.debug.pushInfo('auction constraints', JSON.stringify(constraints))
     return new AuctionConstraints(constraints, debug)
@@ -106,13 +108,18 @@ export class DsSamSDK {
     })
   }
 
-  async run (): Promise<AuctionResult> {
+  async auction (): Promise<Auction> {
     const aggregatedData = await this.getAggregatedData()
-
     const constraints = this.getAuctionConstraints(aggregatedData, this.debug)
-    const auctionData: AuctionData = { ...aggregatedData, validators: this.transformValidators(aggregatedData) }
+    const auctionData: AuctionData = {
+      ...aggregatedData,
+      validators: this.transformValidators(aggregatedData),
+    }
+    return new Auction(auctionData, constraints, this.config, this.debug)
+  }
 
-    const auction = new Auction(auctionData, constraints, this.config, this.debug)
+  async run (): Promise<AuctionResult> {
+    const auction = await this.auction()
     const result = auction.evaluate()
     console.log(`==============================\n${this.debug.formatInfo()}\n${this.debug.formatEvents()}\n==============================`)
     return result

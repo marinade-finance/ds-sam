@@ -3,6 +3,7 @@ import { DsSamConfig, InputsSource } from '../config'
 import {
   RawBlacklistResponseDto,
   RawBondsResponseDto,
+  RawBondDto,
   RawMevInfoResponseDto, RawMndeVotesResponseDto, RawRewardsRecordDto,
   RawRewardsResponseDto, RawSourceData, RawTvlResponseDto,
   RawValidatorsResponseDto,
@@ -10,7 +11,8 @@ import {
   SourceDataOverrides,
   AuctionHistory,
   AuctionHistoryStats,
-  RawValidatorDto
+  RawValidatorDto,
+  RawOverrideDataDto,
 } from './data-provider.dto'
 import Decimal from 'decimal.js'
 import { AggregatedData, AggregatedValidator } from '../types'
@@ -27,21 +29,21 @@ export class DataProvider {
 
   private validateConfig () {
     switch (this.dataSource) {
-    case InputsSource.APIS:
-      if (this.config.cacheInputs && !this.config.inputsCacheDirPath) {
-        throw new Error('Cannot cache inputs without cache directory path configured')
-      }
-      break
-    case InputsSource.FILES:
-      if (!this.config.inputsCacheDirPath) {
-        throw new Error(`Missing inputs cache directory path for inputs source: ${this.dataSource}`)
-      }
-      if (this.config.cacheInputs) {
-        throw new Error(`Caching inputs not supported for inputs source: ${this.dataSource}`)
-      }
-      break
-    default:
-      throw new Error(`Unsupported inputs source: ${this.dataSource}`)
+      case InputsSource.APIS:
+        if (this.config.cacheInputs && !this.config.inputsCacheDirPath) {
+          throw new Error('Cannot cache inputs without cache directory path configured')
+        }
+        break
+      case InputsSource.FILES:
+        if (!this.config.inputsCacheDirPath) {
+          throw new Error(`Missing inputs cache directory path for inputs source: ${this.dataSource}`)
+        }
+        if (this.config.cacheInputs) {
+          throw new Error(`Caching inputs not supported for inputs source: ${this.dataSource}`)
+        }
+        break
+      default:
+        throw new Error(`Unsupported inputs source: ${this.dataSource}`)
     }
   }
 
@@ -76,7 +78,7 @@ export class DataProvider {
   }
 
   extractAuctionHistoryStats (auction: AuctionHistory, validator: RawValidatorDto): AuctionHistoryStats {
-    const entry = auction.data.find(({ voteAccount }) => validator.vote_account == voteAccount)
+    const entry = auction.data.find(({ voteAccount }) => validator.vote_account === voteAccount)
     const revShare = entry?.revShare
     if (revShare == null) {
       console.log(`validator ${validator.vote_account} did not participate in auction in epoch ${auction.epoch}`)
@@ -86,6 +88,8 @@ export class DataProvider {
         auctionEffectiveBidPmpe: 0,
         bidPmpe: 0,
         effParticipatingBidPmpe: 0,
+        spendRobustReputation: entry?.values?.spendRobustReputation,
+        marinadeActivatedStakeSol: entry?.marinadeActivatedStakeSol ?? 0,
       }
     }
     return {
@@ -93,7 +97,9 @@ export class DataProvider {
       winningTotalPmpe: auction.winningTotalPmpe,
       auctionEffectiveBidPmpe: revShare.auctionEffectiveBidPmpe,
       bidPmpe: revShare.bidPmpe,
-      effParticipatingBidPmpe: calcEffParticipatingBidPmpe(revShare, auction.winningTotalPmpe)
+      effParticipatingBidPmpe: calcEffParticipatingBidPmpe(revShare, auction.winningTotalPmpe),
+      spendRobustReputation: entry?.values?.spendRobustReputation,
+      marinadeActivatedStakeSol: entry?.marinadeActivatedStakeSol,
     }
   }
 
@@ -102,6 +108,8 @@ export class DataProvider {
     return data.validators.validators.map((validator): AggregatedValidator => {
       const bond = data.bonds.bonds.find(({ vote_account }) => validator.vote_account === vote_account)
       const mev = data.mevInfo.validators.find(({ vote_account }) => validator.vote_account === vote_account)
+      const override = data.overrides?.validators.find(({ voteAccount }) => validator.vote_account === voteAccount)
+
       const inflationCommissionOverride = dataOverrides?.inflationCommissions.get(validator.vote_account)
       const mevCommissionOverride = dataOverrides?.mevCommissions.get(validator.vote_account)
 
@@ -111,20 +119,29 @@ export class DataProvider {
       const inflationCommissionDec = (inflationCommissionOverride ?? validator.commission_effective ?? validator.commission_advertised ?? 100) / 100
       const mevCommissionDec = (mevCommissionOverride !== undefined ? mevCommissionOverride / 10_000 : (mev ? mev.mev_commission_bps / 10_000 : null))
       const auctions = auctionsData.map((auction) => this.extractAuctionHistoryStats(auction, validator))
-
+      const bondBalanceSol = bond ? new Decimal(bond.effective_amount).div(1e9).toNumber() : null
       return {
         voteAccount: validator.vote_account,
         clientVersion: validator.version ?? '0.0.0',
         voteCredits: validator.credits,
         aso: validator.dc_aso ?? 'Unknown',
         country: validator.dc_country ?? 'Unknown',
-        bondBalanceSol: bond ? new Decimal(bond.effective_amount).div(1e9).toNumber() : null,
+        bondBalanceSol,
         totalActivatedStakeSol: new Decimal(validator.activated_stake).div(1e9).toNumber(),
         marinadeActivatedStakeSol: new Decimal(validator.marinade_stake).add(validator.marinade_native_stake).div(1e9).toNumber(),
         inflationCommissionDec,
         mevCommissionDec,
         bidCpmpe: bond ? new Decimal(bond.cpmpe).div(1e9).toNumber() : null,
         maxStakeWanted: null,
+        values: {
+          spendRobustReputation: override?.values.spendRobustReputation
+            ?? auctions[0]?.spendRobustReputation
+            ?? this.config.initialSpendRobustReputation,
+          adjSpendRobustReputation: 0,
+          adjMaxSpendRobustDelegation: 0,
+          marinadeActivatedStakeSolUndelegation: 0,
+          adjSpendRobustReputationInflationFactor: 0,
+        },
         mndeVotesSolValue: validatorMndeVotes.mul(solPerMnde).toNumber(),
         mndeStakeCapIncrease: validatorMndeStakeCapIncrease.toNumber(),
         epochStats: validator.epoch_stats.filter(({ epoch_end_at }) => !!epoch_end_at).map(es => ({
@@ -173,11 +190,14 @@ export class DataProvider {
       validatorsMndeStakeCapIncreases.set(validatorVoteAccount, amount.mul(effectiveMndeStakeCapIncrease).mul(tvlSol).div(totalMndeVotes))
     }
 
+    const epoch = data.rewards.rewards_inflation_est.reduce((epoch, entry) => Math.max(epoch, entry[0]), 0) + 1
+
     const solPerMnde = totalMndeVotes.gt(0) ? new Decimal(effectiveMndeTvlShareSol).div(totalMndeVotes.sub(delStratVotes)).toNumber() : 0
     console.log('total mnde votes', totalMndeVotes)
     console.log('SOL per MNDE', solPerMnde)
     console.log('tvl', tvlSol)
     return {
+      epoch,
       validators: this.aggregateValidators(data, validatorsMndeVotes, solPerMnde, validatorsMndeStakeCapIncreases, dataOverrides),
       rewards: {
         inflationPmpe: this.aggregateRewardsRecords(activatedStakePerEpochs, data.rewards.rewards_inflation_est),
@@ -211,6 +231,9 @@ export class DataProvider {
     fs.writeFileSync(`${this.config.inputsCacheDirPath}/mnde-votes.json`, JSON.stringify(data.mndeVotes, null, 2))
     fs.writeFileSync(`${this.config.inputsCacheDirPath}/rewards.json`, JSON.stringify(data.rewards, null, 2))
     fs.writeFileSync(`${this.config.inputsCacheDirPath}/auctions.json`, JSON.stringify(data.auctions, null, 2))
+    if (data.overrides) {
+      fs.writeFileSync(`${this.config.inputsCacheDirPath}/overrides.json`, JSON.stringify(data.overrides, null, 2))
+    }
   }
 
   parseCachedSourceData (): RawSourceData {
@@ -225,13 +248,19 @@ export class DataProvider {
     const mndeVotes: RawMndeVotesResponseDto = JSON.parse(fs.readFileSync(`${this.config.inputsCacheDirPath}/mnde-votes.json`).toString())
     const rewards: RawRewardsResponseDto = JSON.parse(fs.readFileSync(`${this.config.inputsCacheDirPath}/rewards.json`).toString())
 
-    const auctionsFile = `${this.config.inputsCacheDirPath}/auctions.json`;
+    const auctionsFile = `${this.config.inputsCacheDirPath}/auctions.json`
     const auctions: RawScoredValidatorDto[] =
       fs.existsSync(auctionsFile)
       ? JSON.parse(fs.readFileSync(auctionsFile).toString())
-      : [];
+      : []
 
-    return { validators, mevInfo, bonds, tvlInfo, mndeVotes, rewards, blacklist, auctions }
+    const overridesFile = `${this.config.inputsCacheDirPath}/overrides.json`
+    const overrides: RawOverrideDataDto =
+      fs.existsSync(overridesFile)
+      ? JSON.parse(fs.readFileSync(overridesFile).toString())
+      : undefined
+
+    return { validators, mevInfo, bonds, tvlInfo, mndeVotes, rewards, blacklist, auctions, overrides }
   }
 
   async fetchSourceData (): Promise<RawSourceData> {
@@ -255,7 +284,20 @@ export class DataProvider {
       this.fetchAuctions(this.config.bidTooLowPenaltyHistoryEpochs),
     ])
 
-    const data = { validators, mevInfo, bonds, tvlInfo, blacklist, mndeVotes, rewards, auctions }
+    const epoch = rewards.rewards_inflation_est.reduce((epoch, entry) => Math.max(epoch, entry[0]), 0) + 1
+    const overrides = await this.fetchOverrides(epoch)
+
+    const data = {
+      validators,
+      mevInfo,
+      bonds,
+      tvlInfo,
+      blacklist,
+      mndeVotes,
+      rewards,
+      auctions,
+      overrides: overrides ?? undefined,
+    }
     if (this.config.cacheInputs) {
       this.cacheSourceData(data)
     }
@@ -314,5 +356,17 @@ export class DataProvider {
     const url = `${this.config.scoringApiBaseUrl}/api/v1/scores/sam?lastEpochs=${n + 1}`
     const response = await axios.get<RawScoredValidatorDto[]>(url)
     return response.data
+  }
+
+  async fetchOverrides (epoch: number): Promise<RawOverrideDataDto | null> {
+    const url = `${this.config.overridesApiBaseUrl}/${epoch}/overrides.json`
+    const response = await axios.get<RawOverrideDataDto>(url)
+    if (response.status == 404) {
+      return null
+    } else if (response.status == 200) {
+      return response.data
+    } else {
+      throw `Failed to load overrides: (${response.status}) ${response.data}`
+    }
   }
 }

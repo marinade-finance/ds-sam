@@ -1,3 +1,5 @@
+import { AuctionValidator } from '../types'
+
 export type RawScoredValidatorDto = {
   voteAccount: string
   revShare: {
@@ -8,6 +10,10 @@ export type RawScoredValidatorDto = {
     totalPmpe: number
   }
   marinadeSamTargetSol: number
+  values?: {
+    spendRobustReputation?: number
+  }
+  marinadeActivatedStakeSol: number
   epoch: number
 }
 
@@ -23,6 +29,9 @@ export type AuctionHistoryStats = {
   auctionEffectiveBidPmpe: number
   effParticipatingBidPmpe: number
   bidPmpe: number
+  spendRobustReputation?: number
+  marinadeActivatedStakeSol?: number
+  adjSpendRobustReputationInflationFactor?: number
 }
 
 export type RawMndeVoteDto = {
@@ -116,9 +125,12 @@ export type RawSourceData = {
   mndeVotes: RawMndeVotesResponseDto
   rewards: RawRewardsResponseDto
   auctions: RawScoredValidatorDto[]
+  overrides?: RawOverrideDataDto
 }
 
-
+export type RawOverrideDataDto = {
+  validators: AuctionValidator[]
+}
 
 export type SourceDataOverrides = {
   inflationCommissions: Map<String, number>
