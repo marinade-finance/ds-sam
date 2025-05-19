@@ -14,6 +14,24 @@ const logValidators = (validators: AuctionValidator[]) => {
 
 export const EPSILON = 1e-4
 
+type ReputationValues = {
+  spendRobustReputation: number
+  adjSpendRobustReputation: number
+  adjMaxSpendRobustDelegation: number
+}
+
+const setReputation = (validator: AuctionValidator, values: ReputationValues): ReputationValues => {
+    const oldValues = {
+      spendRobustReputation: validator.values.spendRobustReputation,
+      adjSpendRobustReputation: validator.values.adjSpendRobustReputation,
+      adjMaxSpendRobustDelegation: validator.values.adjMaxSpendRobustDelegation,
+    }
+    validator.values.spendRobustReputation = validator.values.spendRobustReputation
+    validator.values.adjSpendRobustReputation = validator.values.adjSpendRobustReputation
+    validator.values.adjMaxSpendRobustDelegation = validator.values.adjMaxSpendRobustDelegation
+    return oldValues
+  }
+
 export class Auction {
 
   constructor (private data: AuctionData, private constraints: AuctionConstraints, private config: DsSamConfig, private debug: Debug) { }
@@ -249,10 +267,16 @@ export class Auction {
         // baseline auction - the validator is not bounded by its reputation
         this.reset()
         console.log(`EVALUATING baseline auction for ${validator.voteAccount}`)
-        const origReputation = values.spendRobustReputation
-        values.spendRobustReputation = Infinity
+        const origReputation = setReputation(
+          validator,
+          {
+            spendRobustReputation: Infinity,
+            adjSpendRobustReputation: Infinity,
+            adjMaxSpendRobustDelegation: Infinity,
+          },
+        )
         const unboundedResult = this.evaluateOne()
-        values.spendRobustReputation = origReputation
+        setReputation(validator, origReputation)
 
         // the reputation is the gain the validator's participation brings
         const marginalPmpeGain = Math.max(0, unboundedResult.winningTotalPmpe / counterfactualResult.winningTotalPmpe - 1)
