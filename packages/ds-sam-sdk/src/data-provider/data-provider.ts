@@ -360,13 +360,25 @@ export class DataProvider {
 
   async fetchOverrides (epoch: number): Promise<RawOverrideDataDto | null> {
     const url = `${this.config.overridesApiBaseUrl}/${epoch}/overrides.json`
-    const response = await axios.get<RawOverrideDataDto>(url)
-    if (response.status == 404) {
-      return null
-    } else if (response.status == 200) {
-      return response.data
-    } else {
-      throw `Failed to load overrides: (${response.status}) ${response.data}`
+    try {
+      const response = await axios.get<RawOverrideDataDto>(url)
+      if (response.status == 404) {
+        return null
+      } else if (response.status == 200) {
+        return response.data
+      } else {
+        throw new Error(`Failed to load overrides: (${response.status}) ${response.data}`)
+      }
+    } catch (error: any) {
+      try {
+        if (error.status == 404) {
+          return null
+        } else {
+          throw error
+        }
+      } catch (unpackError) {
+        throw error
+      }
     }
   }
 }
