@@ -364,7 +364,7 @@ export class DataProvider {
       const response = await axios.get<RawOverrideDataDto>(url)
       return response.data
     } catch (error: any) {
-      if (error.status == 404) {
+      if ((error.status ?? error.response.status) == 404) {
         return null
       } else {
         throw error
