@@ -362,21 +362,11 @@ export class DataProvider {
     const url = `${this.config.overridesApiBaseUrl}/${epoch}/overrides.json`
     try {
       const response = await axios.get<RawOverrideDataDto>(url)
-      if (response.status == 404) {
-        return null
-      } else if (response.status == 200) {
-        return response.data
-      } else {
-        throw new Error(`Failed to load overrides: (${response.status}) ${response.data}`)
-      }
+      return response.data
     } catch (error: any) {
-      try {
-        if (error.status == 404) {
-          return null
-        } else {
-          throw error
-        }
-      } catch (unpackError) {
+      if (error.status == 404) {
+        return null
+      } else {
         throw error
       }
     }
