@@ -211,7 +211,7 @@ export class Auction {
       )
       const effParticipatingBidPmpe = calcEffParticipatingBidPmpe(revShare, winningTotalPmpe)
       const limit = Math.min(effParticipatingBidPmpe, historicalPmpe)
-      const penaltyCoef = Math.min(1, Math.sqrt(1.5 * Math.max(0, limit - revShare.bidPmpe) / limit))
+      const penaltyCoef = limit > 0 ? Math.min(1, Math.sqrt(1.5 * Math.max(0, (limit - revShare.bidPmpe) / limit))) : 0
       bidTooLowPenalty.base = winningTotalPmpe + effParticipatingBidPmpe
       if (revShare.bidPmpe < 0.99999 * (auctions[0]?.bidPmpe ?? 0)) {
         bidTooLowPenalty.coef = penaltyCoef
@@ -220,6 +220,9 @@ export class Auction {
       }
       revShare.effParticipatingBidPmpe = effParticipatingBidPmpe
       revShare.bidTooLowPenaltyPmpe = bidTooLowPenalty.coef * bidTooLowPenalty.base
+      if (!isFinite(revShare.bidTooLowPenaltyPmpe)) {
+        throw new Error(`bidTooLowPenaltyPmpe has to be finite`)
+      }
     })
   }
 
