@@ -80,7 +80,6 @@ export class DataProvider {
   extractAuctionHistoryStats (auction: AuctionHistory, validator: RawValidatorDto): AuctionHistoryStats {
     const entry = auction.data.find(({ voteAccount }) => validator.vote_account === voteAccount)
     const revShare = entry?.revShare
-    const bondBalanceSol = bond ? new Decimal(bond.effective_amount).div(1e9).toNumber() : 0
     if (revShare == null) {
       console.log(`validator ${validator.vote_account} did not participate in auction in epoch ${auction.epoch}`)
       return  {
