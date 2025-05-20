@@ -140,7 +140,9 @@ export class DataProvider {
           adjSpendRobustReputation: 0,
           adjMaxSpendRobustDelegation: 0,
           marinadeActivatedStakeSolUndelegation: 0,
-          adjSpendRobustReputationInflationFactor: 0,
+          adjSpendRobustReputationInflationFactor: override?.values.adjSpendRobustReputationInflationFactor
+            ?? auctions[0]?.adjSpendRobustReputationInflationFactor
+            ?? 1,
         },
         mndeVotesSolValue: validatorMndeVotes.mul(solPerMnde).toNumber(),
         mndeStakeCapIncrease: validatorMndeStakeCapIncrease.toNumber(),
@@ -360,13 +362,15 @@ export class DataProvider {
 
   async fetchOverrides (epoch: number): Promise<RawOverrideDataDto | null> {
     const url = `${this.config.overridesApiBaseUrl}/${epoch}/overrides.json`
-    const response = await axios.get<RawOverrideDataDto>(url)
-    if (response.status == 404) {
-      return null
-    } else if (response.status == 200) {
+    try {
+      const response = await axios.get<RawOverrideDataDto>(url)
       return response.data
-    } else {
-      throw `Failed to load overrides: (${response.status}) ${response.data}`
+    } catch (error: any) {
+      if ((error.status ?? error.response.status) == 404) {
+        return null
+      } else {
+        throw error
+      }
     }
   }
 }
