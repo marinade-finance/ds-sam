@@ -384,10 +384,6 @@ export class Auction {
     this.debug.pushInfo('end amounts', JSON.stringify(this.data.stakeAmounts))
     this.debug.pushInfo('winning total PMPE', winningTotalPmpe.toString())
 
-    this.setStakeUnstakePriorities()
-    this.setEffectiveBids(winningTotalPmpe)
-    this.setBidTooLowPenalties(winningTotalPmpe)
-
     return {
       auctionData: this.data,
       winningTotalPmpe,
@@ -396,6 +392,7 @@ export class Auction {
 
   evaluate (): AuctionResult {
     const result = this.evaluateOne()
+    this.setEffectiveBids(result.winningTotalPmpe)
     const totalMarinadeSpend = result.auctionData.validators.reduce(
       (acc, entry) => acc + entry.revShare.auctionEffectiveBidPmpe * entry.marinadeActivatedStakeSol / 1000,
       0
@@ -404,7 +401,10 @@ export class Auction {
     this.reset()
     this.scaleReputationToFitTvl()
     console.log('EVALUATING final auction')
-    return this.evaluateOne()
+    const finalResult = this.evaluateOne()
+    this.setBidTooLowPenalties(finalResult.winningTotalPmpe)
+    this.setStakeUnstakePriorities()
+    return finalResult
   }
 
   findNextPmpeGroup (totalPmpe: number): { totalPmpe: number, validators: AuctionValidator[] } | null {
