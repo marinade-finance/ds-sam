@@ -256,8 +256,7 @@ export class Auction {
   }
 
   updateSpendRobustReputations(winningTotalPmpe: number, totalMarinadeSpend: number) {
-    let marinadeTvlSol = this.data.stakeAmounts.marinadeSamTvlSol + this.data.stakeAmounts.marinadeMndeTvlSol
-    this.data.validators.forEach(validator => {
+    for (const validator of this.data.validators) {
       const values = validator.values
       
       if (validator.revShare.totalPmpe >= winningTotalPmpe) {
@@ -303,8 +302,12 @@ export class Auction {
       if (values.spendRobustReputation > Math.max(0, this.config.minSpendRobustReputation)) {
         values.spendRobustReputation *= 1 - 1 / this.config.spendRobustReputationDecayEpochs
       }
+    }
+  }
 
-      values.adjSpendRobustReputation = values.spendRobustReputation
+  setMaxBondDelegations () {
+    const marinadeTvlSol = this.data.stakeAmounts.marinadeSamTvlSol + this.data.stakeAmounts.marinadeMndeTvlSol
+    for (const validator of this.data.validators) {
       if (validator.revShare.totalPmpe > 0) {
         const pm = validator.revShare.totalPmpe / 1000
         validator.maxBondDelegation = Math.min(
@@ -314,11 +317,15 @@ export class Auction {
       } else {
         validator.maxBondDelegation = 0
       }
-    })
+    }
   }
 
   scaleReputationToFitTvl () {
     console.log('SCALING reputation to fit tvl')
+    for (const validator of this.data.validators) {
+      validator.values.adjSpendRobustReputation = validator.values.spendRobustReputation
+    }
+
     const mult = this.config.spendRobustReputationMult ?? 1
     let totalFactor = 1
     let factor = 1
@@ -390,6 +397,15 @@ export class Auction {
     }
   }
 
+  evaluateFinal (): AuctionResult {
+    console.log('EVALUATING final auction')
+    const result = this.evaluateOne()
+    this.setEffectiveBids(result.winningTotalPmpe)
+    this.setBidTooLowPenalties(result.winningTotalPmpe)
+    this.setStakeUnstakePriorities()
+    return result
+  }
+
   evaluate (): AuctionResult {
     const result = this.evaluateOne()
     this.setEffectiveBids(result.winningTotalPmpe)
@@ -397,14 +413,11 @@ export class Auction {
       (acc, entry) => acc + entry.revShare.auctionEffectiveBidPmpe * entry.marinadeActivatedStakeSol / 1000,
       0
     )
+    this.setMaxBondDelegations()
     this.updateSpendRobustReputations(result.winningTotalPmpe, totalMarinadeSpend)
     this.reset()
     this.scaleReputationToFitTvl()
-    console.log('EVALUATING final auction')
-    const finalResult = this.evaluateOne()
-    this.setBidTooLowPenalties(finalResult.winningTotalPmpe)
-    this.setStakeUnstakePriorities()
-    return finalResult
+    return this.evaluateFinal()
   }
 
   findNextPmpeGroup (totalPmpe: number): { totalPmpe: number, validators: AuctionValidator[] } | null {
