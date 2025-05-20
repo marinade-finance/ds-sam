@@ -125,6 +125,13 @@ export class DsSamSDK {
     return result
   }
 
+  async runFinalOnly (): Promise<AuctionResult> {
+    const auction = await this.auction()
+    const result = auction.evaluateFinal()
+    console.log(`==============================\n${this.debug.formatInfo()}\n${this.debug.formatEvents()}\n==============================`)
+    return result
+  }
+
   async getAggregatedData (dataOverrides: SourceDataOverrides | null = null): Promise<AggregatedData> {
     const sourceData = this.config.inputsSource === InputsSource.FILES ? this.dataProvider.parseCachedSourceData() : await this.dataProvider.fetchSourceData()
     return this.dataProvider.aggregateData(sourceData, dataOverrides)

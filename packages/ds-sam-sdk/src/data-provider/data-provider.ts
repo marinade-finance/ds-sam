@@ -140,7 +140,9 @@ export class DataProvider {
           adjSpendRobustReputation: 0,
           adjMaxSpendRobustDelegation: 0,
           marinadeActivatedStakeSolUndelegation: 0,
-          adjSpendRobustReputationInflationFactor: 0,
+          adjSpendRobustReputationInflationFactor: override?.values.adjSpendRobustReputationInflationFactor
+            ?? auctions[0]?.adjSpendRobustReputationInflationFactor
+            ?? 1,
         },
         mndeVotesSolValue: validatorMndeVotes.mul(solPerMnde).toNumber(),
         mndeStakeCapIncrease: validatorMndeStakeCapIncrease.toNumber(),

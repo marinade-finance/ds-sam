@@ -127,7 +127,7 @@ export class AnalyzeRevenuesCommand extends CommandRunner {
     )
 
     const dsSam = new DsSamSDK({ ...config })
-    const auctionDataCalculatedFromFixtures = await dsSam.run()
+    const auctionDataCalculatedFromFixtures = await dsSam.runFinalOnly()
     const auctionDataParsedFromFixtures: AuctionResult = JSON.parse(
       fs.readFileSync(options.samResultsFixtureFilePath).toString()
     )
