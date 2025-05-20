@@ -411,6 +411,7 @@ export class Auction {
     this.setStakeUnstakePriorities()
     this.setEffectiveBids(result.winningTotalPmpe)
     this.setBidTooLowPenalties(result.winningTotalPmpe)
+    this.setMaxBondDelegations()
     return result
   }
 
