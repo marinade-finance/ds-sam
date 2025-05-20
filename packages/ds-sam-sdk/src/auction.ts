@@ -321,15 +321,8 @@ export class Auction {
   }
 
   setMaxSpendRobustDelegations () {
-    const mult = this.config.spendRobustReputationMult ?? 1
-    for (const entry of this.data.validators) {
-      const values = entry.values
-      values.adjSpendRobustReputation = values.spendRobustReputation * values.adjSpendRobustReputationInflationFactor
-      if (entry.revShare.totalPmpe > 0) {
-        values.adjMaxSpendRobustDelegation = mult * values.adjSpendRobustReputation / (entry.revShare.totalPmpe / 1000)
-      } else {
-        values.adjMaxSpendRobustDelegation = 0
-      }
+    for (const validator of this.data.validators) {
+      this.setMaxSpendRobustDelegationsForValidator(validator)
     }
   }
 
@@ -413,6 +406,7 @@ export class Auction {
   }
 
   evaluateFinal (): AuctionResult {
+    this.setMaxSpendRobustDelegations()
     const result = this.evaluateOne()
     this.setStakeUnstakePriorities()
     this.setEffectiveBids(result.winningTotalPmpe)
@@ -421,6 +415,7 @@ export class Auction {
   }
 
   evaluate (): AuctionResult {
+    this.setMaxSpendRobustDelegations()
     const result = this.evaluateOne()
     this.setEffectiveBids(result.winningTotalPmpe)
     const totalMarinadeSpend = result.auctionData.validators.reduce(
