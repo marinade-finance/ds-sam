@@ -90,6 +90,7 @@ export class DataProvider {
         effParticipatingBidPmpe: 0,
         spendRobustReputation: entry?.values?.spendRobustReputation,
         marinadeActivatedStakeSol: entry?.marinadeActivatedStakeSol ?? 0,
+        adjSpendRobustReputationInflationFactor: entry?.values?.adjSpendRobustReputationInflationFactor,
       }
     }
     return {
@@ -100,6 +101,7 @@ export class DataProvider {
       effParticipatingBidPmpe: calcEffParticipatingBidPmpe(revShare, auction.winningTotalPmpe),
       spendRobustReputation: entry?.values?.spendRobustReputation,
       marinadeActivatedStakeSol: entry?.marinadeActivatedStakeSol,
+      adjSpendRobustReputationInflationFactor: entry?.values?.adjSpendRobustReputationInflationFactor,
     }
   }
 
