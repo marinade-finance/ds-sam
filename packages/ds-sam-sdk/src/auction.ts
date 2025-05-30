@@ -311,7 +311,11 @@ export class Auction {
       if (validator.revShare.totalPmpe > 0) {
         const pm = validator.revShare.totalPmpe / 1000
         validator.maxBondDelegation = Math.min(
-          (validator.bondBalanceSol ?? 0) / pm,
+
+
+          // entry.bondBalanceSol *= Math.max(1, cfg.reputationBondBoostCoef * Math.log(Math.max(1, Math.min(entry.spendRobustReputation, cfg.maxReputation) / 2.3026)))
+          
+          this.constraints.bondStakeCapSam(validator),
           this.config.maxMarinadeTvlSharePerValidatorDec * marinadeTvlSol
         )
       } else {
