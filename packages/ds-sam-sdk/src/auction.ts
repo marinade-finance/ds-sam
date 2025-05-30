@@ -204,7 +204,8 @@ export class Auction {
 
   setBidTooLowPenalties(winningTotalPmpe: number) {
     const k = this.config.bidTooLowPenaltyHistoryEpochs
-    this.data.validators.forEach(({ bidTooLowPenalty, revShare, auctions }) => {
+    for (const validator of this.data.validators) {
+      const { bidTooLowPenalty, revShare, auctions } = validator
       const historicalPmpe = auctions.slice(0, k).reduce(
         (acc, { effParticipatingBidPmpe }) => Math.min(acc, effParticipatingBidPmpe ?? Infinity),
         Infinity
@@ -220,10 +221,42 @@ export class Auction {
       }
       revShare.effParticipatingBidPmpe = effParticipatingBidPmpe
       revShare.bidTooLowPenaltyPmpe = bidTooLowPenalty.coef * bidTooLowPenalty.base
+      const effPmpe = revShare.inflationPmpe + revShare.mevPmpe + revShare.auctionEffectiveBidPmpe
+      validator.values.paidUndelegation += revShare.bidTooLowPenaltyPmpe * validator.marinadeActivatedStakeSol / effPmpe
       if (!isFinite(revShare.bidTooLowPenaltyPmpe)) {
         throw new Error(`bidTooLowPenaltyPmpe has to be finite`)
       }
-    })
+    }
+  }
+
+  setBondRiskFee(winningTotalPmpe: number) {
+    for (const validator of this.data.validators) {
+      if (validator.lastBondBalanceSol == null) {
+        continue
+      }
+      const { revShare } = validator
+      const projectedActivatedStakeSol = validator.marinadeActivatedStakeSol - validator.values.paidUndelegation
+      const minBondCoef = (revShare.totalPmpe + this.config.minBondEpochs * revShare.effParticipatingBidPmpe) / 1000
+      const bondBalanceSol = validator.bondBalanceSol ?? 0
+      if (bondBalanceSol < projectedActivatedStakeSol * minBondCoef) {
+        const idealBondCoef = (revShare.totalPmpe + this.config.idealBondEpochs * revShare.effParticipatingBidPmpe) / 1000
+        const effPmpe = revShare.inflationPmpe + revShare.mevPmpe + revShare.auctionEffectiveBidPmpe
+        // always: base >= 0, since idealBondCoef >= minBondCoef, since idealBondEpochs >= minBondEpochs
+        const base = projectedActivatedStakeSol - bondBalanceSol / idealBondCoef
+        const coef = 1 - (effPmpe / 1000) / idealBondCoef
+        let value = coef > 0 ? Math.min(projectedActivatedStakeSol, base / coef) : projectedActivatedStakeSol
+        // always: value <= projectedActivatedStakeSol
+        if (projectedActivatedStakeSol - value < this.config.minBondBalanceSol / (revShare.totalPmpe / 1000)) {
+          value = projectedActivatedStakeSol
+        }
+        validator.bondForcedUndelegation = { base, coef, value }
+        validator.values.bondRiskFee = this.config.bondRiskFeeMult * validator.bondForcedUndelegation.value * effPmpe / 1000
+        validator.values.paidUndelegation += this.config.bondRiskFeeMult * validator.bondForcedUndelegation.value
+        if (!isFinite(validator.values.bondRiskFee)) {
+          throw new Error(`bondRiskFee has to be finite`)
+        }
+      }
+    }
   }
 
   getAuctionData (): AuctionData {
@@ -290,7 +323,7 @@ export class Auction {
         validator.marinadeActivatedStakeSol
           - (validator.auctions[0]?.marinadeActivatedStakeSol ?? 0)
       )
-      const coef = 1 / (validator.auctions[0]?.adjSpendRobustReputationInflationFactor ?? 1)
+      const coef = 1 / validator.values.adjSpendRobustReputationInflationFactor
       values.spendRobustReputation -= coef * values.marinadeActivatedStakeSolUndelegation * winningTotalPmpe / 1000
       values.spendRobustReputation = Math.max(
         this.config.minSpendRobustReputation,
@@ -311,10 +344,7 @@ export class Auction {
       if (validator.revShare.totalPmpe > 0) {
         const pm = validator.revShare.totalPmpe / 1000
         validator.maxBondDelegation = Math.min(
-
-
           // entry.bondBalanceSol *= Math.max(1, cfg.reputationBondBoostCoef * Math.log(Math.max(1, Math.min(entry.spendRobustReputation, cfg.maxReputation) / 2.3026)))
-          
           this.constraints.bondStakeCapSam(validator),
           this.config.maxMarinadeTvlSharePerValidatorDec * marinadeTvlSol
         )
@@ -415,6 +445,8 @@ export class Auction {
     this.setStakeUnstakePriorities()
     this.setEffectiveBids(result.winningTotalPmpe)
     this.setBidTooLowPenalties(result.winningTotalPmpe)
+    this.setBondRiskFee(result.winningTotalPmpe)
+    // this.setBidTooLowPenalties(result.winningTotalPmpe)
     this.setMaxBondDelegations()
     return result
   }

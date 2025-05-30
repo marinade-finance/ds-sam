@@ -39,6 +39,9 @@ export type DsSamConfig = {
   initialSpendRobustReputation: number
   minBondBalanceSol: number
   spendRobustReputationBondBoostCoef: number
+  minBondEpochs: number
+  idealBondEpochs: number
+  bondRiskFeeMult: number
 
   debugVoteAccounts: string[]
 }
@@ -76,6 +79,9 @@ export const DEFAULT_CONFIG: DsSamConfig = {
   initialSpendRobustReputation: 1,
   minBondBalanceSol: 10,
   spendRobustReputationBondBoostCoef: 0,
+  minBondEpochs: 3,
+  idealBondEpochs: 10,
+  bondRiskFeeMult: 1,
 
   debugVoteAccounts: [],
 }

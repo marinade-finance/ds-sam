@@ -60,25 +60,25 @@ export class DataProvider {
   processAuctions (input: RawScoredValidatorDto[]): AuctionHistory[] {
     const result: AuctionHistory[] = []
     let epoch = Infinity
-    let data: RawScoredValidatorDto[] = []
+    let validators: RawScoredValidatorDto[] = []
     input.forEach((entry) => {
       if (entry.epoch < epoch) {
-        data.sort((a, b) => b.revShare.bidPmpe - a.revShare.bidPmpe)
-        const winningTotalPmpe = data
+        validators.sort((a, b) => b.revShare.bidPmpe - a.revShare.bidPmpe)
+        const winningTotalPmpe = validators
           .filter((item) => item.marinadeSamTargetSol > 0)
           .reduce((acc, item) => item.revShare.totalPmpe, 0)
-        result.push({epoch, winningTotalPmpe, data})
-        data = []
+        result.push({ epoch, winningTotalPmpe, validators })
+        validators = []
         epoch = entry.epoch
       }
-      data.push(entry)
+      validators.push(entry)
     })
     result.shift()
     return result
   }
 
   extractAuctionHistoryStats (auction: AuctionHistory, validator: RawValidatorDto): AuctionHistoryStats {
-    const entry = auction.data.find(({ voteAccount }) => validator.vote_account === voteAccount)
+    const entry = auction.validators.find(({ voteAccount }) => validator.vote_account === voteAccount)
     const revShare = entry?.revShare
     if (revShare == null) {
       console.log(`validator ${validator.vote_account} did not participate in auction in epoch ${auction.epoch}`)
@@ -88,9 +88,7 @@ export class DataProvider {
         auctionEffectiveBidPmpe: 0,
         bidPmpe: 0,
         effParticipatingBidPmpe: 0,
-        spendRobustReputation: entry?.values?.spendRobustReputation,
         marinadeActivatedStakeSol: entry?.marinadeActivatedStakeSol ?? 0,
-        adjSpendRobustReputationInflationFactor: entry?.values?.adjSpendRobustReputationInflationFactor,
       }
     }
     return {
@@ -99,14 +97,12 @@ export class DataProvider {
       auctionEffectiveBidPmpe: revShare.auctionEffectiveBidPmpe,
       bidPmpe: revShare.bidPmpe,
       effParticipatingBidPmpe: calcEffParticipatingBidPmpe(revShare, auction.winningTotalPmpe),
-      spendRobustReputation: entry?.values?.spendRobustReputation,
-      marinadeActivatedStakeSol: entry?.marinadeActivatedStakeSol,
-      adjSpendRobustReputationInflationFactor: entry?.values?.adjSpendRobustReputationInflationFactor,
+      marinadeActivatedStakeSol: entry?.marinadeActivatedStakeSol ?? 0,
     }
   }
 
   aggregateValidators (data: RawSourceData, validatorsMndeVotes: Map<string, Decimal>, solPerMnde: number, mndeStakeCapIncreases: Map<string, Decimal>, dataOverrides: SourceDataOverrides | null = null): AggregatedValidator[] {
-    const auctionsData = this.processAuctions(data.auctions)
+    const auctionHistoriesData = this.processAuctions(data.auctions)
     return data.validators.validators.map((validator): AggregatedValidator => {
       const bond = data.bonds.bonds.find(({ vote_account }) => validator.vote_account === vote_account)
       const mev = data.mevInfo.validators.find(({ vote_account }) => validator.vote_account === vote_account)
@@ -120,7 +116,13 @@ export class DataProvider {
 
       const inflationCommissionDec = (inflationCommissionOverride ?? validator.commission_effective ?? validator.commission_advertised ?? 100) / 100
       const mevCommissionDec = (mevCommissionOverride !== undefined ? mevCommissionOverride / 10_000 : (mev ? mev.mev_commission_bps / 10_000 : null))
-      const auctions = auctionsData.map((auction) => this.extractAuctionHistoryStats(auction, validator))
+      const lastAuctionHistory = auctionHistoriesData.map(
+        (auction) =>
+          auction.validators.find(
+            ({ voteAccount }) => validator.vote_account === voteAccount
+          )
+      ).find((auction) => auction)
+      const auctions = auctionHistoriesData.map((auction) => this.extractAuctionHistoryStats(auction, validator))
       const bondBalanceSol = bond ? new Decimal(bond.effective_amount).div(1e9).toNumber() : null
       return {
         voteAccount: validator.vote_account,
@@ -129,6 +131,7 @@ export class DataProvider {
         aso: validator.dc_aso ?? 'Unknown',
         country: validator.dc_country ?? 'Unknown',
         bondBalanceSol,
+        lastBondBalanceSol: lastAuctionHistory?.bondBalanceSol ?? bondBalanceSol,
         totalActivatedStakeSol: new Decimal(validator.activated_stake).div(1e9).toNumber(),
         marinadeActivatedStakeSol: new Decimal(validator.marinade_stake).add(validator.marinade_native_stake).div(1e9).toNumber(),
         inflationCommissionDec,
@@ -137,14 +140,16 @@ export class DataProvider {
         maxStakeWanted: null,
         values: {
           spendRobustReputation: override?.values.spendRobustReputation
-            ?? auctions[0]?.spendRobustReputation
+            ?? lastAuctionHistory?.values?.spendRobustReputation
             ?? this.config.initialSpendRobustReputation,
           adjSpendRobustReputation: 0,
           adjMaxSpendRobustDelegation: 0,
           marinadeActivatedStakeSolUndelegation: 0,
           adjSpendRobustReputationInflationFactor: override?.values.adjSpendRobustReputationInflationFactor
-            ?? auctions[0]?.adjSpendRobustReputationInflationFactor
+            ?? lastAuctionHistory?.values?.adjSpendRobustReputationInflationFactor
             ?? 1,
+          paidUndelegation: lastAuctionHistory?.values?.paidUndelegation ?? 0,
+          bondRiskFee: 0,
         },
         mndeVotesSolValue: validatorMndeVotes.mul(solPerMnde).toNumber(),
         mndeStakeCapIncrease: validatorMndeStakeCapIncrease.toNumber(),

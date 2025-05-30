@@ -2,6 +2,7 @@ import { AuctionValidator } from '../types'
 
 export type RawScoredValidatorDto = {
   voteAccount: string
+  bondBalanceSol?: number
   revShare: {
     auctionEffectiveBidPmpe: number
     bidPmpe: number
@@ -13,6 +14,8 @@ export type RawScoredValidatorDto = {
   values?: {
     spendRobustReputation?: number
     adjSpendRobustReputationInflationFactor?: number
+    projectedUndelegation?: number
+    paidUndelegation?: number
   }
   marinadeActivatedStakeSol: number
   epoch: number
@@ -21,7 +24,7 @@ export type RawScoredValidatorDto = {
 export type AuctionHistory = {
   epoch: number
   winningTotalPmpe: number
-  data: RawScoredValidatorDto[]
+  validators: RawScoredValidatorDto[]
 }
 
 export type AuctionHistoryStats = {
@@ -30,9 +33,7 @@ export type AuctionHistoryStats = {
   auctionEffectiveBidPmpe: number
   effParticipatingBidPmpe: number
   bidPmpe: number
-  spendRobustReputation?: number
   marinadeActivatedStakeSol?: number
-  adjSpendRobustReputationInflationFactor?: number
 }
 
 export type RawMndeVoteDto = {

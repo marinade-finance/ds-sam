@@ -42,6 +42,7 @@ export type ValidatorAuctionStake = {
 export type AuctionValidator = AggregatedValidator & {
   revShare: RevShare
   bidTooLowPenalty: BidTooLowPenalty
+  bondForcedUndelegation: BondForcedUndelegation
   mndeEligible: boolean
   samEligible: boolean
   samBlocked: boolean
@@ -59,6 +60,7 @@ export type AggregatedValidator = {
   aso: string
   country: string
   bondBalanceSol: number | null
+  lastBondBalanceSol: number | null
   totalActivatedStakeSol: number
   marinadeActivatedStakeSol: number
   inflationCommissionDec: number
@@ -78,6 +80,8 @@ export type AuctionValidatorValues = {
   adjSpendRobustReputation: number
   marinadeActivatedStakeSolUndelegation: number
   adjSpendRobustReputationInflationFactor: number
+  bondRiskFee: number
+  paidUndelegation: number
 }
 
 export type Rewards = {
@@ -98,6 +102,12 @@ export type RevShare = {
 export type BidTooLowPenalty = {
   coef: number
   base: number
+}
+
+export type BondForcedUndelegation = {
+  coef: number
+  base: number
+  value: number
 }
 
 export type AuctionConstraintsConfig = {
