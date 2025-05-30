@@ -2,7 +2,10 @@ import { RevShare, Rewards, AggregatedValidator, AuctionValidator, AuctionConstr
 
 export const MNDE_VOTE_DELEGATION_STRATEGY = 'MarinadeA1gorithmicDe1egationStrategy111111'
 
-export const calcValidatorRevShare = (validator: AggregatedValidator, rewards: Rewards): RevShare => {
+export const calcValidatorRevShare = (
+  validator: { bidCpmpe: number | null, mevCommissionDec: number | null, inflationCommissionDec: number },
+  rewards: Rewards
+): RevShare => {
   const inflationPmpe = Math.max(0, rewards.inflationPmpe * (1 - validator.inflationCommissionDec))
   const mevPmpe = Math.max(0, rewards.mevPmpe * (1 - (validator.mevCommissionDec ?? 1)))
   const bidPmpe = Math.max(0, validator.bidCpmpe ?? 0)
