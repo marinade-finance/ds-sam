@@ -313,7 +313,6 @@ export class Auction {
         validator.maxBondDelegation = Math.min(
 
 
-          // entry.bondBalanceSol *= Math.max(1, cfg.reputationBondBoostCoef * Math.log(Math.max(1, Math.min(entry.spendRobustReputation, cfg.maxReputation) / 2.3026)))
           
           this.constraints.bondStakeCapSam(validator),
           this.config.maxMarinadeTvlSharePerValidatorDec * marinadeTvlSol
