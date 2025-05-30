@@ -210,8 +210,6 @@ export class AuctionConstraints {
   }
 
   bondStakeCapSam (validator: AuctionValidator): number {
-    // refundableDepositPerStake * stakeCap + downtimeProtectionPerStake * stakeCap + bidPerStake * stakeCap = bondBalanceSol
-    // stakeCap = bondBalanceSol / (refundableDepositPerStake + downtimeProtectionPerStake + bidPerStake)
     const bidPerStake = (validator.bidCpmpe ?? 0) / 1000
     const downtimeProtectionPerStake = 0
     const refundableDepositPerStake = validator.revShare.totalPmpe / 1000
@@ -227,8 +225,6 @@ export class AuctionConstraints {
   }
 
   bondStakeCapMnde (validator: AuctionValidator): number {
-    // downtimeProtectionPerStake * stakeCap = bondBalanceSol
-    // stakeCap = bondBalanceSol / downtimeProtectionPerStake
     const downtimeProtectionPerStake = 0
     const bondBalanceSol = validator.bondBalanceSol ?? 0
     const limit = bondBalanceSol / downtimeProtectionPerStake
