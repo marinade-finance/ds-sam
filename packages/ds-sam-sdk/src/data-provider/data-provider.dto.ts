@@ -15,7 +15,7 @@ export type RawScoredValidatorDto = {
     spendRobustReputation?: number
     adjSpendRobustReputationInflationFactor?: number
     projectedUndelegation?: number
-    paidUndelegation?: number
+    paidUndelegationSol?: number
   }
   marinadeActivatedStakeSol: number
   epoch: number

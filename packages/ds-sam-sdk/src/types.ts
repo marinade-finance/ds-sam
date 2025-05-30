@@ -81,7 +81,7 @@ export type AuctionValidatorValues = {
   marinadeActivatedStakeSolUndelegation: number
   adjSpendRobustReputationInflationFactor: number
   bondRiskFee: number
-  paidUndelegation: number
+  paidUndelegationSol: number
 }
 
 export type Rewards = {

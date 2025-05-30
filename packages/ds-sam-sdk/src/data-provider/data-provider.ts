@@ -148,7 +148,7 @@ export class DataProvider {
           adjSpendRobustReputationInflationFactor: override?.values.adjSpendRobustReputationInflationFactor
             ?? lastAuctionHistory?.values?.adjSpendRobustReputationInflationFactor
             ?? 1,
-          paidUndelegation: lastAuctionHistory?.values?.paidUndelegation ?? 0,
+          paidUndelegationSol: lastAuctionHistory?.values?.paidUndelegationSol ?? 0,
           bondRiskFee: 0,
         },
         mndeVotesSolValue: validatorMndeVotes.mul(solPerMnde).toNumber(),
