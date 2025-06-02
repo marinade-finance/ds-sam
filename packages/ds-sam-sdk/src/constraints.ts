@@ -215,7 +215,7 @@ export class AuctionConstraints {
     const refundableDepositPerStake = validator.revShare.totalPmpe / 1000
     const bondBalanceSol = Math.max((validator.bondBalanceSol ?? 0) - bondBalanceUsedForMnde(validator), 0)
     const limit = bondBalanceSol / (refundableDepositPerStake + downtimeProtectionPerStake + bidPerStake)
-    this.clipBondStakeCap(validator, limit)
+    return this.clipBondStakeCap(validator, limit)
   }
 
   bondStakeCapMnde (validator: AuctionValidator): number {
