@@ -35,6 +35,7 @@ export type DsSamConfig = {
   validatorsClientVersionSemverExpr: string
   // Max effective commission of a validator to be eligible
   validatorsMaxEffectiveCommissionDec: number
+
   // How many historical bids to consider when deciding how much to charge for
   // the BidTooLowPenalty
   bidTooLowPenaltyHistoryEpochs: number

@@ -50,6 +50,10 @@ Config [defaults](./packages/ds-sam-sdk/src/config.ts#L35)
   // Max effective commission of a validator to be eligible
   validatorsMaxEffectiveCommissionDec: number
 
+  // How many historical bids to consider when deciding how much to charge for
+  // the BidTooLowPenalty
+  bidTooLowPenaltyHistoryEpochs: number
+
   // Share of Marinade TVL stake controlled by MNDE votes
   mndeDirectedStakeShareDec: number
   // Total Marinade TVL stake cap multiplier factor
@@ -65,10 +69,47 @@ Config [defaults](./packages/ds-sam-sdk/src/config.ts#L35)
   // Cap of Marinade stake share on a single validator
   maxMarinadeTvlSharePerValidatorDec: number
 
+  // Multiplier to get from reputation to reputation limit; if null no limit is imposed
+  spendRobustReputationMult: number | null
+  // The reputation decays every epoch by 1 - 1 / spendRobustReputationDecayEpochs
+  spendRobustReputationDecayEpochs: number
+  // A validator can never get lower repuration than minSpendRobustReputation
+  minSpendRobustReputation: number
+  // A validator can never get higher repuration than maxSpendRobustReputation
+  maxSpendRobustReputation: number
+  // Only reputations higher than minScaledSpendRobustReputation are considered
+  // for TVL scaling
+  minScaledSpendRobustReputation: number
+  // Every new vote account that joins the auction gets initialSpendRobustReputation at the start
+  initialSpendRobustReputation: number
+
+  // The minimal bond balanace to have to get and retain any stake
+  minBondBalanceSol: number
+
   // Validator vote accounts to collect debug info for
   debugVoteAccounts: string[]
 }
 ```
+
+
+  bidTooLowPenaltyHistoryEpochs: number
+
+  mndeDirectedStakeShareDec: number
+  mndeStakeCapMultiplier: number
+  maxMarinadeStakeConcentrationPerCountryDec: number
+  maxMarinadeStakeConcentrationPerAsoDec: number
+  maxNetworkStakeConcentrationPerCountryDec: number
+  maxNetworkStakeConcentrationPerAsoDec: number
+  maxMarinadeTvlSharePerValidatorDec: number
+  spendRobustReputationMult: number | null
+  spendRobustReputationDecayEpochs: number
+  minSpendRobustReputation: number
+  minScaledSpendRobustReputation: number
+  maxSpendRobustReputation: number
+  initialSpendRobustReputation: number
+  minBondBalanceSol: number
+  spendRobustReputationBondBoostCoef: number
+
 
 
 ## Development
