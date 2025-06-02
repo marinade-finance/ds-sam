@@ -63,7 +63,7 @@ export type DsSamConfig = {
   spendRobustReputationDecayEpochs: number
   // A validator can never get lower repuration than minSpendRobustReputation
   minSpendRobustReputation: number
-  // A validator can never get higher repuration than maxSpendRobustReputation
+  // A validator can never get higher reputation than maxSpendRobustReputation
   maxSpendRobustReputation: number
   // Only reputations higher than minScaledSpendRobustReputation are considered
   // for TVL scaling
