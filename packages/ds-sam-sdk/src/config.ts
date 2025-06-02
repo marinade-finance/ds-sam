@@ -61,7 +61,7 @@ export type DsSamConfig = {
   spendRobustReputationMult: number | null
   // The reputation decays every epoch by 1 - 1 / spendRobustReputationDecayEpochs
   spendRobustReputationDecayEpochs: number
-  // A validator can never get lower repuration than minSpendRobustReputation
+  // A validator can never get lower reputation than minSpendRobustReputation
   minSpendRobustReputation: number
   // A validator can never get higher reputation than maxSpendRobustReputation
   maxSpendRobustReputation: number
