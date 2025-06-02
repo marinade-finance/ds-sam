@@ -38,6 +38,10 @@ Config [defaults](./packages/ds-sam-sdk/src/config.ts#L35)
   blacklistApiBaseUrl: string
   // Base URL of the API to get snapshots from
   snapshotsApiBaseUrl: string
+  // Base URL of the scoring API
+  scoringApiBaseUrl: string
+  // The base URL for the location of the overrides json
+  overridesApiBaseUrl: string
 
   // How many epochs in the past to fetch rewards for
   rewardsEpochsCount: number

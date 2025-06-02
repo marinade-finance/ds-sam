@@ -22,6 +22,8 @@ export type DsSamConfig = {
   blacklistApiBaseUrl: string
   // Base URL of the API to get snapshots from
   snapshotsApiBaseUrl: string
+  // Base URL of the scoring API
+  scoringApiBaseUrl: string
   // The base URL for the location of the overrides json
   overridesApiBaseUrl: string
 
