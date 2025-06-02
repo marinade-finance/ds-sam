@@ -215,6 +215,7 @@ export class AuctionConstraints {
     const refundableDepositPerStake = validator.revShare.totalPmpe / 1000
     const bondBalanceSol = Math.max((validator.bondBalanceSol ?? 0) - bondBalanceUsedForMnde(validator), 0)
     const limit = bondBalanceSol / (refundableDepositPerStake + downtimeProtectionPerStake + bidPerStake)
+    // provide hysteresis so that the the system does not flap
     if (bondBalanceSol < 0.8 * this.config.minBondBalanceSol) {
       return 0
     } else if (bondBalanceSol < this.config.minBondBalanceSol) {
@@ -228,6 +229,7 @@ export class AuctionConstraints {
     const downtimeProtectionPerStake = 0
     const bondBalanceSol = validator.bondBalanceSol ?? 0
     const limit = bondBalanceSol / downtimeProtectionPerStake
+    // provide hysteresis so that the the system does not flap
     if (bondBalanceSol < 0.8 * this.config.minBondBalanceSol) {
       return 0
     } else if (bondBalanceSol < this.config.minBondBalanceSol) {
