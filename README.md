@@ -77,9 +77,9 @@ Config [defaults](./packages/ds-sam-sdk/src/config.ts#L35)
   spendRobustReputationMult: number | null
   // The reputation decays every epoch by 1 - 1 / spendRobustReputationDecayEpochs
   spendRobustReputationDecayEpochs: number
-  // A validator can never get lower repuration than minSpendRobustReputation
+  // A validator can never get lower reputation than minSpendRobustReputation
   minSpendRobustReputation: number
-  // A validator can never get higher repuration than maxSpendRobustReputation
+  // A validator can never get higher reputation than maxSpendRobustReputation
   maxSpendRobustReputation: number
   // Only reputations higher than minScaledSpendRobustReputation are considered
   // for TVL scaling
