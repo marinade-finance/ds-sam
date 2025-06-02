@@ -227,7 +227,7 @@ export class AuctionConstraints {
 
   clipBondStakeCap (validator: AuctionValidator, limit: number): number {
     const bondBalanceSol = validator.bondBalanceSol ?? 0
-    // provide hysteresis so that the the system does not flap
+    // provide hysteresis so that the system does not flap
     if (bondBalanceSol < 0.8 * this.config.minBondBalanceSol) {
       return 0
     } else if (bondBalanceSol < this.config.minBondBalanceSol) {
