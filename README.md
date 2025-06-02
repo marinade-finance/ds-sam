@@ -91,27 +91,6 @@ Config [defaults](./packages/ds-sam-sdk/src/config.ts#L35)
 }
 ```
 
-
-  bidTooLowPenaltyHistoryEpochs: number
-
-  mndeDirectedStakeShareDec: number
-  mndeStakeCapMultiplier: number
-  maxMarinadeStakeConcentrationPerCountryDec: number
-  maxMarinadeStakeConcentrationPerAsoDec: number
-  maxNetworkStakeConcentrationPerCountryDec: number
-  maxNetworkStakeConcentrationPerAsoDec: number
-  maxMarinadeTvlSharePerValidatorDec: number
-  spendRobustReputationMult: number | null
-  spendRobustReputationDecayEpochs: number
-  minSpendRobustReputation: number
-  minScaledSpendRobustReputation: number
-  maxSpendRobustReputation: number
-  initialSpendRobustReputation: number
-  minBondBalanceSol: number
-  spendRobustReputationBondBoostCoef: number
-
-
-
 ## Development
 
 To build
