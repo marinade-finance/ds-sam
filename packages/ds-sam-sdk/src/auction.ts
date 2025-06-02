@@ -14,13 +14,13 @@ const logValidators = (validators: AuctionValidator[]) => {
 
 export const EPSILON = 1e-4
 
-type ReputationValues = {
+export type ReputationValues = {
   spendRobustReputation: number
   adjSpendRobustReputation: number
   adjMaxSpendRobustDelegation: number
 }
 
-const setReputation = (validator: AuctionValidator, values: ReputationValues): ReputationValues => {
+export const setReputation = (validator: AuctionValidator, values: ReputationValues): ReputationValues => {
     const oldValues = {
       spendRobustReputation: validator.values.spendRobustReputation,
       adjSpendRobustReputation: validator.values.adjSpendRobustReputation,
@@ -311,7 +311,7 @@ export class Auction {
       if (validator.revShare.totalPmpe > 0) {
         const pm = validator.revShare.totalPmpe / 1000
         validator.maxBondDelegation = Math.min(
-          (validator.bondBalanceSol ?? 0) / pm,
+          this.constraints.bondStakeCapSam(validator),
           this.config.maxMarinadeTvlSharePerValidatorDec * marinadeTvlSol
         )
       } else {

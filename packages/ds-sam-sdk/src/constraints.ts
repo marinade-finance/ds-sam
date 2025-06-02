@@ -160,7 +160,7 @@ export class AuctionConstraints {
       totalStakeSol: validatorTotalAuctionStakeSol(validator),
       totalLeftToCapSol: Infinity,
       marinadeStakeSol: validator.auctionStake.marinadeMndeTargetSol + validator.auctionStake.marinadeSamTargetSol,
-      marinadeLeftToCapSol: bondStakeCapSam(validator) - validator.auctionStake.marinadeSamTargetSol,
+      marinadeLeftToCapSol: this.bondStakeCapSam(validator) - validator.auctionStake.marinadeSamTargetSol,
       validators: [validator],
     }))
   }
@@ -172,7 +172,7 @@ export class AuctionConstraints {
       totalStakeSol: validatorTotalAuctionStakeSol(validator),
       totalLeftToCapSol: Infinity,
       marinadeStakeSol: validator.auctionStake.marinadeMndeTargetSol + validator.auctionStake.marinadeSamTargetSol,
-      marinadeLeftToCapSol: bondStakeCapMnde(validator) - validator.auctionStake.marinadeMndeTargetSol,
+      marinadeLeftToCapSol: this.bondStakeCapMnde(validator) - validator.auctionStake.marinadeMndeTargetSol,
       validators: [validator],
     }))
   }
@@ -201,7 +201,7 @@ export class AuctionConstraints {
     }))
   }
 
-  private reputationStakeCap (validator: AuctionValidator): number {
+  reputationStakeCap (validator: AuctionValidator): number {
     if (this.config.spendRobustReputationMult != null) {
       return Math.max(validator.values.adjMaxSpendRobustDelegation, validator.marinadeActivatedStakeSol)
     } else {
@@ -209,24 +209,33 @@ export class AuctionConstraints {
     }
   }
 
-}
+  bondStakeCapSam (validator: AuctionValidator): number {
+    const bidPerStake = (validator.bidCpmpe ?? 0) / 1000
+    const downtimeProtectionPerStake = 0
+    const refundableDepositPerStake = validator.revShare.totalPmpe / 1000
+    const bondBalanceSol = Math.max((validator.bondBalanceSol ?? 0) - bondBalanceUsedForMnde(validator), 0)
+    const limit = bondBalanceSol / (refundableDepositPerStake + downtimeProtectionPerStake + bidPerStake)
+    return this.clipBondStakeCap(validator, limit)
+  }
 
-export const bondStakeCapSam = (validator: AuctionValidator): number => {
-  // refundableDepositPerStake * stakeCap + downtimeProtectionPerStake * stakeCap + bidPerStake * stakeCap = bondBalanceSol
-  // stakeCap = bondBalanceSol / (refundableDepositPerStake + downtimeProtectionPerStake + bidPerStake)
-  const bidPerStake = (validator.bidCpmpe ?? 0) / 1000
-  const downtimeProtectionPerStake = 0
-  const refundableDepositPerStake = validator.revShare.totalPmpe / 1000
-  const bondBalanceSol = Math.max((validator.bondBalanceSol ?? 0) - bondBalanceUsedForMnde(validator), 0)
-  return bondBalanceSol / (refundableDepositPerStake + downtimeProtectionPerStake + bidPerStake)
-}
+  bondStakeCapMnde (validator: AuctionValidator): number {
+    const downtimeProtectionPerStake = 0
+    const bondBalanceSol = validator.bondBalanceSol ?? 0
+    const limit = bondBalanceSol / downtimeProtectionPerStake
+    return this.clipBondStakeCap(validator, limit)
+  }
 
-export const bondStakeCapMnde = (validator: AuctionValidator): number => {
-  // downtimeProtectionPerStake * stakeCap = bondBalanceSol
-  // stakeCap = bondBalanceSol / downtimeProtectionPerStake
-  const downtimeProtectionPerStake = 0
-  const bondBalanceSol = validator.bondBalanceSol ?? 0
-  return bondBalanceSol / downtimeProtectionPerStake
+  clipBondStakeCap (validator: AuctionValidator, limit: number): number {
+    const bondBalanceSol = validator.bondBalanceSol ?? 0
+    // provide hysteresis so that the system does not flap
+    if (bondBalanceSol < 0.8 * this.config.minBondBalanceSol) {
+      return 0
+    } else if (bondBalanceSol < this.config.minBondBalanceSol) {
+      return Math.min(limit, validator.marinadeActivatedStakeSol)
+    } else {
+      return limit
+    }
+  }
 }
 
 export const bondBalanceUsedForMnde = (validator: AuctionValidator): number => {
