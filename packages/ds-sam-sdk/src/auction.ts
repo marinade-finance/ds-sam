@@ -339,7 +339,7 @@ export class Auction {
   scaleReputationToFitTvl () {
     const { inflationPmpe, mevPmpe } = this.data.rewards
     const initialTotalPmpeLimit = inflationPmpe + mevPmpe + this.config.expectedFeePmpe
-    console.log(`SCALING reputation to fit tvl and achieve pmpe above: ${initialTotalPmpeLimit}`)
+    console.log(`SCALING reputation to fit tvl with pmpe above: ${initialTotalPmpeLimit}`)
     for (const entry of this.data.validators) {
       const values = entry.values
       values.adjSpendRobustReputation = values.spendRobustReputation
@@ -353,21 +353,27 @@ export class Auction {
     for (let i = 0; i < 200; i++) {
       totalFactor *= factor
       let leftToScale = this.data.stakeAmounts.marinadeSamTvlSol
+      let leftTvl = this.data.stakeAmounts.marinadeSamTvlSol
       let totalScalable = 0
       for (const entry of this.data.validators) {
         const { values, revShare } = entry
         values.adjSpendRobustReputationInflationFactor *= factor
         this.setMaxSpendRobustDelegationsForValidator(entry)
         if (values.adjMaxSpendRobustDelegation < entry.maxBondDelegation) {
+          // scale the validators with large reputation first so as to make
+          // gaming the system by bidding high impossible
           if (values.spendRobustReputation >= minScaledReputation && entry.revShare.totalPmpe >= totalPmpeLimit) {
             totalScalable += values.adjMaxSpendRobustDelegation
           }
         } else {
           leftToScale -= entry.maxBondDelegation
         }
+        if (entry.revShare.totalPmpe >= totalPmpeLimit) {
+          leftTvl -= Math.min(entry.values.adjMaxSpendRobustDelegation, entry.maxBondDelegation)
+        }
       }
       factor = Math.max(0, leftToScale) / totalScalable
-      console.log(`SCALING round ${i} # ${JSON.stringify({factor, leftToScale, totalScalable, totalPmpeLimit})}`)
+      console.log(`SCALING round ${i} # ${JSON.stringify({factor, leftToScale, leftTvl, totalScalable, totalPmpeLimit})}`)
       if (totalScalable == 0 && leftToScale > 0) {
         if (totalPmpeLimit > inflationPmpe + mevPmpe) {
           totalPmpeLimit *= 0.99
@@ -386,7 +392,7 @@ export class Auction {
           factor = 1.1
         }
       }
-      if (!isFinite(factor) || factor <= 1) {
+      if (!isFinite(factor) || factor <= 1 || leftTvl <= 0) {
         break
       }
     }
