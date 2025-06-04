@@ -359,17 +359,20 @@ export class Auction {
         const { values, revShare } = entry
         values.adjSpendRobustReputationInflationFactor *= factor
         this.setMaxSpendRobustDelegationsForValidator(entry)
-        if (values.adjMaxSpendRobustDelegation < entry.maxBondDelegation) {
-          // scale the validators with large reputation first so as to make
-          // gaming the system by bidding high impossible
-          if (values.spendRobustReputation >= minScaledReputation && entry.revShare.totalPmpe >= totalPmpeLimit) {
-            totalScalable += values.adjMaxSpendRobustDelegation
-          }
-        } else {
-          leftToScale -= entry.maxBondDelegation
+        if (entry.revShare.totalPmpe >= initialTotalPmpeLimit) {
+          // if we can accommodate whole TVL on validators above totalPmpeLimit, we're done
+          leftTvl -= Math.min(entry.values.adjMaxSpendRobustDelegation, entry.maxBondDelegation)
         }
         if (entry.revShare.totalPmpe >= totalPmpeLimit) {
-          leftTvl -= Math.min(entry.values.adjMaxSpendRobustDelegation, entry.maxBondDelegation)
+          if (values.adjMaxSpendRobustDelegation < entry.maxBondDelegation) {
+            // scale the validators with large reputation first so as to make
+            // gaming the system by bidding high impossible
+            if (values.spendRobustReputation >= minScaledReputation) {
+              totalScalable += values.adjMaxSpendRobustDelegation
+            }
+          } else {
+            leftToScale -= entry.maxBondDelegation
+          }
         }
       }
       factor = Math.max(0, leftToScale) / totalScalable
