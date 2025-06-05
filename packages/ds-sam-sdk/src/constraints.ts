@@ -169,7 +169,10 @@ export class AuctionConstraints {
   private buildSamWantConstraints ({ validators }: AuctionData) {
     return validators.map(validator => {
       const maxStakeWanted = validator.maxStakeWanted ?? Infinity
-      const clippedMaxStakeWanted = Math.max(this.config.minMaxStakeWanted, maxStakeWanted > 0 ? maxStakeWanted : Infinity)
+      const clippedMaxStakeWanted = Math.max(
+        this.config.minMaxStakeWanted,
+        maxStakeWanted > 0 ? maxStakeWanted : Infinity
+      )
       return {
         constraintType: AuctionConstraintType.WANT,
         constraintName: validator.voteAccount,
