@@ -77,6 +77,10 @@ export type DsSamConfig = {
   // Unused at the moment
   spendRobustReputationBondBoostCoef: number
 
+  // The minimal bound for delegated stake a validator can set through MaxStakeWanted
+  // If null, maxStakeWanted does not limit delegated stake
+  minMaxStakeWanted: number | null
+
   // Validator vote accounts to collect debug info for
   debugVoteAccounts: string[]
 }
@@ -114,6 +118,7 @@ export const DEFAULT_CONFIG: DsSamConfig = {
   initialSpendRobustReputation: 1,
   minBondBalanceSol: 0,
   spendRobustReputationBondBoostCoef: 0,
+  minMaxStakeWanted: null,
 
   debugVoteAccounts: [],
 }

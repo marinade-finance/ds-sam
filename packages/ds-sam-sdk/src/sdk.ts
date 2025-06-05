@@ -40,6 +40,7 @@ export class DsSamSDK {
       marinadeValidatorStakeCapSol: marinadeTotalTvlSol * this.config.maxMarinadeTvlSharePerValidatorDec,
       spendRobustReputationMult: this.config.spendRobustReputationMult,
       minBondBalanceSol: this.config.minBondBalanceSol,
+      minMaxStakeWanted: this.config.minMaxStakeWanted ?? Infinity,
     }
     this.debug.pushInfo('auction constraints', JSON.stringify(constraints))
     return new AuctionConstraints(constraints, debug)
