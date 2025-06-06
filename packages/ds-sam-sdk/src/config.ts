@@ -77,7 +77,7 @@ export type DsSamConfig = {
   // Unused at the moment
   spendRobustReputationBondBoostCoef: number
 
-  // The minimal bound for delegated stake a validator can set through MaxStakeWanted
+  // The minimal bound for delegated stake a validator can set through maxStakeWanted
   // If null, maxStakeWanted does not limit delegated stake
   minMaxStakeWanted: number | null
 
