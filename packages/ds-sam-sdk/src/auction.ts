@@ -336,6 +336,24 @@ export class Auction {
     }
   }
 
+  /**
+   * scaleReputationToFitTvl
+   *
+   * Adjusts each validator's reputation scaling factor so that the total stake
+   * can be distributed without exceeding a floor PMPE.
+   *
+   * It works by:
+   *
+   * 1. Starting with every validator's raw reputation and a PMPE cap.
+   * 2. Repeatedly sacling up high-reputation and high-bid validators' effective
+   *    reputation until the sum of all capacity over a PMPE limit exceeds TVL
+   *    or no further scaling is possible due to other limits outside of reputatin.
+   * 3. If no feasible scaling is found, it gradually lowers the bid cap and reputation
+   *    threshold to force a solution.
+   *
+   * This ensures that the winning PMPE stays above a reasonable threshold
+   * and that high-bid validators with low reputation can not easily game the scaling.
+   */
   scaleReputationToFitTvl () {
     const { inflationPmpe, mevPmpe } = this.data.rewards
     const initialTotalPmpeLimit = inflationPmpe + mevPmpe + this.config.expectedFeePmpe
@@ -375,6 +393,8 @@ export class Auction {
           }
         }
       }
+      // if totalScalable = 0, we'll get NaN which is caught below resulting in
+      // either moving the totalPmpeLimit down or a break, us being done
       factor = Math.max(0, leftToScale) / totalScalable
       console.log(`SCALING round ${i} # ${JSON.stringify({factor, leftToScale, leftTvl, totalScalable, totalPmpeLimit})}`)
       if (totalScalable == 0 && leftToScale > 0) {
