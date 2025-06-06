@@ -108,6 +108,7 @@ export type AuctionConstraintsConfig = {
   marinadeValidatorStakeCapSol: number
   spendRobustReputationMult: number | null
   minBondBalanceSol: number
+  minMaxStakeWanted: number
 }
 
 export enum AuctionConstraintType {
@@ -117,6 +118,7 @@ export enum AuctionConstraintType {
   BOND = 'BOND',
   MNDE = 'MNDE',
   REPUTATION = 'REPUTATION',
+  WANT = 'WANT',
 }
 
 export type AuctionConstraint = {
