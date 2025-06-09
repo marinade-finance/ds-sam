@@ -171,7 +171,8 @@ export class AuctionConstraints {
       const maxStakeWanted = validator.maxStakeWanted ?? Infinity
       const clippedMaxStakeWanted = Math.max(
         this.config.minMaxStakeWanted,
-        maxStakeWanted > 0 ? maxStakeWanted : Infinity
+        validator.marinadeActivatedStakeSol,
+        maxStakeWanted > 0 ? maxStakeWanted : Infinity,
       )
       return {
         constraintType: AuctionConstraintType.WANT,

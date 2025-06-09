@@ -136,7 +136,7 @@ export class DataProvider {
         mevCommissionDec,
         bidCpmpe: bond ? new Decimal(bond.cpmpe).div(1e9).toNumber() : null,
         maxStakeWanted: (this.config.minMaxStakeWanted != null) && bond
-          ? new Decimal(bond.max_stake_wanted).div(1e6).toNumber()
+          ? new Decimal(bond.max_stake_wanted).div(1e9).toNumber()
           : null,
         values: {
           spendRobustReputation: override?.values.spendRobustReputation
