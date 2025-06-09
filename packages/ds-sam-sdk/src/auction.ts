@@ -393,7 +393,7 @@ export class Auction {
           }
         }
       }
-      // if totalScalable = 0, we'll get NaN which is caught below resulting in
+      // if totalScalable = 0, we'll get Infinity or NaN which is caught below resulting in
       // either moving the totalPmpeLimit down or a break, us being done
       factor = Math.max(0, leftToScale) / totalScalable
       console.log(`SCALING round ${i} # ${JSON.stringify({factor, leftToScale, leftTvl, totalScalable, totalPmpeLimit})}`)
