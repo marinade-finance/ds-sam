@@ -330,47 +330,101 @@ export class Auction {
     const values = validator.values
     values.adjSpendRobustReputation = values.spendRobustReputation * values.adjSpendRobustReputationInflationFactor
     if (validator.revShare.totalPmpe > 0) {
-      const mult = this.config.spendRobustReputationMult ?? 1
-      values.adjMaxSpendRobustDelegation = mult * values.adjSpendRobustReputation / (validator.revShare.totalPmpe / 1000)
+      values.adjMaxSpendRobustDelegation = values.adjSpendRobustReputation / (validator.revShare.totalPmpe / 1000)
     } else {
       values.adjMaxSpendRobustDelegation = 0
     }
   }
 
+  /**
+   * scaleReputationToFitTvl
+   *
+   * Adjusts each validator's reputation scaling factor so that the total stake
+   * can be distributed without exceeding a floor PMPE.
+   *
+   * It works by:
+   *
+   * 1. Starting with every validator's raw reputation and a PMPE cap.
+   * 2. Repeatedly scaling up high-reputation and high-bid validators' effective
+   *    reputation until the sum of all capacity over a PMPE limit exceeds TVL
+   *    or no further scaling is possible due to other limits outside of reputation.
+   * 3. If no feasible scaling is found, it gradually lowers the bid cap and reputation
+   *    threshold to force a solution.
+   *
+   * This ensures that the winning PMPE stays above a reasonable threshold
+   * and that high-bid validators with low reputation can not easily game the scaling.
+   */
   scaleReputationToFitTvl () {
-    console.log('SCALING reputation to fit tvl')
+    const { inflationPmpe, mevPmpe } = this.data.rewards
+    const initialTotalPmpeLimit = inflationPmpe + mevPmpe + this.config.expectedFeePmpe
+    console.log(`SCALING reputation to fit tvl with pmpe above: ${initialTotalPmpeLimit}`)
     for (const entry of this.data.validators) {
       const values = entry.values
       values.adjSpendRobustReputation = values.spendRobustReputation
       values.adjSpendRobustReputationInflationFactor = 1
     }
-
-    const mult = this.config.spendRobustReputationMult ?? 1
     let factor = 1
     let totalFactor = factor
-    for (let i = 0; i < 100; i++) {
+    let totalPmpeLimit = initialTotalPmpeLimit
+    let minScaledReputation = this.config.initialScaledSpendRobustReputation
+    console.log(`SCALING limit bid: ${totalPmpeLimit}`)
+    for (let i = 0; i < 200; i++) {
       totalFactor *= factor
       let leftToScale = this.data.stakeAmounts.marinadeSamTvlSol
+      let leftTvl = this.data.stakeAmounts.marinadeSamTvlSol
       let totalScalable = 0
       for (const entry of this.data.validators) {
-        const values = entry.values
+        const { values, revShare } = entry
         values.adjSpendRobustReputationInflationFactor *= factor
         this.setMaxSpendRobustDelegationsForValidator(entry)
-        if (values.adjMaxSpendRobustDelegation < entry.maxBondDelegation) {
-          if (values.spendRobustReputation > this.config.minScaledSpendRobustReputation) {
-            totalScalable += values.adjMaxSpendRobustDelegation
+        if (revShare.totalPmpe >= initialTotalPmpeLimit) {
+          // if we can accommodate whole TVL on validators above totalPmpeLimit, we're done
+          leftTvl -= Math.min(values.adjMaxSpendRobustDelegation, entry.maxBondDelegation)
+        }
+        if (revShare.totalPmpe >= totalPmpeLimit) {
+          if (values.adjMaxSpendRobustDelegation < entry.maxBondDelegation) {
+            // scale the validators with large reputation first so as to make
+            // gaming the system by bidding high impossible
+            if (values.spendRobustReputation >= minScaledReputation) {
+              totalScalable += values.adjMaxSpendRobustDelegation
+            }
+          } else {
+            leftToScale -= entry.maxBondDelegation
           }
-        } else {
-          leftToScale -= entry.maxBondDelegation
         }
       }
+      // if totalScalable = 0, we'll get Infinity or NaN which is caught below resulting in
+      // either moving the totalPmpeLimit down or a break, us being done
       factor = Math.max(0, leftToScale) / totalScalable
-      console.log(`SCALING round ${i} # ${JSON.stringify({factor, leftToScale, totalScalable})}`)
-      if (!isFinite(factor) || factor <= 1) {
-        break;
+      console.log(`SCALING round ${i} # ${JSON.stringify({factor, leftToScale, leftTvl, totalScalable, totalPmpeLimit})}`)
+      if (totalScalable == 0 && leftToScale > 0) {
+        if (totalPmpeLimit > inflationPmpe + mevPmpe) {
+          totalPmpeLimit *= 0.99
+          console.log(`SCALING decreasing limit bid to: ${totalPmpeLimit}`)
+          factor = 1
+          continue
+        } else if (minScaledReputation > this.config.minScaledSpendRobustReputation) {
+          minScaledReputation *= 0.8
+          totalPmpeLimit = initialTotalPmpeLimit
+          console.log(`SCALING reset limit bid to: ${totalPmpeLimit}`)
+          console.log(`SCALING decreasing minScaledReputation to: ${minScaledReputation}`)
+          factor = 1
+          continue
+        } else {
+          console.log(`SCALING to infinity`)
+          factor = 1.1
+        }
+      }
+      if (!isFinite(factor) || factor <= 1 || leftTvl <= 0) {
+        break
       }
     }
-    console.log(`SCALING factor found: ${totalFactor}`)
+    const mult = this.config.spendRobustReputationMult ?? 1
+    for (const entry of this.data.validators) {
+      entry.values.adjSpendRobustReputationInflationFactor *= mult
+      this.setMaxSpendRobustDelegationsForValidator(entry)
+    }
+    console.log(`SCALING factor found: ${mult * totalFactor}`)
   }
 
   evaluateOne (): AuctionResult {

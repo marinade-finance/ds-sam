@@ -65,6 +65,8 @@ export type DsSamConfig = {
   minSpendRobustReputation: number
   // A validator can never get higher reputation than maxSpendRobustReputation
   maxSpendRobustReputation: number
+  // We start scaling with reputations higher than initialScaledSpendRobustReputation
+  initialScaledSpendRobustReputation: number
   // Only reputations higher than minScaledSpendRobustReputation are considered
   // for TVL scaling
   minScaledSpendRobustReputation: number
@@ -80,6 +82,9 @@ export type DsSamConfig = {
   // The minimal bound for delegated stake a validator can set through maxStakeWanted
   // If null, maxStakeWanted does not limit delegated stake
   minMaxStakeWanted: number | null
+
+  // The estimated transaction fee Pmpe
+  expectedFeePmpe: number
 
   // Validator vote accounts to collect debug info for
   debugVoteAccounts: string[]
@@ -113,12 +118,14 @@ export const DEFAULT_CONFIG: DsSamConfig = {
   spendRobustReputationMult: null,
   spendRobustReputationDecayEpochs: 50,
   minSpendRobustReputation: -20,
-  minScaledSpendRobustReputation: 40,
+  initialScaledSpendRobustReputation: 0,
+  minScaledSpendRobustReputation: 0,
   maxSpendRobustReputation: 1000,
   initialSpendRobustReputation: 1,
   minBondBalanceSol: 0,
   spendRobustReputationBondBoostCoef: 0,
   minMaxStakeWanted: null,
+  expectedFeePmpe: 0,
 
   debugVoteAccounts: [],
 }
