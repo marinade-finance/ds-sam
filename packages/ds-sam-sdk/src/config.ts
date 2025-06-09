@@ -83,6 +83,10 @@ export type DsSamConfig = {
   // If null, maxStakeWanted does not limit delegated stake
   minMaxStakeWanted: number | null
 
+  // The estimated maximum relative value of the bid derived from the winningTotalPmpe
+  // If null, expectedMaxWinningBidChangeRate will not have any effect
+  expectedMaxWinningBidRatio: number | null
+
   // The estimated transaction fee Pmpe
   expectedFeePmpe: number
 
@@ -126,6 +130,7 @@ export const DEFAULT_CONFIG: DsSamConfig = {
   spendRobustReputationBondBoostCoef: 0,
   minMaxStakeWanted: null,
   expectedFeePmpe: 0,
+  expectedMaxWinningBidRatio: Infinity,
 
   debugVoteAccounts: [],
 }

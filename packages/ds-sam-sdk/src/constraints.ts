@@ -15,6 +15,10 @@ export class AuctionConstraints {
 
   constructor (private readonly config: AuctionConstraintsConfig, private debug: Debug) { }
 
+  setBondStakeCapMaxPmpe (value: number) {
+    this.config.bondStakeCapMaxPmpe = value
+  }
+
   getMinCapForEvenDistribution (voteAccounts: Set<string>, collectDebug = true): { cap: number, constraint: AuctionConstraint } {
     const constraints: AuctionConstraint[] = []
     for (const voteAccount of voteAccounts) {
@@ -231,9 +235,11 @@ export class AuctionConstraints {
   }
 
   bondStakeCapSam (validator: AuctionValidator): number {
-    const bidPerStake = (validator.bidCpmpe ?? 0) / 1000
+    const { revShare } = validator
+    const expectedMaxBid = this.config.bondStakeCapMaxPmpe - revShare.inflationPmpe - revShare.mevPmpe
+    const bidPerStake = Math.min(validator.bidCpmpe ?? 0, expectedMaxBid) / 1000
     const downtimeProtectionPerStake = 0
-    const refundableDepositPerStake = validator.revShare.totalPmpe / 1000
+    const refundableDepositPerStake = Math.min(validator.revShare.totalPmpe, this.config.bondStakeCapMaxPmpe) / 1000
     const bondBalanceSol = Math.max((validator.bondBalanceSol ?? 0) - bondBalanceUsedForMnde(validator), 0)
     const limit = bondBalanceSol / (refundableDepositPerStake + downtimeProtectionPerStake + bidPerStake)
     return this.clipBondStakeCap(validator, limit)
