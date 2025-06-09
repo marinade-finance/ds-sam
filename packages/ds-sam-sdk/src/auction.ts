@@ -345,9 +345,9 @@ export class Auction {
    * It works by:
    *
    * 1. Starting with every validator's raw reputation and a PMPE cap.
-   * 2. Repeatedly sacling up high-reputation and high-bid validators' effective
+   * 2. Repeatedly scaling up high-reputation and high-bid validators' effective
    *    reputation until the sum of all capacity over a PMPE limit exceeds TVL
-   *    or no further scaling is possible due to other limits outside of reputatin.
+   *    or no further scaling is possible due to other limits outside of reputation.
    * 3. If no feasible scaling is found, it gradually lowers the bid cap and reputation
    *    threshold to force a solution.
    *
