@@ -130,7 +130,7 @@ export const DEFAULT_CONFIG: DsSamConfig = {
   spendRobustReputationBondBoostCoef: 0,
   minMaxStakeWanted: null,
   expectedFeePmpe: 0,
-  expectedMaxWinningBidRatio: Infinity,
+  expectedMaxWinningBidRatio: null,
 
   debugVoteAccounts: [],
 }

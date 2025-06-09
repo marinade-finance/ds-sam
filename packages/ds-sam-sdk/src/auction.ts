@@ -462,7 +462,6 @@ export class Auction {
   evaluateFinal (): AuctionResult {
     this.setMaxSpendRobustDelegations()
     this.setBondStakeCapMaxPmpe()
-    this.reset()
     const result = this.evaluateOne()
     this.setStakeUnstakePriorities()
     this.setEffectiveBids(result.winningTotalPmpe)
@@ -472,19 +471,22 @@ export class Auction {
   }
 
   setBondStakeCapMaxPmpe () {
+    if (this.config.expectedMaxWinningBidRatio == null) {
+      return
+    }
     const { inflationPmpe, mevPmpe } = this.data.rewards
     const initialTotalPmpeLimit = inflationPmpe + mevPmpe + this.config.expectedFeePmpe
     this.constraints.setBondStakeCapMaxPmpe(initialTotalPmpeLimit)
     const result = this.evaluateOne()
+    this.reset()
     const base = inflationPmpe + mevPmpe
-    const shift = (this.config.expectedMaxWinningBidRatio ?? Infinity) * (result.winningTotalPmpe - base)
+    const shift = this.config.expectedMaxWinningBidRatio * Math.max(0, result.winningTotalPmpe - base)
     this.constraints.setBondStakeCapMaxPmpe(base + shift)
   }
 
   evaluate (): AuctionResult {
     this.setMaxSpendRobustDelegations()
     this.setBondStakeCapMaxPmpe()
-    this.reset()
     const result = this.evaluateOne()
     this.setEffectiveBids(result.winningTotalPmpe)
     const totalMarinadeSpend = result.auctionData.validators.reduce(
