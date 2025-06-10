@@ -145,5 +145,5 @@ export type RawSourceData = {
   rewards: RawRewardsResponseDto
   auctions: RawScoredValidatorDto[]
   overrides?: RawOverrideDataDto
-  select: RawSelectDto
+  select?: RawSelectDto
 }

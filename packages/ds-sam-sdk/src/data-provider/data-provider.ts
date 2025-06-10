@@ -236,7 +236,9 @@ export class DataProvider {
         .map((line) => line.trim().split(',')[0])
         .filter((value): value is string => !!value)
       ),
-      backstop: this.predictBackstopPmpe(data.select, rewards)
+      backstop: data.select
+        ? this.predictBackstopPmpe(data.select, rewards)
+        : {expectedBidPmpe: 0, expectedTotalPmpe: 0}
     }
   }
 
@@ -286,7 +288,7 @@ export class DataProvider {
     const select: RawSelectDto =
       fs.existsSync(selectFile)
       ? JSON.parse(fs.readFileSync(selectFile).toString())
-      : []
+      : undefined
 
     return {
       validators,
