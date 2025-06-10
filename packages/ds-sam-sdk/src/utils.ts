@@ -24,6 +24,15 @@ export const calcEffParticipatingBidPmpe = (revShare: { inflationPmpe: number, m
   return Math.max(0, winningTotalPmpe - revShare.inflationPmpe - revShare.mevPmpe)
 }
 
+
+export const calcEffectiveBidPmpe = (revShare: RevShare, winningTotalPmpe: number): number => {
+  if (revShare.totalPmpe < winningTotalPmpe) {
+    return revShare.bidPmpe
+  } else {
+    return Math.max(0, winningTotalPmpe - revShare.inflationPmpe - revShare.mevPmpe)
+  }
+}
+
 export const ineligibleValidatorAggDefaults = () => ({ samEligible: false, mndeEligible: false, ...validatorAggDefaults() })
 
 export const validatorAggDefaults = () => ({

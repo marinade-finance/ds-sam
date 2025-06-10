@@ -92,6 +92,17 @@ export type DsSamConfig = {
   // The estimated transaction fee Pmpe
   expectedFeePmpe: number
 
+  // Ideal number of epochs per year
+  epochsPerYear: number
+
+  // The auction winning bid can not be larger than backstopBidPmpe times maxAuctionToBackstopBidMult
+  // Setting this to zero effectively disables the backstop
+  maxAuctionToBackstopBidMult: number
+
+  // The maximum share of TVL that can be delegated to the backstop validators
+  // Setting this number to zero effectively disables the backstop
+  maxBackstopTvlShare: number
+
   // Validator vote accounts to collect debug info for
   debugVoteAccounts: string[]
 }
@@ -134,6 +145,9 @@ export const DEFAULT_CONFIG: DsSamConfig = {
   minMaxStakeWanted: null,
   expectedFeePmpe: 0,
   expectedMaxWinningBidRatio: null,
+  epochsPerYear: 182.625,
+  maxAuctionToBackstopBidMult: 0,
+  maxBackstopTvlShare: 0,
 
   debugVoteAccounts: [],
 }

@@ -4,6 +4,7 @@ import { AuctionHistoryStats } from './data-provider/data-provider.dto'
 export type AuctionResult = {
   auctionData: AuctionData
   winningTotalPmpe: number
+  backstopTotalPmpe: number
 }
 
 export type AuctionData = Omit<AggregatedData, 'validators'> & {

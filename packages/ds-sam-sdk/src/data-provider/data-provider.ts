@@ -168,7 +168,7 @@ export class DataProvider {
     // just use the last value for now
     const values = data.apy.values
     const apy = values[values.length - 1] ?? 0
-    const expectedTotalPmpe = 1000 * (Math.pow(1 + apy, 1 / 182.625) - 1)
+    const expectedTotalPmpe = 1000 * (Math.pow(1 + apy, 1 / this.config.epochsPerYear) - 1)
     // has to also somehow put back our rev. share
     const expectedBidPmpe = expectedTotalPmpe - rewards.inflationPmpe - rewards.mevPmpe
     return { expectedTotalPmpe, expectedBidPmpe }

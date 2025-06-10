@@ -1,4 +1,4 @@
-import { calcEffParticipatingBidPmpe } from './utils'
+import { calcEffParticipatingBidPmpe, calcEffectiveBidPmpe } from './utils'
 import { AuctionData, AuctionResult, AuctionValidator } from './types'
 import { AuctionConstraints, bondBalanceRequiredForCurrentStake } from './constraints'
 import { DsSamConfig } from './config'
@@ -84,13 +84,10 @@ export class Auction {
       this.debug.pushValidatorEvent(voteAccount, `SAM start constraints: ${constraints ? `${JSON.stringify(constraints.map(constraint => ({ ...constraint, validators: constraint.validators.length})))}` : 'NULL'}`)
     })
 
-    const maxBidMult = 1000
-    const maxBackstopTvlShare = 0.5
-
     const maxTotalPmpe =
       this.data.rewards.inflationPmpe
       + this.data.rewards.mevPmpe
-      + maxBidMult * this.data.backstop.expectedBidPmpe
+      + this.config.maxAuctionToBackstopBidMult * this.data.backstop.expectedBidPmpe
 
     // logValidators(this.data.validators)
 
@@ -101,14 +98,19 @@ export class Auction {
     let rounds = 0
     let lastProjectedRewards = 0
     while (group = this.findNextPmpeGroup(previousGroupPmpe)) {
-      const auctionRewards = winningTotalPmpe / 1000 * (this.data.stakeAmounts.marinadeSamTvlSol - this.data.stakeAmounts.marinadeRemainingSamSol)
+      const auctionRewards = this.data.validators.reduce(
+        (acc, { auctionStake, revShare }) =>
+          acc + calcEffectiveBidPmpe(revShare, winningTotalPmpe) / 1000 * auctionStake.marinadeSamTargetSol
+        ,
+        0
+      )
       const backstopRewards = this.data.stakeAmounts.marinadeRemainingSamSol * this.data.backstop.expectedTotalPmpe / 1000
       const projectedRewards = auctionRewards + backstopRewards
       console.log(`SAM Backstop rewards ${lastProjectedRewards} => ${auctionRewards} + ${backstopRewards}`)
       if (
         lastProjectedRewards > projectedRewards
           && group.totalPmpe < maxTotalPmpe
-          && this.data.stakeAmounts.marinadeRemainingSamSol / this.data.stakeAmounts.marinadeSamTvlSol < maxBackstopTvlShare
+          && this.data.stakeAmounts.marinadeRemainingSamSol / this.data.stakeAmounts.marinadeSamTvlSol < this.config.maxBackstopTvlShare
       ) {
         this.debug.pushEvent('SAM Remaining stake will be pushed to backstop')
         break
@@ -216,13 +218,9 @@ export class Auction {
   }
 
   setEffectiveBids(winningTotalPmpe: number) {
-    this.data.validators.forEach(({ revShare }) => {
-      if (revShare.totalPmpe < winningTotalPmpe) {
-        revShare.auctionEffectiveBidPmpe = revShare.bidPmpe
-      } else {
-        revShare.auctionEffectiveBidPmpe = Math.max(0, winningTotalPmpe - revShare.inflationPmpe - revShare.mevPmpe)
-      }
-    })
+    for (const validator of this.data.validators) {
+      validator.revShare.auctionEffectiveBidPmpe = calcEffectiveBidPmpe(validator.revShare, winningTotalPmpe)
+    }
   }
 
   setBidTooLowPenalties(winningTotalPmpe: number) {
@@ -480,6 +478,7 @@ export class Auction {
     return {
       auctionData: this.data,
       winningTotalPmpe,
+      backstopTotalPmpe: this.data.backstop.expectedTotalPmpe,
     }
   }
 
