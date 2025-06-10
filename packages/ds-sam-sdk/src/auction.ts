@@ -84,8 +84,8 @@ export class Auction {
       this.debug.pushValidatorEvent(voteAccount, `SAM start constraints: ${constraints ? `${JSON.stringify(constraints.map(constraint => ({ ...constraint, validators: constraint.validators.length})))}` : 'NULL'}`)
     })
 
-    const maxBidMult = 2
-    const maxBackstopTvlShare = 0.3
+    const maxBidMult = 1000
+    const maxBackstopTvlShare = 0.5
 
     const maxTotalPmpe =
       this.data.rewards.inflationPmpe

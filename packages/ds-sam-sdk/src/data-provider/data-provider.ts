@@ -168,14 +168,9 @@ export class DataProvider {
     // just use the last value for now
     const values = data.apy.values
     const apy = values[values.length - 1] ?? 0
-
-    const SECONDS_PER_YEAR = 365.25 * 24 * 3600
-    const DEFAULT_EPOCH_DURATION = 0.4 * 432000
-    const DEFAULT_EPOCHS_PER_YEAR = SECONDS_PER_YEAR / DEFAULT_EPOCH_DURATION
-
-    const expectedTotalPmpe = 1000 * (Math.pow(1 + apy, 1 / DEFAULT_EPOCHS_PER_YEAR) - 1)
-    const expectedBidPmpe = expectedTotalPmpe - rewards.inflationPmpe + rewards.mevPmpe
-
+    const expectedTotalPmpe = 1000 * (Math.pow(1 + apy, 1 / 182.625) - 1)
+    // has to also somehow put back our rev. share
+    const expectedBidPmpe = expectedTotalPmpe - rewards.inflationPmpe - rewards.mevPmpe
     return { expectedTotalPmpe, expectedBidPmpe }
   }
 
