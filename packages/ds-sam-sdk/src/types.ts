@@ -24,6 +24,7 @@ export type AggregatedData = {
   rewards: Rewards
   stakeAmounts: StakeAmounts
   blacklist: Set<string>
+  backstop: Backstop
 }
 
 export type EpochStats = {
@@ -78,6 +79,11 @@ export type AuctionValidatorValues = {
   adjSpendRobustReputation: number
   marinadeActivatedStakeSolUndelegation: number
   adjSpendRobustReputationInflationFactor: number
+}
+
+export type Backstop = {
+  expectedTotalPmpe: number
+  expectedBidPmpe: number
 }
 
 export type Rewards = {

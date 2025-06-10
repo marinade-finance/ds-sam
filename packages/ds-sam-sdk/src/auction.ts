@@ -84,6 +84,14 @@ export class Auction {
       this.debug.pushValidatorEvent(voteAccount, `SAM start constraints: ${constraints ? `${JSON.stringify(constraints.map(constraint => ({ ...constraint, validators: constraint.validators.length})))}` : 'NULL'}`)
     })
 
+    const maxBidMult = 2
+    const maxBackstopTvlShare = 0.3
+
+    const maxTotalPmpe =
+      this.data.rewards.inflationPmpe
+      + this.data.rewards.mevPmpe
+      + maxBidMult * this.data.backstop.expectedBidPmpe
+
     // logValidators(this.data.validators)
 
     let previousGroupPmpe = Infinity
@@ -91,7 +99,22 @@ export class Auction {
     let winningTotalPmpe = Infinity
     let groups = 0
     let rounds = 0
+    let lastProjectedRewards = 0
     while (group = this.findNextPmpeGroup(previousGroupPmpe)) {
+      const auctionRewards = winningTotalPmpe / 1000 * (this.data.stakeAmounts.marinadeSamTvlSol - this.data.stakeAmounts.marinadeRemainingSamSol)
+      const backstopRewards = this.data.stakeAmounts.marinadeRemainingSamSol * this.data.backstop.expectedTotalPmpe / 1000
+      const projectedRewards = auctionRewards + backstopRewards
+      console.log(`SAM Backstop rewards ${lastProjectedRewards} => ${auctionRewards} + ${backstopRewards}`)
+      if (
+        lastProjectedRewards > projectedRewards
+          && group.totalPmpe < maxTotalPmpe
+          && this.data.stakeAmounts.marinadeRemainingSamSol / this.data.stakeAmounts.marinadeSamTvlSol < maxBackstopTvlShare
+      ) {
+        this.debug.pushEvent('SAM Remaining stake will be pushed to backstop')
+        break
+      }
+      lastProjectedRewards = projectedRewards
+      
       groups++
       group.validators = group.validators.filter(validator => validator.samEligible && !validator.samBlocked)
 
@@ -428,7 +451,8 @@ export class Auction {
   }
 
   evaluateOne (): AuctionResult {
-    console.log('EVALUATING new auction ----------------------------------------')
+    console.log('EVALUATING new auction -----------------------------------------')
+    console.log(`backstop is currently at ${this.data.backstop.expectedTotalPmpe}`)
     console.log('stake amounts before', this.data.stakeAmounts)
     this.debug.pushInfo('start amounts', JSON.stringify(this.data.stakeAmounts))
     this.debug.pushEvent('DISTRIBUTING MNDE STAKE')

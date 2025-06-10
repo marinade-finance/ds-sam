@@ -26,6 +26,8 @@ export type DsSamConfig = {
   scoringApiBaseUrl: string
   // The base URL for the location of the overrides json
   overridesApiBaseUrl: string
+  // The base URL of the APY API
+  apyApiBaseUrl: string
 
   // How many epochs in the past to fetch rewards for
   rewardsEpochsCount: number
@@ -104,6 +106,7 @@ export const DEFAULT_CONFIG: DsSamConfig = {
   overridesApiBaseUrl: 'https://raw.githubusercontent.com/marinade-finance/ds-sam-pipeline/main/epochs',
   snapshotsApiBaseUrl: 'https://snapshots-api.marinade.finance',
   scoringApiBaseUrl:  'https://scoring.marinade.finance',
+  apyApiBaseUrl: 'https://apy.marinade.finance',
 
   rewardsEpochsCount: 10,
   validatorsUptimeEpochsCount: 3,

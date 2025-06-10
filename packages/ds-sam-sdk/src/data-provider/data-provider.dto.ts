@@ -117,6 +117,24 @@ export type RawValidatorsResponseDto = {
   // Other properties ignored
 }
 
+export type RawOverrideDataDto = {
+  validators: AuctionValidator[]
+}
+
+export type SourceDataOverrides = {
+  inflationCommissions: Map<String, number>
+  mevCommissions: Map<String, number>
+}
+
+export type RawApyApiDto = {
+  times: number[]
+  values: number[]
+}
+
+export type RawSelectDto = {
+  apy: RawApyApiDto
+}
+
 export type RawSourceData = {
   validators: RawValidatorsResponseDto
   mevInfo: RawMevInfoResponseDto
@@ -127,13 +145,5 @@ export type RawSourceData = {
   rewards: RawRewardsResponseDto
   auctions: RawScoredValidatorDto[]
   overrides?: RawOverrideDataDto
-}
-
-export type RawOverrideDataDto = {
-  validators: AuctionValidator[]
-}
-
-export type SourceDataOverrides = {
-  inflationCommissions: Map<String, number>
-  mevCommissions: Map<String, number>
+  select: RawSelectDto
 }

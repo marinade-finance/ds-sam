@@ -13,9 +13,11 @@ import {
   AuctionHistoryStats,
   RawValidatorDto,
   RawOverrideDataDto,
+  RawSelectDto,
+  RawApyApiDto,
 } from './data-provider.dto'
 import Decimal from 'decimal.js'
-import { AggregatedData, AggregatedValidator } from '../types'
+import { AggregatedData, AggregatedValidator, Backstop, Rewards } from '../types'
 import fs from 'fs'
 import { MNDE_VOTE_DELEGATION_STRATEGY, calcEffParticipatingBidPmpe } from '../utils'
 
@@ -162,6 +164,21 @@ export class DataProvider {
     })
   }
 
+  predictBackstopPmpe (data: RawSelectDto, rewards: Rewards): Backstop {
+    // just use the last value for now
+    const values = data.apy.values
+    const apy = values[values.length - 1] ?? 0
+
+    const SECONDS_PER_YEAR = 365.25 * 24 * 3600
+    const DEFAULT_EPOCH_DURATION = 0.4 * 432000
+    const DEFAULT_EPOCHS_PER_YEAR = SECONDS_PER_YEAR / DEFAULT_EPOCH_DURATION
+
+    const expectedTotalPmpe = 1000 * (Math.pow(1 + apy, 1 / DEFAULT_EPOCHS_PER_YEAR) - 1)
+    const expectedBidPmpe = expectedTotalPmpe - rewards.inflationPmpe + rewards.mevPmpe
+
+    return { expectedTotalPmpe, expectedBidPmpe }
+  }
+
   aggregateData (data: RawSourceData, dataOverrides: SourceDataOverrides | null = null): AggregatedData {
     const activatedStakePerEpochs = new Map<number, Decimal>()
     let externalStakeTotal = new Decimal(0)
@@ -200,16 +217,17 @@ export class DataProvider {
     const epoch = data.rewards.rewards_inflation_est.reduce((epoch, entry) => Math.max(epoch, entry[0]), 0) + 1
 
     const solPerMnde = totalMndeVotes.gt(0) ? new Decimal(effectiveMndeTvlShareSol).div(totalMndeVotes.sub(delStratVotes)).toNumber() : 0
+    const rewards = {
+      inflationPmpe: this.aggregateRewardsRecords(activatedStakePerEpochs, data.rewards.rewards_inflation_est),
+      mevPmpe: this.aggregateRewardsRecords(activatedStakePerEpochs, data.rewards.rewards_mev),
+    }
     console.log('total mnde votes', totalMndeVotes)
     console.log('SOL per MNDE', solPerMnde)
     console.log('tvl', tvlSol)
     return {
       epoch,
       validators: this.aggregateValidators(data, validatorsMndeVotes, solPerMnde, validatorsMndeStakeCapIncreases, dataOverrides),
-      rewards: {
-        inflationPmpe: this.aggregateRewardsRecords(activatedStakePerEpochs, data.rewards.rewards_inflation_est),
-        mevPmpe: this.aggregateRewardsRecords(activatedStakePerEpochs, data.rewards.rewards_mev),
-      },
+      rewards,
       stakeAmounts: {
         networkTotalSol: externalStakeTotal.div(1e9).add(tvlSol).toNumber(),
         marinadeMndeTvlSol: effectiveMndeTvlShareSol,
@@ -223,6 +241,7 @@ export class DataProvider {
         .map((line) => line.trim().split(',')[0])
         .filter((value): value is string => !!value)
       ),
+      backstop: this.predictBackstopPmpe(data.select, rewards)
     }
   }
 
@@ -241,6 +260,7 @@ export class DataProvider {
     if (data.overrides) {
       fs.writeFileSync(`${this.config.inputsCacheDirPath}/overrides.json`, JSON.stringify(data.overrides, null, 2))
     }
+    fs.writeFileSync(`${this.config.inputsCacheDirPath}/select.json`, JSON.stringify(data.auctions, null, 2))
   }
 
   parseCachedSourceData (): RawSourceData {
@@ -267,7 +287,24 @@ export class DataProvider {
       ? JSON.parse(fs.readFileSync(overridesFile).toString())
       : undefined
 
-    return { validators, mevInfo, bonds, tvlInfo, mndeVotes, rewards, blacklist, auctions, overrides }
+    const selectFile = `${this.config.inputsCacheDirPath}/select.json`
+    const select: RawSelectDto =
+      fs.existsSync(selectFile)
+      ? JSON.parse(fs.readFileSync(selectFile).toString())
+      : []
+
+    return {
+      validators,
+      mevInfo,
+      bonds,
+      tvlInfo,
+      mndeVotes,
+      rewards,
+      blacklist,
+      auctions,
+      overrides,
+      select,
+    }
   }
 
   async fetchSourceData (): Promise<RawSourceData> {
@@ -280,6 +317,7 @@ export class DataProvider {
       mndeVotes,
       rewards,
       auctions,
+      select,
     ] = await Promise.all([
       this.fetchValidators(),
       this.fetchMevInfo(),
@@ -289,6 +327,7 @@ export class DataProvider {
       this.fetchMndeVotes(),
       this.fetchRewards(),
       this.fetchAuctions(this.config.bidTooLowPenaltyHistoryEpochs),
+      this.fetchSelect(),
     ])
 
     const epoch = rewards.rewards_inflation_est.reduce((epoch, entry) => Math.max(epoch, entry[0]), 0) + 1
@@ -304,6 +343,7 @@ export class DataProvider {
       rewards,
       auctions,
       overrides: overrides ?? undefined,
+      select,
     }
     if (this.config.cacheInputs) {
       this.cacheSourceData(data)
@@ -378,4 +418,18 @@ export class DataProvider {
       }
     }
   }
+
+  async fetchApiApy (): Promise<RawApyApiDto> {
+    const now = new Date()
+    const timestamp = Math.floor(now.getTime() / 1000)
+    // window = 14 days in seconds
+    const url = `${this.config.apyApiBaseUrl}/v1/rolling-apy/marinade-select?window=1209600`
+    const response = await axios.get<RawApyApiDto>(url)
+    return response.data
+  }
+
+  async fetchSelect (): Promise<RawSelectDto> {
+    return { apy: await this.fetchApiApy() }
+  }
+
 }
