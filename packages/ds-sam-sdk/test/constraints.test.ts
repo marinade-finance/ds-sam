@@ -259,4 +259,78 @@ describe('constraints', () => {
     expect(prettyPrintAuctionResult(result)).toMatchSnapshot()
   })
 
+  it('respects bond constraint relaxation', async () => {
+    const voteAccounts = generateVoteAccounts()
+    const identities = generateIdentities()
+
+    const validators = [
+      new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
+        .withEligibleDefaults()
+        .withBond({ stakeWanted: 0, cpmpe: 10, balance: 10 }),
+      new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
+        .withEligibleDefaults()
+        .withBond({ stakeWanted: 0, cpmpe: 5, balance: 10 }),
+      new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
+        .withEligibleDefaults()
+        .withBond({ stakeWanted: 0, cpmpe: 2, balance: 10 }),
+      new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
+        .withEligibleDefaults()
+        .withBond({ stakeWanted: 0, cpmpe: 0.2, balance: 10 }),
+      new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
+        .withEligibleDefaults()
+        .withBond({ stakeWanted: 0, cpmpe: 0.03, balance: 10 }),
+      new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
+        .withEligibleDefaults()
+        .withBond({ stakeWanted: 0, cpmpe: 0.02, balance: 10 }),
+      ...Array.from({ length: 18 }, () => new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
+        .withEligibleDefaults()
+        .withMndeVotes(1000)
+        .withExternalStake(10_000_000)
+        .withBond({ stakeWanted: 11_000, cpmpe: 0.015, balance: 10 })),
+    ]
+
+    const config = { expectedFeePmpe: 0.01, expectedMaxWinningBidRatio: 2 }
+    const dsSam = new DsSamSDK(config, defaultStaticDataProviderBuilder(validators))
+    const result = await dsSam.run()
+
+    expect(prettyPrintAuctionResult(result)).toMatchSnapshot()
+  })
+
+  it('respects bond constraint relaxation with higher expectedFeePmpe', async () => {
+    const voteAccounts = generateVoteAccounts()
+    const identities = generateIdentities()
+
+    const validators = [
+      new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
+        .withEligibleDefaults()
+        .withBond({ stakeWanted: 0, cpmpe: 10, balance: 10 }),
+      new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
+        .withEligibleDefaults()
+        .withBond({ stakeWanted: 0, cpmpe: 5, balance: 10 }),
+      new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
+        .withEligibleDefaults()
+        .withBond({ stakeWanted: 0, cpmpe: 2, balance: 10 }),
+      new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
+        .withEligibleDefaults()
+        .withBond({ stakeWanted: 0, cpmpe: 0.2, balance: 10 }),
+      new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
+        .withEligibleDefaults()
+        .withBond({ stakeWanted: 0, cpmpe: 0.03, balance: 10 }),
+      new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
+        .withEligibleDefaults()
+        .withBond({ stakeWanted: 0, cpmpe: 0.02, balance: 10 }),
+      ...Array.from({ length: 18 }, () => new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
+        .withEligibleDefaults()
+        .withMndeVotes(1000)
+        .withExternalStake(10_000_000)
+        .withBond({ stakeWanted: 11_000, cpmpe: 0.015, balance: 10 })),
+    ]
+
+    const config = { expectedFeePmpe: 1, expectedMaxWinningBidRatio: 2 }
+    const dsSam = new DsSamSDK(config, defaultStaticDataProviderBuilder(validators))
+    const result = await dsSam.run()
+
+    expect(prettyPrintAuctionResult(result)).toMatchSnapshot()
+  })
+
 })
