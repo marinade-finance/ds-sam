@@ -34,6 +34,11 @@ export const validatorAggDefaults = () => ({
     coef: 0,
     base: 0,
   },
+  bondForcedUndelegation: {
+    coef: 0,
+    base: 0,
+    value: 0,
+  },
   samBlocked: false,
   maxBondDelegation: NaN,
 })

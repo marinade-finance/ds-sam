@@ -79,9 +79,24 @@ export type DsSamConfig = {
   // Unused at the moment
   spendRobustReputationBondBoostCoef: number
 
+  // The minimum number of epochs payments for which the bond has to cover on top
+  // of the downtime and rugging risk
+  minBondEpochs: number
+
+  // The ideal number of epochs payments for which the bond has to cover on top
+  // of the downtime and rugging risk
+  idealBondEpochs: number
+
+  // The multiplier in the formula bondRiskFee = bondRiskFeeMult bondRisk
+  bondRiskFeeMult: number
+
   // The minimal bound for delegated stake a validator can set through maxStakeWanted
   // If null, maxStakeWanted does not limit delegated stake
   minMaxStakeWanted: number | null
+
+  // The estimated maximum relative value of the bid derived from the winningTotalPmpe
+  // If null, expectedMaxWinningBidChangeRate will not have any effect
+  expectedMaxWinningBidRatio: number | null
 
   // The estimated transaction fee Pmpe
   expectedFeePmpe: number
@@ -115,17 +130,21 @@ export const DEFAULT_CONFIG: DsSamConfig = {
   maxNetworkStakeConcentrationPerCountryDec: 0.3,
   maxNetworkStakeConcentrationPerAsoDec: 0.3,
   maxMarinadeTvlSharePerValidatorDec: 0.04,
-  spendRobustReputationMult: null,
+  spendRobustReputationMult: 1,
   spendRobustReputationDecayEpochs: 50,
   minSpendRobustReputation: -20,
   initialScaledSpendRobustReputation: 0,
   minScaledSpendRobustReputation: 0,
   maxSpendRobustReputation: 1000,
   initialSpendRobustReputation: 1,
-  minBondBalanceSol: 0,
+  minBondBalanceSol: 10,
   spendRobustReputationBondBoostCoef: 0,
+  minBondEpochs: 3,
+  idealBondEpochs: 10,
+  bondRiskFeeMult: 1,
   minMaxStakeWanted: null,
   expectedFeePmpe: 0,
+  expectedMaxWinningBidRatio: null,
 
   debugVoteAccounts: [],
 }
