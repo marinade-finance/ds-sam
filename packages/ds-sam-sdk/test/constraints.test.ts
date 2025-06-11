@@ -28,6 +28,38 @@ describe('constraints', () => {
     expect(prettyPrintAuctionResult(result)).toMatchSnapshot()
   })
 
+  it('applies minBondBalanceSol constraints to SAM stake', async () => {
+    const voteAccounts = generateVoteAccounts()
+    const identities = generateIdentities()
+
+    const validators = [
+      new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
+        .withEligibleDefaults()
+        .withMndeVotes(0)
+        .withBond({ stakeWanted: 15_000, cpmpe: 0, balance: 1_000 }),
+      new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
+        .withEligibleDefaults()
+        .withMndeVotes(0)
+        .withNativeStake(300)
+        .withLiquidStake(400)
+        .withBond({ stakeWanted: 20_000, cpmpe: 0, balance: 9.9 }),
+      new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
+        .withEligibleDefaults()
+        .withMndeVotes(0)
+        .withNativeStake(0)
+        .withLiquidStake(0)
+        .withBond({ stakeWanted: 20_000, cpmpe: 0, balance: 7 }),
+      ...Array.from({ length: 18 }, () => new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
+        .withEligibleDefaults()
+        .withMndeVotes(0)
+        .withBond({ stakeWanted: 10_000_000, cpmpe: 0, balance: 1_000 })),
+    ]
+    const dsSam = new DsSamSDK({ minBondBalanceSol: 10 }, defaultStaticDataProviderBuilder(validators))
+    const result = await dsSam.run()
+
+    expect(prettyPrintAuctionResult(result)).toMatchSnapshot()
+  })
+
   it('applies bond constraints and ignores max stake wanted for MNDE stake', async () => {
     const voteAccounts = generateVoteAccounts()
     const identities = generateIdentities()
@@ -186,4 +218,5 @@ describe('constraints', () => {
     expect(auctionStake.marinadeSamTargetSol).toStrictEqual(100_000 * 0.04 + (0.1 * 100 / 2000) * 100_000)
     expect(prettyPrintAuctionResult(result)).toMatchSnapshot()
   })
+
 })
