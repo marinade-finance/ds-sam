@@ -65,6 +65,7 @@ export class AuctionConstraints {
       ...this.buildSamBondConstraints(auctionData),
       ...this.buildValidatorConcentrationConstraints(auctionData),
       ...this.buildReputationConstraints(auctionData),
+      ...this.buildSamWantConstraints(auctionData),
     ]
     this.updateConstraintsPerValidator()
   }
@@ -163,6 +164,26 @@ export class AuctionConstraints {
       marinadeLeftToCapSol: this.bondStakeCapSam(validator) - validator.auctionStake.marinadeSamTargetSol,
       validators: [validator],
     }))
+  }
+
+  private buildSamWantConstraints ({ validators }: AuctionData) {
+    return validators.map(validator => {
+      const maxStakeWanted = validator.maxStakeWanted ?? Infinity
+      const clippedMaxStakeWanted = Math.max(
+        this.config.minMaxStakeWanted,
+        validator.marinadeActivatedStakeSol,
+        maxStakeWanted > 0 ? maxStakeWanted : Infinity,
+      )
+      return {
+        constraintType: AuctionConstraintType.WANT,
+        constraintName: validator.voteAccount,
+        totalStakeSol: validatorTotalAuctionStakeSol(validator),
+        totalLeftToCapSol: Infinity,
+        marinadeStakeSol: validator.auctionStake.marinadeMndeTargetSol + validator.auctionStake.marinadeSamTargetSol,
+        marinadeLeftToCapSol: clippedMaxStakeWanted - validator.auctionStake.marinadeSamTargetSol,
+        validators: [validator],
+      }
+    })
   }
 
   private buildMndeBondConstraints ({ validators }: AuctionData) {

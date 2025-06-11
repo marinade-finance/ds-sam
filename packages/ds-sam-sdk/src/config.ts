@@ -79,6 +79,10 @@ export type DsSamConfig = {
   // Unused at the moment
   spendRobustReputationBondBoostCoef: number
 
+  // The minimal bound for delegated stake a validator can set through maxStakeWanted
+  // If null, maxStakeWanted does not limit delegated stake
+  minMaxStakeWanted: number | null
+
   // The estimated transaction fee Pmpe
   expectedFeePmpe: number
 
@@ -120,6 +124,7 @@ export const DEFAULT_CONFIG: DsSamConfig = {
   initialSpendRobustReputation: 1,
   minBondBalanceSol: 0,
   spendRobustReputationBondBoostCoef: 0,
+  minMaxStakeWanted: null,
   expectedFeePmpe: 0,
 
   debugVoteAccounts: [],

@@ -122,6 +122,7 @@ export class DataProvider {
       const mevCommissionDec = (mevCommissionOverride !== undefined ? mevCommissionOverride / 10_000 : (mev ? mev.mev_commission_bps / 10_000 : null))
       const auctions = auctionsData.map((auction) => this.extractAuctionHistoryStats(auction, validator))
       const bondBalanceSol = bond ? new Decimal(bond.effective_amount).div(1e9).toNumber() : null
+
       return {
         voteAccount: validator.vote_account,
         clientVersion: validator.version ?? '0.0.0',
@@ -134,7 +135,9 @@ export class DataProvider {
         inflationCommissionDec,
         mevCommissionDec,
         bidCpmpe: bond ? new Decimal(bond.cpmpe).div(1e9).toNumber() : null,
-        maxStakeWanted: null,
+        maxStakeWanted: (this.config.minMaxStakeWanted != null) && bond
+          ? new Decimal(bond.max_stake_wanted).div(1e9).toNumber()
+          : null,
         values: {
           spendRobustReputation: override?.values.spendRobustReputation
             ?? auctions[0]?.spendRobustReputation
