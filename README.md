@@ -38,6 +38,10 @@ Config [defaults](./packages/ds-sam-sdk/src/config.ts#L35)
   blacklistApiBaseUrl: string
   // Base URL of the API to get snapshots from
   snapshotsApiBaseUrl: string
+  // Base URL of the scoring API
+  scoringApiBaseUrl: string
+  // The base URL for the location of the overrides json
+  overridesApiBaseUrl: string
 
   // How many epochs in the past to fetch rewards for
   rewardsEpochsCount: number
@@ -49,6 +53,10 @@ Config [defaults](./packages/ds-sam-sdk/src/config.ts#L35)
   validatorsClientVersionSemverExpr: string
   // Max effective commission of a validator to be eligible
   validatorsMaxEffectiveCommissionDec: number
+
+  // How many historical bids to consider when deciding how much to charge for
+  // the BidTooLowPenalty
+  bidTooLowPenaltyHistoryEpochs: number
 
   // Share of Marinade TVL stake controlled by MNDE votes
   mndeDirectedStakeShareDec: number
@@ -65,11 +73,27 @@ Config [defaults](./packages/ds-sam-sdk/src/config.ts#L35)
   // Cap of Marinade stake share on a single validator
   maxMarinadeTvlSharePerValidatorDec: number
 
+  // Multiplier to get from reputation to reputation limit; if null no limit is imposed
+  spendRobustReputationMult: number | null
+  // The reputation decays every epoch by 1 - 1 / spendRobustReputationDecayEpochs
+  spendRobustReputationDecayEpochs: number
+  // A validator can never get lower reputation than minSpendRobustReputation
+  minSpendRobustReputation: number
+  // A validator can never get higher reputation than maxSpendRobustReputation
+  maxSpendRobustReputation: number
+  // Only reputations higher than minScaledSpendRobustReputation are considered
+  // for TVL scaling
+  minScaledSpendRobustReputation: number
+  // Every new vote account that joins the auction gets initialSpendRobustReputation at the start
+  initialSpendRobustReputation: number
+
+  // The minimal bond balanace to have to get and retain any stake
+  minBondBalanceSol: number
+
   // Validator vote accounts to collect debug info for
   debugVoteAccounts: string[]
 }
 ```
-
 
 ## Development
 

@@ -15,6 +15,10 @@ export class AuctionConstraints {
 
   constructor (private readonly config: AuctionConstraintsConfig, private debug: Debug) { }
 
+  setBondStakeCapMaxPmpe (value: number) {
+    this.config.bondStakeCapMaxPmpe = value
+  }
+
   getMinCapForEvenDistribution (voteAccounts: Set<string>, collectDebug = true): { cap: number, constraint: AuctionConstraint } {
     const constraints: AuctionConstraint[] = []
     for (const voteAccount of voteAccounts) {
@@ -65,6 +69,7 @@ export class AuctionConstraints {
       ...this.buildSamBondConstraints(auctionData),
       ...this.buildValidatorConcentrationConstraints(auctionData),
       ...this.buildReputationConstraints(auctionData),
+      ...this.buildSamWantConstraints(auctionData),
     ]
     this.updateConstraintsPerValidator()
   }
@@ -165,6 +170,26 @@ export class AuctionConstraints {
     }))
   }
 
+  private buildSamWantConstraints ({ validators }: AuctionData) {
+    return validators.map(validator => {
+      const maxStakeWanted = validator.maxStakeWanted ?? Infinity
+      const clippedMaxStakeWanted = Math.max(
+        this.config.minMaxStakeWanted,
+        validator.marinadeActivatedStakeSol,
+        maxStakeWanted > 0 ? maxStakeWanted : Infinity,
+      )
+      return {
+        constraintType: AuctionConstraintType.WANT,
+        constraintName: validator.voteAccount,
+        totalStakeSol: validatorTotalAuctionStakeSol(validator),
+        totalLeftToCapSol: Infinity,
+        marinadeStakeSol: validator.auctionStake.marinadeMndeTargetSol + validator.auctionStake.marinadeSamTargetSol,
+        marinadeLeftToCapSol: clippedMaxStakeWanted - validator.auctionStake.marinadeSamTargetSol,
+        validators: [validator],
+      }
+    })
+  }
+
   private buildMndeBondConstraints ({ validators }: AuctionData) {
     return validators.map(validator => ({
       constraintType: AuctionConstraintType.BOND,
@@ -210,28 +235,27 @@ export class AuctionConstraints {
   }
 
   bondStakeCapSam (validator: AuctionValidator): number {
-    // refundableDepositPerStake * stakeCap + downtimeProtectionPerStake * stakeCap + bidPerStake * stakeCap = bondBalanceSol
-    // stakeCap = bondBalanceSol / (refundableDepositPerStake + downtimeProtectionPerStake + bidPerStake)
-    const bidPerStake = (validator.bidCpmpe ?? 0) / 1000
+    const { revShare } = validator
+    // do not make validators over-collateralize
+    const expectedMaxBid = this.config.bondStakeCapMaxPmpe - revShare.inflationPmpe - revShare.mevPmpe
+    const bidPerStake = Math.min(validator.bidCpmpe ?? 0, expectedMaxBid) / 1000
+    const refundableDepositPerStake = Math.min(validator.revShare.totalPmpe, this.config.bondStakeCapMaxPmpe) / 1000
     const downtimeProtectionPerStake = 0
-    const refundableDepositPerStake = validator.revShare.totalPmpe / 1000
     const bondBalanceSol = Math.max((validator.bondBalanceSol ?? 0) - bondBalanceUsedForMnde(validator), 0)
     const limit = bondBalanceSol / (refundableDepositPerStake + downtimeProtectionPerStake + bidPerStake)
-    if (bondBalanceSol < 0.8 * this.config.minBondBalanceSol) {
-      return 0
-    } else if (bondBalanceSol < this.config.minBondBalanceSol) {
-      return Math.min(limit, validator.marinadeActivatedStakeSol)
-    } else {
-      return limit
-    }
+    return this.clipBondStakeCap(validator, limit)
   }
 
   bondStakeCapMnde (validator: AuctionValidator): number {
-    // downtimeProtectionPerStake * stakeCap = bondBalanceSol
-    // stakeCap = bondBalanceSol / downtimeProtectionPerStake
     const downtimeProtectionPerStake = 0
     const bondBalanceSol = validator.bondBalanceSol ?? 0
     const limit = bondBalanceSol / downtimeProtectionPerStake
+    return this.clipBondStakeCap(validator, limit)
+  }
+
+  clipBondStakeCap (validator: AuctionValidator, limit: number): number {
+    const bondBalanceSol = validator.bondBalanceSol ?? 0
+    // provide hysteresis so that the system does not flap
     if (bondBalanceSol < 0.8 * this.config.minBondBalanceSol) {
       return 0
     } else if (bondBalanceSol < this.config.minBondBalanceSol) {

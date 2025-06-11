@@ -124,6 +124,7 @@ export class DataProvider {
       ).find((auction) => auction)
       const auctions = auctionHistoriesData.map((auction) => this.extractAuctionHistoryStats(auction, validator))
       const bondBalanceSol = bond ? new Decimal(bond.effective_amount).div(1e9).toNumber() : null
+
       return {
         voteAccount: validator.vote_account,
         clientVersion: validator.version ?? '0.0.0',
@@ -137,7 +138,9 @@ export class DataProvider {
         inflationCommissionDec,
         mevCommissionDec,
         bidCpmpe: bond ? new Decimal(bond.cpmpe).div(1e9).toNumber() : null,
-        maxStakeWanted: null,
+        maxStakeWanted: (this.config.minMaxStakeWanted != null) && bond
+          ? new Decimal(bond.max_stake_wanted).div(1e9).toNumber()
+          : null,
         values: {
           spendRobustReputation: override?.values.spendRobustReputation
             ?? lastAuctionHistory?.values?.spendRobustReputation
