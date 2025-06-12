@@ -84,7 +84,7 @@ export type DsSamConfig = {
   minMaxStakeWanted: number | null
 
   // The estimated maximum relative value of the bid derived from the winningTotalPmpe
-  // If null, expectedMaxWinningBidChangeRate will not have any effect
+  // If null, expectedMaxWinningBidRatio will not have any effect
   expectedMaxWinningBidRatio: number | null
 
   // The estimated transaction fee Pmpe
