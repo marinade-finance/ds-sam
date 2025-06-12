@@ -507,9 +507,8 @@ export class Auction {
     const result = this.evaluateOne()
     this.setStakeUnstakePriorities()
     this.setEffectiveBids(result.winningTotalPmpe)
-    this.setBidTooLowPenalties(result.winningTotalPmpe)
     this.setBondRiskFee()
-    // this.setBidTooLowPenalties(result.winningTotalPmpe)
+    this.setBidTooLowPenalties(result.winningTotalPmpe)
     this.setMaxBondDelegations()
     return result
   }
