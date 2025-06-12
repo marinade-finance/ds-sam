@@ -109,6 +109,7 @@ export type AuctionConstraintsConfig = {
   spendRobustReputationMult: number | null
   minBondBalanceSol: number
   minMaxStakeWanted: number
+  bondStakeCapMaxPmpe: number
 }
 
 export enum AuctionConstraintType {
