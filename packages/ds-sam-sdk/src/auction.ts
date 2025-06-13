@@ -223,7 +223,9 @@ export class Auction {
   updatePaidUndelegation() {
     for (const validator of this.data.validators) {
       const { values } = validator
-      const lastActivatedStakeSol = validator.auctions.map(({ marinadeActivatedStakeSol }) => marinadeActivatedStakeSol).find(x => x) ?? 0
+      const lastActivatedStakeSol = validator.auctions.map(
+        ({ marinadeActivatedStakeSol }) => marinadeActivatedStakeSol
+      ).find(x => x) ?? 0
       const delta = validator.marinadeActivatedStakeSol - lastActivatedStakeSol
       values.marinadeActivatedStakeSolUndelegation = -Math.min(0, -delta)
       if (delta > 0.1 * values.paidUndelegationSol) {
