@@ -1,4 +1,4 @@
-import { calcEffParticipatingBidPmpe } from './utils'
+import { calcEffParticipatingBidPmpe, calculateBidTooLowPenalty } from './calculations'
 import { AuctionData, AuctionResult, AuctionValidator } from './types'
 import { AuctionConstraints, bondBalanceRequiredForCurrentStake } from './constraints'
 import { DsSamConfig } from './config'
@@ -192,7 +192,7 @@ export class Auction {
       .forEach(({ validator }, index) => validator.unstakePriority = bondsMaxIndex + index + 1)
   }
 
-  setEffectiveBids(winningTotalPmpe: number) {
+  setAuctionEffectiveBids(winningTotalPmpe: number) {
     this.data.validators.forEach(({ revShare }) => {
       if (revShare.totalPmpe < winningTotalPmpe) {
         revShare.auctionEffectiveBidPmpe = revShare.bidPmpe
@@ -202,31 +202,20 @@ export class Auction {
     })
   }
 
+  setEffParticipatingBids(winningTotalPmpe: number) {
+    for (const { revShare } in this.data.validators) {
+      revShare.effParticipatingBidPmpe = calcEffParticipatingBidPmpe(revShare, winningTotalPmpe)
+    }
+  }
+
   setBidTooLowPenalties(winningTotalPmpe: number) {
     const k = this.config.bidTooLowPenaltyHistoryEpochs
     for (const validator of this.data.validators) {
       const { bidTooLowPenalty, revShare, auctions } = validator
-      const historicalPmpe = auctions.slice(0, k).reduce(
-        (acc, { effParticipatingBidPmpe }) => Math.min(acc, effParticipatingBidPmpe ?? Infinity),
-        Infinity
-      )
-      // TODO ... check if this is not already calculated in setEffectiveBids
-      const effParticipatingBidPmpe = calcEffParticipatingBidPmpe(revShare, winningTotalPmpe)
-      const limit = Math.min(effParticipatingBidPmpe, historicalPmpe)
-      const penaltyCoef = limit > 0 ? Math.min(1, Math.sqrt(1.5 * Math.max(0, (limit - revShare.bidPmpe) / limit))) : 0
-      bidTooLowPenalty.base = winningTotalPmpe + effParticipatingBidPmpe
-      if (revShare.bidPmpe < 0.99999 * (auctions.map(({ bidPmpe }) => bidPmpe).find(x => x) ?? 0)) {
-        bidTooLowPenalty.coef = penaltyCoef
-      } else {
-        bidTooLowPenalty.coef = 0
-      }
-      revShare.effParticipatingBidPmpe = effParticipatingBidPmpe
-      revShare.bidTooLowPenaltyPmpe = bidTooLowPenalty.coef * bidTooLowPenalty.base
-      const effPmpe = revShare.inflationPmpe + revShare.mevPmpe + revShare.auctionEffectiveBidPmpe
-      validator.values.paidUndelegationSol += revShare.bidTooLowPenaltyPmpe * validator.marinadeActivatedStakeSol / effPmpe
-      if (!isFinite(revShare.bidTooLowPenaltyPmpe)) {
-        throw new Error(`bidTooLowPenaltyPmpe has to be finite`)
-      }
+      const value = calculateBidTooLowPenalty(k, validator)
+      Object.assign(bidTooLowPenalty, value.bidTooLowPenalty)
+      revShare.bidTooLowPenaltyPmpe = value.bidTooLowPenaltyPmpe
+      validator.values.paidUndelegationSol += value.paidUndelegationSol
     }
   }
 
@@ -506,7 +495,8 @@ export class Auction {
     this.setBondStakeCapMaxPmpe()
     const result = this.evaluateOne()
     this.setStakeUnstakePriorities()
-    this.setEffectiveBids(result.winningTotalPmpe)
+    this.setAuctionEffectiveBids(result.winningTotalPmpe)
+    this.setEffParticipatingBids(result.winningTotalPmpe)
     this.setBondRiskFee()
     this.setBidTooLowPenalties(result.winningTotalPmpe)
     this.setMaxBondDelegations()
