@@ -227,11 +227,12 @@ export class Auction {
         ({ marinadeActivatedStakeSol }) => marinadeActivatedStakeSol
       ).find(x => x) ?? 0
       const delta = validator.marinadeActivatedStakeSol - lastActivatedStakeSol
-      values.marinadeActivatedStakeSolUndelegation = -Math.min(0, -delta)
+      const undelegation = -Math.min(0, delta)
+      values.marinadeActivatedStakeSolUndelegation = undelegation
       if (delta > 0.1 * values.paidUndelegationSol) {
         values.paidUndelegationSol = 0
       } else {
-        values.paidUndelegationSol += delta
+        values.paidUndelegationSol -= Math.min(undelegation, values.paidUndelegationSol)
       }
     }
   }
