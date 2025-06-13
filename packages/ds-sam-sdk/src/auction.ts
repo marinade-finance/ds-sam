@@ -1,4 +1,4 @@
-import { calcEffParticipatingBidPmpe, calculateBidTooLowPenalty } from './calculations'
+import { calcEffParticipatingBidPmpe, calcBidTooLowPenalty } from './calculations'
 import { AuctionData, AuctionResult, AuctionValidator } from './types'
 import { AuctionConstraints, bondBalanceRequiredForCurrentStake } from './constraints'
 import { DsSamConfig } from './config'
@@ -193,17 +193,19 @@ export class Auction {
   }
 
   setAuctionEffectiveBids(winningTotalPmpe: number) {
-    this.data.validators.forEach(({ revShare }) => {
+    for (const validator of this.data.validators) {
+      const { revShare } = validator
       if (revShare.totalPmpe < winningTotalPmpe) {
         revShare.auctionEffectiveBidPmpe = revShare.bidPmpe
       } else {
         revShare.auctionEffectiveBidPmpe = Math.max(0, winningTotalPmpe - revShare.inflationPmpe - revShare.mevPmpe)
       }
-    })
+    }
   }
 
   setEffParticipatingBids(winningTotalPmpe: number) {
-    for (const { revShare } in this.data.validators) {
+    for (const validator of this.data.validators) {
+      const { revShare } = validator
       revShare.effParticipatingBidPmpe = calcEffParticipatingBidPmpe(revShare, winningTotalPmpe)
     }
   }
@@ -211,10 +213,9 @@ export class Auction {
   setBidTooLowPenalties(winningTotalPmpe: number) {
     const k = this.config.bidTooLowPenaltyHistoryEpochs
     for (const validator of this.data.validators) {
-      const { bidTooLowPenalty, revShare, auctions } = validator
-      const value = calculateBidTooLowPenalty(k, validator)
-      Object.assign(bidTooLowPenalty, value.bidTooLowPenalty)
-      revShare.bidTooLowPenaltyPmpe = value.bidTooLowPenaltyPmpe
+      const value = calcBidTooLowPenalty(k, winningTotalPmpe, validator)
+      validator.bidTooLowPenalty = value.bidTooLowPenalty
+      validator.revShare.bidTooLowPenaltyPmpe = value.bidTooLowPenaltyPmpe
       validator.values.paidUndelegationSol += value.paidUndelegationSol
     }
   }
@@ -522,7 +523,7 @@ export class Auction {
     this.updatePaidUndelegation()
     this.setBondStakeCapMaxPmpe()
     const result = this.evaluateOne()
-    this.setEffectiveBids(result.winningTotalPmpe)
+    this.setAuctionEffectiveBids(result.winningTotalPmpe)
     const totalMarinadeSpend = result.auctionData.validators.reduce(
       (acc, entry) => acc + entry.revShare.auctionEffectiveBidPmpe * entry.marinadeActivatedStakeSol / 1000,
       0

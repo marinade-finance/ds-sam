@@ -17,7 +17,8 @@ import {
 import Decimal from 'decimal.js'
 import { AggregatedData, AggregatedValidator } from '../types'
 import fs from 'fs'
-import { MNDE_VOTE_DELEGATION_STRATEGY, calcEffParticipatingBidPmpe } from '../utils'
+import { MNDE_VOTE_DELEGATION_STRATEGY } from '../utils'
+import { calcEffParticipatingBidPmpe } from '../calculations'
 
 export class DataProvider {
   constructor (
