@@ -18,6 +18,53 @@ export const calcValidatorRevShare = (
   }
 }
 
+export type BondRiskFeeConfig = {
+  minBondEpochs: number
+  idealBondEpochs: number
+  minBondBalanceSol: number
+  bondRiskFeeMult: number
+}
+
+export type BondRiskFeeResult = {
+  bondForcedUndelegation: { base: number; coef: number; value: number }
+  bondRiskFee: number
+  paidUndelegationSol: number
+}
+
+export const calcBondRiskFee = (
+  cfg: BondRiskFeeConfig,
+  validator: AuctionValidator,
+): BondRiskFeeResult | null => {
+  const { revShare } = validator
+  const projectedActivatedStakeSol = validator.marinadeActivatedStakeSol - validator.values.paidUndelegationSol
+  const minBondCoef = (revShare.totalPmpe + cfg.minBondEpochs * revShare.effParticipatingBidPmpe) / 1000
+  const bondBalanceSol = validator.bondBalanceSol ?? 0
+  if (bondBalanceSol < projectedActivatedStakeSol * minBondCoef) {
+    const idealBondCoef = (revShare.totalPmpe + cfg.idealBondEpochs * revShare.effParticipatingBidPmpe) / 1000
+    const effPmpe = revShare.inflationPmpe + revShare.mevPmpe + revShare.auctionEffectiveBidPmpe
+    // always: base >= 0, since idealBondCoef >= minBondCoef, since idealBondEpochs >= minBondEpochs
+    const base = projectedActivatedStakeSol - bondBalanceSol / idealBondCoef
+    const coef = 1 - (effPmpe / 1000) / idealBondCoef
+    let value = coef > 0 ? Math.min(projectedActivatedStakeSol, base / coef) : projectedActivatedStakeSol
+    // always: value <= projectedActivatedStakeSol
+    if (projectedActivatedStakeSol - value < cfg.minBondBalanceSol / (revShare.totalPmpe / 1000)) {
+      value = projectedActivatedStakeSol
+    }
+    const bondRiskFee = cfg.bondRiskFeeMult * value * effPmpe / 1000
+    const paidUndelegationSol = cfg.bondRiskFeeMult * value
+    if (!isFinite(bondRiskFee)) {
+      throw new Error(`bondRiskFee has to be finite`)
+    }
+    return {
+      bondForcedUndelegation: { base, coef, value },
+      bondRiskFee,
+      paidUndelegationSol,
+    }
+  } else {
+    return null
+  }
+}
+
 export const calcEffParticipatingBidPmpe = (revShare: { inflationPmpe: number, mevPmpe: number }, winningTotalPmpe: number): number => {
   return Math.max(0, winningTotalPmpe - revShare.inflationPmpe - revShare.mevPmpe)
 }

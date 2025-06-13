@@ -1,4 +1,4 @@
-import { calcEffParticipatingBidPmpe, calcBidTooLowPenalty } from './calculations'
+import { calcBondRiskFee, calcEffParticipatingBidPmpe, calcBidTooLowPenalty } from './calculations'
 import { AuctionData, AuctionResult, AuctionValidator } from './types'
 import { AuctionConstraints, bondBalanceRequiredForCurrentStake } from './constraints'
 import { DsSamConfig } from './config'
@@ -242,28 +242,14 @@ export class Auction {
       if ((validator.lastBondBalanceSol ?? 0) < 1) {
         continue
       }
-      const { revShare } = validator
-      const projectedActivatedStakeSol = validator.marinadeActivatedStakeSol - validator.values.paidUndelegationSol
-      const minBondCoef = (revShare.totalPmpe + this.config.minBondEpochs * revShare.effParticipatingBidPmpe) / 1000
-      const bondBalanceSol = validator.bondBalanceSol ?? 0
-      if (bondBalanceSol < projectedActivatedStakeSol * minBondCoef) {
-        const idealBondCoef = (revShare.totalPmpe + this.config.idealBondEpochs * revShare.effParticipatingBidPmpe) / 1000
-        const effPmpe = revShare.inflationPmpe + revShare.mevPmpe + revShare.auctionEffectiveBidPmpe
-        // always: base >= 0, since idealBondCoef >= minBondCoef, since idealBondEpochs >= minBondEpochs
-        const base = projectedActivatedStakeSol - bondBalanceSol / idealBondCoef
-        const coef = 1 - (effPmpe / 1000) / idealBondCoef
-        let value = coef > 0 ? Math.min(projectedActivatedStakeSol, base / coef) : projectedActivatedStakeSol
-        // always: value <= projectedActivatedStakeSol
-        if (projectedActivatedStakeSol - value < this.config.minBondBalanceSol / (revShare.totalPmpe / 1000)) {
-          value = projectedActivatedStakeSol
-        }
-        validator.bondForcedUndelegation = { base, coef, value }
-        validator.values.bondRiskFee = this.config.bondRiskFeeMult * validator.bondForcedUndelegation.value * effPmpe / 1000
-        validator.values.paidUndelegationSol += this.config.bondRiskFeeMult * validator.bondForcedUndelegation.value
-        if (!isFinite(validator.values.bondRiskFee)) {
-          throw new Error(`bondRiskFee has to be finite`)
-        }
+      const value = calcBondRiskFee(this.config, validator)
+      if (value == null) {
+        return
       }
+      { bondForcedUndelegation, bondRiskFee, paidUndelegationSol } = value
+      validator.bondForcedUndelegation = bondForcedUndelegation
+      validator.values.bondRiskFee = bondRiskFee
+      validator.values.paidUndelegationSol += paidUndelegationSol
     }
   }
 
