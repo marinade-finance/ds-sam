@@ -474,6 +474,10 @@ export class Auction {
     this.debug.pushInfo('end amounts', JSON.stringify(this.data.stakeAmounts))
     this.debug.pushInfo('winning total PMPE', winningTotalPmpe.toString())
 
+    if (!isFinite(winningTotalPmpe)) {
+      throw new Error(`winningTotalPmpe has to be finite`)
+    }
+
     return {
       auctionData: this.data,
       winningTotalPmpe,
@@ -507,6 +511,7 @@ export class Auction {
     this.constraints.setBondStakeCapMaxPmpe(base + shift)
   }
 
+  
   evaluate (): AuctionResult {
     this.setMaxSpendRobustDelegations()
     this.updatePaidUndelegation()

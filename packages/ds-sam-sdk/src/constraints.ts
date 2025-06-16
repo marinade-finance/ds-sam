@@ -239,7 +239,7 @@ export class AuctionConstraints {
     // do not make validators over-collateralize
     const expectedMaxBid = this.config.bondStakeCapMaxPmpe - revShare.inflationPmpe - revShare.mevPmpe
     const bidPerStake = Math.min(validator.bidCpmpe ?? 0, expectedMaxBid) / 1000
-    const refundableDepositPerStake = Math.min(validator.revShare.totalPmpe, this.config.bondStakeCapMaxPmpe) / 1000
+    const refundableDepositPerStake = Math.min(revShare.totalPmpe, this.config.bondStakeCapMaxPmpe) / 1000
     const downtimeProtectionPerStake = 0
     const bondBalanceSol = Math.max((validator.bondBalanceSol ?? 0) - bondBalanceUsedForMnde(validator), 0)
     const limit = bondBalanceSol / (refundableDepositPerStake + downtimeProtectionPerStake + bidPerStake)
