@@ -2,7 +2,6 @@ import { AuctionValidator } from '../types'
 
 export type RawScoredValidatorDto = {
   voteAccount: string
-  bondBalanceSol?: number
   revShare: {
     auctionEffectiveBidPmpe: number
     bidPmpe: number
@@ -16,6 +15,7 @@ export type RawScoredValidatorDto = {
     adjSpendRobustReputationInflationFactor?: number
     projectedUndelegation?: number
     paidUndelegationSol?: number
+    bondBalanceSol?: number
   }
   marinadeActivatedStakeSol: number
   epoch: number

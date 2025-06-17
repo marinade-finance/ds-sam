@@ -75,6 +75,7 @@ export type AggregatedValidator = {
 }
 
 export type AuctionValidatorValues = {
+  bondBalanceSol: number | null
   spendRobustReputation: number
   adjMaxSpendRobustDelegation: number
   adjSpendRobustReputation: number

@@ -133,7 +133,7 @@ export class DataProvider {
         aso: validator.dc_aso ?? 'Unknown',
         country: validator.dc_country ?? 'Unknown',
         bondBalanceSol,
-        lastBondBalanceSol: lastAuctionHistory?.bondBalanceSol ?? bondBalanceSol,
+        lastBondBalanceSol: lastAuctionHistory?.values?.bondBalanceSol ?? null,
         totalActivatedStakeSol: new Decimal(validator.activated_stake).div(1e9).toNumber(),
         marinadeActivatedStakeSol: new Decimal(validator.marinade_stake).add(validator.marinade_native_stake).div(1e9).toNumber(),
         inflationCommissionDec,
@@ -143,6 +143,7 @@ export class DataProvider {
           ? new Decimal(bond.max_stake_wanted).div(1e9).toNumber()
           : null,
         values: {
+          bondBalanceSol,
           spendRobustReputation: override?.values.spendRobustReputation
             ?? lastAuctionHistory?.values?.spendRobustReputation
             ?? this.config.initialSpendRobustReputation,

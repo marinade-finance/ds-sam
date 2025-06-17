@@ -239,12 +239,13 @@ export class Auction {
 
   setBondRiskFee() {
     for (const validator of this.data.validators) {
-      if ((validator.lastBondBalanceSol ?? 0) < 1) {
+      if ((validator.lastBondBalanceSol ?? validator.bondBalanceSol ?? 0) < 1) {
         continue
       }
       const value = calcBondRiskFee(this.config, validator)
+      console.log(`bond: ${validator.voteAccount} ${JSON.stringify(value)}`)
       if (value == null) {
-        return
+        continue
       }
       const { bondForcedUndelegation, bondRiskFee, paidUndelegationSol } = value
       validator.bondForcedUndelegation = bondForcedUndelegation
