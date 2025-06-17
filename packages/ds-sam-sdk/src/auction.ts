@@ -223,13 +223,11 @@ export class Auction {
   updatePaidUndelegation() {
     for (const validator of this.data.validators) {
       const { values } = validator
-      const lastActivatedStakeSol = validator.auctions.map(
-        ({ marinadeActivatedStakeSol }) => marinadeActivatedStakeSol
-      ).find(x => x) ?? 0
-      const delta = validator.marinadeActivatedStakeSol - lastActivatedStakeSol
+      const delta = validator.lastMarinadeActivatedStakeSol
+        ? validator.marinadeActivatedStakeSol - validator.lastMarinadeActivatedStakeSol
+        : 0
       const undelegation = -Math.min(0, delta)
-      values.marinadeActivatedStakeSolUndelegation = undelegation
-      if (delta > 0.1 * values.paidUndelegationSol) {
+      if (delta > 0.1 * values.paidUndelegationSol || validator.marinadeActivatedStakeSol == 0) {
         values.paidUndelegationSol = 0
       } else {
         values.paidUndelegationSol -= Math.min(undelegation, values.paidUndelegationSol)
@@ -313,6 +311,12 @@ export class Auction {
         values.spendRobustReputation += marginalPmpeGain * totalMarinadeSpend
       }
       const coef = 1 / validator.values.adjSpendRobustReputationInflationFactor
+      values.marinadeActivatedStakeSolUndelegation = -Math.min(
+        0,
+        validator.lastMarinadeActivatedStakeSol
+          ? validator.marinadeActivatedStakeSol - validator.lastMarinadeActivatedStakeSol
+          : 0
+      )
       values.spendRobustReputation -= coef * values.marinadeActivatedStakeSolUndelegation * winningTotalPmpe / 1000
       values.spendRobustReputation = Math.max(
         this.config.minSpendRobustReputation,
@@ -488,6 +492,7 @@ export class Auction {
   evaluateFinal (): AuctionResult {
     this.setMaxSpendRobustDelegations()
     this.setBondStakeCapMaxPmpe()
+    this.updatePaidUndelegation()
     const result = this.evaluateOne()
     this.setStakeUnstakePriorities()
     this.setAuctionEffectiveBids(result.winningTotalPmpe)
@@ -515,7 +520,6 @@ export class Auction {
   
   evaluate (): AuctionResult {
     this.setMaxSpendRobustDelegations()
-    this.updatePaidUndelegation()
     this.setBondStakeCapMaxPmpe()
     const result = this.evaluateOne()
     this.setAuctionEffectiveBids(result.winningTotalPmpe)

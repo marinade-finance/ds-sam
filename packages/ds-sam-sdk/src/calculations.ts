@@ -56,7 +56,7 @@ export const calcBondRiskFee = (
       value = projectedActivatedStakeSol
     }
     const bondRiskFee = cfg.bondRiskFeeMult * value * feePmpe / 1000
-    const paidUndelegationSol = cfg.bondRiskFeeMult * value
+    const paidUndelegationSol = Math.min(1, cfg.bondRiskFeeMult) * value
     if (!isFinite(bondRiskFee)) {
       throw new Error(`bondRiskFee has to be finite`)
     }

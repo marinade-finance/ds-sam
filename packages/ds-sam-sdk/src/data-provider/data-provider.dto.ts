@@ -11,13 +11,13 @@ export type RawScoredValidatorDto = {
   }
   marinadeSamTargetSol: number
   values?: {
+    bondBalanceSol?: number
+    marinadeActivatedStakeSol?: number
     spendRobustReputation?: number
     adjSpendRobustReputationInflationFactor?: number
     projectedUndelegation?: number
     paidUndelegationSol?: number
-    bondBalanceSol?: number
   }
-  marinadeActivatedStakeSol: number
   epoch: number
 }
 

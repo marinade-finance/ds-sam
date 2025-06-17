@@ -89,7 +89,6 @@ export class DataProvider {
         auctionEffectiveBidPmpe: 0,
         bidPmpe: 0,
         effParticipatingBidPmpe: 0,
-        marinadeActivatedStakeSol: entry?.marinadeActivatedStakeSol ?? 0,
       }
     }
     return {
@@ -98,11 +97,11 @@ export class DataProvider {
       auctionEffectiveBidPmpe: revShare.auctionEffectiveBidPmpe,
       bidPmpe: revShare.bidPmpe,
       effParticipatingBidPmpe: calcEffParticipatingBidPmpe(revShare, auction.winningTotalPmpe),
-      marinadeActivatedStakeSol: entry?.marinadeActivatedStakeSol ?? 0,
     }
   }
 
   aggregateValidators (data: RawSourceData, validatorsMndeVotes: Map<string, Decimal>, solPerMnde: number, mndeStakeCapIncreases: Map<string, Decimal>, dataOverrides: SourceDataOverrides | null = null): AggregatedValidator[] {
+    console.log(JSON.stringify(data.auctions))
     const auctionHistoriesData = this.processAuctions(data.auctions)
     return data.validators.validators.map((validator): AggregatedValidator => {
       const bond = data.bonds.bonds.find(({ vote_account }) => validator.vote_account === vote_account)
@@ -125,6 +124,7 @@ export class DataProvider {
       ).find((auction) => auction)
       const auctions = auctionHistoriesData.map((auction) => this.extractAuctionHistoryStats(auction, validator))
       const bondBalanceSol = bond ? new Decimal(bond.effective_amount).div(1e9).toNumber() : null
+      const marinadeActivatedStakeSol = new Decimal(validator.marinade_stake).add(validator.marinade_native_stake).div(1e9).toNumber()
 
       return {
         voteAccount: validator.vote_account,
@@ -134,8 +134,9 @@ export class DataProvider {
         country: validator.dc_country ?? 'Unknown',
         bondBalanceSol,
         lastBondBalanceSol: lastAuctionHistory?.values?.bondBalanceSol ?? null,
+        lastMarinadeActivatedStakeSol: lastAuctionHistory?.values?.marinadeActivatedStakeSol ?? null,
         totalActivatedStakeSol: new Decimal(validator.activated_stake).div(1e9).toNumber(),
-        marinadeActivatedStakeSol: new Decimal(validator.marinade_stake).add(validator.marinade_native_stake).div(1e9).toNumber(),
+        marinadeActivatedStakeSol,
         inflationCommissionDec,
         mevCommissionDec,
         bidCpmpe: bond ? new Decimal(bond.cpmpe).div(1e9).toNumber() : null,
@@ -144,6 +145,7 @@ export class DataProvider {
           : null,
         values: {
           bondBalanceSol,
+          marinadeActivatedStakeSol,
           spendRobustReputation: override?.values.spendRobustReputation
             ?? lastAuctionHistory?.values?.spendRobustReputation
             ?? this.config.initialSpendRobustReputation,

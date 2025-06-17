@@ -63,6 +63,7 @@ export type AggregatedValidator = {
   lastBondBalanceSol: number | null
   totalActivatedStakeSol: number
   marinadeActivatedStakeSol: number
+  lastMarinadeActivatedStakeSol: number | null
   inflationCommissionDec: number
   mevCommissionDec: number | null
   bidCpmpe: number | null
@@ -76,6 +77,7 @@ export type AggregatedValidator = {
 
 export type AuctionValidatorValues = {
   bondBalanceSol: number | null
+  marinadeActivatedStakeSol: number
   spendRobustReputation: number
   adjMaxSpendRobustDelegation: number
   adjSpendRobustReputation: number
