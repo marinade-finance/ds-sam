@@ -1,10 +1,3 @@
-/**
- * Focused tests for updatePaidUndelegation:
- *   • delta = current - last
- *   • undeleg = max(delta, 0)
- *   • paid resets if delta > 10% of priorPaid, otherwise paid += delta
- */
-
 import { Debug } from '../src/debug'
 import { Auction } from '../src/auction'
 import { ineligibleValidatorAggDefaults } from '../src/utils'
@@ -17,23 +10,20 @@ describe('Auction.updatePaidUndelegation (simplified)', () => {
    * @param last     Marinade stake from the last epoch
    * @param current  Marinade stake for the current epoch
    * @param priorPaid previous paidUndelegationSol
-   * @returns        { undelegationAmount, paidUndelegationSol }
+   * @returns paidUndelegationSol
    */
   function run(
     last: number,
     current: number,
     priorPaid: number
-  ): {
-    undelegationAmount: number
-    paidUndelegationSol: number
-  } {
+  ): number {
     const aggDefaults = ineligibleValidatorAggDefaults()
     const data: AuctionData = {
       epoch: NaN,
       validators: [{
         voteAccount: 'v1',
-        auctions: [{ marinadeActivatedStakeSol: last }] as any,
         marinadeActivatedStakeSol: current,
+        lastMarinadeActivatedStakeSol: last,
         values: {
           paidUndelegationSol: priorPaid,
           marinadeActivatedStakeSolUndelegation: 0,
@@ -53,11 +43,7 @@ describe('Auction.updatePaidUndelegation (simplified)', () => {
     }
     const auction = new Auction(data, {} as any, {} as any, new Debug(new Set()))
     auction.updatePaidUndelegation()
-    const { values } = data.validators[0]!
-    return {
-      undelegationAmount: values.marinadeActivatedStakeSolUndelegation,
-      paidUndelegationSol: values.paidUndelegationSol
-    }
+    return data.validators[0]!.paidUndelegationSol
   }
 
   it('resets paid undelegation new there is a new delegation > 10% of paid undelegation', () => {
