@@ -232,6 +232,7 @@ export class Auction {
       } else {
         values.paidUndelegationSol -= Math.min(undelegation, values.paidUndelegationSol)
       }
+      values.paidUndelegationSol = Math.max(0, values.paidUndelegationSol)
     }
   }
 

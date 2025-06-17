@@ -41,14 +41,16 @@ export const calcBondRiskFee = (
   validator: AuctionValidator,
 ): BondRiskFeeResult | null => {
   const { revShare } = validator
-  const projectedActivatedStakeSol = validator.marinadeActivatedStakeSol - validator.values.paidUndelegationSol
+  const projectedActivatedStakeSol = Math.max(0, validator.marinadeActivatedStakeSol - validator.values.paidUndelegationSol)
   const minBondCoef = (revShare.totalPmpe + cfg.minBondEpochs * revShare.effParticipatingBidPmpe) / 1000
   const bondBalanceSol = validator.bondBalanceSol ?? 0
   if (bondBalanceSol < projectedActivatedStakeSol * minBondCoef) {
     const idealBondCoef = (revShare.totalPmpe + cfg.idealBondEpochs * revShare.effParticipatingBidPmpe) / 1000
     const feePmpe = revShare.inflationPmpe + revShare.mevPmpe + revShare.auctionEffectiveBidPmpe
-    // always: base >= 0, since idealBondCoef >= minBondCoef, since idealBondEpochs >= minBondEpochs
-    const base = projectedActivatedStakeSol - bondBalanceSol / idealBondCoef
+    // always: base >= 0, even with no max, since idealBondCoef >= minBondCoef, since idealBondEpochs >= minBondEpochs
+    // and we already ensured that bondBalanceSol / minBondCoef < projectedActivatedStakeSol above
+    // also, if minBondCoef == 0, then we can never get here, in the opposite case, idealBondCoef >= minBondCoef > 0
+    const base = Math.max(0, projectedActivatedStakeSol - bondBalanceSol / idealBondCoef)
     const coef = 1 - (feePmpe / 1000) / idealBondCoef
     let value = coef > 0 ? Math.min(projectedActivatedStakeSol, base / coef) : projectedActivatedStakeSol
     // always: value <= projectedActivatedStakeSol
@@ -60,6 +62,9 @@ export const calcBondRiskFee = (
     if (!isFinite(bondRiskFee)) {
       throw new Error(`bondRiskFee has to be finite`)
     }
+    if (bondRiskFee < 0) {
+      throw new Error(`bondRiskFee can not be negative`)
+    }
     return {
       bondForcedUndelegation: { base, coef, value, feePmpe },
       bondRiskFee,
@@ -70,9 +75,14 @@ export const calcBondRiskFee = (
   }
 }
 
-export const calcEffParticipatingBidPmpe = (revShare: { inflationPmpe: number, mevPmpe: number }, winningTotalPmpe: number): number => {
-  return Math.max(0, winningTotalPmpe - revShare.inflationPmpe - revShare.mevPmpe)
-}
+export const calcEffParticipatingBidPmpe = (
+  revShare: {
+    inflationPmpe: number,
+    mevPmpe: number
+  },
+  winningTotalPmpe: number
+): number =>
+  Math.max(0, winningTotalPmpe - revShare.inflationPmpe - revShare.mevPmpe)
 
 export type BidTooLowPenaltyResult = {
   bidTooLowPenalty: BidTooLowPenalty
@@ -85,16 +95,18 @@ export const calcBidTooLowPenalty = (
   winningTotalPmpe: number,
   validator: AuctionValidator
 ): BidTooLowPenaltyResult => {
-  const { bidTooLowPenalty, revShare, auctions } = validator
+  const tol_coef = 0.99999
+  const scale_coef = 1.5
+  const { revShare, auctions } = validator
   const historicalPmpe = auctions.slice(0, bidTooLowPenaltyHistoryEpochs).reduce(
     (acc, { effParticipatingBidPmpe }) => Math.min(acc, effParticipatingBidPmpe ?? Infinity),
     Infinity
   )
   const limit = Math.min(revShare.effParticipatingBidPmpe, historicalPmpe)
-  const penaltyCoef = limit > 0 ? Math.min(1, Math.sqrt(1.5 * Math.max(0, (limit - revShare.bidPmpe) / limit))) : 0
+  const penaltyCoef = limit > 0 ? Math.min(1, Math.sqrt(scale_coef * Math.max(0, (limit - revShare.bidPmpe) / limit))) : 0
   const bidTooLowPenaltyValue = {
     base: winningTotalPmpe + revShare.effParticipatingBidPmpe,
-    coef: revShare.bidPmpe < 0.99999 * (auctions.map(({ bidPmpe }) => bidPmpe).find(x => x) ?? 0)
+    coef: revShare.bidPmpe < tol_coef * (auctions.find(({ bidPmpe }) => bidPmpe)?.bidPmpe ?? 0)
       ? penaltyCoef
       : 0
   }

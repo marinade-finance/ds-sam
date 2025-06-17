@@ -111,8 +111,6 @@ describe('calcBondRiskFee', () => {
     expect(result.paidUndelegationSol).toBeCloseTo(5, 6)
   })
 
-  // removed non-finite throw test, calcBondRiskFee no longer throws for these inputs
-
   it('forces full undelegation when coefficient <= 0', () => {
     const revShare = { ...baseRevShare, totalPmpe: 1000, effParticipatingBidPmpe: 200, inflationPmpe: 500, mevPmpe: 300, auctionEffectiveBidPmpe: 200 }
     const validator = makeValidator({
