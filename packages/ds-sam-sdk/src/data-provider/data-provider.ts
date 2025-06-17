@@ -101,7 +101,6 @@ export class DataProvider {
   }
 
   aggregateValidators (data: RawSourceData, validatorsMndeVotes: Map<string, Decimal>, solPerMnde: number, mndeStakeCapIncreases: Map<string, Decimal>, dataOverrides: SourceDataOverrides | null = null): AggregatedValidator[] {
-    console.log(JSON.stringify(data.auctions))
     const auctionHistoriesData = this.processAuctions(data.auctions)
     return data.validators.validators.map((validator): AggregatedValidator => {
       const bond = data.bonds.bonds.find(({ vote_account }) => validator.vote_account === vote_account)
