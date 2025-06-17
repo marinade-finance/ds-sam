@@ -241,7 +241,6 @@ export class Auction {
         continue
       }
       const value = calcBondRiskFee(this.config, validator)
-      console.log(`bond: ${validator.voteAccount} ${JSON.stringify(value)}`)
       if (value == null) {
         continue
       }
