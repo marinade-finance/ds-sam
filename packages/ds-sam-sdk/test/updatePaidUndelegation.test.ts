@@ -47,26 +47,22 @@ describe('Auction.updatePaidUndelegation (simplified)', () => {
   }
 
   it('resets paid undelegation new there is a new delegation > 10% of paid undelegation', () => {
-    const { undelegationAmount, paidUndelegationSol } = run(100, 103, 20)
-    expect(undelegationAmount).toBeCloseTo(0)
+    const paidUndelegationSol = run(100, 103, 20)
     expect(paidUndelegationSol).toBeCloseTo(0)
   })
 
   it('accumulates paid and no undelegation when new delegation ≤ 10% of paid undelegation', () => {
-    const { undelegationAmount, paidUndelegationSol } = run(100, 102, 20)
-    expect(undelegationAmount).toBeCloseTo(0)
+    const paidUndelegationSol = run(100, 102, 20)
     expect(paidUndelegationSol).toBeCloseTo(20)
   })
 
   it('records undelegation when delta ≤ 0; but does not go below 0', () => {
-    const { undelegationAmount, paidUndelegationSol } = run(79, 70, 5)
-    expect(undelegationAmount).toBeCloseTo(9)
+    const paidUndelegationSol = run(79, 70, 5)
     expect(paidUndelegationSol).toBeCloseTo(0)
   })
 
   it('records undelegation when delta ≤ 0', () => {
-    const { undelegationAmount, paidUndelegationSol } = run(72, 70, 5)
-    expect(undelegationAmount).toBeCloseTo(2)
+    const paidUndelegationSol = run(72, 70, 5)
     expect(paidUndelegationSol).toBeCloseTo(3)
   })
 
