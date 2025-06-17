@@ -482,6 +482,10 @@ export class Auction {
       throw new Error(`winningTotalPmpe has to be finite`)
     }
 
+    if (winningTotalPmpe <= 0) {
+      throw new Error(`winningTotalPmpe has to be positive`)
+    }
+
     return {
       auctionData: this.data,
       winningTotalPmpe,

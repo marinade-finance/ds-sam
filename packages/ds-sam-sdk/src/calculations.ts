@@ -104,6 +104,9 @@ export const calcBidTooLowPenalty = (
   if (!isFinite(bidTooLowPenaltyPmpe)) {
     throw new Error('bidTooLowPenaltyPmpe has to be finite')
   }
+  if (!isFinite(paidUndelegationSol)) {
+    throw new Error('paidUndelegationSol has to be finite')
+  }
   return {
     bidTooLowPenalty: bidTooLowPenaltyValue,
     bidTooLowPenaltyPmpe,
