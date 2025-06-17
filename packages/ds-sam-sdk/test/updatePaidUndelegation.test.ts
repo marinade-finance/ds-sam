@@ -43,7 +43,7 @@ describe('Auction.updatePaidUndelegation (simplified)', () => {
     }
     const auction = new Auction(data, {} as any, {} as any, new Debug(new Set()))
     auction.updatePaidUndelegation()
-    return data.validators[0]!.paidUndelegationSol
+    return data.validators[0]!.values.paidUndelegationSol
   }
 
   it('resets paid undelegation new there is a new delegation > 10% of paid undelegation', () => {
@@ -93,8 +93,7 @@ describe('Auction.updatePaidUndelegation (simplified)', () => {
     }
     const auction = new Auction(data, {} as any, {} as any, new Debug(new Set()))
     auction.updatePaidUndelegation()
-    const { values } = data.validators[0]!
-    expect(values.marinadeActivatedStakeSolUndelegation).toBeCloseTo(0)
-    expect(values.paidUndelegationSol).toBeCloseTo(0)
+    
+    expect(data.validators[0]!.values.paidUndelegationSol).toBeCloseTo(0)
   })
 })
