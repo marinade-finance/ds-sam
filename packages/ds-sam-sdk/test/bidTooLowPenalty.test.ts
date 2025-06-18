@@ -15,9 +15,7 @@
  */
 import { calcBidTooLowPenalty as _nativeCalc } from '../src/calculations'
 import type { AuctionValidator } from '../src/types'
-
   
-// simplified wrapper matching native signature
 const calcBidTooLowPenalty = ({
   bidPmpe,
   inflationPmpe,

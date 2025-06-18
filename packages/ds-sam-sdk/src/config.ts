@@ -87,7 +87,8 @@ export type DsSamConfig = {
   // of the downtime and rugging risk
   idealBondEpochs: number
 
-  // The multiplier in the formula bondRiskFee = bondRiskFeeMult bondRisk
+  // The multiplier used in the bondRiskFee formula
+  // If set to zero, bondRiskFee is effectivelly disabled
   bondRiskFeeMult: number
 
   // The minimal bound for delegated stake a validator can set through maxStakeWanted
@@ -138,8 +139,8 @@ export const DEFAULT_CONFIG: DsSamConfig = {
   initialSpendRobustReputation: 1,
   minBondBalanceSol: 0,
   spendRobustReputationBondBoostCoef: 0,
-  minBondEpochs: 3,
-  idealBondEpochs: 10,
+  minBondEpochs: 1,
+  idealBondEpochs: 3,
   bondRiskFeeMult: 0,
   minMaxStakeWanted: null,
   expectedFeePmpe: 0,

@@ -355,6 +355,12 @@ export class Auction {
   setMaxSpendRobustDelegationsForValidator (validator: AuctionValidator) {
     const values = validator.values
     values.adjSpendRobustReputation = values.spendRobustReputation * values.adjSpendRobustReputationInflationFactor
+    if (!isFinite(values.adjSpendRobustReputation)) {
+      throw new Error(`adjSpendRobustReputation has to be finite`)
+    }
+    if (values.adjSpendRobustReputation < 0) {
+      throw new Error(`adjSpendRobustReputation can not be negative`)
+    }
     if (validator.revShare.totalPmpe > 0) {
       values.adjMaxSpendRobustDelegation = values.adjSpendRobustReputation / (validator.revShare.totalPmpe / 1000)
     } else {
@@ -448,6 +454,12 @@ export class Auction {
     const mult = this.config.spendRobustReputationMult ?? 1
     for (const entry of this.data.validators) {
       entry.values.adjSpendRobustReputationInflationFactor *= mult
+      if (!isFinite(entry.values.adjSpendRobustReputationInflationFactor)) {
+        throw new Error(`adjSpendRobustReputationInflationFactor has to be finite`)
+      }
+      if (entry.values.adjSpendRobustReputationInflationFactor < 0) {
+        throw new Error(`adjSpendRobustReputationInflationFactor can not be negative`)
+      }
       this.setMaxSpendRobustDelegationsForValidator(entry)
     }
     console.log(`SCALING factor found: ${mult * totalFactor}`)
@@ -520,7 +532,6 @@ export class Auction {
     const shift = this.config.expectedMaxWinningBidRatio * Math.max(0, result.winningTotalPmpe - base)
     this.constraints.setBondStakeCapMaxPmpe(base + shift)
   }
-
   
   evaluate (): AuctionResult {
     this.setMaxSpendRobustDelegations()
