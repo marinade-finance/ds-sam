@@ -111,13 +111,19 @@ export const calcBidTooLowPenalty = (
       : 0
   }
   const bidTooLowPenaltyPmpe = bidTooLowPenaltyValue.coef * bidTooLowPenaltyValue.base
-  const effPmpe = revShare.inflationPmpe + revShare.mevPmpe + revShare.auctionEffectiveBidPmpe
-  const paidUndelegationSol = bidTooLowPenaltyPmpe * validator.marinadeActivatedStakeSol / effPmpe
+  const auctionPmpe = revShare.inflationPmpe + revShare.mevPmpe + revShare.auctionEffectiveBidPmpe
+  const paidUndelegationSol = bidTooLowPenaltyPmpe * validator.marinadeActivatedStakeSol / auctionPmpe
   if (!isFinite(bidTooLowPenaltyPmpe)) {
-    throw new Error('bidTooLowPenaltyPmpe has to be finite')
+    throw new Error(`bidTooLowPenaltyPmpe has to be finite # ${JSON.stringify(bidTooLowPenaltyValue)}`)
+  }
+  if (bidTooLowPenaltyPmpe < 0) {
+    throw new Error(`bidTooLowPenaltyPmpe can not be negative # ${JSON.stringify(bidTooLowPenaltyValue)}`)
   }
   if (!isFinite(paidUndelegationSol)) {
-    throw new Error('paidUndelegationSol has to be finite')
+    throw new Error(`paidUndelegationSol has to be finite # ${JSON.stringify({ bidTooLowPenaltyPmpe, auctionPmpe })}`)
+  }
+  if (paidUndelegationSol < 0) {
+    throw new Error(`paidUndelegationSol can not be negative # ${JSON.stringify({ bidTooLowPenaltyPmpe, auctionPmpe })}`)
   }
   return {
     bidTooLowPenalty: bidTooLowPenaltyValue,

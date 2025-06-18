@@ -40,13 +40,13 @@ const calcBidTooLowPenalty = ({
       inflationPmpe,
       mevPmpe,
       effParticipatingBidPmpe: eff,
-      auctionEffectiveBidPmpe: NaN,
+      auctionEffectiveBidPmpe: 0.9 * eff,
       totalPmpe: NaN,
       bidTooLowPenaltyPmpe: NaN
     },
     auctions: pastEffParticipating.map(e => ({ effParticipatingBidPmpe: e, bidPmpe: e })),
     bidTooLowPenalty: { coef: NaN, base: NaN },
-    marinadeActivatedStakeSol: NaN
+    marinadeActivatedStakeSol: 1000
   } as unknown as AuctionValidator
 
   const res = _nativeCalc(historyLength, winningTotalPmpe, validator) as any
@@ -140,8 +140,8 @@ describe('calcBidTooLowPenalty', () => {
       bidPmpe: 0,
       inflationPmpe: 0,
       mevPmpe: 0,
-      winningTotalPmpe: 0,
-      pastEffParticipating: [0, 0, 0],
+      winningTotalPmpe: 1,
+      pastEffParticipating: [1, 0, 0],
       historyLength,
     })
     expect(res.coef).toBe(0)
