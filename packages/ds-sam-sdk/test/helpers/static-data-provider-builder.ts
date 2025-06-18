@@ -1,6 +1,6 @@
-import { DsSamConfig } from "../../src";
-import { ValidatorMockBuilder } from "./validator-mock-builder";
-import { StaticDataProvider } from "./static-data-provider";
+import { DsSamConfig } from '../../src'
+import { ValidatorMockBuilder } from './validator-mock-builder'
+import { StaticDataProvider } from './static-data-provider'
 
 export class StaticDataProviderBuilder {
   private validatorMockBuilders: ValidatorMockBuilder[] | null = null
@@ -8,27 +8,27 @@ export class StaticDataProviderBuilder {
   private mevRewardsPerEpoch: number | null = null
   private currentEpoch: number | null = null
 
-  withValidators(validatorMockBuilders: ValidatorMockBuilder[]) {
+  withValidators (validatorMockBuilders: ValidatorMockBuilder[]) {
     this.validatorMockBuilders = validatorMockBuilders
     return this
   }
 
-  withInflationRewardsPerEpoch(inflationRewardsPerEpoch: number) {
+  withInflationRewardsPerEpoch (inflationRewardsPerEpoch: number) {
     this.inflationRewardsPerEpoch = inflationRewardsPerEpoch
     return this
   }
 
-  withMevRewardsPerEpoch(mevRewardsPerEpoch: number) {
+  withMevRewardsPerEpoch (mevRewardsPerEpoch: number) {
     this.mevRewardsPerEpoch = mevRewardsPerEpoch
     return this
   }
 
-  withCurrentEpoch(epoch: number) {
+  withCurrentEpoch (epoch: number) {
     this.currentEpoch = epoch
     return this
   }
 
-  builder() {
+  builder () {
     const { validatorMockBuilders, inflationRewardsPerEpoch, mevRewardsPerEpoch, currentEpoch } = this
     if (validatorMockBuilders === null) {
       throw new Error('StaticDataProviderBuilder needs validators to be set')

@@ -1,7 +1,7 @@
 import { Debug } from '../src/debug'
 import { Auction } from '../src/auction'
 import { ineligibleValidatorAggDefaults } from '../src/utils'
-import type { AuctionData, AuctionValidator } from '../src/types'
+import type { AuctionData } from '../src/types'
 
 describe('Auction.updatePaidUndelegation (simplified)', () => {
   /**
@@ -12,7 +12,7 @@ describe('Auction.updatePaidUndelegation (simplified)', () => {
    * @param priorPaid previous paidUndelegationSol
    * @returns paidUndelegationSol
    */
-  function run(
+  function run (
     last: number,
     current: number,
     priorPaid: number
@@ -93,7 +93,7 @@ describe('Auction.updatePaidUndelegation (simplified)', () => {
     }
     const auction = new Auction(data, {} as any, {} as any, new Debug(new Set()))
     auction.updatePaidUndelegation()
-    
+
     expect(data.validators[0]!.values.paidUndelegationSol).toBeCloseTo(0)
   })
 })

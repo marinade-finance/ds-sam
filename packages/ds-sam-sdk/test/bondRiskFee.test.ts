@@ -26,14 +26,7 @@ const baseConfig: BondRiskFeeConfig = {
   bondRiskFeeMult: 0.1,
 }
 
-const zeroResult = {
-  bondForcedUndelegation: { base: 0, coef: 0, value: 0 },
-  bondRiskFee: 0,
-  paidUndelegationSol: 0,
-}
-
-// Helper to build a minimal AuctionValidator for calcBondRiskFee tests
-function makeValidator(overrides: {
+function makeValidator (overrides: {
   bondBalanceSol?: number
   lastBondBalanceSol?: number
   marinadeActivatedStakeSol?: number

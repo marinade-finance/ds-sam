@@ -105,7 +105,7 @@ export class AnalyzeRevenuesCommand extends CommandRunner {
       inputsSource: InputsSource.FILES,
       inputsCacheDirPath: options.inputsCacheDirPath,
     }
-    
+
     const config: AnalyzeRevenuesCommandOptions = { ...fileConfig, ...options }
     this.logger.log(`Running "${COMMAND_NAME}" command...`, { ...config })
 
@@ -116,7 +116,7 @@ export class AnalyzeRevenuesCommand extends CommandRunner {
       pastSnapshotValidatorsCollection = loadSnapshotValidatorsCollection(options.snapshotPastValidatorsFilePath)
       assert(
         pastSnapshotValidatorsCollection.epoch === snapshotValidatorsCollection.epoch -1,
-        "Epoch loaded from argument data '--snapshot-past-validators-file-path' has to be one less than the current snapshot epoch, " +
+        'Epoch loaded from argument data \'--snapshot-past-validators-file-path\' has to be one less than the current snapshot epoch, ' +
         `but validators epoch is ${snapshotValidatorsCollection.epoch} and past validators is ${pastSnapshotValidatorsCollection.epoch}`
       )
     }
@@ -138,7 +138,7 @@ export class AnalyzeRevenuesCommand extends CommandRunner {
     const auctionValidatorsCalculatedWithOverrides = dsSam.transformValidators(
       aggregatedData
     )
-    
+
     const revenueExpectations = this.evaluateRevenueExpectationForAuctionValidators(
       auctionDataCalculatedFromFixtures.auctionData.validators,
       auctionValidatorsCalculatedWithOverrides,
@@ -155,7 +155,7 @@ export class AnalyzeRevenuesCommand extends CommandRunner {
   }
 
   getPastValidatorCommissions = (
-      pastValidatorCollection: SnapshotValidatorsCollection | null
+    pastValidatorCollection: SnapshotValidatorsCollection | null
   ): PastValidatorCommissionsMap => {
     const commissionMap: PastValidatorCommissionsMap = new Map()
     if (pastValidatorCollection == null) {
@@ -186,7 +186,7 @@ export class AnalyzeRevenuesCommand extends CommandRunner {
     for (const validatorBefore of validatorsBefore) {
       const validatorAfter = validatorsAfter.find((v) => v.voteAccount === validatorBefore.voteAccount)
       if (!validatorAfter) {
-        this.logger.warn("Validator not present in the snapshot!", { voteAccount: validatorBefore.voteAccount })
+        this.logger.warn('Validator not present in the snapshot!', { voteAccount: validatorBefore.voteAccount })
         continue
       }
 
@@ -205,7 +205,7 @@ export class AnalyzeRevenuesCommand extends CommandRunner {
       // if validator increased commission (in comparison to last epoch) AND his auction bid is under the winning PMPE
       // he requires to top up the difference that is not covered by the bid (the part within winning PMPE range is covered by the bid)
       let beforeSamCommissionIncreasePmpe = 0
-      const lastEpochCommissions = pastValidatorCommissions.get(validatorBefore.voteAccount) ?? {inflation: 0, mev: null}
+      const lastEpochCommissions = pastValidatorCommissions.get(validatorBefore.voteAccount) ?? { inflation: 0, mev: null }
       const lastEpochInflationPmpe = rewards.inflationPmpe * (1.0 - lastEpochCommissions.inflation)
       if (
         // validatorBefore.revShare.inflationPmpe - inflation at time SAM was run
@@ -224,7 +224,6 @@ export class AnalyzeRevenuesCommand extends CommandRunner {
           validatorTotalPmpe: validatorAfter.revShare.totalPmpe,
         })
       }
-
 
       evaluation.push({
         voteAccount: validatorBefore.voteAccount,
@@ -258,7 +257,7 @@ export class AnalyzeRevenuesCommand extends CommandRunner {
     required: true,
     description: 'SDK param `inputsCacheDirPath`',
   })
-  parseOptInputsCacheDirPath(val: string) {
+  parseOptInputsCacheDirPath (val: string) {
     return val
   }
   @Option({
@@ -267,7 +266,7 @@ export class AnalyzeRevenuesCommand extends CommandRunner {
     required: true,
     description: 'Output JSON from SAM run to check data integrity',
   })
-  parseOptSamResultsFixtureFilePath(val: string) {
+  parseOptSamResultsFixtureFilePath (val: string) {
     return val
   }
   @Option({
@@ -275,7 +274,7 @@ export class AnalyzeRevenuesCommand extends CommandRunner {
     name: 'resultsFilePath',
     description: 'Output JSON with a result to this file',
   })
-  parseOptResultsFilePath(val: string) {
+  parseOptResultsFilePath (val: string) {
     return val
   }
   @Option({
@@ -284,7 +283,7 @@ export class AnalyzeRevenuesCommand extends CommandRunner {
     required: true,
     description: 'Validators.json parsed from Solana snapshot',
   })
-  parseOptSnapshotValidatorsFilePath(val: string) {
+  parseOptSnapshotValidatorsFilePath (val: string) {
     return val
   }
   @Option({
@@ -293,7 +292,7 @@ export class AnalyzeRevenuesCommand extends CommandRunner {
     required: false,
     description: 'Validators.json parsed from Solana snapshot from the previous epoch to --snapshot-validators-file-path',
   })
-  parseOptSnapshotPastValidatorsFilePath(val: string) {
+  parseOptSnapshotPastValidatorsFilePath (val: string) {
     return val
   }
 }

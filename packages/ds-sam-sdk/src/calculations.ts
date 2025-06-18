@@ -60,10 +60,10 @@ export const calcBondRiskFee = (
     const bondRiskFee = cfg.bondRiskFeeMult * value * feePmpe / 1000
     const paidUndelegationSol = Math.min(1, cfg.bondRiskFeeMult) * value
     if (!isFinite(bondRiskFee)) {
-      throw new Error(`bondRiskFee has to be finite`)
+      throw new Error('bondRiskFee has to be finite')
     }
     if (bondRiskFee < 0) {
-      throw new Error(`bondRiskFee can not be negative`)
+      throw new Error('bondRiskFee can not be negative')
     }
     return {
       bondForcedUndelegation: { base, coef, value, feePmpe },

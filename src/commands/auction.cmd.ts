@@ -47,7 +47,7 @@ export class AuctionCommand extends CommandRunner {
         ...result.auctionData,
         blacklist: Array.from(result.auctionData.blacklist),
         validators: result.auctionData.validators.map(({ lastCapConstraint, epochStats: _, ...validator }) =>
-          ({ ...validator, lastCapConstraint: lastCapConstraint && { ...lastCapConstraint, validators: lastCapConstraint.validators.length }}))
+          ({ ...validator, lastCapConstraint: lastCapConstraint && { ...lastCapConstraint, validators: lastCapConstraint.validators.length } }))
       }
     }, null, 2)
 
@@ -56,21 +56,21 @@ export class AuctionCommand extends CommandRunner {
   }
 
   formatResultSummary (result: AuctionResult): string {
-    const { validators, stakeAmounts: { networkTotalSol, marinadeMndeTvlSol, marinadeSamTvlSol }} = result.auctionData
+    const { validators, stakeAmounts: { networkTotalSol, marinadeMndeTvlSol, marinadeSamTvlSol } } = result.auctionData
     const eligibleValidators = validators.filter(({ mndeEligible, samEligible }) => mndeEligible || samEligible).length
     const stakedValidators = validators.filter(({ auctionStake: { marinadeMndeTargetSol, marinadeSamTargetSol } }) => marinadeMndeTargetSol + marinadeSamTargetSol > 0).length
     return [
-      `## Auction summary`,
-      `\n### Stake amounts`,
+      '## Auction summary',
+      '\n### Stake amounts',
       `- Total network stake = \`${networkTotalSol.toLocaleString()}\` SOL`,
       `- Total Marinade stake = \`${(marinadeMndeTvlSol + marinadeSamTvlSol).toLocaleString()}\` SOL`,
       `  - MNDE stake = \`${marinadeMndeTvlSol.toLocaleString()}\` SOL`,
       `  - SAM stake = \`${marinadeSamTvlSol.toLocaleString()}\` SOL`,
-      `\n### Results stats`,
+      '\n### Results stats',
       `- Auction winning rev share = \`${result.winningTotalPmpe}\` PMPE`,
       `- Eligible validators count = \`${eligibleValidators.toLocaleString()}\``,
       `- Staked validators count = \`${stakedValidators.toLocaleString()}\``,
-      ``,
+      '',
     ].join('\n')
   }
 
@@ -79,7 +79,7 @@ export class AuctionCommand extends CommandRunner {
     name: 'configFilePath',
     description: 'File to read base config from (overridden by other options)',
   })
-  parseOptConfigFilePath(val: string) {
+  parseOptConfigFilePath (val: string) {
     return val
   }
   @Option({
@@ -87,7 +87,7 @@ export class AuctionCommand extends CommandRunner {
     name: 'outputDirPath',
     description: 'File to write the results into',
   })
-  parseOptOutputFilePath(val: string) {
+  parseOptOutputFilePath (val: string) {
     return val
   }
 
@@ -97,7 +97,7 @@ export class AuctionCommand extends CommandRunner {
     description: 'SDK param `inputsSource`',
     choices: Object.values(InputsSource),
   })
-  parseOptInputsSource(val: string) {
+  parseOptInputsSource (val: string) {
     return val
   }
   @Option({
@@ -105,7 +105,7 @@ export class AuctionCommand extends CommandRunner {
     name: 'inputsCacheDirPath',
     description: 'SDK param `inputsCacheDirPath`',
   })
-  parseOptInputsCacheDirPath(val: string) {
+  parseOptInputsCacheDirPath (val: string) {
     return val
   }
   @Option({
@@ -113,7 +113,7 @@ export class AuctionCommand extends CommandRunner {
     name: 'cacheInputs',
     description: 'SDK param `cacheInputs`',
   })
-  parseOptCacheInputs() {
+  parseOptCacheInputs () {
     return true
   }
 
@@ -122,7 +122,7 @@ export class AuctionCommand extends CommandRunner {
     name: 'validatorsApiBaseUrl',
     description: 'SDK param `validatorsApiBaseUrl`',
   })
-  parseOptValidatorsApiBaseUrl(val: string) {
+  parseOptValidatorsApiBaseUrl (val: string) {
     return val
   }
   @Option({
@@ -130,7 +130,7 @@ export class AuctionCommand extends CommandRunner {
     name: 'bondsApiBaseUrl',
     description: 'SDK param `bondsApiBaseUrl`',
   })
-  parseOptBondsApiBaseUrl(val: string) {
+  parseOptBondsApiBaseUrl (val: string) {
     return val
   }
   @Option({
@@ -138,7 +138,7 @@ export class AuctionCommand extends CommandRunner {
     name: 'tvlInfoApiBaseUrl',
     description: 'SDK param `tvlInfoApiBaseUrl`',
   })
-  parseOptTvlInfoApiBaseUrl(val: string) {
+  parseOptTvlInfoApiBaseUrl (val: string) {
     return val
   }
   @Option({
@@ -146,7 +146,7 @@ export class AuctionCommand extends CommandRunner {
     name: 'blacklistApiBaseUrl',
     description: 'SDK param `blacklistApiBaseUrl`',
   })
-  parseOptBlacklistApiBaseUrl(val: string) {
+  parseOptBlacklistApiBaseUrl (val: string) {
     return val
   }
   @Option({
@@ -154,7 +154,7 @@ export class AuctionCommand extends CommandRunner {
     name: 'snapshotsApiBaseUrl',
     description: 'SDK param `snapshotsApiBaseUrl`',
   })
-  parseOptSnapshotsApiBaseUrl(val: string) {
+  parseOptSnapshotsApiBaseUrl (val: string) {
     return val
   }
 
@@ -163,7 +163,7 @@ export class AuctionCommand extends CommandRunner {
     name: 'rewardsEpochsCount',
     description: 'SDK param `rewardsEpochsCount`',
   })
-  parseOptRewardsEpochsCount(val: string) {
+  parseOptRewardsEpochsCount (val: string) {
     return this.nestCliUtilSvc.parseInt(val)
   }
   @Option({
@@ -171,7 +171,7 @@ export class AuctionCommand extends CommandRunner {
     name: 'validatorsUptimeEpochsCount',
     description: 'SDK param `validatorsUptimeEpochsCount`',
   })
-  parseOptValidatorsUptimeEpochsCount(val: string) {
+  parseOptValidatorsUptimeEpochsCount (val: string) {
     return this.nestCliUtilSvc.parseInt(val)
   }
   @Option({
@@ -179,7 +179,7 @@ export class AuctionCommand extends CommandRunner {
     name: 'validatorsUptimeThreshold',
     description: 'SDK param `validatorsUptimeThreshold`',
   })
-  parseOptValidatorsUptimeThreshold(val: string) {
+  parseOptValidatorsUptimeThreshold (val: string) {
     return this.nestCliUtilSvc.parseFloat(val)
   }
   @Option({
@@ -187,7 +187,7 @@ export class AuctionCommand extends CommandRunner {
     name: 'validatorsClientVersionSemverExpr',
     description: 'SDK param `validatorsClientVersionSemverExpr`',
   })
-  parseOptValidatorsClientVersionSemverExpr(val: string) {
+  parseOptValidatorsClientVersionSemverExpr (val: string) {
     return val
   }
   @Option({
@@ -195,7 +195,7 @@ export class AuctionCommand extends CommandRunner {
     name: 'validatorsMaxEffectiveCommissionDec',
     description: 'SDK param `validatorsMaxEffectiveCommissionDec`',
   })
-  parseOptValidatorsMaxEffectiveCommissionDec(val: string) {
+  parseOptValidatorsMaxEffectiveCommissionDec (val: string) {
     return this.nestCliUtilSvc.parseFloat(val)
   }
 
@@ -204,7 +204,7 @@ export class AuctionCommand extends CommandRunner {
     name: 'mndeDirectedStakeShareDec',
     description: 'SDK param `mndeDirectedStakeShareDec`',
   })
-  parseOptMndeDirectedStakeShareDec(val: string) {
+  parseOptMndeDirectedStakeShareDec (val: string) {
     return this.nestCliUtilSvc.parseFloat(val)
   }
   @Option({
@@ -212,7 +212,7 @@ export class AuctionCommand extends CommandRunner {
     name: 'maxMarinadeStakeConcentrationPerCountryDec',
     description: 'SDK param `maxMarinadeStakeConcentrationPerCountryDec`',
   })
-  parseOptMaxMarinadeStakeConcentrationPerCountryDec(val: string) {
+  parseOptMaxMarinadeStakeConcentrationPerCountryDec (val: string) {
     return this.nestCliUtilSvc.parseFloat(val)
   }
   @Option({
@@ -220,7 +220,7 @@ export class AuctionCommand extends CommandRunner {
     name: 'maxMarinadeStakeConcentrationPerAsoDec',
     description: 'SDK param `maxMarinadeStakeConcentrationPerAsoDec`',
   })
-  parseOptMaxMarinadeStakeConcentrationPerAsoDec(val: string) {
+  parseOptMaxMarinadeStakeConcentrationPerAsoDec (val: string) {
     return this.nestCliUtilSvc.parseFloat(val)
   }
   @Option({
@@ -228,7 +228,7 @@ export class AuctionCommand extends CommandRunner {
     name: 'maxNetworkStakeConcentrationPerCountryDec',
     description: 'SDK param `maxNetworkStakeConcentrationPerCountryDec`',
   })
-  parseOptMaxNetworkStakeConcentrationPerCountryDec(val: string) {
+  parseOptMaxNetworkStakeConcentrationPerCountryDec (val: string) {
     return this.nestCliUtilSvc.parseFloat(val)
   }
   @Option({
@@ -236,7 +236,7 @@ export class AuctionCommand extends CommandRunner {
     name: 'maxNetworkStakeConcentrationPerAsoDec',
     description: 'SDK param `maxNetworkStakeConcentrationPerAsoDec`',
   })
-  parseOptMaxNetworkStakeConcentrationPerAsoDec(val: string) {
+  parseOptMaxNetworkStakeConcentrationPerAsoDec (val: string) {
     return this.nestCliUtilSvc.parseFloat(val)
   }
   @Option({
@@ -244,7 +244,7 @@ export class AuctionCommand extends CommandRunner {
     name: 'maxMarinadeTvlSharePerValidatorDec',
     description: 'SDK param `maxMarinadeTvlSharePerValidatorDec`',
   })
-  parseOptMaxMarinadeTvlSharePerValidatorDec(val: string) {
+  parseOptMaxMarinadeTvlSharePerValidatorDec (val: string) {
     return this.nestCliUtilSvc.parseFloat(val)
   }
 
@@ -253,7 +253,7 @@ export class AuctionCommand extends CommandRunner {
     name: 'debugVoteAccounts',
     description: 'SDK param `debugVoteAccounts` (space separated)',
   })
-  parseOptDebugVoteAccounts(option: string, optionsAccumulator: string[] = []): string[] {
+  parseOptDebugVoteAccounts (option: string, optionsAccumulator: string[] = []): string[] {
     optionsAccumulator.push(option)
     return optionsAccumulator
   }
@@ -263,7 +263,7 @@ export class AuctionCommand extends CommandRunner {
     name: 'runFinalOnly',
     description: 'Run the final auction only. Do not update reputations and limits',
   })
-  parseOptRunFinalOnly(option: string): boolean {
+  parseOptRunFinalOnly (_: string): boolean {
     return true
   }
 }

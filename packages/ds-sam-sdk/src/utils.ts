@@ -1,4 +1,4 @@
-import { RevShare, Rewards, AggregatedValidator, AuctionValidator, AuctionConstraint, AuctionConstraintType } from './types'
+import { AuctionValidator, AuctionConstraint, AuctionConstraintType } from './types'
 
 export const MNDE_VOTE_DELEGATION_STRATEGY = 'MarinadeA1gorithmicDe1egationStrategy111111'
 

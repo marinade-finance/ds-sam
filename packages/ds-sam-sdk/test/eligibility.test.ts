@@ -1,6 +1,6 @@
-import { DsSamSDK } from "../src"
-import { defaultStaticDataProviderBuilder } from "./helpers/static-data-provider-builder"
-import { ValidatorMockBuilder, generateIdentities, generateVoteAccounts } from "./helpers/validator-mock-builder"
+import { DsSamSDK } from '../src'
+import { defaultStaticDataProviderBuilder } from './helpers/static-data-provider-builder'
+import { ValidatorMockBuilder, generateIdentities, generateVoteAccounts } from './helpers/validator-mock-builder'
 import { assertValidatorIneligible, findValidatorInResult } from './helpers/utils'
 
 describe('eligibility', () => {

@@ -15,7 +15,7 @@ import { ineligibleValidatorAggDefaults, validatorAggDefaults } from './utils'
 import { calcValidatorRevShare } from './calculations'
 import { AuctionConstraints } from './constraints'
 import { Debug } from './debug'
-import { SourceDataOverrides, RawSourceData } from './data-provider/data-provider.dto'
+import { SourceDataOverrides } from './data-provider/data-provider.dto'
 
 export const defaultDataProviderBuilder = (config: DsSamConfig) => new DataProvider({ ...config }, config.inputsSource)
 

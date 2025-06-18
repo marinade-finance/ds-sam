@@ -1,8 +1,8 @@
-import { CommandFactory } from "nest-commander"
+import { CommandFactory } from 'nest-commander'
 import { CliModule } from '../src/cli.module'
 import { Logger } from '../src/logger'
-import { AnalyzeRevenuesCommand } from "../src/commands/analyze-revenue.cmd"
-import path from "path"
+import { AnalyzeRevenuesCommand } from '../src/commands/analyze-revenue.cmd'
+import path from 'path'
 
 describe('revenue analysis', () => {
   describe('running the whole flow', () => {

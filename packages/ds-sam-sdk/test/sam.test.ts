@@ -1,7 +1,7 @@
-import { DsSamSDK } from "../src"
-import { StaticDataProviderBuilder, defaultStaticDataProviderBuilder } from "./helpers/static-data-provider-builder"
-import { prettyPrintAuctionResult, prettyPrintStakeUnstakePriorities } from "./helpers/utils"
-import { ValidatorMockBuilder, generateIdentities, generateVoteAccounts } from "./helpers/validator-mock-builder"
+import { DsSamSDK } from '../src'
+import { defaultStaticDataProviderBuilder } from './helpers/static-data-provider-builder'
+import { prettyPrintAuctionResult, prettyPrintStakeUnstakePriorities } from './helpers/utils'
+import { ValidatorMockBuilder, generateIdentities, generateVoteAccounts } from './helpers/validator-mock-builder'
 import { MNDE_VOTE_DELEGATION_STRATEGY } from '../src/utils'
 
 describe('sam', () => {

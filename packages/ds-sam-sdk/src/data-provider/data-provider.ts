@@ -3,7 +3,6 @@ import { DsSamConfig, InputsSource } from '../config'
 import {
   RawBlacklistResponseDto,
   RawBondsResponseDto,
-  RawBondDto,
   RawMevInfoResponseDto, RawMndeVotesResponseDto, RawRewardsRecordDto,
   RawRewardsResponseDto, RawSourceData, RawTvlResponseDto,
   RawValidatorsResponseDto,
@@ -30,21 +29,21 @@ export class DataProvider {
 
   private validateConfig () {
     switch (this.dataSource) {
-      case InputsSource.APIS:
-        if (this.config.cacheInputs && !this.config.inputsCacheDirPath) {
-          throw new Error('Cannot cache inputs without cache directory path configured')
-        }
-        break
-      case InputsSource.FILES:
-        if (!this.config.inputsCacheDirPath) {
-          throw new Error(`Missing inputs cache directory path for inputs source: ${this.dataSource}`)
-        }
-        if (this.config.cacheInputs) {
-          throw new Error(`Caching inputs not supported for inputs source: ${this.dataSource}`)
-        }
-        break
-      default:
-        throw new Error(`Unsupported inputs source: ${this.dataSource}`)
+    case InputsSource.APIS:
+      if (this.config.cacheInputs && !this.config.inputsCacheDirPath) {
+        throw new Error('Cannot cache inputs without cache directory path configured')
+      }
+      break
+    case InputsSource.FILES:
+      if (!this.config.inputsCacheDirPath) {
+        throw new Error(`Missing inputs cache directory path for inputs source: ${this.dataSource}`)
+      }
+      if (this.config.cacheInputs) {
+        throw new Error(`Caching inputs not supported for inputs source: ${this.dataSource}`)
+      }
+      break
+    default:
+      throw new Error(`Unsupported inputs source: ${this.dataSource}`)
     }
   }
 
@@ -83,7 +82,7 @@ export class DataProvider {
     const revShare = entry?.revShare
     if (revShare == null) {
       console.log(`validator ${validator.vote_account} did not participate in auction in epoch ${auction.epoch}`)
-      return  {
+      return {
         epoch: auction.epoch,
         winningTotalPmpe: auction.winningTotalPmpe,
         auctionEffectiveBidPmpe: 0,
@@ -263,14 +262,14 @@ export class DataProvider {
     const auctionsFile = `${this.config.inputsCacheDirPath}/auctions.json`
     const auctions: RawScoredValidatorDto[] =
       fs.existsSync(auctionsFile)
-      ? JSON.parse(fs.readFileSync(auctionsFile).toString())
-      : []
+        ? JSON.parse(fs.readFileSync(auctionsFile).toString())
+        : []
 
     const overridesFile = `${this.config.inputsCacheDirPath}/overrides.json`
     const overrides: RawOverrideDataDto =
       fs.existsSync(overridesFile)
-      ? JSON.parse(fs.readFileSync(overridesFile).toString())
-      : undefined
+        ? JSON.parse(fs.readFileSync(overridesFile).toString())
+        : undefined
 
     return { validators, mevInfo, bonds, tvlInfo, mndeVotes, rewards, blacklist, auctions, overrides }
   }
