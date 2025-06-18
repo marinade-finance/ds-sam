@@ -103,7 +103,9 @@ export const calcBidTooLowPenalty = (
     Infinity
   )
   const limit = Math.min(revShare.effParticipatingBidPmpe, historicalPmpe)
-  const penaltyCoef = limit > 0 ? Math.min(1, Math.sqrt(scale_coef * Math.max(0, (limit - revShare.bidPmpe) / limit))) : 0
+  const penaltyCoef = limit > 0
+    ? Math.min(1, Math.sqrt(scale_coef * Math.max(0, (limit - revShare.bidPmpe) / limit)))
+    : 0
   const bidTooLowPenaltyValue = {
     base: winningTotalPmpe + revShare.effParticipatingBidPmpe,
     coef: revShare.bidPmpe < tol_coef * (auctions.find(({ bidPmpe }) => bidPmpe)?.bidPmpe ?? 0)
@@ -112,7 +114,9 @@ export const calcBidTooLowPenalty = (
   }
   const bidTooLowPenaltyPmpe = bidTooLowPenaltyValue.coef * bidTooLowPenaltyValue.base
   const auctionPmpe = revShare.inflationPmpe + revShare.mevPmpe + revShare.auctionEffectiveBidPmpe
-  const paidUndelegationSol = bidTooLowPenaltyPmpe * validator.marinadeActivatedStakeSol / auctionPmpe
+  const paidUndelegationSol = bidTooLowPenaltyPmpe > 0
+    ? bidTooLowPenaltyPmpe * validator.marinadeActivatedStakeSol / auctionPmpe
+    : 0
   if (!isFinite(bidTooLowPenaltyPmpe)) {
     throw new Error(`bidTooLowPenaltyPmpe has to be finite # ${JSON.stringify(bidTooLowPenaltyValue)}`)
   }

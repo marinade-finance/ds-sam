@@ -140,7 +140,7 @@ describe('calcBidTooLowPenalty', () => {
       bidPmpe: 0,
       inflationPmpe: 0,
       mevPmpe: 0,
-      winningTotalPmpe: 1,
+      winningTotalPmpe: 0,
       pastEffParticipating: [1, 0, 0],
       historyLength,
     })
