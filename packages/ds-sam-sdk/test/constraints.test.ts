@@ -425,6 +425,6 @@ describe('findCapForValidator when cap > EPSILON', () => {
       rewards:{ inflationPmpe:0,mevPmpe:0 }, blacklist:new Set() })
     const cap = c.findCapForValidator(z1)
     expect(cap).toBeGreaterThan(0)
-    expect(z1.lastCapConstraint).toBeUndefined()
+    expect(z1.lastCapConstraint).toBeNull()
   })
 })
