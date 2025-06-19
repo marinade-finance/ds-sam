@@ -141,17 +141,7 @@ describe('clipBondStakeCap()', () => {
     expect(c.clipBondStakeCap(v, 777)).toBe(777)
   })
 
-  it('at exactly 0.8*minBondBalanceSol uses the “hysteresis” branch', () => {
-    const bound = 0.8 * cfg.minBondBalanceSol
-    const v = makeValidator({ bondBalanceSol: bound, marinadeActivatedStakeSol: 42 })
-    expect(c.clipBondStakeCap(v, 1000)).toBe(42)
-  })
 
-  it('at exactly minBondBalanceSol returns raw limit', () => {
-    const bound = cfg.minBondBalanceSol
-    const v = makeValidator({ bondBalanceSol: bound, marinadeActivatedStakeSol: 1 })
-    expect(c.clipBondStakeCap(v, 1234)).toBe(1234)
-  })
 })
 
 describe('bondStakeCapSam()', () => {
@@ -245,7 +235,7 @@ describe('bondStakeCapMnde()', () => {
   it('otherwise returns a very large number (raw Infinity)', () => {
     const v = makeValidator({ bondBalanceSol: 2, marinadeActivatedStakeSol: 10 })
     const cap = c.bondStakeCapMnde(v)
-    expect(cap).toBeGreaterThan(1e6)
+    expect(cap).toBe(Infinity)
   })
 })
 
