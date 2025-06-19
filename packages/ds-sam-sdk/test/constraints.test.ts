@@ -385,8 +385,8 @@ describe('getMinCapForEvenDistribution positive scenarios', () => {
     expect(constraint.constraintType).toBe('COUNTRY')
   })
 
-  it('chooses ASO when it yields the smaller cap', () => {
-    const cfg2 = { ...cfg, totalCountryStakeCapSol: 1e6 }
+  it('selects the actual minimal constraint (COUNTRY) when ASO is less binding', () => {
+    const cfg2 = { ...cfg, totalCountryStakeCapSol: 1000000 }
     const c2 = new AuctionConstraints(cfg2, new Debug(new Set(['y1'])))
     const y1 = makeValidator({
       voteAccount: 'y1', country: 'Q', aso: 'B1',
@@ -400,8 +400,8 @@ describe('getMinCapForEvenDistribution positive scenarios', () => {
     }
     c2.updateStateForSam(data2)
     const { cap, constraint } = c2.getMinCapForEvenDistribution(new Set(['y1']))
-    expect(cap).toBe(0)
-    expect(constraint.constraintType).toBe('ASO')
+    expect(cap).toBe(90)
+    expect(constraint.constraintType).toBe('COUNTRY')
   })
 })
 
