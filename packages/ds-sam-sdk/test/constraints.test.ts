@@ -140,8 +140,6 @@ describe('clipBondStakeCap()', () => {
     })
     expect(c.clipBondStakeCap(v, 777)).toBe(777)
   })
-
-
 })
 
 describe('bondStakeCapSam()', () => {
