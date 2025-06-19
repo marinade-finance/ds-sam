@@ -510,7 +510,7 @@ export class Auction {
       revShare.expectedMaxEffBidPmpe = Math.min(revShare.bidPmpe, expectedMaxTotalPmpe - revShare.inflationPmpe - revShare.mevPmpe)
     }
   }
-    
+
   updateExpectedMaxEffBidPmpe () {
     if (this.config.expectedMaxWinningBidRatio == null) {
       return
