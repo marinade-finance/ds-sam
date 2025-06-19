@@ -58,7 +58,7 @@ import { Debug } from '../src/debug'
  * Minimal stub factory for AuctionValidator, re-using your ineligibleValidatorAggDefaults
  * and then merging in only the fields the cap functions actually read.
  */
-function makeValidator(overrides: any): AuctionValidator {
+function makeValidator (overrides: any): AuctionValidator {
   const base = {
     ...ineligibleValidatorAggDefaults(),
     voteAccount: 'v',
@@ -198,8 +198,8 @@ describe('bondStakeCapSam()', () => {
       bondBalanceSol: 1000,
       marinadeActivatedStakeSol: 70000,
       revShare: { inflationPmpe:0, mevPmpe:0, bidPmpe:0, totalPmpe:0,
-                 auctionEffectiveBidPmpe:0, effParticipatingBidPmpe:0,
-                 expectedMaxEffBidPmpe:5, bidTooLowPenaltyPmpe:0 },
+        auctionEffectiveBidPmpe:0, effParticipatingBidPmpe:0,
+        expectedMaxEffBidPmpe:5, bidTooLowPenaltyPmpe:0 },
     })
     expect(c2.bondStakeCapSam(v)).toBe(70000)
   })
@@ -215,8 +215,8 @@ describe('bondStakeCapSam()', () => {
       bondBalanceSol: 1000,
       marinadeActivatedStakeSol: 200000,
       revShare: { inflationPmpe:0, mevPmpe:0, bidPmpe:0, totalPmpe:0,
-                 auctionEffectiveBidPmpe:0, effParticipatingBidPmpe:0,
-                 expectedMaxEffBidPmpe:5, bidTooLowPenaltyPmpe:0 },
+        auctionEffectiveBidPmpe:0, effParticipatingBidPmpe:0,
+        expectedMaxEffBidPmpe:5, bidTooLowPenaltyPmpe:0 },
     })
     expect(c3.bondStakeCapSam(v)).toBeCloseTo(100000, 0)
   })
@@ -374,7 +374,7 @@ describe('getMinCapForEvenDistribution positive scenarios', () => {
       epoch: 0,
       validators: [x1,x2],
       stakeAmounts: { networkTotalSol:0, marinadeMndeTvlSol:0, marinadeSamTvlSol:0,
-                      marinadeRemainingMndeSol:0, marinadeRemainingSamSol:0 },
+        marinadeRemainingMndeSol:0, marinadeRemainingSamSol:0 },
       rewards:{ inflationPmpe:0, mevPmpe:0 },
       blacklist: new Set(),
     }
@@ -395,7 +395,7 @@ describe('getMinCapForEvenDistribution positive scenarios', () => {
     const data2: AuctionData = {
       epoch: 0, validators: [y1],
       stakeAmounts: { networkTotalSol:0, marinadeMndeTvlSol:0, marinadeSamTvlSol:0,
-                      marinadeRemainingMndeSol:0, marinadeRemainingSamSol:0 },
+        marinadeRemainingMndeSol:0, marinadeRemainingSamSol:0 },
       rewards:{ inflationPmpe:0, mevPmpe:0 }, blacklist:new Set(),
     }
     c2.updateStateForSam(data2)
@@ -408,9 +408,9 @@ describe('getMinCapForEvenDistribution positive scenarios', () => {
 describe('findCapForValidator when cap > EPSILON', () => {
   const cfg: AuctionConstraintsConfig = {
     ...{ totalCountryStakeCapSol: 100, totalAsoStakeCapSol:100, marinadeCountryStakeCapSol:50,
-         marinadeAsoStakeCapSol:100, marinadeValidatorStakeCapSol:100,
-         spendRobustReputationMult:null, minBondBalanceSol:0, minMaxStakeWanted:0,
-         minBondEpochs:0, idealBondEpochs:0 },
+      marinadeAsoStakeCapSol:100, marinadeValidatorStakeCapSol:100,
+      spendRobustReputationMult:null, minBondBalanceSol:0, minMaxStakeWanted:0,
+      minBondEpochs:0, idealBondEpochs:0 },
   }
   const debug = new Debug(new Set(['z1']))
   const c = new AuctionConstraints(cfg, debug)
@@ -420,9 +420,9 @@ describe('findCapForValidator when cap > EPSILON', () => {
   })
   it('does not set lastCapConstraint when cap is positive', () => {
     c.updateStateForSam({ epoch:0, validators:[z1],
-      stakeAmounts:{networkTotalSol:0,marinadeMndeTvlSol:0,marinadeSamTvlSol:0,
-                    marinadeRemainingMndeSol:0, marinadeRemainingSamSol:0},
-      rewards:{inflationPmpe:0,mevPmpe:0}, blacklist:new Set() })
+      stakeAmounts:{ networkTotalSol:0,marinadeMndeTvlSol:0,marinadeSamTvlSol:0,
+        marinadeRemainingMndeSol:0, marinadeRemainingSamSol:0 },
+      rewards:{ inflationPmpe:0,mevPmpe:0 }, blacklist:new Set() })
     const cap = c.findCapForValidator(z1)
     expect(cap).toBeGreaterThan(0)
     expect(z1.lastCapConstraint).toBeUndefined()
