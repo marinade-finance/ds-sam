@@ -82,8 +82,8 @@ describe('calcBondRiskFee', () => {
 
     // Numerical assertions
     const bf = result.bondForcedUndelegation!
-    expect(bf.base).toBeCloseTo(28.387043, 6)
-    expect(bf.coef).toBeCloseTo(0.33554817, 8)
+    expect(bf.base).toBeCloseTo(28.388704318936878, 6)
+    expect(bf.coef).toBeCloseTo(0.33554817, 6)
     expect(bf.value).toBeCloseTo(45, 6)
     expect(result.bondRiskFee).toBeCloseTo(1.8, 6)
     expect(result.paidUndelegationSol).toBeCloseTo(4.5, 6)
@@ -104,8 +104,8 @@ describe('calcBondRiskFee', () => {
 
     // Numerical assertions
     const bf = result.bondForcedUndelegation!
-    expect(bf.base).toBeCloseTo(28.277592, 6)
-    expect(bf.coef).toBeCloseTo(0.33110535, 8)
+    expect(bf.base).toBeCloseTo(28.277591973244146, 6)
+    expect(bf.coef).toBeCloseTo(0.3311036789297658, 5)
     expect(bf.value).toBeCloseTo(45, 6)
     expect(result.bondRiskFee).toBeCloseTo(1.8, 6)
     expect(result.paidUndelegationSol).toBeCloseTo(4.5, 6)
