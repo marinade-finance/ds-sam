@@ -69,7 +69,7 @@ describe('calcBondRiskFee', () => {
 
   it('computes forced undelegation and fee correctly when expected max pmpe > auction eff pmpe', () => {
     const validator = makeValidator({
-      bondBalanceSol: 30,
+      bondBalanceSol: 10,
       lastBondBalanceSol: 50,
       marinadeActivatedStakeSol: 50,
       values: { paidUndelegationSol: 5 },
@@ -81,16 +81,17 @@ describe('calcBondRiskFee', () => {
     expect(result.paidUndelegationSol).toBeDefined()
 
     // Numerical assertions
-    expect(result.bondForcedUndelegation!.base).toBeCloseTo(11.666667, 6)
-    expect(result.bondForcedUndelegation!.coef).toBeCloseTo(0.5555556, 6)
-    expect(result.bondForcedUndelegation!.value).toBeCloseTo(21, 6)
-    expect(result.bondRiskFee).toBeCloseTo(0.84, 6)
-    expect(result.paidUndelegationSol).toBeCloseTo(2.1, 6)
+    const bf = result.bondForcedUndelegation!
+    expect(bf.base).toBeCloseTo(28.3887, 4)
+    expect(bf.coef).toBeCloseTo(0.3356, 4)
+    expect(bf.value).toBeCloseTo(45, 6)
+    expect(result.bondRiskFee).toBeCloseTo(1.8, 6)
+    expect(result.paidUndelegationSol).toBeCloseTo(4.5, 6)
   })
 
   it('computes forced undelegation and fee correctly when expected max pmpe < auction eff pmpe', () => {
     const validator = makeValidator({
-      bondBalanceSol: 30,
+      bondBalanceSol: 10,
       lastBondBalanceSol: 50,
       marinadeActivatedStakeSol: 50,
       values: { paidUndelegationSol: 5 },
@@ -102,11 +103,12 @@ describe('calcBondRiskFee', () => {
     expect(result.paidUndelegationSol).toBeDefined()
 
     // Numerical assertions
-    expect(result.bondForcedUndelegation!.base).toBeCloseTo(11.666667, 6)
-    expect(result.bondForcedUndelegation!.coef).toBeCloseTo(0.5555556, 6)
-    expect(result.bondForcedUndelegation!.value).toBeCloseTo(21, 6)
-    expect(result.bondRiskFee).toBeCloseTo(0.84, 6)
-    expect(result.paidUndelegationSol).toBeCloseTo(2.1, 6)
+    const bf = result.bondForcedUndelegation!
+    expect(bf.base).toBeCloseTo(28.3887, 4)
+    expect(bf.coef).toBeCloseTo(0.3356, 4)
+    expect(bf.value).toBeCloseTo(45, 6)
+    expect(result.bondRiskFee).toBeCloseTo(1.8, 6)
+    expect(result.paidUndelegationSol).toBeCloseTo(4.5, 6)
   })
 
   it('clamps full undelegation when floor threshold met', () => {
