@@ -1,28 +1,6 @@
-import { RevShare, Rewards, AggregatedValidator, AuctionValidator, AuctionConstraint, AuctionConstraintType } from './types'
+import { AuctionValidator, AuctionConstraint, AuctionConstraintType } from './types'
 
 export const MNDE_VOTE_DELEGATION_STRATEGY = 'MarinadeA1gorithmicDe1egationStrategy111111'
-
-export const calcValidatorRevShare = (
-  validator: { bidCpmpe: number | null, mevCommissionDec: number | null, inflationCommissionDec: number },
-  rewards: Rewards
-): RevShare => {
-  const inflationPmpe = Math.max(0, rewards.inflationPmpe * (1 - validator.inflationCommissionDec))
-  const mevPmpe = Math.max(0, rewards.mevPmpe * (1 - (validator.mevCommissionDec ?? 1)))
-  const bidPmpe = Math.max(0, validator.bidCpmpe ?? 0)
-  return {
-    totalPmpe: inflationPmpe + mevPmpe + bidPmpe,
-    inflationPmpe,
-    mevPmpe,
-    bidPmpe,
-    auctionEffectiveBidPmpe: NaN,
-    bidTooLowPenaltyPmpe: NaN,
-    effParticipatingBidPmpe: NaN,
-  }
-}
-
-export const calcEffParticipatingBidPmpe = (revShare: { inflationPmpe: number, mevPmpe: number }, winningTotalPmpe: number): number => {
-  return Math.max(0, winningTotalPmpe - revShare.inflationPmpe - revShare.mevPmpe)
-}
 
 export const ineligibleValidatorAggDefaults = () => ({ samEligible: false, mndeEligible: false, ...validatorAggDefaults() })
 
@@ -33,6 +11,11 @@ export const validatorAggDefaults = () => ({
   bidTooLowPenalty: {
     coef: 0,
     base: 0,
+  },
+  bondForcedUndelegation: {
+    coef: 0,
+    base: 0,
+    value: 0,
   },
   samBlocked: false,
   maxBondDelegation: NaN,

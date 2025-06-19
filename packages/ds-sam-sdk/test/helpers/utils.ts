@@ -1,4 +1,4 @@
-import { AuctionResult, AuctionValidator } from "../../src"
+import { AuctionResult, AuctionValidator } from '../../src'
 import { formatLastCapConstraint } from '../../src/utils'
 
 export const isNotNull = <T>(value: T | null): value is T => value !== null

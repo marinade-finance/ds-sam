@@ -3,7 +3,6 @@ import { DsSamConfig, InputsSource } from '../config'
 import {
   RawBlacklistResponseDto,
   RawBondsResponseDto,
-  RawBondDto,
   RawMevInfoResponseDto, RawMndeVotesResponseDto, RawRewardsRecordDto,
   RawRewardsResponseDto, RawSourceData, RawTvlResponseDto,
   RawValidatorsResponseDto,
@@ -17,7 +16,8 @@ import {
 import Decimal from 'decimal.js'
 import { AggregatedData, AggregatedValidator } from '../types'
 import fs from 'fs'
-import { MNDE_VOTE_DELEGATION_STRATEGY, calcEffParticipatingBidPmpe } from '../utils'
+import { MNDE_VOTE_DELEGATION_STRATEGY } from '../utils'
+import { calcEffParticipatingBidPmpe } from '../calculations'
 
 export class DataProvider {
   constructor (
@@ -29,21 +29,21 @@ export class DataProvider {
 
   private validateConfig () {
     switch (this.dataSource) {
-      case InputsSource.APIS:
-        if (this.config.cacheInputs && !this.config.inputsCacheDirPath) {
-          throw new Error('Cannot cache inputs without cache directory path configured')
-        }
-        break
-      case InputsSource.FILES:
-        if (!this.config.inputsCacheDirPath) {
-          throw new Error(`Missing inputs cache directory path for inputs source: ${this.dataSource}`)
-        }
-        if (this.config.cacheInputs) {
-          throw new Error(`Caching inputs not supported for inputs source: ${this.dataSource}`)
-        }
-        break
-      default:
-        throw new Error(`Unsupported inputs source: ${this.dataSource}`)
+    case InputsSource.APIS:
+      if (this.config.cacheInputs && !this.config.inputsCacheDirPath) {
+        throw new Error('Cannot cache inputs without cache directory path configured')
+      }
+      break
+    case InputsSource.FILES:
+      if (!this.config.inputsCacheDirPath) {
+        throw new Error(`Missing inputs cache directory path for inputs source: ${this.dataSource}`)
+      }
+      if (this.config.cacheInputs) {
+        throw new Error(`Caching inputs not supported for inputs source: ${this.dataSource}`)
+      }
+      break
+    default:
+      throw new Error(`Unsupported inputs source: ${this.dataSource}`)
     }
   }
 
@@ -60,37 +60,34 @@ export class DataProvider {
   processAuctions (input: RawScoredValidatorDto[]): AuctionHistory[] {
     const result: AuctionHistory[] = []
     let epoch = Infinity
-    let data: RawScoredValidatorDto[] = []
+    let validators: RawScoredValidatorDto[] = []
     input.forEach((entry) => {
       if (entry.epoch < epoch) {
-        data.sort((a, b) => b.revShare.bidPmpe - a.revShare.bidPmpe)
-        const winningTotalPmpe = data
+        validators.sort((a, b) => b.revShare.bidPmpe - a.revShare.bidPmpe)
+        const winningTotalPmpe = validators
           .filter((item) => item.marinadeSamTargetSol > 0)
           .reduce((acc, item) => item.revShare.totalPmpe, 0)
-        result.push({epoch, winningTotalPmpe, data})
-        data = []
+        result.push({ epoch, winningTotalPmpe, validators })
+        validators = []
         epoch = entry.epoch
       }
-      data.push(entry)
+      validators.push(entry)
     })
     result.shift()
     return result
   }
 
   extractAuctionHistoryStats (auction: AuctionHistory, validator: RawValidatorDto): AuctionHistoryStats {
-    const entry = auction.data.find(({ voteAccount }) => validator.vote_account === voteAccount)
+    const entry = auction.validators.find(({ voteAccount }) => validator.vote_account === voteAccount)
     const revShare = entry?.revShare
     if (revShare == null) {
       console.log(`validator ${validator.vote_account} did not participate in auction in epoch ${auction.epoch}`)
-      return  {
+      return {
         epoch: auction.epoch,
         winningTotalPmpe: auction.winningTotalPmpe,
         auctionEffectiveBidPmpe: 0,
         bidPmpe: 0,
         effParticipatingBidPmpe: 0,
-        spendRobustReputation: entry?.values?.spendRobustReputation,
-        marinadeActivatedStakeSol: entry?.marinadeActivatedStakeSol ?? 0,
-        adjSpendRobustReputationInflationFactor: entry?.values?.adjSpendRobustReputationInflationFactor,
       }
     }
     return {
@@ -99,14 +96,11 @@ export class DataProvider {
       auctionEffectiveBidPmpe: revShare.auctionEffectiveBidPmpe,
       bidPmpe: revShare.bidPmpe,
       effParticipatingBidPmpe: calcEffParticipatingBidPmpe(revShare, auction.winningTotalPmpe),
-      spendRobustReputation: entry?.values?.spendRobustReputation,
-      marinadeActivatedStakeSol: entry?.marinadeActivatedStakeSol,
-      adjSpendRobustReputationInflationFactor: entry?.values?.adjSpendRobustReputationInflationFactor,
     }
   }
 
   aggregateValidators (data: RawSourceData, validatorsMndeVotes: Map<string, Decimal>, solPerMnde: number, mndeStakeCapIncreases: Map<string, Decimal>, dataOverrides: SourceDataOverrides | null = null): AggregatedValidator[] {
-    const auctionsData = this.processAuctions(data.auctions)
+    const auctionHistoriesData = this.processAuctions(data.auctions)
     return data.validators.validators.map((validator): AggregatedValidator => {
       const bond = data.bonds.bonds.find(({ vote_account }) => validator.vote_account === vote_account)
       const mev = data.mevInfo.validators.find(({ vote_account }) => validator.vote_account === vote_account)
@@ -120,8 +114,12 @@ export class DataProvider {
 
       const inflationCommissionDec = (inflationCommissionOverride ?? validator.commission_effective ?? validator.commission_advertised ?? 100) / 100
       const mevCommissionDec = (mevCommissionOverride !== undefined ? mevCommissionOverride / 10_000 : (mev ? mev.mev_commission_bps / 10_000 : null))
-      const auctions = auctionsData.map((auction) => this.extractAuctionHistoryStats(auction, validator))
+      const lastAuctionHistory = auctionHistoriesData
+        .flatMap(auction => auction.validators)
+        .find(v => v.voteAccount === validator.vote_account)
+      const auctions = auctionHistoriesData.map((auction) => this.extractAuctionHistoryStats(auction, validator))
       const bondBalanceSol = bond ? new Decimal(bond.effective_amount).div(1e9).toNumber() : null
+      const marinadeActivatedStakeSol = new Decimal(validator.marinade_stake).add(validator.marinade_native_stake).div(1e9).toNumber()
 
       return {
         voteAccount: validator.vote_account,
@@ -130,8 +128,10 @@ export class DataProvider {
         aso: validator.dc_aso ?? 'Unknown',
         country: validator.dc_country ?? 'Unknown',
         bondBalanceSol,
+        lastBondBalanceSol: lastAuctionHistory?.values?.bondBalanceSol ?? null,
+        lastMarinadeActivatedStakeSol: lastAuctionHistory?.values?.marinadeActivatedStakeSol ?? null,
         totalActivatedStakeSol: new Decimal(validator.activated_stake).div(1e9).toNumber(),
-        marinadeActivatedStakeSol: new Decimal(validator.marinade_stake).add(validator.marinade_native_stake).div(1e9).toNumber(),
+        marinadeActivatedStakeSol,
         inflationCommissionDec,
         mevCommissionDec,
         bidCpmpe: bond ? new Decimal(bond.cpmpe).div(1e9).toNumber() : null,
@@ -139,15 +139,19 @@ export class DataProvider {
           ? new Decimal(bond.max_stake_wanted).div(1e9).toNumber()
           : null,
         values: {
+          bondBalanceSol,
+          marinadeActivatedStakeSol,
           spendRobustReputation: override?.values.spendRobustReputation
-            ?? auctions[0]?.spendRobustReputation
+            ?? lastAuctionHistory?.values?.spendRobustReputation
             ?? this.config.initialSpendRobustReputation,
           adjSpendRobustReputation: 0,
           adjMaxSpendRobustDelegation: 0,
           marinadeActivatedStakeSolUndelegation: 0,
           adjSpendRobustReputationInflationFactor: override?.values.adjSpendRobustReputationInflationFactor
-            ?? auctions[0]?.adjSpendRobustReputationInflationFactor
+            ?? lastAuctionHistory?.values?.adjSpendRobustReputationInflationFactor
             ?? 1,
+          paidUndelegationSol: lastAuctionHistory?.values?.paidUndelegationSol ?? 0,
+          bondRiskFee: 0,
         },
         mndeVotesSolValue: validatorMndeVotes.mul(solPerMnde).toNumber(),
         mndeStakeCapIncrease: validatorMndeStakeCapIncrease.toNumber(),
@@ -258,14 +262,14 @@ export class DataProvider {
     const auctionsFile = `${this.config.inputsCacheDirPath}/auctions.json`
     const auctions: RawScoredValidatorDto[] =
       fs.existsSync(auctionsFile)
-      ? JSON.parse(fs.readFileSync(auctionsFile).toString())
-      : []
+        ? JSON.parse(fs.readFileSync(auctionsFile).toString())
+        : []
 
     const overridesFile = `${this.config.inputsCacheDirPath}/overrides.json`
     const overrides: RawOverrideDataDto =
       fs.existsSync(overridesFile)
-      ? JSON.parse(fs.readFileSync(overridesFile).toString())
-      : undefined
+        ? JSON.parse(fs.readFileSync(overridesFile).toString())
+        : undefined
 
     return { validators, mevInfo, bonds, tvlInfo, mndeVotes, rewards, blacklist, auctions, overrides }
   }

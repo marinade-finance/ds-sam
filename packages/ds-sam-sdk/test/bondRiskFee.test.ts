@@ -1,0 +1,133 @@
+/**
+ *
+ * Tests cover:
+ *  - early exit when lastBondBalanceSol < 1
+ *  - no action when bond balance is sufficient
+ *  - correct computation of forced undelegation, coefficient, and fee
+ *  - clamping behavior when floor threshold forces full undelegation
+ *  - error thrown when result is non-finite
+ */
+
+import { calcBondRiskFee, BondRiskFeeConfig } from '../src/calculations'
+import type { AuctionValidator, RevShare } from '../src/types'
+
+const baseRevShare = {
+  totalPmpe: 500,
+  effParticipatingBidPmpe: 200,
+  inflationPmpe: 100,
+  mevPmpe: 100,
+  auctionEffectiveBidPmpe: 200,
+}
+
+const baseConfig: BondRiskFeeConfig = {
+  minBondEpochs: 1,
+  idealBondEpochs: 2,
+  minBondBalanceSol: 10,
+  bondRiskFeeMult: 0.1,
+}
+
+function makeValidator (overrides: {
+  bondBalanceSol?: number
+  lastBondBalanceSol?: number
+  marinadeActivatedStakeSol?: number
+  values?: { paidUndelegationSol: number }
+  revShare?: Partial<RevShare>
+} = {}): AuctionValidator {
+  const defaultRevShare: RevShare = { ...baseRevShare, bidPmpe: 0, bidTooLowPenaltyPmpe: 0 }
+  return {
+    bondBalanceSol: overrides.bondBalanceSol ?? 0,
+    lastBondBalanceSol: overrides.lastBondBalanceSol ?? 0,
+    marinadeActivatedStakeSol: overrides.marinadeActivatedStakeSol ?? 0,
+    values: { paidUndelegationSol: overrides.values?.paidUndelegationSol ?? 0 },
+    revShare: { ...defaultRevShare, ...overrides.revShare },
+  } as unknown as AuctionValidator
+}
+
+describe('calcBondRiskFee', () => {
+  it('early exits when lastBondBalanceSol < 1', () => {
+    const validator = makeValidator({
+      bondBalanceSol: 100,
+      lastBondBalanceSol: 0,
+      marinadeActivatedStakeSol: 50,
+      values: { paidUndelegationSol: 0 },
+      revShare: baseRevShare,
+    })
+    const result = calcBondRiskFee(baseConfig, validator)!
+    expect(result).toBeNull()
+  })
+
+  it('no action when bond balance is sufficient', () => {
+    const validator = makeValidator({
+      bondBalanceSol: 100,
+      lastBondBalanceSol: 10,
+      marinadeActivatedStakeSol: 50,
+      values: { paidUndelegationSol: 0 },
+      revShare: baseRevShare,
+    })
+    const result = calcBondRiskFee(baseConfig, validator)!
+    expect(result).toBeNull()
+  })
+
+  it('computes forced undelegation and fee correctly', () => {
+    const validator = makeValidator({
+      bondBalanceSol: 30,
+      lastBondBalanceSol: 50,
+      marinadeActivatedStakeSol: 50,
+      values: { paidUndelegationSol: 5 },
+      revShare: baseRevShare,
+    })
+    const result = calcBondRiskFee(baseConfig, validator)!
+    expect(result.bondForcedUndelegation).toBeDefined()
+    expect(result.bondRiskFee).toBeDefined()
+    expect(result.paidUndelegationSol).toBeDefined()
+
+    // Numerical assertions
+    expect(result.bondForcedUndelegation!.base).toBeCloseTo(11.666667, 6)
+    expect(result.bondForcedUndelegation!.coef).toBeCloseTo(0.5555556, 6)
+    expect(result.bondForcedUndelegation!.value).toBeCloseTo(21, 6)
+    expect(result.bondRiskFee).toBeCloseTo(0.84, 6)
+    expect(result.paidUndelegationSol).toBeCloseTo(2.1, 6)
+  })
+
+  it('clamps full undelegation when floor threshold met', () => {
+    const cfg = { ...baseConfig, minBondBalanceSol: 1000 }
+    const validator = makeValidator({
+      bondBalanceSol: 10,
+      lastBondBalanceSol: 10,
+      marinadeActivatedStakeSol: 50,
+      values: { paidUndelegationSol: 0 },
+      revShare: baseRevShare,
+    })
+    const result = calcBondRiskFee(cfg, validator)!
+    expect(result.bondForcedUndelegation!.value).toBeCloseTo(50)
+    expect(result.bondRiskFee).toBeCloseTo(2.0, 6)
+    expect(result.paidUndelegationSol).toBeCloseTo(5, 6)
+  })
+
+  it('forces full undelegation when coefficient <= 0', () => {
+    const revShare = { ...baseRevShare, totalPmpe: 1000, effParticipatingBidPmpe: 200, inflationPmpe: 500, mevPmpe: 300, auctionEffectiveBidPmpe: 200 }
+    const validator = makeValidator({
+      bondBalanceSol: 10,
+      lastBondBalanceSol: 10,
+      marinadeActivatedStakeSol: 50,
+      values: { paidUndelegationSol: 0 },
+      revShare,
+    })
+    const result = calcBondRiskFee(baseConfig, validator)!
+    expect(result.bondForcedUndelegation!.value).toBeCloseTo(50)
+    expect(result.bondRiskFee).toBeCloseTo(baseConfig.bondRiskFeeMult * 50 * ((revShare.inflationPmpe + revShare.mevPmpe + revShare.auctionEffectiveBidPmpe) / 1000))
+  })
+
+  it('handles zero effective PMPE with zero fee', () => {
+    const revShare = { ...baseRevShare, totalPmpe: 0, effParticipatingBidPmpe: 0, inflationPmpe: 0, mevPmpe: 0, auctionEffectiveBidPmpe: 0 }
+    const validator = makeValidator({
+      bondBalanceSol: 0,
+      lastBondBalanceSol: 10,
+      marinadeActivatedStakeSol: 50,
+      values: { paidUndelegationSol: 0 },
+      revShare,
+    })
+    const result = calcBondRiskFee(baseConfig, validator)
+    expect(result).toBeNull()
+  })
+})

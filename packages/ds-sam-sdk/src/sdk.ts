@@ -11,10 +11,11 @@ import {
 import semver from 'semver'
 import Decimal from 'decimal.js'
 import { Auction } from './auction'
-import { calcValidatorRevShare, ineligibleValidatorAggDefaults, validatorAggDefaults } from './utils'
+import { ineligibleValidatorAggDefaults, validatorAggDefaults } from './utils'
+import { calcValidatorRevShare } from './calculations'
 import { AuctionConstraints } from './constraints'
 import { Debug } from './debug'
-import { SourceDataOverrides, RawSourceData } from './data-provider/data-provider.dto'
+import { SourceDataOverrides } from './data-provider/data-provider.dto'
 
 export const defaultDataProviderBuilder = (config: DsSamConfig) => new DataProvider({ ...config }, config.inputsSource)
 

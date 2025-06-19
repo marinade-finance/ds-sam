@@ -11,17 +11,20 @@ export type RawScoredValidatorDto = {
   }
   marinadeSamTargetSol: number
   values?: {
+    bondBalanceSol?: number
+    marinadeActivatedStakeSol?: number
     spendRobustReputation?: number
     adjSpendRobustReputationInflationFactor?: number
+    projectedUndelegation?: number
+    paidUndelegationSol?: number
   }
-  marinadeActivatedStakeSol: number
   epoch: number
 }
 
 export type AuctionHistory = {
   epoch: number
   winningTotalPmpe: number
-  data: RawScoredValidatorDto[]
+  validators: RawScoredValidatorDto[]
 }
 
 export type AuctionHistoryStats = {
@@ -30,9 +33,7 @@ export type AuctionHistoryStats = {
   auctionEffectiveBidPmpe: number
   effParticipatingBidPmpe: number
   bidPmpe: number
-  spendRobustReputation?: number
   marinadeActivatedStakeSol?: number
-  adjSpendRobustReputationInflationFactor?: number
 }
 
 export type RawMndeVoteDto = {
@@ -134,6 +135,6 @@ export type RawOverrideDataDto = {
 }
 
 export type SourceDataOverrides = {
-  inflationCommissions: Map<String, number>
-  mevCommissions: Map<String, number>
+  inflationCommissions: Map<string, number>
+  mevCommissions: Map<string, number>
 }

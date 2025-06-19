@@ -251,7 +251,8 @@ describe('constraints', () => {
     const dsSam = new DsSamSDK({}, defaultStaticDataProviderBuilder(validators))
     const result = await dsSam.run()
 
-    const { auctionStake } = findValidatorInResult('dummy-validator', result)!
+    const validator = findValidatorInResult('dummy-validator', result)
+    const { auctionStake } = validator!
 
     // 100_000 * 0.04 -> TVL * Default cap per validator
     // (0.1 * 100 / 2000) * 100_000 -> (mndeStakeCapMultiplier * validator MNDE votes / total MNDE votes) * TVL

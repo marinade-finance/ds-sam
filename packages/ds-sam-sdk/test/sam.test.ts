@@ -1,7 +1,7 @@
-import { DsSamSDK } from "../src"
-import { StaticDataProviderBuilder, defaultStaticDataProviderBuilder } from "./helpers/static-data-provider-builder"
-import { prettyPrintAuctionResult, prettyPrintStakeUnstakePriorities } from "./helpers/utils"
-import { ValidatorMockBuilder, generateIdentities, generateVoteAccounts } from "./helpers/validator-mock-builder"
+import { DsSamSDK } from '../src'
+import { defaultStaticDataProviderBuilder } from './helpers/static-data-provider-builder'
+import { prettyPrintAuctionResult, prettyPrintStakeUnstakePriorities } from './helpers/utils'
+import { ValidatorMockBuilder, generateIdentities, generateVoteAccounts } from './helpers/validator-mock-builder'
 import { MNDE_VOTE_DELEGATION_STRATEGY } from '../src/utils'
 
 describe('sam', () => {
@@ -210,7 +210,7 @@ describe('sam', () => {
       expect(prettyPrintStakeUnstakePriorities(result)).toMatchSnapshot()
     })
 
-    it('assigns effective bids', async () => {
+    it('run() assigns effective participating bids', async () => {
       const voteAccounts = generateVoteAccounts()
       const identities = generateIdentities()
       const validators = [
@@ -227,16 +227,97 @@ describe('sam', () => {
       const result = await dsSam.run()
 
       result.auctionData.validators
-        .filter(validator => validator.revShare.totalPmpe >= result.winningTotalPmpe)
+        .forEach(({ revShare }) => expect(isFinite(revShare.effParticipatingBidPmpe)).toBe(true))
+
+      result.auctionData.validators
+        .forEach(({ revShare }) => expect(isFinite(revShare.auctionEffectiveBidPmpe)).toBe(true))
+
+      result.auctionData.validators
+        .filter(validator => validator.revShare.effParticipatingBidPmpe > 0)
         .forEach(({ revShare }) => {
-          expect(Math.abs(revShare.mevPmpe + revShare.inflationPmpe + revShare.auctionEffectiveBidPmpe - result.winningTotalPmpe)).toBeLessThan(1e-12)
+          expect(Math.abs(
+            revShare.mevPmpe +
+              revShare.inflationPmpe +
+              revShare.effParticipatingBidPmpe -
+              result.winningTotalPmpe
+          )).toBeLessThan(1e-12)
         })
+
       result.auctionData.validators
         .filter(validator => validator.revShare.totalPmpe < result.winningTotalPmpe)
         .forEach(({ revShare }) => {
           expect(revShare.auctionEffectiveBidPmpe).toStrictEqual(revShare.bidPmpe)
         })
+
+      result.auctionData.validators
+        .filter(validator => validator.revShare.totalPmpe < result.winningTotalPmpe)
+        .forEach(({ revShare }) => {
+          expect(revShare.auctionEffectiveBidPmpe).toStrictEqual(revShare.bidPmpe)
+        })
+
+      result.auctionData.validators
+        .filter(validator => validator.revShare.totalPmpe >= result.winningTotalPmpe)
+        .forEach(({ revShare }) => {
+          expect(Math.abs(
+            revShare.mevPmpe +
+              revShare.inflationPmpe +
+              revShare.auctionEffectiveBidPmpe -
+              result.winningTotalPmpe
+          )).toBeLessThan(1e-12)
+        })
+
     })
 
+    it('runFinalOnly() assigns effective participating bids', async () => {
+      const voteAccounts = generateVoteAccounts()
+      const identities = generateIdentities()
+      const validators = [
+        ...Array.from({ length: 60 }, (_, index) =>
+          new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
+            .withGoodPerformance()
+            .withExternalStake(1_000_000)
+            .withLiquidStake(10_000)
+            .withInflationCommission(index)
+            .withBond({ stakeWanted: 1_000_000, cpmpe: index + 1, balance: 1_000 })
+        ),
+      ]
+      const dsSam = new DsSamSDK({}, defaultStaticDataProviderBuilder(validators))
+      const result = await dsSam.runFinalOnly()
+
+      result.auctionData.validators
+        .forEach(({ revShare }) => expect(isFinite(revShare.effParticipatingBidPmpe)).toBe(true))
+
+      result.auctionData.validators
+        .forEach(({ revShare }) => expect(isFinite(revShare.auctionEffectiveBidPmpe)).toBe(true))
+
+      result.auctionData.validators
+        .filter(validator => validator.revShare.effParticipatingBidPmpe > 0)
+        .forEach(({ revShare }) => {
+          expect(Math.abs(
+            revShare.mevPmpe +
+              revShare.inflationPmpe +
+              revShare.effParticipatingBidPmpe -
+              result.winningTotalPmpe
+          )).toBeLessThan(1e-12)
+        })
+
+      result.auctionData.validators
+        .filter(validator => validator.revShare.totalPmpe < result.winningTotalPmpe)
+        .forEach(({ revShare }) => {
+          expect(revShare.auctionEffectiveBidPmpe).toStrictEqual(revShare.bidPmpe)
+        })
+
+      result.auctionData.validators
+        .filter(validator => validator.revShare.totalPmpe >= result.winningTotalPmpe)
+        .forEach(({ revShare }) => {
+          expect(Math.abs(
+            revShare.mevPmpe +
+              revShare.inflationPmpe +
+              revShare.auctionEffectiveBidPmpe -
+              result.winningTotalPmpe
+          )).toBeLessThan(1e-12)
+        })
+
+    })
   })
 })

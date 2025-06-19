@@ -1,6 +1,6 @@
-import { DsSamSDK } from "../src"
-import { defaultStaticDataProviderBuilder } from "./helpers/static-data-provider-builder"
-import { ValidatorMockBuilder, generateIdentities, generateVoteAccounts } from "./helpers/validator-mock-builder"
+import { DsSamSDK } from '../src'
+import { defaultStaticDataProviderBuilder } from './helpers/static-data-provider-builder'
+import { ValidatorMockBuilder, generateIdentities, generateVoteAccounts } from './helpers/validator-mock-builder'
 import { assertValidatorIneligible, findValidatorInResult } from './helpers/utils'
 
 describe('eligibility', () => {
@@ -31,7 +31,11 @@ describe('eligibility', () => {
       .withInflationCommission(8)
       .withBond({ stakeWanted: 150_000, cpmpe: 1, balance: 10 })
 
-    const validators = [blacklistedVal, wrongVersionVal, badUptimeVal, noBondVal, commissionTooHighVal, mndeIneligibleSamEligibleVal]
+    const eligibleValidator = new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
+      .withEligibleDefaults()
+      .withBond({ stakeWanted: 0, cpmpe: 1, balance: 10 })
+
+    const validators = [blacklistedVal, wrongVersionVal, badUptimeVal, noBondVal, commissionTooHighVal, mndeIneligibleSamEligibleVal, eligibleValidator]
     const dsSam = new DsSamSDK({ validatorsClientVersionSemverExpr: '>=1.17.0' }, defaultStaticDataProviderBuilder(validators))
     const result = await dsSam.run()
 
