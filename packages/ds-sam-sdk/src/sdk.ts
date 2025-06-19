@@ -43,7 +43,8 @@ export class DsSamSDK {
       minBondBalanceSol: this.config.minBondBalanceSol,
       // if maxStakeWanted == null, disable the limit
       minMaxStakeWanted: this.config.minMaxStakeWanted ?? Infinity,
-      bondStakeCapMaxPmpe: Infinity,
+      minBondEpochs: this.config.minBondEpochs,
+      idealBondEpochs: this.config.idealBondEpochs,
     }
     this.debug.pushInfo('auction constraints', JSON.stringify(constraints))
     return new AuctionConstraints(constraints, debug)
