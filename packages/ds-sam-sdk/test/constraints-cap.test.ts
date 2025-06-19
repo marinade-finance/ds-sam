@@ -41,7 +41,7 @@
  * We make minimal AuctionValidator stubs via the same defaults you use elsewhere,
  * then override only the fields each function reads.
  */
-import { AuctionConstraints, clipBondStakeCap } from '../src/constraints'
+import { AuctionConstraints } from '../src/constraints'
 import { AuctionConstraintsConfig, AuctionValidator, AuctionData } from '../src/types'
 import { ineligibleValidatorAggDefaults } from '../src/utils'
 import { Debug } from '../src/debug'
@@ -50,7 +50,7 @@ import { Debug } from '../src/debug'
  * Minimal stub factory for AuctionValidator, re-using your ineligibleValidatorAggDefaults
  * and then merging in only the fields the cap functions actually read.
  */
-function makeValidator(overrides: Partial<AuctionValidator>): AuctionValidator {
+function makeValidator(overrides: any): AuctionValidator {
   const base = {
     ...ineligibleValidatorAggDefaults(),
     voteAccount: 'v',
@@ -109,7 +109,6 @@ describe('clipBondStakeCap()', () => {
     minMaxStakeWanted: 0,
     minBondEpochs: 0,
     idealBondEpochs: 0,
-    maxMarinadeTvlSharePerValidatorDec: 1,
   }
   const c = new AuctionConstraints(cfg, new Debug(new Set()))
 
@@ -147,7 +146,6 @@ describe('bondStakeCapSam()', () => {
     minMaxStakeWanted: 0,
     minBondEpochs: 1,
     idealBondEpochs: 2,
-    maxMarinadeTvlSharePerValidatorDec: 1,
   }
   const c = new AuctionConstraints(cfg, new Debug(new Set()))
 
@@ -182,7 +180,6 @@ describe('bondStakeCapMnde()', () => {
     minMaxStakeWanted: 0,
     minBondEpochs: 0,
     idealBondEpochs: 0,
-    maxMarinadeTvlSharePerValidatorDec: 1,
   }
   const c = new AuctionConstraints(cfg, new Debug(new Set()))
 
@@ -210,7 +207,6 @@ describe('reputationStakeCap()', () => {
     minMaxStakeWanted: 0,
     minBondEpochs: 0,
     idealBondEpochs: 0,
-    maxMarinadeTvlSharePerValidatorDec: 1,
   }
   const c = new AuctionConstraints(baseCfg, new Debug(new Set()))
 
