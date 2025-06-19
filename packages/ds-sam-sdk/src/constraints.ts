@@ -233,20 +233,17 @@ export class AuctionConstraints {
   bondStakeCapSam (validator: AuctionValidator): number {
     const { revShare } = validator
     // do not make validators over-collateralize
-    const minBondPmpe = revShare.inflationPmpe + revShare.mevPmpe + this.config.minBondEpochs * revShare.expectedMaxEffBidPmpe
-    const idealBondPmpe = revShare.inflationPmpe + revShare.mevPmpe + this.config.idealBondEpochs * revShare.expectedMaxEffBidPmpe
+    const minBondPmpe = revShare.inflationPmpe + revShare.mevPmpe + (this.config.minBondEpochs + 1) * revShare.expectedMaxEffBidPmpe
+    const idealBondPmpe = revShare.inflationPmpe + revShare.mevPmpe + (this.config.idealBondEpochs + 1) * revShare.expectedMaxEffBidPmpe
     const bondBalanceSol = Math.max((validator.bondBalanceSol ?? 0) - bondBalanceUsedForMnde(validator), 0)
-    const minLimit = bondBalanceSol / minBondPmpe / 1000
-    const idealLimit = bondBalanceSol / idealBondPmpe / 1000
+    const minLimit = bondBalanceSol / (minBondPmpe / 1000)
+    const idealLimit = bondBalanceSol / (idealBondPmpe / 1000)
     // always minLimit > idealLimit, since minBondEpochs < idealBondEpochs
     // if marinadeActivatedStakeSol = 0, then the limit is given by the lower limit, which is the idealLimit
     // if marinadeActivatedStakeSol > idealLimit, but below minLimit, the limit is given by minLimit
     // the limit will never exceed minLimit
     // which is also the limit at which we charge the bondRiskFee
-    const limit = Math.min(
-      bondBalanceSol / minBondPmpe / 1000,
-      Math.max(bondBalanceSol / idealBondPmpe / 1000, validator.marinadeActivatedStakeSol)
-    )
+    const limit = Math.min(minLimit, Math.max(idealLimit, validator.marinadeActivatedStakeSol))
     return this.clipBondStakeCap(validator, limit)
   }
 

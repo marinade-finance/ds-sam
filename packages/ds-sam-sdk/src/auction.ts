@@ -490,20 +490,6 @@ export class Auction {
     }
   }
 
-  evaluateFinal (): AuctionResult {
-    this.setMaxSpendRobustDelegations()
-    this.updateExpectedMaxEffBidPmpe()
-    this.updatePaidUndelegation()
-    const result = this.evaluateOne()
-    this.setStakeUnstakePriorities()
-    this.setAuctionEffectiveBids(result.winningTotalPmpe)
-    this.setEffParticipatingBids(result.winningTotalPmpe)
-    this.setBondRiskFee()
-    this.setBidTooLowPenalties(result.winningTotalPmpe)
-    this.setMaxBondDelegations()
-    return result
-  }
-
   setExpectedMaxEffBidPmpes (expectedMaxTotalPmpe: number) {
     for (const validator of this.data.validators) {
       const { revShare } = validator
@@ -523,6 +509,20 @@ export class Auction {
     const base = inflationPmpe + mevPmpe
     const shift = this.config.expectedMaxWinningBidRatio * Math.max(0, result.winningTotalPmpe - base)
     this.setExpectedMaxEffBidPmpes(base + shift)
+  }
+
+  evaluateFinal (): AuctionResult {
+    this.setMaxSpendRobustDelegations()
+    this.updateExpectedMaxEffBidPmpe()
+    this.updatePaidUndelegation()
+    const result = this.evaluateOne()
+    this.setStakeUnstakePriorities()
+    this.setAuctionEffectiveBids(result.winningTotalPmpe)
+    this.setEffParticipatingBids(result.winningTotalPmpe)
+    this.setBondRiskFee()
+    this.setBidTooLowPenalties(result.winningTotalPmpe)
+    this.setMaxBondDelegations()
+    return result
   }
 
   evaluate (): AuctionResult {

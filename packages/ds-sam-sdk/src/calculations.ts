@@ -15,7 +15,8 @@ export const calcValidatorRevShare = (
     auctionEffectiveBidPmpe: NaN,
     bidTooLowPenaltyPmpe: NaN,
     effParticipatingBidPmpe: NaN,
-    expectedMaxEffBidPmpe: NaN,
+    // in case expectedMaxWinningBidRatio = null, expectedMaxEffBidPmpe never gets set and remains equal to bidPmpe
+    expectedMaxEffBidPmpe: bidPmpe,
   }
 }
 
@@ -63,10 +64,10 @@ export const calcBondRiskFee = (
 ): BondRiskFeeResult | null => {
   const { revShare } = validator
   const projectedActivatedStakeSol = Math.max(0, validator.marinadeActivatedStakeSol - validator.values.paidUndelegationSol)
-  const minBondCoef = (revShare.inflationPmpe + revShare.mevPmpe + cfg.minBondEpochs * revShare.expectedMaxEffBidPmpe) / 1000
+  const minBondCoef = (revShare.inflationPmpe + revShare.mevPmpe + (cfg.minBondEpochs + 1) * revShare.expectedMaxEffBidPmpe) / 1000
   const bondBalanceSol = validator.bondBalanceSol ?? 0
   if (bondBalanceSol < projectedActivatedStakeSol * minBondCoef) {
-    const idealBondCoef = (revShare.inflationPmpe + revShare.mevPmpe + cfg.idealBondEpochs * revShare.expectedMaxEffBidPmpe) / 1000
+    const idealBondCoef = (revShare.inflationPmpe + revShare.mevPmpe + (cfg.idealBondEpochs + 1) * revShare.expectedMaxEffBidPmpe) / 1000
     const feePmpe = revShare.inflationPmpe + revShare.mevPmpe + revShare.auctionEffectiveBidPmpe
     // always: base >= 0, even with no max, since idealBondCoef >= minBondCoef, since idealBondEpochs >= minBondEpochs
     // and we already ensured that bondBalanceSol / minBondCoef < projectedActivatedStakeSol above
