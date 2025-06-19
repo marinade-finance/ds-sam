@@ -100,6 +100,7 @@ export type RevShare = {
   auctionEffectiveBidPmpe: number
   bidTooLowPenaltyPmpe: number
   effParticipatingBidPmpe: number
+  expectedMaxEffBidPmpe: number
 }
 
 export type BidTooLowPenalty = {
