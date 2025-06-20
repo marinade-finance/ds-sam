@@ -1,67 +1,37 @@
-/**
- * DataProvider.aggregateData blacklist flag handling covers:
- * - no CSV & no history: no blacklisting
- * - CSV only: CSV-driven samBlacklisted; lastSamBlacklisted false
- * - history only: history-driven lastSamBlacklisted; samBlacklisted false
- * - disjoint CSV & history: flags drawn from correct sources
- * - overlapping CSV & history: both flags true for overlapping accounts
- */
-import { DataProvider } from '../src/data-provider/data-provider'
 import { DEFAULT_CONFIG, InputsSource } from '../src/config'
+import { defaultStaticDataProviderBuilder } from './helpers/static-data-provider-builder'
+import { ValidatorMockBuilder } from './helpers/validator-mock-builder'
 
-describe('DataProvider.aggregateData blacklist flag handling', () => {
-  const baseRaw = {
-    validators: {
-      validators: [
-        { vote_account: 'alice', activated_stake: '0', marinade_stake: '0', marinade_native_stake: '0',
-          dc_country: null, dc_aso: null, version: null, commission_effective: null, commission_advertised: 0,
-          credits: 0, epoch_stats: []
-        },
-        { vote_account: 'bob',   activated_stake: '0', marinade_stake: '0', marinade_native_stake: '0',
-          dc_country: null, dc_aso: null, version: null, commission_effective: null, commission_advertised: 0,
-          credits: 0, epoch_stats: []
-        },
-        { vote_account: 'carol', activated_stake: '0', marinade_stake: '0', marinade_native_stake: '0',
-          dc_country: null, dc_aso: null, version: null, commission_effective: null, commission_advertised: 0,
-          credits: 0, epoch_stats: []
-        },
-      ]
-    },
-    mevInfo:   { validators: [] },
-    bonds:     { bonds: [] },
-    tvlInfo:   { total_virtual_staked_sol: 1, marinade_native_stake_sol: 0 },
-    mndeVotes: { voteRecordsCreatedAt: '', records: [] },
-    rewards:   { rewards_inflation_est: [[1, 1]], rewards_mev: [[1, 1]] },
-    overrides: null as null,
-  }
+async function runStaticAggregate(
+  builders: ValidatorMockBuilder[],
+  history: any[] = []
+) {
+  const dpFactory = defaultStaticDataProviderBuilder(builders)
+  const dp = dpFactory({ ...DEFAULT_CONFIG, inputsSource: InputsSource.APIS })
+  const raw = await dp.fetchSourceData()
+  raw.auctions = history
+  return dp.aggregateData(raw, null)
+}
 
-  function runAggregate(csv: string, history: any[] = []) {
-    const raw = { ...baseRaw, blacklist: csv, auctions: history }
-    const cfg = { ...DEFAULT_CONFIG, inputsSource: InputsSource.FILES, inputsCacheDirPath: '/tmp' }
-    const dp = new DataProvider(cfg, InputsSource.FILES)
-    return dp.aggregateData(raw as any, null)
-  }
+describe('StaticDataProvider → samBlacklisted / lastSamBlacklisted', () => {
+  const baseBuilders = [
+    new ValidatorMockBuilder('alice', 'id-a').withEligibleDefaults(),
+    new ValidatorMockBuilder('bob',   'id-b').withEligibleDefaults(),
+    new ValidatorMockBuilder('carol', 'id-c').withEligibleDefaults(),
+  ]
 
-  function extractFlags(agg: ReturnType<typeof runAggregate>) {
-    return agg.validators.map(v => ({
+  it('CSV only → samBlacklisted from builder.blacklisted()', async () => {
+    const builders = [
+      baseBuilders[0].blacklisted(),
+      baseBuilders[1],
+      baseBuilders[2].blacklisted(),
+    ]
+    const agg = await runStaticAggregate(builders)
+    const flags = agg.validators.map(v => ({
       voteAccount:        v.voteAccount,
       samBlacklisted:     v.values.samBlacklisted,
       lastSamBlacklisted: v.lastSamBlacklisted,
     }))
-  }
-
-  it('no CSV & no history → nobody is blacklisted', () => {
-    const flags = extractFlags(runAggregate('vote_account,reason'))
-    expect(flags).toEqual([
-      { voteAccount: 'alice', samBlacklisted: false, lastSamBlacklisted: false },
-      { voteAccount: 'bob',   samBlacklisted: false, lastSamBlacklisted: false },
-      { voteAccount: 'carol', samBlacklisted: false, lastSamBlacklisted: false },
-    ])
-  })
-
-  it('CSV only → samBlacklisted from CSV; lastSamBlacklisted always false', () => {
-    const csv = ['vote_account,reason','alice,spam','carol,spam'].join('\n')
-    const flags = extractFlags(runAggregate(csv))
     expect(flags).toEqual([
       { voteAccount: 'alice', samBlacklisted: true,  lastSamBlacklisted: false },
       { voteAccount: 'bob',   samBlacklisted: false, lastSamBlacklisted: false },
@@ -69,56 +39,65 @@ describe('DataProvider.aggregateData blacklist flag handling', () => {
     ])
   })
 
-  it('history only → history-driven lastSamBlacklisted; samBlacklisted false', () => {
-    const history = [{
-      voteAccount: 'bob',
-      revShare: { inflationPmpe: 0, mevPmpe: 0, bidPmpe: 0, totalPmpe: 0 },
-      marinadeSamTargetSol: 0,
-      marinadeMndeTargetSol: 0,
-      epoch: 0,
-      values: { samBlacklisted: true },
-    }]
-    const flags = extractFlags(runAggregate('vote_account,reason', history))
+  it('history only → lastSamBlacklisted from prior auctions', async () => {
+    const builders = baseBuilders.map(b => b)
+    const history = [
+      { voteAccount: 'bob', values: { samBlacklisted: true } }
+    ]
+    const agg = await runStaticAggregate(builders, history)
+    const flags = agg.validators.map(v => ({
+      voteAccount:        v.voteAccount,
+      samBlacklisted:     v.values.samBlacklisted,
+      lastSamBlacklisted: v.lastSamBlacklisted,
+    }))
     expect(flags).toEqual([
       { voteAccount: 'alice', samBlacklisted: false, lastSamBlacklisted: false },
-      { voteAccount: 'bob',   samBlacklisted: false, lastSamBlacklisted: false },
+      { voteAccount: 'bob',   samBlacklisted: false, lastSamBlacklisted: true  },
       { voteAccount: 'carol', samBlacklisted: false, lastSamBlacklisted: false },
     ])
   })
 
-  it('disjoint CSV & history → correct flags from each', () => {
-    const csv = ['vote_account,reason','alice,spam'].join('\n')
-    const history = [{
-      voteAccount: 'bob',
-      revShare: { inflationPmpe: 0, mevPmpe: 0, bidPmpe: 0, totalPmpe: 0 },
-      marinadeSamTargetSol: 0,
-      marinadeMndeTargetSol: 0,
-      epoch: 0,
-      values: { samBlacklisted: true },
-    }]
-    const flags = extractFlags(runAggregate(csv, history))
+  it('disjoint CSV & history → each source honored', async () => {
+    const builders = [
+      baseBuilders[0].blacklisted(),
+      baseBuilders[1],
+      baseBuilders[2],
+    ]
+    const history = [
+      { voteAccount: 'bob', values: { samBlacklisted: true } }
+    ]
+    const agg = await runStaticAggregate(builders, history)
+    const flags = agg.validators.map(v => ({
+      voteAccount:        v.voteAccount,
+      samBlacklisted:     v.values.samBlacklisted,
+      lastSamBlacklisted: v.lastSamBlacklisted,
+    }))
     expect(flags).toEqual([
       { voteAccount: 'alice', samBlacklisted: true,  lastSamBlacklisted: false },
-      { voteAccount: 'bob',   samBlacklisted: false, lastSamBlacklisted: false },
+      { voteAccount: 'bob',   samBlacklisted: false, lastSamBlacklisted: true  },
       { voteAccount: 'carol', samBlacklisted: false, lastSamBlacklisted: false },
     ])
   })
 
-  it('overlapping CSV & history → both flags true for overlapping', () => {
-    const csv = ['vote_account,reason','carol,spam'].join('\n')
-    const history = [{
-      voteAccount: 'carol',
-      revShare: { inflationPmpe: 0, mevPmpe: 0, bidPmpe: 0, totalPmpe: 0 },
-      marinadeSamTargetSol: 0,
-      marinadeMndeTargetSol: 0,
-      epoch: 0,
-      values: { samBlacklisted: true },
-    }]
-    const flags = extractFlags(runAggregate(csv, history))
+  it('overlap CSV & history → both flags true', async () => {
+    const builders = [
+      baseBuilders[0],
+      baseBuilders[1],
+      baseBuilders[2].blacklisted(),
+    ]
+    const history = [
+      { voteAccount: 'carol', values: { samBlacklisted: true } }
+    ]
+    const agg = await runStaticAggregate(builders, history)
+    const flags = agg.validators.map(v => ({
+      voteAccount:        v.voteAccount,
+      samBlacklisted:     v.values.samBlacklisted,
+      lastSamBlacklisted: v.lastSamBlacklisted,
+    }))
     expect(flags).toEqual([
       { voteAccount: 'alice', samBlacklisted: false, lastSamBlacklisted: false },
       { voteAccount: 'bob',   samBlacklisted: false, lastSamBlacklisted: false },
-      { voteAccount: 'carol', samBlacklisted: true,  lastSamBlacklisted: false },
+      { voteAccount: 'carol', samBlacklisted: true,  lastSamBlacklisted: true  },
     ])
   })
 })
