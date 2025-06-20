@@ -66,7 +66,7 @@ export type AggregatedValidator = {
   marinadeActivatedStakeSol: number
   lastMarinadeActivatedStakeSol: number | null
   inflationCommissionDec: number
-  lastSamBlacklisted: boolean
+  lastSamBlacklisted: boolean | null
   mevCommissionDec: number | null
   bidCpmpe: number | null
   maxStakeWanted: number | null

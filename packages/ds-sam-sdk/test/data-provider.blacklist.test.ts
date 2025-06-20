@@ -8,7 +8,7 @@ async function runStaticAggregate(
 ) {
   const dp = defaultStaticDataProviderBuilder(validators)({ ...DEFAULT_CONFIG })
   const raw = await dp.fetchSourceData()
-  raw.auctions = history.map(entry => ({ ...entry, epoch: 700 }))
+  raw.auctions = history.map(entry => ({ ...entry, revShare: {}, epoch: 700 }))
   return dp.aggregateData(raw)
 }
 
@@ -27,9 +27,9 @@ describe('StaticDataProvider → samBlacklisted / lastSamBlacklisted', () => {
       lastSamBlacklisted: v.lastSamBlacklisted,
     }))
     expect(flags).toEqual([
-      { voteAccount: 'alice', samBlacklisted: true,  lastSamBlacklisted: false },
-      { voteAccount: 'bob',   samBlacklisted: false, lastSamBlacklisted: false },
-      { voteAccount: 'carol', samBlacklisted: true,  lastSamBlacklisted: false },
+      { voteAccount: 'alice', samBlacklisted: true,  lastSamBlacklisted: null },
+      { voteAccount: 'bob',   samBlacklisted: false, lastSamBlacklisted: null },
+      { voteAccount: 'carol', samBlacklisted: true,  lastSamBlacklisted: null },
     ])
   })
 
@@ -40,7 +40,8 @@ describe('StaticDataProvider → samBlacklisted / lastSamBlacklisted', () => {
       new ValidatorMockBuilder('carol', 'id-c').withEligibleDefaults(),
     ]
     const history = [
-      { voteAccount: 'bob', values: { samBlacklisted: true } }
+      { voteAccount: 'bob', values: { samBlacklisted: true } },
+      { voteAccount: 'alice', values: { samBlacklisted: false } }
     ]
     const agg = await runStaticAggregate(validators, history)
     const flags = agg.validators.map(v => ({
@@ -51,7 +52,7 @@ describe('StaticDataProvider → samBlacklisted / lastSamBlacklisted', () => {
     expect(flags).toEqual([
       { voteAccount: 'alice', samBlacklisted: false, lastSamBlacklisted: false },
       { voteAccount: 'bob',   samBlacklisted: false, lastSamBlacklisted: true  },
-      { voteAccount: 'carol', samBlacklisted: false, lastSamBlacklisted: false },
+      { voteAccount: 'carol', samBlacklisted: false, lastSamBlacklisted: null },
     ])
   })
 
@@ -62,7 +63,8 @@ describe('StaticDataProvider → samBlacklisted / lastSamBlacklisted', () => {
       new ValidatorMockBuilder('carol', 'id-c').withEligibleDefaults(),
     ]
     const history = [
-      { voteAccount: 'bob', values: { samBlacklisted: true } }
+      { voteAccount: 'bob', values: { samBlacklisted: true } },
+      { voteAccount: 'alice', values: { samBlacklisted: false } }
     ]
     const agg = await runStaticAggregate(validators, history)
     const flags = agg.validators.map(v => ({
@@ -73,7 +75,7 @@ describe('StaticDataProvider → samBlacklisted / lastSamBlacklisted', () => {
     expect(flags).toEqual([
       { voteAccount: 'alice', samBlacklisted: true,  lastSamBlacklisted: false },
       { voteAccount: 'bob',   samBlacklisted: false, lastSamBlacklisted: true  },
-      { voteAccount: 'carol', samBlacklisted: false, lastSamBlacklisted: false },
+      { voteAccount: 'carol', samBlacklisted: false, lastSamBlacklisted: null },
     ])
   })
 
@@ -84,7 +86,9 @@ describe('StaticDataProvider → samBlacklisted / lastSamBlacklisted', () => {
       new ValidatorMockBuilder('carol', 'id-c').withEligibleDefaults().blacklisted(),
     ]
     const history = [
-      { voteAccount: 'carol', values: { samBlacklisted: true } }
+      { voteAccount: 'carol', values: { samBlacklisted: true } },
+      { voteAccount: 'alice', values: { samBlacklisted: false } },
+      { voteAccount: 'bob', values: { samBlacklisted: false } },
     ]
     const agg = await runStaticAggregate(validators, history)
     const flags = agg.validators.map(v => ({

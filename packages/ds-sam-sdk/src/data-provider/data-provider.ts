@@ -145,7 +145,7 @@ export class DataProvider {
         claimableBondBalanceSol,
         lastBondBalanceSol: lastAuctionHistory?.values?.bondBalanceSol ?? null,
         lastMarinadeActivatedStakeSol: lastAuctionHistory?.values?.marinadeActivatedStakeSol ?? null,
-        lastSamBlacklisted: lastAuctionHistory?.values?.samBlacklisted ?? false,
+        lastSamBlacklisted: lastAuctionHistory?.values?.samBlacklisted ?? null,
         totalActivatedStakeSol: new Decimal(validator.activated_stake).div(1e9).toNumber(),
         marinadeActivatedStakeSol,
         inflationCommissionDec,
