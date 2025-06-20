@@ -86,6 +86,7 @@ export type AuctionValidatorValues = {
   adjSpendRobustReputationInflationFactor: number
   bondRiskFee: number
   paidUndelegationSol: number
+  samBlacklisted: boolean
 }
 
 export type Rewards = {
@@ -102,6 +103,7 @@ export type RevShare = {
   bidTooLowPenaltyPmpe: number
   effParticipatingBidPmpe: number
   expectedMaxEffBidPmpe: number
+  blacklistPenaltyPmpe: number
 }
 
 export type BidTooLowPenalty = {

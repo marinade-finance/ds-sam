@@ -511,6 +511,12 @@ export class Auction {
     this.setExpectedMaxEffBidPmpes(base + shift)
   }
 
+  setBlacklistPenalties (winningTotalPmpe: number) {
+    for (const validator in this.data.validators) {
+      validator.revShare.blacklistPenaltyPmpe = winningTotalPmpe + 3 * validator.revShare.effParticipatingBidPmpe / 1000
+    }
+  }
+
   evaluateFinal (): AuctionResult {
     this.setMaxSpendRobustDelegations()
     this.updateExpectedMaxEffBidPmpe()
@@ -522,6 +528,7 @@ export class Auction {
     this.setBondRiskFee()
     this.setBidTooLowPenalties(result.winningTotalPmpe)
     this.setMaxBondDelegations()
+    this.setBlacklistPenalties(result.winningTotalPmpe)
     return result
   }
 
