@@ -17,6 +17,7 @@ export const calcValidatorRevShare = (
     effParticipatingBidPmpe: NaN,
     // in case expectedMaxWinningBidRatio = null, expectedMaxEffBidPmpe never gets set and remains equal to bidPmpe
     expectedMaxEffBidPmpe: bidPmpe,
+    blacklistPenaltyPmpe: NaN,
   }
 }
 
@@ -25,7 +26,7 @@ export type BondRiskFeeConfig = {
   idealBondEpochs: number
   minBondBalanceSol: number
   bondRiskFeeMult: number
-  exitFeeMult: number
+  pendingWithdrawalBondMult: number
 }
 
 export type BondRiskFeeResult = {
@@ -66,7 +67,7 @@ export const calcBondRiskFee = (
   const { revShare } = validator
   const projectedActivatedStakeSol = Math.max(0, validator.marinadeActivatedStakeSol - validator.values.paidUndelegationSol)
   const minBondCoef = (revShare.inflationPmpe + revShare.mevPmpe + (cfg.minBondEpochs + 1) * revShare.expectedMaxEffBidPmpe) / 1000
-  const riskBondSol = cfg.exitFeeMult * (validator.claimableBondBalanceSol ?? 0) + (1 - cfg.exitFeeMult) * (validator.bondBalanceSol ?? 0)
+  const riskBondSol = cfg.pendingWithdrawalBondMult * (validator.claimableBondBalanceSol ?? 0) + (1 - cfg.pendingWithdrawalBondMult) * (validator.bondBalanceSol ?? 0)
   if (riskBondSol < projectedActivatedStakeSol * minBondCoef) {
     const idealBondCoef = (revShare.inflationPmpe + revShare.mevPmpe + (cfg.idealBondEpochs + 1) * revShare.expectedMaxEffBidPmpe) / 1000
     const feeCoef = (revShare.inflationPmpe + revShare.mevPmpe + revShare.auctionEffectiveBidPmpe) / 1000

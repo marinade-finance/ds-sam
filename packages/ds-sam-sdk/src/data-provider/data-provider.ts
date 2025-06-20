@@ -61,18 +61,23 @@ export class DataProvider {
     const result: AuctionHistory[] = []
     let epoch = Infinity
     let validators: RawScoredValidatorDto[] = []
-    input.forEach((entry) => {
+    const finalizeEpoch = (validators: RawScoredValidatorDto[]) => {
+      validators.sort((a, b) => b.revShare.bidPmpe - a.revShare.bidPmpe)
+      const winningTotalPmpe = validators
+        .filter((item) => item.marinadeSamTargetSol > 0)
+        .reduce((acc, item) => item.revShare.totalPmpe, 0)
+      result.push({ epoch, winningTotalPmpe, validators })
+      validators = []
+    }
+    for (const entry of input) {
       if (entry.epoch < epoch) {
-        validators.sort((a, b) => b.revShare.bidPmpe - a.revShare.bidPmpe)
-        const winningTotalPmpe = validators
-          .filter((item) => item.marinadeSamTargetSol > 0)
-          .reduce((acc, item) => item.revShare.totalPmpe, 0)
-        result.push({ epoch, winningTotalPmpe, validators })
+        finalizeEpoch(validators)
         validators = []
         epoch = entry.epoch
       }
       validators.push(entry)
-    })
+    }
+    finalizeEpoch(validators)
     result.shift()
     return result
   }
@@ -99,7 +104,7 @@ export class DataProvider {
     }
   }
 
-  aggregateValidators (data: RawSourceData, validatorsMndeVotes: Map<string, Decimal>, solPerMnde: number, mndeStakeCapIncreases: Map<string, Decimal>, dataOverrides: SourceDataOverrides | null = null): AggregatedValidator[] {
+  aggregateValidators (data: RawSourceData, validatorsMndeVotes: Map<string, Decimal>, solPerMnde: number, mndeStakeCapIncreases: Map<string, Decimal>, blacklist: Set<string>, dataOverrides: SourceDataOverrides | null = null): AggregatedValidator[] {
     const auctionHistoriesData = this.processAuctions(data.auctions)
     return data.validators.validators.map((validator): AggregatedValidator => {
       const bond = data.bonds.bonds.find(({ vote_account }) => validator.vote_account === vote_account)
@@ -126,7 +131,7 @@ export class DataProvider {
         ? new Decimal(bond.effective_amount).div(1e9).toNumber()
         : null
       const claimableBondBalanceSol = bond
-        ? new Decimal(bond.funded_amount).sub(bond.remainining_settlement_claim_amount).div(1e9).toNumber()
+        ? Math.max(0, new Decimal(bond.funded_amount).sub(bond.remainining_settlement_claim_amount).div(1e9).toNumber())
         : null
       const marinadeActivatedStakeSol = new Decimal(validator.marinade_stake).add(validator.marinade_native_stake).div(1e9).toNumber()
 
@@ -140,6 +145,7 @@ export class DataProvider {
         claimableBondBalanceSol,
         lastBondBalanceSol: lastAuctionHistory?.values?.bondBalanceSol ?? null,
         lastMarinadeActivatedStakeSol: lastAuctionHistory?.values?.marinadeActivatedStakeSol ?? null,
+        lastSamBlacklisted: override?.lastSamBlacklisted ?? lastAuctionHistory?.values?.samBlacklisted ?? null,
         totalActivatedStakeSol: new Decimal(validator.activated_stake).div(1e9).toNumber(),
         marinadeActivatedStakeSol,
         inflationCommissionDec,
@@ -151,17 +157,18 @@ export class DataProvider {
         values: {
           bondBalanceSol,
           marinadeActivatedStakeSol,
-          spendRobustReputation: override?.values.spendRobustReputation
+          spendRobustReputation: override?.values?.spendRobustReputation
             ?? lastAuctionHistory?.values?.spendRobustReputation
             ?? this.config.initialSpendRobustReputation,
           adjSpendRobustReputation: 0,
           adjMaxSpendRobustDelegation: 0,
           marinadeActivatedStakeSolUndelegation: 0,
-          adjSpendRobustReputationInflationFactor: override?.values.adjSpendRobustReputationInflationFactor
+          adjSpendRobustReputationInflationFactor: override?.values?.adjSpendRobustReputationInflationFactor
             ?? lastAuctionHistory?.values?.adjSpendRobustReputationInflationFactor
             ?? 1,
           paidUndelegationSol: lastAuctionHistory?.values?.paidUndelegationSol ?? 0,
           bondRiskFee: 0,
+          samBlacklisted: blacklist.has(validator.vote_account),
         },
         mndeVotesSolValue: validatorMndeVotes.mul(solPerMnde).toNumber(),
         mndeStakeCapIncrease: validatorMndeStakeCapIncrease.toNumber(),
@@ -211,6 +218,14 @@ export class DataProvider {
       validatorsMndeStakeCapIncreases.set(validatorVoteAccount, amount.mul(effectiveMndeStakeCapIncrease).mul(tvlSol).div(totalMndeVotes))
     }
 
+    const blacklist = new Set(
+      data.blacklist
+        .split('\n')
+        .slice(1) // header row
+        .map((line) => line.trim().split(',')[0])
+        .filter((value): value is string => !!value)
+    )
+
     const epoch = data.rewards.rewards_inflation_est.reduce((epoch, entry) => Math.max(epoch, entry[0]), 0) + 1
 
     const solPerMnde = totalMndeVotes.gt(0) ? new Decimal(effectiveMndeTvlShareSol).div(totalMndeVotes.sub(delStratVotes)).toNumber() : 0
@@ -219,7 +234,7 @@ export class DataProvider {
     console.log('tvl', tvlSol)
     return {
       epoch,
-      validators: this.aggregateValidators(data, validatorsMndeVotes, solPerMnde, validatorsMndeStakeCapIncreases, dataOverrides),
+      validators: this.aggregateValidators(data, validatorsMndeVotes, solPerMnde, validatorsMndeStakeCapIncreases, blacklist, dataOverrides),
       rewards: {
         inflationPmpe: this.aggregateRewardsRecords(activatedStakePerEpochs, data.rewards.rewards_inflation_est),
         mevPmpe: this.aggregateRewardsRecords(activatedStakePerEpochs, data.rewards.rewards_mev),
@@ -231,12 +246,7 @@ export class DataProvider {
         marinadeRemainingMndeSol: effectiveMndeTvlShareSol,
         marinadeRemainingSamSol: tvlSol - effectiveMndeTvlShareSol,
       },
-      blacklist: new Set(data.blacklist
-        .split('\n')
-        .slice(1) // header row
-        .map((line) => line.trim().split(',')[0])
-        .filter((value): value is string => !!value)
-      ),
+      blacklist,
     }
   }
 

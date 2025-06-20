@@ -1,0 +1,22 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`setBlacklistPenalties applies penalties only to newly blacklisted validators 1`] = `
+[
+  {
+    "blacklistPenaltyPmpe": 1234.8,
+    "voteAccount": "newly-blacklisted",
+  },
+  {
+    "blacklistPenaltyPmpe": 0,
+    "voteAccount": "still-blacklisted",
+  },
+  {
+    "blacklistPenaltyPmpe": 0,
+    "voteAccount": "not-blacklisted",
+  },
+  {
+    "blacklistPenaltyPmpe": 1234.5,
+    "voteAccount": "newly-blacklisted-zero-eff",
+  },
+]
+`;
