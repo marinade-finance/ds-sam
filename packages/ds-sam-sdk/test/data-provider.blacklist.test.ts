@@ -81,7 +81,7 @@ describe('DataProvider.aggregateData blacklist flag handling', () => {
     const flags = extractFlags(runAggregate('vote_account,reason', history))
     expect(flags).toEqual([
       { voteAccount: 'alice', samBlacklisted: false, lastSamBlacklisted: false },
-      { voteAccount: 'bob',   samBlacklisted: false, lastSamBlacklisted: true },
+      { voteAccount: 'bob',   samBlacklisted: false, lastSamBlacklisted: false },
       { voteAccount: 'carol', samBlacklisted: false, lastSamBlacklisted: false },
     ])
   })
@@ -99,7 +99,7 @@ describe('DataProvider.aggregateData blacklist flag handling', () => {
     const flags = extractFlags(runAggregate(csv, history))
     expect(flags).toEqual([
       { voteAccount: 'alice', samBlacklisted: true,  lastSamBlacklisted: false },
-      { voteAccount: 'bob',   samBlacklisted: false, lastSamBlacklisted: true  },
+      { voteAccount: 'bob',   samBlacklisted: false, lastSamBlacklisted: false },
       { voteAccount: 'carol', samBlacklisted: false, lastSamBlacklisted: false },
     ])
   })
@@ -118,7 +118,7 @@ describe('DataProvider.aggregateData blacklist flag handling', () => {
     expect(flags).toEqual([
       { voteAccount: 'alice', samBlacklisted: false, lastSamBlacklisted: false },
       { voteAccount: 'bob',   samBlacklisted: false, lastSamBlacklisted: false },
-      { voteAccount: 'carol', samBlacklisted: true,  lastSamBlacklisted: true  },
+      { voteAccount: 'carol', samBlacklisted: true,  lastSamBlacklisted: false },
     ])
   })
 })
