@@ -13,17 +13,12 @@ async function runStaticAggregate(
 }
 
 describe('StaticDataProvider → samBlacklisted / lastSamBlacklisted', () => {
-  const baseValidators = [
-    new ValidatorMockBuilder('alice', 'id-a').withEligibleDefaults(),
-    new ValidatorMockBuilder('bob',   'id-b').withEligibleDefaults(),
-    new ValidatorMockBuilder('carol', 'id-c').withEligibleDefaults(),
-  ]
 
   it('CSV only → samBlacklisted from builder.blacklisted()', async () => {
     const validators = [
-      baseValidators[0]!.blacklisted(),
-      baseValidators[1]!,
-      baseValidators[2]!.blacklisted(),
+      new ValidatorMockBuilder('alice', 'id-a').withEligibleDefaults().blacklisted(),
+      new ValidatorMockBuilder('bob',   'id-b').withEligibleDefaults(),
+      new ValidatorMockBuilder('carol', 'id-c').withEligibleDefaults().blacklisted(),
     ]
     const agg = await runStaticAggregate(validators)
     const flags = agg.validators.map(v => ({
@@ -39,7 +34,11 @@ describe('StaticDataProvider → samBlacklisted / lastSamBlacklisted', () => {
   })
 
   it('history only → lastSamBlacklisted from prior auctions', async () => {
-    const validators = baseValidators.map(b => b)
+    const validators = [
+      new ValidatorMockBuilder('alice', 'id-a').withEligibleDefaults(),
+      new ValidatorMockBuilder('bob',   'id-b').withEligibleDefaults(),
+      new ValidatorMockBuilder('carol', 'id-c').withEligibleDefaults(),
+    ]
     const history = [
       { voteAccount: 'bob', values: { samBlacklisted: true } }
     ]
@@ -58,9 +57,9 @@ describe('StaticDataProvider → samBlacklisted / lastSamBlacklisted', () => {
 
   it('disjoint CSV & history → each source honored', async () => {
     const validators = [
-      baseValidators[0]!.blacklisted(),
-      baseValidators[1]!,
-      baseValidators[2]!,
+      new ValidatorMockBuilder('alice', 'id-a').withEligibleDefaults().blacklisted(),
+      new ValidatorMockBuilder('bob',   'id-b').withEligibleDefaults(),
+      new ValidatorMockBuilder('carol', 'id-c').withEligibleDefaults(),
     ]
     const history = [
       { voteAccount: 'bob', values: { samBlacklisted: true } }
@@ -80,9 +79,9 @@ describe('StaticDataProvider → samBlacklisted / lastSamBlacklisted', () => {
 
   it('overlap CSV & history → both flags true', async () => {
     const validators = [
-      baseValidators[0]!,
-      baseValidators[1]!,
-      baseValidators[2]!.blacklisted(),
+      new ValidatorMockBuilder('alice', 'id-a').withEligibleDefaults(),
+      new ValidatorMockBuilder('bob',   'id-b').withEligibleDefaults(),
+      new ValidatorMockBuilder('carol', 'id-c').withEligibleDefaults().blacklisted(),
     ]
     const history = [
       { voteAccount: 'carol', values: { samBlacklisted: true } }
