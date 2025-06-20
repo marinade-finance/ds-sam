@@ -15,7 +15,7 @@
     "@marinade.finance/ds-sam-sdk": "workspace:*",
     "@nestjs/axios": "^3.0.2",
     "@nestjs/cli": "^10.3.2",
-    "@nestjs/common": "^10.3.9",
+    "@nestjs/common": "^10.4.16",
     "dotenv": "^16.4.5",
     "log4js": "^6.9.1",
     "nest-commander": "^3.13.0"
