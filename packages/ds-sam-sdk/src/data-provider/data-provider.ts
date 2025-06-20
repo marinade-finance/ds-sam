@@ -61,23 +61,23 @@ export class DataProvider {
     const result: AuctionHistory[] = []
     let epoch = Infinity
     let validators: RawScoredValidatorDto[] = []
+    const finalizeEpoch = (validators: RawScoredValidatorDto[]) => {
+      validators.sort((a, b) => b.revShare.bidPmpe - a.revShare.bidPmpe)
+      const winningTotalPmpe = validators
+        .filter((item) => item.marinadeSamTargetSol > 0)
+        .reduce((acc, item) => item.revShare.totalPmpe, 0)
+      result.push({ epoch, winningTotalPmpe, validators })
+      validators = []
+    }
     for (const entry of input) {
       if (entry.epoch < epoch) {
-        validators.sort((a, b) => b.revShare.bidPmpe - a.revShare.bidPmpe)
-        const winningTotalPmpe = validators
-          .filter((item) => item.marinadeSamTargetSol > 0)
-          .reduce((acc, item) => item.revShare.totalPmpe, 0)
-        result.push({ epoch, winningTotalPmpe, validators })
+        finalizeEpoch(validators)
         validators = []
         epoch = entry.epoch
       }
       validators.push(entry)
     }
-    validators.sort((a, b) => b.revShare.bidPmpe - a.revShare.bidPmpe)
-    const winningTotalPmpe = validators
-      .filter((item) => item.marinadeSamTargetSol > 0)
-      .reduce((acc, item) => item.revShare.totalPmpe, 0)
-    result.push({ epoch, winningTotalPmpe, validators })
+    finalizeEpoch(validators)
     result.shift()
     return result
   }
@@ -126,7 +126,6 @@ export class DataProvider {
       const lastAuctionHistory = auctionHistoriesData
         .flatMap(auction => auction.validators)
         .find(v => v.voteAccount === validator.vote_account)
-      console.log(auctionHistoriesData)
       const auctions = auctionHistoriesData.map((auction) => this.extractAuctionHistoryStats(auction, validator))
       const bondBalanceSol = bond
         ? new Decimal(bond.effective_amount).div(1e9).toNumber()

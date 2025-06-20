@@ -8,7 +8,7 @@ async function runStaticAggregate(
 ) {
   const dp = defaultStaticDataProviderBuilder(validators)({ ...DEFAULT_CONFIG })
   const raw = await dp.fetchSourceData()
-  raw.auctions = history
+  raw.auctions = history.map(entry => ({ ...entry, epoch: 700 }))
   return dp.aggregateData(raw)
 }
 
