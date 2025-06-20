@@ -1,3 +1,11 @@
+/**
+ * DataProvider.aggregateData blacklist flag handling covers:
+ * - no CSV & no history: no blacklisting
+ * - CSV only: CSV-driven samBlacklisted; lastSamBlacklisted false
+ * - history only: history-driven lastSamBlacklisted; samBlacklisted false
+ * - disjoint CSV & history: flags drawn from correct sources
+ * - overlapping CSV & history: both flags true for overlapping accounts
+ */
 import { DataProvider } from '../src/data-provider/data-provider'
 import { DEFAULT_CONFIG, InputsSource } from '../src/config'
 
