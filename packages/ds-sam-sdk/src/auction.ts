@@ -512,8 +512,10 @@ export class Auction {
   }
 
   setBlacklistPenalties (winningTotalPmpe: number) {
-    for (const validator in this.data.validators) {
-      validator.revShare.blacklistPenaltyPmpe = winningTotalPmpe + 3 * validator.revShare.effParticipatingBidPmpe / 1000
+    for (const validator of this.data.validators) {
+      if (validator.values.samBlacklisted && !validator.lastSamBlacklisted) {
+        validator.revShare.blacklistPenaltyPmpe = winningTotalPmpe + 3 * validator.revShare.effParticipatingBidPmpe / 1000
+      }
     }
   }
 

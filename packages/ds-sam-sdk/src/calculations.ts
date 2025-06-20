@@ -17,6 +17,7 @@ export const calcValidatorRevShare = (
     effParticipatingBidPmpe: NaN,
     // in case expectedMaxWinningBidRatio = null, expectedMaxEffBidPmpe never gets set and remains equal to bidPmpe
     expectedMaxEffBidPmpe: bidPmpe,
+    blacklistPenaltyPmpe: NaN,
   }
 }
 

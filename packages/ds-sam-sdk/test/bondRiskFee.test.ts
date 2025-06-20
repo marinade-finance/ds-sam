@@ -18,6 +18,7 @@ const baseRevShare = {
   mevPmpe: 100,
   auctionEffectiveBidPmpe: 200,
   expectedMaxEffBidPmpe: 200,
+  blacklistPenaltyPmpe: NaN,
 }
 
 const baseConfig: BondRiskFeeConfig = {
