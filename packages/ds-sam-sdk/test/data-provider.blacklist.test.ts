@@ -3,30 +3,30 @@ import { defaultStaticDataProviderBuilder } from './helpers/static-data-provider
 import { ValidatorMockBuilder } from './helpers/validator-mock-builder'
 
 async function runStaticAggregate(
-  builders: ValidatorMockBuilder[],
+  validators: ValidatorMockBuilder[],
   history: any[] = []
 ) {
-  const dpFactory = defaultStaticDataProviderBuilder(builders)
-  const dp = dpFactory({ ...DEFAULT_CONFIG, inputsSource: InputsSource.APIS })
+  const dp = defaultStaticDataProviderBuilder(validators)({ ...DEFAULT_CONFIG})
   const raw = await dp.fetchSourceData()
   raw.auctions = history
-  return dp.aggregateData(raw, null)
+  console.log(raw.auctions)
+  return dp.aggregateData(raw)
 }
 
 describe('StaticDataProvider → samBlacklisted / lastSamBlacklisted', () => {
-  const baseBuilders = [
+  const baseValidators = [
     new ValidatorMockBuilder('alice', 'id-a').withEligibleDefaults(),
     new ValidatorMockBuilder('bob',   'id-b').withEligibleDefaults(),
     new ValidatorMockBuilder('carol', 'id-c').withEligibleDefaults(),
   ]
 
   it('CSV only → samBlacklisted from builder.blacklisted()', async () => {
-    const builders = [
-      baseBuilders[0]!.blacklisted(),
-      baseBuilders[1]!,
-      baseBuilders[2]!.blacklisted(),
+    const validators = [
+      baseValidators[0]!.blacklisted(),
+      baseValidators[1]!,
+      baseValidators[2]!.blacklisted(),
     ]
-    const agg = await runStaticAggregate(builders)
+    const agg = await runStaticAggregate(validators)
     const flags = agg.validators.map(v => ({
       voteAccount:        v.voteAccount,
       samBlacklisted:     v.values.samBlacklisted,
@@ -40,11 +40,11 @@ describe('StaticDataProvider → samBlacklisted / lastSamBlacklisted', () => {
   })
 
   it('history only → lastSamBlacklisted from prior auctions', async () => {
-    const builders = baseBuilders.map(b => b)
+    const validators = baseValidators.map(b => b)
     const history = [
       { voteAccount: 'bob', values: { samBlacklisted: true } }
     ]
-    const agg = await runStaticAggregate(builders, history)
+    const agg = await runStaticAggregate(validators, history)
     const flags = agg.validators.map(v => ({
       voteAccount:        v.voteAccount,
       samBlacklisted:     v.values.samBlacklisted,
@@ -58,15 +58,15 @@ describe('StaticDataProvider → samBlacklisted / lastSamBlacklisted', () => {
   })
 
   it('disjoint CSV & history → each source honored', async () => {
-    const builders = [
-      baseBuilders[0]!.blacklisted(),
-      baseBuilders[1]!,
-      baseBuilders[2]!,
+    const validators = [
+      baseValidators[0]!.blacklisted(),
+      baseValidators[1]!,
+      baseValidators[2]!,
     ]
     const history = [
       { voteAccount: 'bob', values: { samBlacklisted: true } }
     ]
-    const agg = await runStaticAggregate(builders, history)
+    const agg = await runStaticAggregate(validators, history)
     const flags = agg.validators.map(v => ({
       voteAccount:        v.voteAccount,
       samBlacklisted:     v.values.samBlacklisted,
@@ -80,15 +80,15 @@ describe('StaticDataProvider → samBlacklisted / lastSamBlacklisted', () => {
   })
 
   it('overlap CSV & history → both flags true', async () => {
-    const builders = [
-      baseBuilders[0]!,
-      baseBuilders[1]!,
-      baseBuilders[2]!.blacklisted(),
+    const validators = [
+      baseValidators[0]!,
+      baseValidators[1]!,
+      baseValidators[2]!.blacklisted(),
     ]
     const history = [
       { voteAccount: 'carol', values: { samBlacklisted: true } }
     ]
-    const agg = await runStaticAggregate(builders, history)
+    const agg = await runStaticAggregate(validators, history)
     const flags = agg.validators.map(v => ({
       voteAccount:        v.voteAccount,
       samBlacklisted:     v.values.samBlacklisted,
