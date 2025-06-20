@@ -22,9 +22,9 @@ describe('StaticDataProvider → samBlacklisted / lastSamBlacklisted', () => {
 
   it('CSV only → samBlacklisted from builder.blacklisted()', async () => {
     const builders = [
-      baseBuilders[0].blacklisted(),
-      baseBuilders[1],
-      baseBuilders[2].blacklisted(),
+      baseBuilders[0]!.blacklisted(),
+      baseBuilders[1]!,
+      baseBuilders[2]!.blacklisted(),
     ]
     const agg = await runStaticAggregate(builders)
     const flags = agg.validators.map(v => ({
@@ -59,9 +59,9 @@ describe('StaticDataProvider → samBlacklisted / lastSamBlacklisted', () => {
 
   it('disjoint CSV & history → each source honored', async () => {
     const builders = [
-      baseBuilders[0].blacklisted(),
-      baseBuilders[1],
-      baseBuilders[2],
+      baseBuilders[0]!.blacklisted(),
+      baseBuilders[1]!,
+      baseBuilders[2]!,
     ]
     const history = [
       { voteAccount: 'bob', values: { samBlacklisted: true } }
@@ -81,9 +81,9 @@ describe('StaticDataProvider → samBlacklisted / lastSamBlacklisted', () => {
 
   it('overlap CSV & history → both flags true', async () => {
     const builders = [
-      baseBuilders[0],
-      baseBuilders[1],
-      baseBuilders[2].blacklisted(),
+      baseBuilders[0]!,
+      baseBuilders[1]!,
+      baseBuilders[2]!.blacklisted(),
     ]
     const history = [
       { voteAccount: 'carol', values: { samBlacklisted: true } }
