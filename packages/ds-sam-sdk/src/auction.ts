@@ -490,9 +490,30 @@ export class Auction {
     }
   }
 
+  setExpectedMaxEffBidPmpes (expectedMaxTotalPmpe: number) {
+    for (const validator of this.data.validators) {
+      const { revShare } = validator
+      revShare.expectedMaxEffBidPmpe = Math.min(revShare.bidPmpe, expectedMaxTotalPmpe - revShare.inflationPmpe - revShare.mevPmpe)
+    }
+  }
+
+  updateExpectedMaxEffBidPmpe () {
+    if (this.config.expectedMaxWinningBidRatio == null) {
+      return
+    }
+    const { inflationPmpe, mevPmpe } = this.data.rewards
+    const initialTotalPmpeLimit = inflationPmpe + mevPmpe + this.config.expectedFeePmpe
+    this.setExpectedMaxEffBidPmpes(initialTotalPmpeLimit)
+    const result = this.evaluateOne()
+    this.reset()
+    const base = inflationPmpe + mevPmpe
+    const shift = this.config.expectedMaxWinningBidRatio * Math.max(0, result.winningTotalPmpe - base)
+    this.setExpectedMaxEffBidPmpes(base + shift)
+  }
+
   evaluateFinal (): AuctionResult {
     this.setMaxSpendRobustDelegations()
-    this.setBondStakeCapMaxPmpe()
+    this.updateExpectedMaxEffBidPmpe()
     this.updatePaidUndelegation()
     const result = this.evaluateOne()
     this.setStakeUnstakePriorities()
@@ -504,23 +525,9 @@ export class Auction {
     return result
   }
 
-  setBondStakeCapMaxPmpe () {
-    if (this.config.expectedMaxWinningBidRatio == null) {
-      return
-    }
-    const { inflationPmpe, mevPmpe } = this.data.rewards
-    const initialTotalPmpeLimit = inflationPmpe + mevPmpe + this.config.expectedFeePmpe
-    this.constraints.setBondStakeCapMaxPmpe(initialTotalPmpeLimit)
-    const result = this.evaluateOne()
-    this.reset()
-    const base = inflationPmpe + mevPmpe
-    const shift = this.config.expectedMaxWinningBidRatio * Math.max(0, result.winningTotalPmpe - base)
-    this.constraints.setBondStakeCapMaxPmpe(base + shift)
-  }
-
   evaluate (): AuctionResult {
     this.setMaxSpendRobustDelegations()
-    this.setBondStakeCapMaxPmpe()
+    this.updateExpectedMaxEffBidPmpe()
     const result = this.evaluateOne()
     this.setAuctionEffectiveBids(result.winningTotalPmpe)
     const totalMarinadeSpend = result.auctionData.validators.reduce(

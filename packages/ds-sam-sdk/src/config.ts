@@ -140,7 +140,7 @@ export const DEFAULT_CONFIG: DsSamConfig = {
   minBondBalanceSol: 0,
   spendRobustReputationBondBoostCoef: 0,
   minBondEpochs: 1,
-  idealBondEpochs: 3,
+  idealBondEpochs: 1,
   bondRiskFeeMult: 0,
   minMaxStakeWanted: null,
   expectedFeePmpe: 0,

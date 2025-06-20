@@ -15,6 +15,8 @@ export const calcValidatorRevShare = (
     auctionEffectiveBidPmpe: NaN,
     bidTooLowPenaltyPmpe: NaN,
     effParticipatingBidPmpe: NaN,
+    // in case expectedMaxWinningBidRatio = null, expectedMaxEffBidPmpe never gets set and remains equal to bidPmpe
+    expectedMaxEffBidPmpe: bidPmpe,
   }
 }
 
@@ -56,28 +58,28 @@ export type BondRiskFeeResult = {
  *   bondRiskFee    = forcedUndelegation * effPmpe / 1000
  *
  */
- export const calcBondRiskFee = (
+export const calcBondRiskFee = (
   cfg: BondRiskFeeConfig,
   validator: AuctionValidator,
 ): BondRiskFeeResult | null => {
   const { revShare } = validator
   const projectedActivatedStakeSol = Math.max(0, validator.marinadeActivatedStakeSol - validator.values.paidUndelegationSol)
-  const minBondCoef = (revShare.totalPmpe + cfg.minBondEpochs * revShare.effParticipatingBidPmpe) / 1000
+  const minBondCoef = (revShare.inflationPmpe + revShare.mevPmpe + (cfg.minBondEpochs + 1) * revShare.expectedMaxEffBidPmpe) / 1000
   const bondBalanceSol = validator.bondBalanceSol ?? 0
   if (bondBalanceSol < projectedActivatedStakeSol * minBondCoef) {
-    const idealBondCoef = (revShare.totalPmpe + cfg.idealBondEpochs * revShare.effParticipatingBidPmpe) / 1000
-    const feePmpe = revShare.inflationPmpe + revShare.mevPmpe + revShare.auctionEffectiveBidPmpe
+    const idealBondCoef = (revShare.inflationPmpe + revShare.mevPmpe + (cfg.idealBondEpochs + 1) * revShare.expectedMaxEffBidPmpe) / 1000
+    const feeCoef = (revShare.inflationPmpe + revShare.mevPmpe + revShare.auctionEffectiveBidPmpe) / 1000
     // always: base >= 0, even with no max, since idealBondCoef >= minBondCoef, since idealBondEpochs >= minBondEpochs
     // and we already ensured that bondBalanceSol / minBondCoef < projectedActivatedStakeSol above
     // also, if minBondCoef == 0, then we can never get here, in the opposite case, idealBondCoef >= minBondCoef > 0
     const base = Math.max(0, projectedActivatedStakeSol - bondBalanceSol / idealBondCoef)
-    const coef = 1 - (feePmpe / 1000) / idealBondCoef
+    const coef = 1 - feeCoef / idealBondCoef
     let value = coef > 0 ? Math.min(projectedActivatedStakeSol, base / coef) : projectedActivatedStakeSol
     // always: value <= projectedActivatedStakeSol
-    if (projectedActivatedStakeSol - value < cfg.minBondBalanceSol / (revShare.totalPmpe / 1000)) {
+    if ((projectedActivatedStakeSol - value) * (revShare.inflationPmpe + revShare.mevPmpe + revShare.expectedMaxEffBidPmpe) / 1000 < cfg.minBondBalanceSol) {
       value = projectedActivatedStakeSol
     }
-    const bondRiskFee = cfg.bondRiskFeeMult * value * feePmpe / 1000
+    const bondRiskFee = cfg.bondRiskFeeMult * value * feeCoef
     const paidUndelegationSol = Math.min(1, cfg.bondRiskFeeMult) * value
     if (!isFinite(bondRiskFee)) {
       throw new Error('bondRiskFee has to be finite')
@@ -86,7 +88,7 @@ export type BondRiskFeeResult = {
       throw new Error('bondRiskFee can not be negative')
     }
     return {
-      bondForcedUndelegation: { base, coef, value, feePmpe },
+      bondForcedUndelegation: { base, coef, value, feePmpe: 1000 * feeCoef },
       bondRiskFee,
       paidUndelegationSol,
     }

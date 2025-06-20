@@ -100,6 +100,7 @@ export type RevShare = {
   auctionEffectiveBidPmpe: number
   bidTooLowPenaltyPmpe: number
   effParticipatingBidPmpe: number
+  expectedMaxEffBidPmpe: number
 }
 
 export type BidTooLowPenalty = {
@@ -122,7 +123,8 @@ export type AuctionConstraintsConfig = {
   spendRobustReputationMult: number | null
   minBondBalanceSol: number
   minMaxStakeWanted: number
-  bondStakeCapMaxPmpe: number
+  minBondEpochs: number
+  idealBondEpochs: number
 }
 
 export enum AuctionConstraintType {
