@@ -157,13 +157,13 @@ export class DataProvider {
         values: {
           bondBalanceSol,
           marinadeActivatedStakeSol,
-          spendRobustReputation: override?.values.spendRobustReputation
+          spendRobustReputation: override?.values?.spendRobustReputation
             ?? lastAuctionHistory?.values?.spendRobustReputation
             ?? this.config.initialSpendRobustReputation,
           adjSpendRobustReputation: 0,
           adjMaxSpendRobustDelegation: 0,
           marinadeActivatedStakeSolUndelegation: 0,
-          adjSpendRobustReputationInflationFactor: override?.values.adjSpendRobustReputationInflationFactor
+          adjSpendRobustReputationInflationFactor: override?.values?.adjSpendRobustReputationInflationFactor
             ?? lastAuctionHistory?.values?.adjSpendRobustReputationInflationFactor
             ?? 1,
           paidUndelegationSol: lastAuctionHistory?.values?.paidUndelegationSol ?? 0,
