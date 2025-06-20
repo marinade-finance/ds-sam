@@ -51,12 +51,22 @@ describe('DataProvider.aggregateData blacklist flag handling', () => {
   }
 
   it('no CSV & no history → nobody is blacklisted', () => {
-    expect(extractFlags(runAggregate('vote_account,reason'))).toMatchSnapshot()
+    const flags = extractFlags(runAggregate('vote_account,reason'))
+    expect(flags).toEqual([
+      { voteAccount: 'alice', samBlacklisted: false, lastSamBlacklisted: false },
+      { voteAccount: 'bob',   samBlacklisted: false, lastSamBlacklisted: false },
+      { voteAccount: 'carol', samBlacklisted: false, lastSamBlacklisted: false },
+    ])
   })
 
   it('CSV only → samBlacklisted from CSV; lastSamBlacklisted always false', () => {
     const csv = ['vote_account,reason','alice,spam','carol,spam'].join('\n')
-    expect(extractFlags(runAggregate(csv))).toMatchSnapshot()
+    const flags = extractFlags(runAggregate(csv))
+    expect(flags).toEqual([
+      { voteAccount: 'alice', samBlacklisted: true,  lastSamBlacklisted: false },
+      { voteAccount: 'bob',   samBlacklisted: false, lastSamBlacklisted: false },
+      { voteAccount: 'carol', samBlacklisted: true,  lastSamBlacklisted: false },
+    ])
   })
 
   it('history only → history-driven lastSamBlacklisted; samBlacklisted false', () => {
@@ -68,7 +78,12 @@ describe('DataProvider.aggregateData blacklist flag handling', () => {
       epoch: 0,
       values: { samBlacklisted: true },
     }]
-    expect(extractFlags(runAggregate('vote_account,reason', history))).toMatchSnapshot()
+    const flags = extractFlags(runAggregate('vote_account,reason', history))
+    expect(flags).toEqual([
+      { voteAccount: 'alice', samBlacklisted: false, lastSamBlacklisted: false },
+      { voteAccount: 'bob',   samBlacklisted: false, lastSamBlacklisted: true },
+      { voteAccount: 'carol', samBlacklisted: false, lastSamBlacklisted: false },
+    ])
   })
 
   it('disjoint CSV & history → correct flags from each', () => {
@@ -81,7 +96,12 @@ describe('DataProvider.aggregateData blacklist flag handling', () => {
       epoch: 0,
       values: { samBlacklisted: true },
     }]
-    expect(extractFlags(runAggregate(csv, history))).toMatchSnapshot()
+    const flags = extractFlags(runAggregate(csv, history))
+    expect(flags).toEqual([
+      { voteAccount: 'alice', samBlacklisted: true,  lastSamBlacklisted: false },
+      { voteAccount: 'bob',   samBlacklisted: false, lastSamBlacklisted: true  },
+      { voteAccount: 'carol', samBlacklisted: false, lastSamBlacklisted: false },
+    ])
   })
 
   it('overlapping CSV & history → both flags true for overlapping', () => {
@@ -94,6 +114,11 @@ describe('DataProvider.aggregateData blacklist flag handling', () => {
       epoch: 0,
       values: { samBlacklisted: true },
     }]
-    expect(extractFlags(runAggregate(csv, history))).toMatchSnapshot()
+    const flags = extractFlags(runAggregate(csv, history))
+    expect(flags).toEqual([
+      { voteAccount: 'alice', samBlacklisted: false, lastSamBlacklisted: false },
+      { voteAccount: 'bob',   samBlacklisted: false, lastSamBlacklisted: false },
+      { voteAccount: 'carol', samBlacklisted: true,  lastSamBlacklisted: true  },
+    ])
   })
 })
