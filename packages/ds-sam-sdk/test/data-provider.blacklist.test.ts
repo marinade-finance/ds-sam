@@ -6,11 +6,14 @@ async function runStaticAggregate(
   validators: ValidatorMockBuilder[],
   history: any[] = []
 ) {
-  const dp = defaultStaticDataProviderBuilder(validators)({ ...DEFAULT_CONFIG})
+  const dp = defaultStaticDataProviderBuilder(validators)({
+    ...DEFAULT_CONFIG,
+    inputsSource: InputsSource.FILES,
+    inputsCacheDirPath: '/tmp',
+  })
   const raw = await dp.fetchSourceData()
   raw.auctions = history
-  console.log(raw.auctions)
-  return dp.aggregateData(raw)
+  return dp.aggregateData(raw, null)
 }
 
 describe('StaticDataProvider → samBlacklisted / lastSamBlacklisted', () => {
