@@ -126,7 +126,7 @@ export class DataProvider {
         ? new Decimal(bond.effective_amount).div(1e9).toNumber()
         : null
       const claimableBondBalanceSol = bond
-        ? new Decimal(bond.funded_amount).add(bond.remainining_settlement_claim_amount).div(1e9).toNumber()
+        ? new Decimal(bond.funded_amount).sub(bond.remainining_settlement_claim_amount).div(1e9).toNumber()
         : null
       const marinadeActivatedStakeSol = new Decimal(validator.marinade_stake).add(validator.marinade_native_stake).div(1e9).toNumber()
 
