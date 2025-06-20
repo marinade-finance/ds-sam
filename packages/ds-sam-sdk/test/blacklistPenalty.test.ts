@@ -55,25 +55,6 @@ describe('setBlacklistPenalties', () => {
         voteAccount: v.voteAccount,
         blacklistPenaltyPmpe: v.revShare.blacklistPenaltyPmpe
       }))
-    ).toMatchInlineSnapshot(`
-Array [
-  Object {
-    "voteAccount": "newly-blacklisted",
-    "blacklistPenaltyPmpe": 1234.8,
-  },
-  Object {
-    "voteAccount": "still-blacklisted",
-    "blacklistPenaltyPmpe": 0,
-  },
-  Object {
-    "voteAccount": "not-blacklisted",
-    "blacklistPenaltyPmpe": 0,
-  },
-  Object {
-    "voteAccount": "newly-blacklisted-zero-eff",
-    "blacklistPenaltyPmpe": 1234.5,
-  },
-]
-`)
+    ).toMatchSnapshot()
   })
 })
