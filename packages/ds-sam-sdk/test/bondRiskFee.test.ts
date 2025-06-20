@@ -25,6 +25,7 @@ const baseConfig: BondRiskFeeConfig = {
   idealBondEpochs: 2,
   minBondBalanceSol: 10,
   bondRiskFeeMult: 0.1,
+  exitFeeMult: 0,
 }
 
 function makeValidator (overrides: {
@@ -37,6 +38,7 @@ function makeValidator (overrides: {
   const defaultRevShare: RevShare = { ...baseRevShare, bidPmpe: 0, bidTooLowPenaltyPmpe: 0 }
   return {
     bondBalanceSol: overrides.bondBalanceSol ?? 0,
+    claimableBondBalanceSol: overrides.bondBalanceSol ?? 0,
     lastBondBalanceSol: overrides.lastBondBalanceSol ?? 0,
     marinadeActivatedStakeSol: overrides.marinadeActivatedStakeSol ?? 0,
     values: { paidUndelegationSol: overrides.values?.paidUndelegationSol ?? 0 },

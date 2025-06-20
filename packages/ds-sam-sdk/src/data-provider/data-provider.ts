@@ -113,12 +113,21 @@ export class DataProvider {
       const validatorMndeStakeCapIncrease = (mndeStakeCapIncreases.get(validator.vote_account) ?? new Decimal(0))
 
       const inflationCommissionDec = (inflationCommissionOverride ?? validator.commission_effective ?? validator.commission_advertised ?? 100) / 100
-      const mevCommissionDec = (mevCommissionOverride !== undefined ? mevCommissionOverride / 10_000 : (mev ? mev.mev_commission_bps / 10_000 : null))
+      const mevCommissionDec = (
+        mevCommissionOverride !== undefined
+          ? mevCommissionOverride / 10_000
+          : (mev ? mev.mev_commission_bps / 10_000 : null)
+      )
       const lastAuctionHistory = auctionHistoriesData
         .flatMap(auction => auction.validators)
         .find(v => v.voteAccount === validator.vote_account)
       const auctions = auctionHistoriesData.map((auction) => this.extractAuctionHistoryStats(auction, validator))
-      const bondBalanceSol = bond ? new Decimal(bond.effective_amount).div(1e9).toNumber() : null
+      const bondBalanceSol = bond
+        ? new Decimal(bond.effective_amount).div(1e9).toNumber()
+        : null
+      const claimableBondBalanceSol = bond
+        ? new Decimal(bond.funded_amount).sub(bond.remainining_settlement_claim_amount).div(1e9).toNumber()
+        : null
       const marinadeActivatedStakeSol = new Decimal(validator.marinade_stake).add(validator.marinade_native_stake).div(1e9).toNumber()
 
       return {
@@ -128,6 +137,7 @@ export class DataProvider {
         aso: validator.dc_aso ?? 'Unknown',
         country: validator.dc_country ?? 'Unknown',
         bondBalanceSol,
+        claimableBondBalanceSol,
         lastBondBalanceSol: lastAuctionHistory?.values?.bondBalanceSol ?? null,
         lastMarinadeActivatedStakeSol: lastAuctionHistory?.values?.marinadeActivatedStakeSol ?? null,
         totalActivatedStakeSol: new Decimal(validator.activated_stake).div(1e9).toNumber(),

@@ -60,6 +60,7 @@ export type AggregatedValidator = {
   aso: string
   country: string
   bondBalanceSol: number | null
+  claimableBondBalanceSol: number | null
   lastBondBalanceSol: number | null
   totalActivatedStakeSol: number
   marinadeActivatedStakeSol: number

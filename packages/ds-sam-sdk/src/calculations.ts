@@ -25,6 +25,7 @@ export type BondRiskFeeConfig = {
   idealBondEpochs: number
   minBondBalanceSol: number
   bondRiskFeeMult: number
+  exitFeeMult: number
 }
 
 export type BondRiskFeeResult = {
@@ -65,14 +66,14 @@ export const calcBondRiskFee = (
   const { revShare } = validator
   const projectedActivatedStakeSol = Math.max(0, validator.marinadeActivatedStakeSol - validator.values.paidUndelegationSol)
   const minBondCoef = (revShare.inflationPmpe + revShare.mevPmpe + (cfg.minBondEpochs + 1) * revShare.expectedMaxEffBidPmpe) / 1000
-  const bondBalanceSol = validator.bondBalanceSol ?? 0
-  if (bondBalanceSol < projectedActivatedStakeSol * minBondCoef) {
+  const riskBondSol = cfg.exitFeeMult * (validator.claimableBondBalanceSol ?? 0) + (1 - cfg.exitFeeMult) * (validator.bondBalanceSol ?? 0)
+  if (riskBondSol < projectedActivatedStakeSol * minBondCoef) {
     const idealBondCoef = (revShare.inflationPmpe + revShare.mevPmpe + (cfg.idealBondEpochs + 1) * revShare.expectedMaxEffBidPmpe) / 1000
     const feeCoef = (revShare.inflationPmpe + revShare.mevPmpe + revShare.auctionEffectiveBidPmpe) / 1000
     // always: base >= 0, even with no max, since idealBondCoef >= minBondCoef, since idealBondEpochs >= minBondEpochs
-    // and we already ensured that bondBalanceSol / minBondCoef < projectedActivatedStakeSol above
+    // and we already ensured that riskBondSol / minBondCoef < projectedActivatedStakeSol above
     // also, if minBondCoef == 0, then we can never get here, in the opposite case, idealBondCoef >= minBondCoef > 0
-    const base = Math.max(0, projectedActivatedStakeSol - bondBalanceSol / idealBondCoef)
+    const base = Math.max(0, projectedActivatedStakeSol - riskBondSol / idealBondCoef)
     const coef = 1 - feeCoef / idealBondCoef
     let value = coef > 0 ? Math.min(projectedActivatedStakeSol, base / coef) : projectedActivatedStakeSol
     // always: value <= projectedActivatedStakeSol
