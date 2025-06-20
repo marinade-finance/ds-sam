@@ -24,10 +24,9 @@ describe('DataProvider.aggregateData blacklist flags', () => {
       mevInfo: { validators: [] },
       bonds: { bonds: [] },
       tvlInfo: { total_virtual_staked_sol: 1, marinade_native_stake_sol: 0 },
-      blacklist: \`vote_account,reason
-alice,reason
+      blacklist: `vote_account,reason
 carol,reason
-\`,
+`,
       mndeVotes: { voteRecordsCreatedAt: '', records: [] },
       rewards: { rewards_inflation_est: [[1, 1]], rewards_mev: [[1, 1]] },
       auctions: [],
