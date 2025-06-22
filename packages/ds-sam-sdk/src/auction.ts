@@ -344,7 +344,10 @@ export class Auction {
       throw new Error('adjSpendRobustReputation has to be finite')
     }
     if (validator.revShare.totalPmpe > 0) {
-      values.adjMaxSpendRobustDelegation = values.adjSpendRobustReputation / (validator.revShare.totalPmpe / 1000)
+      values.adjMaxSpendRobustDelegation = Math.max(
+        0,
+        values.adjSpendRobustReputation / (validator.revShare.totalPmpe / 1000)
+      )
     } else {
       values.adjMaxSpendRobustDelegation = 0
     }
