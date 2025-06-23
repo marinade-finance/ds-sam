@@ -137,7 +137,7 @@ export const calcBidTooLowPenalty = (
       : 0
   }
   const bidTooLowPenaltyPmpe = bidTooLowPenaltyValue.coef * bidTooLowPenaltyValue.base
-  const auctionPmpe = revShare.inflationPmpe + revShare.mevPmpe + revShare.auctionEffectiveBidPmpe
+  const auctionPmpe = revShare.inflationPmpe + revShare.mevPmpe + revShare.effParticipatingBidPmpe
   const paidUndelegationSol = bidTooLowPenaltyPmpe > 0
     ? bidTooLowPenaltyPmpe * validator.marinadeActivatedStakeSol / auctionPmpe
     : 0
