@@ -167,7 +167,7 @@ export class DataProvider {
             ?? lastAuctionHistory?.values?.adjSpendRobustReputationInflationFactor
             ?? 1,
           paidUndelegationSol: lastAuctionHistory?.values?.paidUndelegationSol ?? 0,
-          bondRiskFee: 0,
+          bondRiskFeeSol: 0,
           samBlacklisted: blacklist.has(validator.vote_account),
         },
         mndeVotesSolValue: validatorMndeVotes.mul(solPerMnde).toNumber(),

@@ -231,9 +231,9 @@ export class Auction {
       if (value == null) {
         continue
       }
-      const { bondForcedUndelegation, bondRiskFee, paidUndelegationSol } = value
+      const { bondForcedUndelegation, bondRiskFeeSol, paidUndelegationSol } = value
       validator.bondForcedUndelegation = bondForcedUndelegation
-      validator.values.bondRiskFee = bondRiskFee
+      validator.values.bondRiskFeeSol = bondRiskFeeSol
       validator.values.paidUndelegationSol += paidUndelegationSol
     }
   }

@@ -79,7 +79,7 @@ describe('calcBondRiskFee', () => {
     })
     const result = calcBondRiskFee(baseConfig, validator)!
     expect(result.bondForcedUndelegation).toBeDefined()
-    expect(result.bondRiskFee).toBeDefined()
+    expect(result.bondRiskFeeSol).toBeDefined()
     expect(result.paidUndelegationSol).toBeDefined()
 
     // Numerical assertions
@@ -87,7 +87,7 @@ describe('calcBondRiskFee', () => {
     expect(bf.base).toBeCloseTo(12.5, 6)
     expect(bf.coef).toBeCloseTo(0.5, 6)
     expect(bf.value).toBeCloseTo(45, 6)
-    expect(result.bondRiskFee).toBeCloseTo(1.8, 6)
+    expect(result.bondRiskFeeSol).toBeCloseTo(1.8, 6)
     expect(result.paidUndelegationSol).toBeCloseTo(4.5, 6)
   })
 
@@ -101,7 +101,7 @@ describe('calcBondRiskFee', () => {
     })
     const result = calcBondRiskFee(baseConfig, validator)!
     expect(result.bondForcedUndelegation).toBeDefined()
-    expect(result.bondRiskFee).toBeDefined()
+    expect(result.bondRiskFeeSol).toBeDefined()
     expect(result.paidUndelegationSol).toBeDefined()
 
     // Numerical assertions
@@ -109,7 +109,7 @@ describe('calcBondRiskFee', () => {
     expect(bf.base).toBeCloseTo(9.179104477611943, 6)
     expect(bf.coef).toBeCloseTo(-0.19402985074626855, 5)
     expect(bf.value).toBeCloseTo(45, 6)
-    expect(result.bondRiskFee).toBeCloseTo(1.8, 6)
+    expect(result.bondRiskFeeSol).toBeCloseTo(1.8, 6)
     expect(result.paidUndelegationSol).toBeCloseTo(4.5, 6)
   })
 
@@ -123,7 +123,7 @@ describe('calcBondRiskFee', () => {
     })
     const result = calcBondRiskFee(baseConfig, validator)!
     expect(result.bondForcedUndelegation).toBeDefined()
-    expect(result.bondRiskFee).toBeDefined()
+    expect(result.bondRiskFeeSol).toBeDefined()
     expect(result.paidUndelegationSol).toBeDefined()
 
     // Numerical assertions
@@ -131,7 +131,7 @@ describe('calcBondRiskFee', () => {
     expect(bf.base).toBeCloseTo(15.149253731343286, 6)
     expect(bf.coef).toBeCloseTo(0.28358208955223885, 5)
     expect(bf.value).toBeCloseTo(45, 6)
-    expect(result.bondRiskFee).toBeCloseTo(1.08, 6)
+    expect(result.bondRiskFeeSol).toBeCloseTo(1.08, 6)
     expect(result.paidUndelegationSol).toBeCloseTo(4.5, 6)
   })
 
@@ -145,7 +145,7 @@ describe('calcBondRiskFee', () => {
     })
     const result = calcBondRiskFee(cfg, validator)!
     expect(result.bondForcedUndelegation!.value).toBeCloseTo(50)
-    expect(result.bondRiskFee).toBeCloseTo(2.0, 6)
+    expect(result.bondRiskFeeSol).toBeCloseTo(2.0, 6)
     expect(result.paidUndelegationSol).toBeCloseTo(5, 6)
   })
 
@@ -160,7 +160,7 @@ describe('calcBondRiskFee', () => {
     })
     const result = calcBondRiskFee(baseConfig, validator)!
     expect(result.bondForcedUndelegation!.value).toBeCloseTo(50)
-    expect(result.bondRiskFee).toBeCloseTo(baseConfig.bondRiskFeeMult * 50 * ((revShare.inflationPmpe + revShare.mevPmpe + revShare.auctionEffectiveBidPmpe) / 1000))
+    expect(result.bondRiskFeeSol).toBeCloseTo(baseConfig.bondRiskFeeMult * 50 * ((revShare.inflationPmpe + revShare.mevPmpe + revShare.auctionEffectiveBidPmpe) / 1000))
   })
 
   it('handles zero effective PMPE with zero fee', () => {
@@ -174,7 +174,7 @@ describe('calcBondRiskFee', () => {
     })
     const result = calcBondRiskFee(baseConfig, validator)!
     expect(result.paidUndelegationSol).toBeCloseTo(5)
-    expect(result.bondRiskFee).toBeCloseTo(0)
+    expect(result.bondRiskFeeSol).toBeCloseTo(0)
   })
 
   it('handles zero expected max PMPE', () => {

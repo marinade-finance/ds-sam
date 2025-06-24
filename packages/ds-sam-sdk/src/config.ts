@@ -87,12 +87,12 @@ export type DsSamConfig = {
   // of the downtime and rugging risk
   idealBondEpochs: number
 
-  // The multiplier used in the bondRiskFee formula
-  // If set to zero, bondRiskFee is effectivelly disabled
+  // The multiplier used in the bondRiskFeeSol formula
+  // If set to zero, bondRiskFeeSol is effectivelly disabled
   bondRiskFeeMult: number
 
   // The amount of bond-to-be withdrawn still counted as available
-  // for the purposes of bondRiskFee
+  // for the purposes of bondRiskFeeSol
   // If set to one, exitFee is not charged
   pendingWithdrawalBondMult: number
 
