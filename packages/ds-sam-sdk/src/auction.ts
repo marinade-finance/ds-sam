@@ -271,7 +271,7 @@ export class Auction {
     for (const validator of this.data.validators) {
       const { values } = validator
 
-      if (validator.revShare.totalPmpe >= winningTotalPmpe) {
+      if (validator.revShare.totalPmpe >= winningTotalPmpe && (validator.bondBalanceSol ?? 0) >= this.config.minBondBalanceSol) {
         // counterfactual auction - the validator is not part of the auction
         this.reset()
         console.log(`EVALUATING counterfactual auction for ${validator.voteAccount}`)
