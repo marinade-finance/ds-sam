@@ -132,7 +132,7 @@ export const calcBidTooLowPenalty = (
     : 0
   const bidTooLowPenaltyValue = {
     base: winningTotalPmpe + revShare.effParticipatingBidPmpe,
-    coef: revShare.bidPmpe < tol_coef * (auctions.find(({ bidPmpe }) => bidPmpe)?.bidPmpe ?? 0)
+    coef: revShare.bidPmpe < tol_coef * (auctions[0]?.bidPmpe ?? 0)
       ? penaltyCoef
       : 0
   }
