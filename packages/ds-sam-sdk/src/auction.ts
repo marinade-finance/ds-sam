@@ -138,7 +138,7 @@ export class Auction {
   }
 
   distributeBackstopStake () {
-    this.constraints.updateStateForSam(this.data)
+    this.constraints.updateStateForBackstop(this.data)
     this.debug.getVoteAccounts().forEach((voteAccount) => {
       const constraints = this.constraints.getValidatorConstraints(voteAccount)
       this.debug.pushValidatorEvent(voteAccount, `SAM start constraints: ${constraints ? `${JSON.stringify(constraints.map(constraint => ({ ...constraint, validators: constraint.validators.length })))}` : 'NULL'}`)
@@ -172,7 +172,7 @@ export class Auction {
         this.debug.pushValidatorEvent(validator.voteAccount, `received ${evenDistributionCap} SAM stake in PMPE group ${validator.revShare.totalPmpe} with ${groupValidators.size} validators`)
       }
 
-      this.constraints.updateStateForSam(this.data)
+      this.constraints.updateStateForBackstop(this.data)
       validators = validators.filter((validator) => {
         const validatorCap = this.constraints.findCapForValidator(validator)
         if (validatorCap < EPSILON) {
@@ -529,10 +529,6 @@ export class Auction {
     const winningTotalPmpe = this.distributeSamStake()
     this.debug.pushEvent('STAKE DISTRIBUTED')
 
-    console.log('stake amounts after', this.data.stakeAmounts)
-    this.debug.pushInfo('end amounts', JSON.stringify(this.data.stakeAmounts))
-    this.debug.pushInfo('winning total PMPE', winningTotalPmpe.toString())
-
     if (!isFinite(winningTotalPmpe)) {
       throw new Error('winningTotalPmpe has to be finite')
     }
@@ -540,6 +536,15 @@ export class Auction {
     if (winningTotalPmpe <= 0) {
       throw new Error('winningTotalPmpe has to be positive')
     }
+
+    this.debug.pushInfo('pre BACKSTOP amounts', JSON.stringify(this.data.stakeAmounts))
+    this.debug.pushEvent('DISTRIBUTING BACKSTOP STAKE')
+    this.distributeBackstopStake()
+    this.debug.pushEvent('BACKSTOP STAKE DISTRIBUTED')
+
+    console.log('stake amounts after', this.data.stakeAmounts)
+    this.debug.pushInfo('end amounts', JSON.stringify(this.data.stakeAmounts))
+    this.debug.pushInfo('winning total PMPE', winningTotalPmpe.toString())
 
     return {
       auctionData: this.data,

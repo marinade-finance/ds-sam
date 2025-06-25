@@ -2,7 +2,7 @@ import { AuctionValidator, AuctionConstraint, AuctionConstraintType } from './ty
 
 export const MNDE_VOTE_DELEGATION_STRATEGY = 'MarinadeA1gorithmicDe1egationStrategy111111'
 
-export const ineligibleValidatorAggDefaults = () => ({ samEligible: false, mndeEligible: false, ...validatorAggDefaults() })
+export const ineligibleValidatorAggDefaults = () => ({ samEligible: false, mndeEligible: false, backstopEligible: false, ...validatorAggDefaults() })
 
 export const validatorAggDefaults = () => ({
   lastCapConstraint: null,
@@ -18,7 +18,6 @@ export const validatorAggDefaults = () => ({
     value: 0,
   },
   samBlocked: false,
-  backstopEligible: true,
   maxBondDelegation: NaN,
 })
 

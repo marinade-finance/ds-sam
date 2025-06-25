@@ -80,6 +80,7 @@ export class DsSamSDK {
 
     const minEffectiveRevSharePmpe = Math.max(0, rewards.inflationPmpe * (1 - this.config.validatorsMaxEffectiveCommissionDec))
     const minSamRevSharePmpe = Math.max(0, rewards.inflationPmpe + rewards.mevPmpe + this.config.minEligibleFeePmpe)
+    const zeroCommissionPmpe = Math.max(0, rewards.inflationPmpe + rewards.mevPmpe)
     console.log('min rev share PMPE', minEffectiveRevSharePmpe)
     console.log('rewards', rewards)
     console.log('uptime thresholds', epochCreditsThresholds)
@@ -107,13 +108,14 @@ export class DsSamSDK {
           return { ...validator, revShare, auctionStake, ...ineligibleValidatorAggDefaults() }
         }
       }
+      const backstopEligible = revShare.inflationPmpe + revShare.mevPmpe >= zeroCommissionPmpe
       if (validator.bondBalanceSol === null) {
-        return { ...validator, revShare, auctionStake, ...ineligibleValidatorAggDefaults() }
+        return { ...validator, revShare, auctionStake, ...ineligibleValidatorAggDefaults(), backstopEligible }
       }
       const samEligible = revShare.totalPmpe >= Math.max(minEffectiveRevSharePmpe, minSamRevSharePmpe)
       const mndeEligible = revShare.inflationPmpe + revShare.mevPmpe >= minEffectiveRevSharePmpe
 
-      return { ...validator, revShare, auctionStake, samEligible, mndeEligible, ...validatorAggDefaults() }
+      return { ...validator, revShare, auctionStake, samEligible, mndeEligible, backstopEligible, ...validatorAggDefaults() }
     })
   }
 
