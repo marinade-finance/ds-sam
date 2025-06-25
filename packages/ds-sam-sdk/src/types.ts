@@ -45,6 +45,7 @@ export type AuctionValidator = AggregatedValidator & {
   bondForcedUndelegation: BondForcedUndelegation
   mndeEligible: boolean
   samEligible: boolean
+  backstopEligible: boolean
   samBlocked: boolean
   auctionStake: ValidatorAuctionStake
   lastCapConstraint: AuctionConstraint | null
@@ -72,6 +73,8 @@ export type AggregatedValidator = {
   maxStakeWanted: number | null
   mndeStakeCapIncrease: number
   mndeVotesSolValue: number
+  foundationStakeSol: number
+  selfStakeSol: number
   epochStats: EpochStats[]
   auctions: AuctionHistoryStats[]
   values: AuctionValidatorValues
@@ -129,6 +132,8 @@ export type AuctionConstraintsConfig = {
   minMaxStakeWanted: number
   minBondEpochs: number
   idealBondEpochs: number
+  spendRobustReputationBondBoostCoef: number
+  maxUnprotectedStakePerValidatorDec: number
 }
 
 export enum AuctionConstraintType {
@@ -139,6 +144,7 @@ export enum AuctionConstraintType {
   MNDE = 'MNDE',
   REPUTATION = 'REPUTATION',
   WANT = 'WANT',
+  RISK = 'RISK',
 }
 
 export type AuctionConstraint = {

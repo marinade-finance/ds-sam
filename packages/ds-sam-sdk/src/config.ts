@@ -106,6 +106,9 @@ export type DsSamConfig = {
   // The estimated transaction fee Pmpe
   expectedFeePmpe: number
 
+  // The minimal eligible transaction fee Pmpe
+  minEligibleFeePmpe: number
+
   // Validator vote accounts to collect debug info for
   debugVoteAccounts: string[]
 }
@@ -126,6 +129,7 @@ export const DEFAULT_CONFIG: DsSamConfig = {
   validatorsUptimeThresholdDec: 0.8,
   validatorsClientVersionSemverExpr: '>=1.18.15 || >=0.101.20013 <1.0.0',
   validatorsMaxEffectiveCommissionDec: 0.07,
+  maxUnprotectedStakePerValidatorDec: 0.05,
   bidTooLowPenaltyHistoryEpochs: 3,
 
   mndeDirectedStakeShareDec: 0,
@@ -151,6 +155,7 @@ export const DEFAULT_CONFIG: DsSamConfig = {
   minMaxStakeWanted: null,
   expectedFeePmpe: 0,
   expectedMaxWinningBidRatio: null,
+  minEligibleFeePmpe: 0,
 
   debugVoteAccounts: [],
 }

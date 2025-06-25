@@ -18,6 +18,7 @@ export const validatorAggDefaults = () => ({
     value: 0,
   },
   samBlocked: false,
+  backstopEligible: true,
   maxBondDelegation: NaN,
 })
 

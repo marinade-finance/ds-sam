@@ -112,6 +112,8 @@ export type RawValidatorDto = {
   commission_advertised: number | null
   credits: number
   epoch_stats: RawEpochStatDto[]
+  foundation_stake: string
+  self_stake: string
   // Other properties ignored
 }
 export type RawValidatorsResponseDto = {

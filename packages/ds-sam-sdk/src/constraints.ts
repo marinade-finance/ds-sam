@@ -70,6 +70,17 @@ export class AuctionConstraints {
     this.updateConstraintsPerValidator()
   }
 
+  updateStateForBackstop (auctionData: AuctionData) {
+    this.constraints = [
+      ...this.buildCountryConcentrationConstraints(auctionData),
+      ...this.buildAsoConcentrationConstraints(auctionData),
+      ...this.buildBackstopConstraints(auctionData),
+      ...this.buildValidatorConcentrationConstraints(auctionData),
+      ...this.buildSamWantConstraints(auctionData),
+    ]
+    this.updateConstraintsPerValidator()
+  }
+
   updateStateForMnde (auctionData: AuctionData) {
     this.constraints = [
       ...this.buildCountryConcentrationConstraints(auctionData),
@@ -166,6 +177,18 @@ export class AuctionConstraints {
     }))
   }
 
+  private buildBackstopConstraints ({ validators }: AuctionData) {
+    return validators.map(validator => ({
+      constraintType: AuctionConstraintType.RISK,
+      constraintName: validator.voteAccount,
+      totalStakeSol: validatorTotalAuctionStakeSol(validator),
+      totalLeftToCapSol: Infinity,
+      marinadeStakeSol: validator.auctionStake.marinadeMndeTargetSol + validator.auctionStake.marinadeSamTargetSol,
+      marinadeLeftToCapSol: this.unprotectedStakeCap(validator) - validator.auctionStake.marinadeSamTargetSol,
+      validators: [validator],
+    }))
+  }
+
   private buildSamWantConstraints ({ validators }: AuctionData) {
     return validators.map(validator => {
       const maxStakeWanted = validator.maxStakeWanted ?? Infinity
@@ -233,18 +256,28 @@ export class AuctionConstraints {
   bondStakeCapSam (validator: AuctionValidator): number {
     const { revShare } = validator
     // do not make validators over-collateralize
-    const minBondPmpe = revShare.inflationPmpe + revShare.mevPmpe + (this.config.minBondEpochs + 1) * revShare.expectedMaxEffBidPmpe
-    const idealBondPmpe = revShare.inflationPmpe + revShare.mevPmpe + (this.config.idealBondEpochs + 1) * revShare.expectedMaxEffBidPmpe
-    const bondBalanceSol = Math.max((validator.bondBalanceSol ?? 0) - bondBalanceUsedForMnde(validator), 0)
-    const minLimit = bondBalanceSol / (minBondPmpe / 1000)
-    const idealLimit = bondBalanceSol / (idealBondPmpe / 1000)
+    const minBidReservePmpe = this.config.minBondEpochs * revShare.expectedMaxEffBidPmpe
+    const idealBidReservePmpe = this.config.idealBondEpochs * revShare.expectedMaxEffBidPmpe
+    const minBondPmpe = revShare.inflationPmpe + revShare.mevPmpe + revShare.expectedMaxEffBidPmpe + minBidReservePmpe
+    const idealBondPmpe = revShare.inflationPmpe + revShare.mevPmpe + revShare.expectedMaxEffBidPmpe + idealBidReservePmpe
+    const effBondBalanceSol = (validator.bondBalanceSol ?? 0)
+      * (1 + Math.min(this.config.spendRobustReputationBondBoostCoef * validator.values.spendRobustReputation, 1))
+    const bondBalanceSol = Math.max(effBondBalanceSol - bondBalanceUsedForMnde(validator), 0)
+    const minUnprotectedReserve = this.unprotectedStakeCap(validator) * (minBidReservePmpe / 1000)
+    const idealUnprotectedReserve = this.unprotectedStakeCap(validator) * (idealBidReservePmpe / 1000)
+    const minLimit = Math.max(0, bondBalanceSol - minUnprotectedReserve) / (minBondPmpe / 1000)
+    const idealLimit = Math.max(0, bondBalanceSol - idealUnprotectedReserve) / (idealBondPmpe / 1000)
     // always minLimit > idealLimit, since minBondEpochs < idealBondEpochs
     // if marinadeActivatedStakeSol = 0, then the limit is given by the lower limit, which is the idealLimit
     // if marinadeActivatedStakeSol > idealLimit, but below minLimit, the limit is given by minLimit
     // the limit will never exceed minLimit
     // which is also the limit at which we charge the bondRiskFeeSol
     const limit = Math.min(minLimit, Math.max(idealLimit, validator.marinadeActivatedStakeSol))
-    return this.clipBondStakeCap(validator, limit)
+    return this.clipBondStakeCap(validator, limit) + this.unprotectedStakeCap(validator)
+  }
+
+  unprotectedStakeCap (validator: AuctionValidator): number {
+    return this.confg.maxUnprotectedStakePerValidatorDec * Math.max(0, validator.totalActivatedStakeSol - validator.selfStakeSol + validator.foundationStakeSol)
   }
 
   bondStakeCapMnde (validator: AuctionValidator): number {

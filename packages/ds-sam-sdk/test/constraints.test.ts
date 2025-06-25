@@ -117,6 +117,7 @@ describe('clipBondStakeCap()', () => {
     minMaxStakeWanted: 0,
     minBondEpochs: 0,
     idealBondEpochs: 0,
+    spendRobustReputationBondBoostCoef: 0,
   }
   const c = new AuctionConstraints(cfg, new Debug(new Set()))
 
@@ -154,6 +155,7 @@ describe('bondStakeCapSam()', () => {
     minMaxStakeWanted: 0,
     minBondEpochs: 1,
     idealBondEpochs: 2,
+    spendRobustReputationBondBoostCoef: 0,
   }
   const c = new AuctionConstraints(cfg, new Debug(new Set()))
 
@@ -222,6 +224,7 @@ describe('bondStakeCapMnde()', () => {
     minMaxStakeWanted: 0,
     minBondEpochs: 0,
     idealBondEpochs: 0,
+    spendRobustReputationBondBoostCoef: 0,
   }
   const c = new AuctionConstraints(cfg, new Debug(new Set()))
 
@@ -249,6 +252,7 @@ describe('reputationStakeCap()', () => {
     minMaxStakeWanted: 0,
     minBondEpochs: 0,
     idealBondEpochs: 0,
+    spendRobustReputationBondBoostCoef: 0,
   }
   const c = new AuctionConstraints(baseCfg, new Debug(new Set()))
 
@@ -289,6 +293,7 @@ describe('getMinCapForEvenDistribution() & findCapForValidator()', () => {
     minMaxStakeWanted: 0,
     minBondEpochs: 0,
     idealBondEpochs: 0,
+    spendRobustReputationBondBoostCoef: 0,
   }
   const debug = new Debug(new Set(['v1', 'v2']))
   const c = new AuctionConstraints(cfg, debug)
@@ -345,6 +350,7 @@ describe('getMinCapForEvenDistribution positive scenarios', () => {
     minMaxStakeWanted: 0,
     minBondEpochs: 0,
     idealBondEpochs: 0,
+    spendRobustReputationBondBoostCoef: 0,
   }
   const debug = new Debug(new Set(['x1','x2']))
   const cpos = new AuctionConstraints(cfg, debug)
@@ -395,10 +401,16 @@ describe('getMinCapForEvenDistribution positive scenarios', () => {
 
 describe('findCapForValidator when cap > EPSILON', () => {
   const cfg: AuctionConstraintsConfig = {
-    ...{ totalCountryStakeCapSol: 100, totalAsoStakeCapSol:100, marinadeCountryStakeCapSol:50,
-      marinadeAsoStakeCapSol:100, marinadeValidatorStakeCapSol:100,
-      spendRobustReputationMult:null, minBondBalanceSol:0, minMaxStakeWanted:0,
-      minBondEpochs:0, idealBondEpochs:0 },
+    totalCountryStakeCapSol: 100,
+    totalAsoStakeCapSol:100,
+    marinadeCountryStakeCapSol:50,
+    marinadeAsoStakeCapSol:100,
+    marinadeValidatorStakeCapSol:100,
+    spendRobustReputationMult:null,
+    minBondBalanceSol:0, minMaxStakeWanted:0,
+    minBondEpochs:0,
+    idealBondEpochs:0,
+    spendRobustReputationBondBoostCoef: 0,
   }
   const debug = new Debug(new Set(['z1']))
   const c = new AuctionConstraints(cfg, debug)

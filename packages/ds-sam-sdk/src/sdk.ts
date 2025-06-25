@@ -45,6 +45,8 @@ export class DsSamSDK {
       minMaxStakeWanted: this.config.minMaxStakeWanted ?? Infinity,
       minBondEpochs: this.config.minBondEpochs,
       idealBondEpochs: this.config.idealBondEpochs,
+      spendRobustReputationBondBoostCoef: this.config.spendRobustReputationBondBoostCoef,
+      maxUnprotectedStakePerValidatorDec: this.config.maxUnprotectedStakePerValidatorDec,
     }
     this.debug.pushInfo('auction constraints', JSON.stringify(constraints))
     return new AuctionConstraints(constraints, debug)
@@ -76,6 +78,7 @@ export class DsSamSDK {
     }
 
     const minEffectiveRevSharePmpe = Math.max(0, rewards.inflationPmpe * (1 - this.config.validatorsMaxEffectiveCommissionDec))
+    const minSamRevSharePmpe = Math.max(0, rewards.inflationPmpe + rewards.mevPmpe + this.config.minEligibleFeePmpe)
     console.log('min rev share PMPE', minEffectiveRevSharePmpe)
     console.log('rewards', rewards)
     console.log('uptime thresholds', epochCreditsThresholds)
@@ -106,7 +109,7 @@ export class DsSamSDK {
       if (validator.bondBalanceSol === null) {
         return { ...validator, revShare, auctionStake, ...ineligibleValidatorAggDefaults() }
       }
-      const samEligible = revShare.totalPmpe >= minEffectiveRevSharePmpe
+      const samEligible = revShare.totalPmpe >= Math.max(minEffectiveRevSharePmpe, minSamRevSharePmpe)
       const mndeEligible = revShare.inflationPmpe + revShare.mevPmpe >= minEffectiveRevSharePmpe
 
       return { ...validator, revShare, auctionStake, samEligible, mndeEligible, ...validatorAggDefaults() }
