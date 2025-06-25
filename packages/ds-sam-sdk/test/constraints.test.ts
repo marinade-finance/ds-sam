@@ -131,13 +131,13 @@ describe('clipBondStakeCap()', () => {
   const c = mkConstraints({ minBondBalanceSol: 1000 })
 
   it('returns 0 if balance < 0.8 * minBondBalanceSol', () => {
-    const v = makeValidator({ bondBalanceSol: 0.5 * cfg.minBondBalanceSol })
+    const v = makeValidator({ bondBalanceSol: 0.5 * 1000 })
     expect(c.clipBondStakeCap(v, 9999)).toBe(0)
   })
 
   it('clips to existing stake if balance < minBond but ≥ 0.8*min', () => {
     const v = makeValidator({
-      bondBalanceSol: 0.9 * cfg.minBondBalanceSol,
+      bondBalanceSol: 0.9 * 1000,
       marinadeActivatedStakeSol: 1234,
     })
     expect(c.clipBondStakeCap(v, 10000)).toBe(1234)
@@ -179,12 +179,7 @@ describe('bondStakeCapSam()', () => {
   })
 
   it('when marinadeActivatedStakeSol is between ideal and min, cap=marinadeActivatedStakeSol', () => {
-    const cfg2: AuctionConstraintsConfig = {
-      ...cfg,
-      minBondEpochs: 1,
-      idealBondEpochs: 2,
-    }
-    const c2 = new AuctionConstraints(cfg2, new Debug(new Set()))
+    const c2 = mkConstraints({ minBondEpochs: 1, idealBondEpochs: 2 })
     const v = makeValidator({
       bondBalanceSol: 1000,
       marinadeActivatedStakeSol: 70000,
@@ -196,12 +191,7 @@ describe('bondStakeCapSam()', () => {
   })
 
   it('when marinadeActivatedStakeSol > minLimit, cap=minLimit', () => {
-    const cfg3: AuctionConstraintsConfig = {
-      ...cfg,
-      minBondEpochs: 1,
-      idealBondEpochs: 1,
-    }
-    const c3 = new AuctionConstraints(cfg3, new Debug(new Set()))
+    const c3 = mkConstraints({ minBondEpochs: 1, idealBondEpochs: 1 })
     const v = makeValidator({
       bondBalanceSol: 1000,
       marinadeActivatedStakeSol: 200000,
@@ -250,7 +240,7 @@ describe('reputationStakeCap()', () => {
   })
 
   it('returns Infinity when spendRobustReputationMult is null', () => {
-    const c2 = new AuctionConstraints({ ...baseCfg, spendRobustReputationMult: null }, new Debug(new Set()))
+    const c2 = mkConstraints({ spendRobustReputationMult: null })
     const v = makeValidator({})
     expect(c2.reputationStakeCap(v)).toBe(Infinity)
   })
@@ -341,8 +331,7 @@ describe('getMinCapForEvenDistribution positive scenarios', () => {
   })
 
   it('selects the actual minimal constraint (COUNTRY) when ASO is less binding', () => {
-    const cfg2 = { ...cfg, totalCountryStakeCapSol: 1000000 }
-    const c2 = new AuctionConstraints(cfg2, new Debug(new Set(['y1'])))
+    const c2 = mkConstraints({ totalCountryStakeCapSol: 1000000 })
     const y1 = makeValidator({
       voteAccount: 'y1', country: 'Q', aso: 'B1',
       auctionStake: { externalActivatedSol: 20, marinadeMndeTargetSol:5, marinadeSamTargetSol:5 },
