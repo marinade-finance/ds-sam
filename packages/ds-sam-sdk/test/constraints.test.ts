@@ -128,20 +128,7 @@ function makeValidator (overrides: any): AuctionValidator {
 }
 
 describe('clipBondStakeCap()', () => {
-  const cfg: AuctionConstraintsConfig = {
-    totalCountryStakeCapSol: 0,
-    totalAsoStakeCapSol: 0,
-    marinadeCountryStakeCapSol: 0,
-    marinadeAsoStakeCapSol: 0,
-    marinadeValidatorStakeCapSol: 0,
-    spendRobustReputationMult: null,
-    minBondBalanceSol: 1000,
-    minMaxStakeWanted: 0,
-    minBondEpochs: 0,
-    idealBondEpochs: 0,
-    spendRobustReputationBondBoostCoef: 0,
-  }
-  const c = new AuctionConstraints(cfg, new Debug(new Set()))
+  const c = mkConstraints({ minBondBalanceSol: 1000 })
 
   it('returns 0 if balance < 0.8 * minBondBalanceSol', () => {
     const v = makeValidator({ bondBalanceSol: 0.5 * cfg.minBondBalanceSol })
