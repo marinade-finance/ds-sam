@@ -134,6 +134,7 @@ export type AuctionConstraintsConfig = {
   idealBondEpochs: number
   spendRobustReputationBondBoostCoef: number
   maxUnprotectedStakePerValidatorDec: number
+  unprotectedStakeFoundationMult: number
 }
 
 export enum AuctionConstraintType {

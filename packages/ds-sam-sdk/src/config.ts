@@ -37,7 +37,10 @@ export type DsSamConfig = {
   validatorsClientVersionSemverExpr: string
   // Max effective commission of a validator to be eligible
   validatorsMaxEffectiveCommissionDec: number
-
+  // Max share of unprotected stake on 3-rd party stake of a validator
+  maxUnprotectedStakePerValidatorDec: number
+  // How much is foundation stake boosted w.r.t. 3-rd party stake; 1 means no boost
+  unprotectedStakeFoundationMult: number
   // How many historical bids to consider when deciding how much to charge for
   // the BidTooLowPenalty
   bidTooLowPenaltyHistoryEpochs: number
@@ -130,6 +133,7 @@ export const DEFAULT_CONFIG: DsSamConfig = {
   validatorsClientVersionSemverExpr: '>=1.18.15 || >=0.101.20013 <1.0.0',
   validatorsMaxEffectiveCommissionDec: 0.07,
   maxUnprotectedStakePerValidatorDec: 0.05,
+  unprotectedStakeFoundationMult: 1,
   bidTooLowPenaltyHistoryEpochs: 3,
 
   mndeDirectedStakeShareDec: 0,

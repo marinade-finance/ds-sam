@@ -47,6 +47,7 @@ export class DsSamSDK {
       idealBondEpochs: this.config.idealBondEpochs,
       spendRobustReputationBondBoostCoef: this.config.spendRobustReputationBondBoostCoef,
       maxUnprotectedStakePerValidatorDec: this.config.maxUnprotectedStakePerValidatorDec,
+      unprotectedStakeFoundationMult: this.config.unprotectedStakeFoundationMult,
     }
     this.debug.pushInfo('auction constraints', JSON.stringify(constraints))
     return new AuctionConstraints(constraints, debug)

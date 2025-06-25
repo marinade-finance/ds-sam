@@ -277,7 +277,12 @@ export class AuctionConstraints {
   }
 
   unprotectedStakeCap (validator: AuctionValidator): number {
-    return this.config.maxUnprotectedStakePerValidatorDec * Math.max(0, validator.totalActivatedStakeSol - validator.selfStakeSol + validator.foundationStakeSol)
+    return this.config.maxUnprotectedStakePerValidatorDec * Math.max(
+      0,
+      validator.totalActivatedStakeSol
+        - validator.selfStakeSol
+        + (this.config.unprotectedStakeFoundationMult - 1) * validator.foundationStakeSol
+    )
   }
 
   bondStakeCapMnde (validator: AuctionValidator): number {

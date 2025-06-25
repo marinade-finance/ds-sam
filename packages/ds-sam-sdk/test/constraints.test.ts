@@ -67,6 +67,7 @@ const BASE_CONSTRAINTS: AuctionConstraintsConfig = {
   idealBondEpochs:                      0,
   spendRobustReputationBondBoostCoef:   0,
   maxUnprotectedStakePerValidatorDec:   0,
+  unprotectedStakeFoundationMult:   1,
 }
 
 function mkConstraints(overrides: Partial<AuctionConstraintsConfig> = {}) {
