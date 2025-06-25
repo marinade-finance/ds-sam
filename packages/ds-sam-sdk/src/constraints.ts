@@ -242,7 +242,7 @@ export class AuctionConstraints {
     // if marinadeActivatedStakeSol = 0, then the limit is given by the lower limit, which is the idealLimit
     // if marinadeActivatedStakeSol > idealLimit, but below minLimit, the limit is given by minLimit
     // the limit will never exceed minLimit
-    // which is also the limit at which we charge the bondRiskFee
+    // which is also the limit at which we charge the bondRiskFeeSol
     const limit = Math.min(minLimit, Math.max(idealLimit, validator.marinadeActivatedStakeSol))
     return this.clipBondStakeCap(validator, limit)
   }

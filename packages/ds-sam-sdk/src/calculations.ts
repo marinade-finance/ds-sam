@@ -36,7 +36,7 @@ export type BondRiskFeeResult = {
     value: number
     feePmpe: number
   }
-  bondRiskFee: number
+  bondRiskFeeSol: number
   paidUndelegationSol: number
 }
 
@@ -49,15 +49,15 @@ export type BondRiskFeeResult = {
  *  a fee so that the resulting stake after undelegation is covered by the
  *  remaining bond after the fee is charged on top of it.
  *
- *  This means that the forcedUndelegation and bondRiskFee satisfy
+ *  This means that the forcedUndelegation and bondRiskFeeSol satisfy
  *
- *   (bondBalanceSol - bondRiskFee) / idealBondCoef
+ *   (bondBalanceSol - bondRiskFeeSol) / idealBondCoef
  *     = projectedActivatedStakeSol - forcedUndelegation
  *
  * where
  *
  *   idealBondCoef = (totalPmpe + idealBondEpochs * effParticipatingBidPmpe) / 1000
- *   bondRiskFee    = forcedUndelegation * effPmpe / 1000
+ *   bondRiskFeeSol    = forcedUndelegation * effPmpe / 1000
  *
  */
 export const calcBondRiskFee = (
@@ -81,17 +81,17 @@ export const calcBondRiskFee = (
     if ((projectedActivatedStakeSol - value) * (revShare.inflationPmpe + revShare.mevPmpe + revShare.expectedMaxEffBidPmpe) / 1000 < cfg.minBondBalanceSol) {
       value = projectedActivatedStakeSol
     }
-    const bondRiskFee = cfg.bondRiskFeeMult * value * feeCoef
+    const bondRiskFeeSol = cfg.bondRiskFeeMult * value * feeCoef
     const paidUndelegationSol = Math.min(1, cfg.bondRiskFeeMult) * value
-    if (!isFinite(bondRiskFee)) {
-      throw new Error('bondRiskFee has to be finite')
+    if (!isFinite(bondRiskFeeSol)) {
+      throw new Error('bondRiskFeeSol has to be finite')
     }
-    if (bondRiskFee < 0) {
-      throw new Error('bondRiskFee can not be negative')
+    if (bondRiskFeeSol < 0) {
+      throw new Error('bondRiskFeeSol can not be negative')
     }
     return {
       bondForcedUndelegation: { base, coef, value, feePmpe: 1000 * feeCoef },
-      bondRiskFee,
+      bondRiskFeeSol,
       paidUndelegationSol,
     }
   } else {

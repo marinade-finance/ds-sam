@@ -40,7 +40,6 @@ const calcBidTooLowPenalty = ({
       inflationPmpe,
       mevPmpe,
       effParticipatingBidPmpe: eff,
-      auctionEffectiveBidPmpe: 0.9 * eff,
       totalPmpe: NaN,
       bidTooLowPenaltyPmpe: NaN
     },
@@ -206,7 +205,6 @@ describe('calcBidTooLowPenalty', () => {
         inflationPmpe,
         mevPmpe,
         effParticipatingBidPmpe,
-        auctionEffectiveBidPmpe: 0,
         totalPmpe: NaN,
         bidTooLowPenaltyPmpe: NaN
       },
@@ -219,7 +217,7 @@ describe('calcBidTooLowPenalty', () => {
     const expectedCoef = Math.min(1, Math.sqrt(1.5 * (20 - 15) / 20))
     const expectedBase = winningTotalPmpe + effParticipatingBidPmpe
     const expectedPmpe = expectedCoef * expectedBase
-    const effPmpe = inflationPmpe + mevPmpe + 0
+    const effPmpe = inflationPmpe + mevPmpe + effParticipatingBidPmpe
     const expectedPaid = expectedPmpe * marinadeActivatedStakeSol / effPmpe
 
     expect(native.bidTooLowPenalty.coef).toBeCloseTo(expectedCoef)
@@ -235,7 +233,6 @@ describe('calcBidTooLowPenalty', () => {
         inflationPmpe: 0,
         mevPmpe: 0,
         effParticipatingBidPmpe: Infinity,
-        auctionEffectiveBidPmpe: NaN,
         totalPmpe: NaN,
         bidTooLowPenaltyPmpe: NaN
       },
