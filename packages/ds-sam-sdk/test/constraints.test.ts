@@ -48,6 +48,15 @@
  *
  * We make minimal AuctionValidator stubs via the same defaults you use elsewhere,
  * then override only the fields each function reads.
+ *
+ * Additional concentration‐constraint branches to cover:
+ *
+ * 7) ASO constraint as the binding one.
+ * 8) WANT constraint (clipped maxStakeWanted) wins.
+ * 9) REPUTATION constraint wins (adjMaxSpendRobustDelegation floor).
+ * 10) Sam‐BOND constraint wins (buildSamBondConstraints).
+ * 11) MNDE constraint wins in the Mnde pipeline (buildMndeVoteConstraints).
+ * 12) Error path when no constraints exist (empty voteAccounts set).
  */
 import { AuctionConstraints } from '../src/constraints'
 import { AuctionConstraintsConfig, AuctionValidator, AuctionData } from '../src/types'
