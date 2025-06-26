@@ -272,6 +272,66 @@ describe('reputationStakeCap()', () => {
   })
 })
 
+describe('unprotectedStakeCap()', () => {
+  // override the defaults so we can test all branches
+  const c = makeConstraints({
+    unprotectedValidatorStakeCapSol: 100,
+    unprotectedDelegatedStakeDec: 1,
+    unprotectedFoundationStakeDec: 1,
+    minUnprotectedStakeToDelegateSol: 10,
+  });
+
+  it('returns 0 if delegated stake <= 0', () => {
+    // total 5, self+foundation = 10 → delegated = -5 → clamp to 0
+    const v = makeValidator({
+      totalActivatedStakeSol: 5,
+      selfStakeSol: 6,
+      foundationStakeSol: 4,
+    });
+    expect(c.unprotectedStakeCap(v)).toBe(0);
+  });
+
+  it('returns 0 when computed cap is below the min threshold', () => {
+    // total 15, self=10, foundation=0 → delegated=5 < min(10)
+    const v = makeValidator({
+      totalActivatedStakeSol: 15,
+      selfStakeSol: 10,
+      foundationStakeSol: 0,
+    });
+    expect(c.unprotectedStakeCap(v)).toBe(0);
+  });
+
+  it('returns computed delegated stake when between min threshold and validator cap', () => {
+    // total 30, self=10 → delegated=20 → above min(10) and below cap(100)
+    const v = makeValidator({
+      totalActivatedStakeSol: 30,
+      selfStakeSol: 10,
+      foundationStakeSol: 0,
+    });
+    expect(c.unprotectedStakeCap(v)).toBe(20);
+  });
+
+  it('caps at unprotectedValidatorStakeCapSol when computed > capSol', () => {
+    // total 200, self=50 → delegated=150 → capped to 100
+    const v = makeValidator({
+      totalActivatedStakeSol: 200,
+      selfStakeSol: 50,
+      foundationStakeSol: 0,
+    });
+    expect(c.unprotectedStakeCap(v)).toBe(100);
+  });
+
+  it('includes foundationStakeSol at full weight', () => {
+    // no delegated stake but 20 foundation stake → computed = 0*1 + 20*1 = 20
+    const v = makeValidator({
+      totalActivatedStakeSol: 20,
+      selfStakeSol: 0,
+      foundationStakeSol: 20,
+    });
+    expect(c.unprotectedStakeCap(v)).toBe(20);
+  });
+});
+
 describe('getMinCapForEvenDistribution() & findCapForValidator()', () => {
   const debug = new Debug(new Set(['v1', 'v2']))
   const c = makeConstraints({
