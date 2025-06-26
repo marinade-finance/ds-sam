@@ -1,9 +1,9 @@
 /**
  * Test plan — high-level overview
  *
- * We exercise every exported “cap” helper in constraints.ts:
+ * We exercise every exported “cap” helper in constraints.ts: 
  *
- * 1a) clipBondStakeCap exact boundary values:
+ * 1a) clipBondStakeCap exact boundary values: 
  *     - bondBalanceSol === 0.8*minBondBalanceSol → hits the “hysteresis” branch
  *     - bondBalanceSol === minBondBalanceSol → returns raw limit
  *
@@ -14,7 +14,7 @@
  *    - When bondBalanceSol ≥ minBondBalanceSol
  *      → returns the raw limit argument
  *
- * 2a) bondStakeCapSam extra scenarios:
+ * 2a) bondStakeCapSam extra scenarios: 
  *    - marinadeActivatedStakeSol > idealLimit but < minLimit → cap = marinadeActivatedStakeSol
  *    - marinadeActivatedStakeSol > minLimit → cap = minLimit
  *
@@ -36,7 +36,7 @@
  *
  * 5) getMinCapForEvenDistribution()
  *    - Builds concentration constraints (country, aso, etc.)
- *    - Takes a set of voteAccounts:
+ *    - Takes a set of voteAccounts: 
  *      • calculates totalLeftToCapSol & marinadeLeftToCapSol
  *      • per-validator cap = max(0, min(totalLeftToCapSol, marinadeLeftToCapSol)/N)
  *    - Negative caps clamp to 0
@@ -55,24 +55,24 @@ import { ineligibleValidatorAggDefaults } from '../src/utils'
 import { Debug } from '../src/debug'
 
 const BASE_CONSTRAINTS: AuctionConstraintsConfig = {
-  totalCountryStakeCapSol:              Infinity,
-  totalAsoStakeCapSol:                  Infinity,
-  marinadeCountryStakeCapSol:           Infinity,
-  marinadeAsoStakeCapSol:               Infinity,
-  marinadeValidatorStakeCapSol:         Infinity,
-  spendRobustReputationMult:            null,
-  minBondBalanceSol:                    0,
-  minMaxStakeWanted:                    0,
-  minBondEpochs:                        0,
-  idealBondEpochs:                      0,
-  spendRobustReputationBondBoostCoef:   0,
-  unprotectedValidatorStakeCapSol:   0,
+  totalCountryStakeCapSol: Infinity,
+  totalAsoStakeCapSol: Infinity,
+  marinadeCountryStakeCapSol: Infinity,
+  marinadeAsoStakeCapSol: Infinity,
+  marinadeValidatorStakeCapSol: Infinity,
+  spendRobustReputationMult: null,
+  minBondBalanceSol: 0,
+  minMaxStakeWanted: 0,
+  minBondEpochs: 0,
+  idealBondEpochs: 0,
+  spendRobustReputationBondBoostCoef: 0,
+  unprotectedValidatorStakeCapSol: 0,
   minUnprotectedStakeToDelegateSol: 0,
-  unprotectedFoundationStakeDec:   1,
-  unprotectedDelegatedStakeDec:   1,
+  unprotectedFoundationStakeDec: 1,
+  unprotectedDelegatedStakeDec: 1,
 }
 
-function mkConstraints (overrides: Partial<AuctionConstraintsConfig> = {}) {
+function makeConstraints (overrides: Partial<AuctionConstraintsConfig> = {}) {
   return new AuctionConstraints(
     { ...BASE_CONSTRAINTS, ...overrides },
     new Debug(new Set())
@@ -131,10 +131,11 @@ function makeValidator (overrides: any): AuctionValidator {
 }
 
 describe('clipBondStakeCap()', () => {
-  const c = mkConstraints({ minBondBalanceSol: 1000 })
+  const minBondBalanceSol = 1000
+  const c = makeConstraints({ minBondBalanceSol })
 
   it('returns 0 if balance < 0.8 * minBondBalanceSol', () => {
-    const v = makeValidator({ bondBalanceSol: 0.5 * 1000 })
+    const v = makeValidator({ bondBalanceSol: 0.5 * minBondBalanceSol })
     expect(c.clipBondStakeCap(v, 9999)).toBe(0)
   })
 
@@ -156,11 +157,11 @@ describe('clipBondStakeCap()', () => {
 })
 
 describe('bondStakeCapSam()', () => {
-  const c = mkConstraints({
+  const c = makeConstraints({
     marinadeValidatorStakeCapSol: 1e9,
-    minBondBalanceSol:           1,
-    minBondEpochs:               1,
-    idealBondEpochs:             2,
+    minBondBalanceSol: 1,
+    minBondEpochs: 1,
+    idealBondEpochs: 2,
   })
 
   it('calculates the expected limit from PMPE-based formula', () => {
@@ -182,32 +183,32 @@ describe('bondStakeCapSam()', () => {
   })
 
   it('when marinadeActivatedStakeSol is between ideal and min, cap=marinadeActivatedStakeSol', () => {
-    const c2 = mkConstraints({ minBondEpochs: 1, idealBondEpochs: 2 })
+    const c2 = makeConstraints({ minBondEpochs: 1, idealBondEpochs: 2 })
     const v = makeValidator({
       bondBalanceSol: 1000,
       marinadeActivatedStakeSol: 70000,
-      revShare: { inflationPmpe:0, mevPmpe:0, bidPmpe:0, totalPmpe:0,
-        auctionEffectiveBidPmpe:0, effParticipatingBidPmpe:0,
-        expectedMaxEffBidPmpe:5, bidTooLowPenaltyPmpe:0 },
+      revShare: { inflationPmpe: 0, mevPmpe: 0, bidPmpe: 0, totalPmpe: 0,
+        auctionEffectiveBidPmpe: 0, effParticipatingBidPmpe: 0,
+        expectedMaxEffBidPmpe: 5, bidTooLowPenaltyPmpe: 0 },
     })
     expect(c2.bondStakeCapSam(v)).toBe(70000)
   })
 
   it('when marinadeActivatedStakeSol > minLimit, cap=minLimit', () => {
-    const c3 = mkConstraints({ minBondEpochs: 1, idealBondEpochs: 1 })
+    const c3 = makeConstraints({ minBondEpochs: 1, idealBondEpochs: 1 })
     const v = makeValidator({
       bondBalanceSol: 1000,
       marinadeActivatedStakeSol: 200000,
-      revShare: { inflationPmpe:0, mevPmpe:0, bidPmpe:0, totalPmpe:0,
-        auctionEffectiveBidPmpe:0, effParticipatingBidPmpe:0,
-        expectedMaxEffBidPmpe:5, bidTooLowPenaltyPmpe:0 },
+      revShare: { inflationPmpe: 0, mevPmpe: 0, bidPmpe: 0, totalPmpe: 0,
+        auctionEffectiveBidPmpe: 0, effParticipatingBidPmpe: 0,
+        expectedMaxEffBidPmpe: 5, bidTooLowPenaltyPmpe: 0 },
     })
     expect(c3.bondStakeCapSam(v)).toBeCloseTo(100000, 0)
   })
 })
 
 describe('bondStakeCapMnde()', () => {
-  const c = mkConstraints({ minBondBalanceSol: 1 })
+  const c = makeConstraints({ minBondBalanceSol: 1 })
 
   it('returns 0 when balance < 0.8*minBond', () => {
     const v = makeValidator({ bondBalanceSol: 0.5, marinadeActivatedStakeSol: 10 })
@@ -222,7 +223,7 @@ describe('bondStakeCapMnde()', () => {
 })
 
 describe('reputationStakeCap()', () => {
-  const c = mkConstraints({ spendRobustReputationMult: 2.5 })
+  const c = makeConstraints({ spendRobustReputationMult: 2.5 })
 
   it('returns max(adjMaxSpendRobustDelegation, marinadeActivatedStakeSol)', () => {
     const v = makeValidator({
@@ -243,7 +244,7 @@ describe('reputationStakeCap()', () => {
   })
 
   it('returns Infinity when spendRobustReputationMult is null', () => {
-    const c2 = mkConstraints({ spendRobustReputationMult: null })
+    const c2 = makeConstraints({ spendRobustReputationMult: null })
     const v = makeValidator({})
     expect(c2.reputationStakeCap(v)).toBe(Infinity)
   })
@@ -251,12 +252,12 @@ describe('reputationStakeCap()', () => {
 
 describe('getMinCapForEvenDistribution() & findCapForValidator()', () => {
   const debug = new Debug(new Set(['v1', 'v2']))
-  const c = mkConstraints({
-    totalCountryStakeCapSol:         100,
-    totalAsoStakeCapSol:             1000,
-    marinadeCountryStakeCapSol:      50,
-    marinadeAsoStakeCapSol:          1000,
-    marinadeValidatorStakeCapSol:    1000,
+  const c = makeConstraints({
+    totalCountryStakeCapSol: 100,
+    totalAsoStakeCapSol: 1000,
+    marinadeCountryStakeCapSol: 50,
+    marinadeAsoStakeCapSol: 1000,
+    marinadeValidatorStakeCapSol: 1000,
   })
 
   const v1 = makeValidator({
@@ -301,12 +302,12 @@ describe('getMinCapForEvenDistribution() & findCapForValidator()', () => {
 
 describe('getMinCapForEvenDistribution positive scenarios', () => {
   const debug = new Debug(new Set(['x1','x2']))
-  const cpos = mkConstraints({
-    totalCountryStakeCapSol:         200,
-    totalAsoStakeCapSol:             1000,
-    marinadeCountryStakeCapSol:      100,
-    marinadeAsoStakeCapSol:          1000,
-    marinadeValidatorStakeCapSol:    1000,
+  const cpos = makeConstraints({
+    totalCountryStakeCapSol: 200,
+    totalAsoStakeCapSol: 1000,
+    marinadeCountryStakeCapSol: 100,
+    marinadeAsoStakeCapSol: 1000,
+    marinadeValidatorStakeCapSol: 1000,
   })
 
   const x1 = makeValidator({
@@ -321,9 +322,9 @@ describe('getMinCapForEvenDistribution positive scenarios', () => {
     const data: AuctionData = {
       epoch: 0,
       validators: [x1,x2],
-      stakeAmounts: { networkTotalSol:0, marinadeMndeTvlSol:0, marinadeSamTvlSol:0,
-        marinadeRemainingMndeSol:0, marinadeRemainingSamSol:0 },
-      rewards:{ inflationPmpe:0, mevPmpe:0 },
+      stakeAmounts: { networkTotalSol: 0, marinadeMndeTvlSol: 0, marinadeSamTvlSol: 0,
+        marinadeRemainingMndeSol: 0, marinadeRemainingSamSol: 0 },
+      rewards: { inflationPmpe: 0, mevPmpe: 0 },
       blacklist: new Set(),
     }
     cpos.updateStateForSam(data)
@@ -334,16 +335,16 @@ describe('getMinCapForEvenDistribution positive scenarios', () => {
   })
 
   it('selects the actual minimal constraint (COUNTRY) when ASO is less binding', () => {
-    const c2 = mkConstraints({ totalCountryStakeCapSol: 1000000 })
+    const c2 = makeConstraints({ totalCountryStakeCapSol: 1000000 })
     const y1 = makeValidator({
       voteAccount: 'y1', country: 'Q', aso: 'B1',
-      auctionStake: { externalActivatedSol: 20, marinadeMndeTargetSol:5, marinadeSamTargetSol:5 },
+      auctionStake: { externalActivatedSol: 20, marinadeMndeTargetSol: 5, marinadeSamTargetSol: 5 },
     })
     const data2: AuctionData = {
       epoch: 0, validators: [y1],
-      stakeAmounts: { networkTotalSol:0, marinadeMndeTvlSol:0, marinadeSamTvlSol:0,
-        marinadeRemainingMndeSol:0, marinadeRemainingSamSol:0 },
-      rewards:{ inflationPmpe:0, mevPmpe:0 }, blacklist:new Set(),
+      stakeAmounts: { networkTotalSol: 0, marinadeMndeTvlSol: 0, marinadeSamTvlSol: 0,
+        marinadeRemainingMndeSol: 0, marinadeRemainingSamSol: 0 },
+      rewards: { inflationPmpe: 0, mevPmpe: 0 }, blacklist: new Set(),
     }
     c2.updateStateForSam(data2)
     const { cap, constraint } = c2.getMinCapForEvenDistribution(new Set(['y1']))
@@ -354,22 +355,22 @@ describe('getMinCapForEvenDistribution positive scenarios', () => {
 
 describe('findCapForValidator when cap > EPSILON', () => {
   const debug = new Debug(new Set(['z1']))
-  const c = mkConstraints({
-    totalCountryStakeCapSol:         100,
-    totalAsoStakeCapSol:             100,
-    marinadeCountryStakeCapSol:      50,
-    marinadeAsoStakeCapSol:          100,
-    marinadeValidatorStakeCapSol:    100,
+  const c = makeConstraints({
+    totalCountryStakeCapSol: 100,
+    totalAsoStakeCapSol: 100,
+    marinadeCountryStakeCapSol: 50,
+    marinadeAsoStakeCapSol: 100,
+    marinadeValidatorStakeCapSol: 100,
   })
   const z1 = makeValidator({
     voteAccount: 'z1', country:'Z', aso:'A',
-    auctionStake: { externalActivatedSol:1, marinadeMndeTargetSol:0, marinadeSamTargetSol:0 },
+    auctionStake: { externalActivatedSol:1, marinadeMndeTargetSol: 0, marinadeSamTargetSol: 0 },
   })
   it('does not set lastCapConstraint when cap is positive', () => {
-    c.updateStateForSam({ epoch:0, validators:[z1],
-      stakeAmounts:{ networkTotalSol:0,marinadeMndeTvlSol:0,marinadeSamTvlSol:0,
-        marinadeRemainingMndeSol:0, marinadeRemainingSamSol:0 },
-      rewards:{ inflationPmpe:0,mevPmpe:0 }, blacklist:new Set() })
+    c.updateStateForSam({ epoch: 0, validators:[z1],
+      stakeAmounts: { networkTotalSol: 0,marinadeMndeTvlSol: 0, marinadeSamTvlSol: 0,
+        marinadeRemainingMndeSol: 0, marinadeRemainingSamSol: 0 },
+      rewards: { inflationPmpe: 0, mevPmpe: 0 }, blacklist:new Set() })
     const cap = c.findCapForValidator(z1)
     expect(cap).toBeGreaterThan(0)
     expect(z1.lastCapConstraint).toBeNull()
