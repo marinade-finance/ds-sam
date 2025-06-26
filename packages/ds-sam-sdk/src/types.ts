@@ -136,6 +136,7 @@ export type AuctionConstraintsConfig = {
   minBondEpochs: number
   idealBondEpochs: number
   spendRobustReputationBondBoostCoef: number
+  minUnprotectedStakeToDelegateSol: number
   unprotectedDelegatedStakeDec: number
   unprotectedFoundationStakeDec: number
 }

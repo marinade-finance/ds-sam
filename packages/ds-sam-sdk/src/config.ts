@@ -63,6 +63,8 @@ export type DsSamConfig = {
   maxMarinadeTvlSharePerValidatorDec: number
   // Max share of unprotected stake on 3-rd party stake of a validator
   maxUnprotectedStakePerValidatorDec: number
+  // The minimum amount of unprotected stake we are willing to delegate to a validator
+  minUnprotectedStakeToDelegateSol: number
 
   // Multiplier to get from reputation to reputation limit; if null no limit is imposed
   spendRobustReputationMult: number | null
@@ -139,6 +141,7 @@ export const DEFAULT_CONFIG: DsSamConfig = {
   validatorsMaxEffectiveCommissionDec: 0.07,
   unprotectedDelegatedStakeDec: 0,
   unprotectedFoundationStakeDec: 0,
+  minUnprotectedStakeToDelegateSol: 0,
   bidTooLowPenaltyHistoryEpochs: 3,
 
   mndeDirectedStakeShareDec: 0,

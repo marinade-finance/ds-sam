@@ -285,7 +285,7 @@ export class AuctionConstraints {
         * Math.max(0, validator.totalActivatedStakeSol - validator.selfStakeSol - validator.foundationStakeSol)
         + this.config.unprotectedFoundationStakeDec * validator.foundationStakeSol
     )
-    if (cap < 1000) {
+    if (cap < this.config.minUnprotectedStakeToDelegateSol) {
       cap = 0
     }
     validator.unprotectedStakeCapSol = cap

@@ -67,6 +67,7 @@ const BASE_CONSTRAINTS: AuctionConstraintsConfig = {
   idealBondEpochs:                      0,
   spendRobustReputationBondBoostCoef:   0,
   unprotectedValidatorStakeCapSol:   0,
+  minUnprotectedStakeToDelegateSol: 0,
   unprotectedFoundationStakeDec:   1,
   unprotectedDelegatedStakeDec:   1,
 }
