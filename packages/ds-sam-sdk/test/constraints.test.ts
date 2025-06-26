@@ -445,9 +445,6 @@ describe('findCapForValidator when cap > EPSILON', () => {
   })
 })
 
-/* -------------------------------------------------------------------
- * 7) ASO constraint wins
- * ------------------------------------------------------------------- */
 describe('getMinCapForEvenDistribution – ASO wins', () => {
   const debug = new Debug(new Set(['v1','v2']))
   const c = makeConstraints({
@@ -475,9 +472,6 @@ describe('getMinCapForEvenDistribution – ASO wins', () => {
   })
 })
 
-/* -------------------------------------------------------------------
- * 8) WANT constraint wins
- * ------------------------------------------------------------------- */
 describe('getMinCapForEvenDistribution – WANT wins', () => {
   const debug = new Debug(new Set(['v']))
   const c = makeConstraints({
@@ -503,9 +497,6 @@ describe('getMinCapForEvenDistribution – WANT wins', () => {
   })
 })
 
-/* -------------------------------------------------------------------
- * 9) REPUTATION constraint wins
- * ------------------------------------------------------------------- */
 describe('getMinCapForEvenDistribution – REPUTATION wins', () => {
   const debug = new Debug(new Set(['v']))
   const c = makeConstraints({
@@ -539,9 +530,6 @@ describe('getMinCapForEvenDistribution – REPUTATION wins', () => {
   })
 })
 
-/* -------------------------------------------------------------------
- * 10) Sam‐BOND constraint wins
- * ------------------------------------------------------------------- */
 describe('getMinCapForEvenDistribution – Sam‐BOND wins', () => {
   const debug = new Debug(new Set(['v']))
   const c = makeConstraints({
@@ -578,9 +566,6 @@ describe('getMinCapForEvenDistribution – Sam‐BOND wins', () => {
   })
 })
 
-/* -------------------------------------------------------------------
- * 11) MNDE constraint wins under the Mnde pipeline
- * ------------------------------------------------------------------- */
 describe('getMinCapForEvenDistribution – MNDE wins (Mnde pipeline)', () => {
   const debug = new Debug(new Set(['v']))
   const c = makeConstraints({
@@ -602,9 +587,6 @@ describe('getMinCapForEvenDistribution – MNDE wins (Mnde pipeline)', () => {
   })
 })
 
-/* -------------------------------------------------------------------
- * 12) Error when no constraints exist
- * ------------------------------------------------------------------- */
 describe('getMinCapForEvenDistribution – no constraints', () => {
   const c = makeConstraints()
   it('throws if voteAccounts set is empty', () => {
