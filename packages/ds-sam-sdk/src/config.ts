@@ -116,7 +116,8 @@ export type DsSamConfig = {
   expectedFeePmpe: number
 
   // The minimal eligible transaction fee Pmpe
-  minEligibleFeePmpe: number
+  // If null, minimal eligible transaction fee Pmpe is not enforced as if it was -inf
+  minEligibleFeePmpe: number | null
 
   // Validator vote accounts to collect debug info for
   debugVoteAccounts: string[]
@@ -168,7 +169,7 @@ export const DEFAULT_CONFIG: DsSamConfig = {
   minMaxStakeWanted: null,
   expectedFeePmpe: 0,
   expectedMaxWinningBidRatio: null,
-  minEligibleFeePmpe: 0,
+  minEligibleFeePmpe: null,
 
   debugVoteAccounts: [],
 }
