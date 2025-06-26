@@ -349,7 +349,7 @@ describe('getMinCapForEvenDistribution positive scenarios', () => {
     const data2 = makeAuction({ validators: [y1] })
     c2.updateStateForSam(data2)
     const { cap, constraint } = c2.getMinCapForEvenDistribution(new Set(['y1']))
-    expect(cap).toBe(999970)
+    expect(cap).toBe(90)
     expect(constraint.constraintType).toBe('COUNTRY')
   })
 })
