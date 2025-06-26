@@ -125,6 +125,8 @@ function makeValidator (overrides: any): AuctionValidator {
     unstakePriority: NaN,
     maxBondDelegation: NaN,
     lastMarinadeActivatedStakeSol: null,
+    selfStakeSol: 0,
+    foundationStakeSol: 0,
   } as AuctionValidator
 
   return { ...base, ...overrides }
@@ -336,7 +338,10 @@ describe('getMinCapForEvenDistribution positive scenarios', () => {
   })
 
   it('selects the actual minimal constraint (COUNTRY) when ASO is less binding', () => {
-    const c2 = makeConstraints({ totalCountryStakeCapSol: 1000000 })
+    const c2 = makeConstraints({
+      totalCountryStakeCapSol: 1000000,
+      marinadeCountryStakeCapSol: 100,
+    })
     const y1 = makeValidator({
       voteAccount: 'y1', country: 'Q', aso: 'B1',
       auctionStake: { externalActivatedSol: 20, marinadeMndeTargetSol: 5, marinadeSamTargetSol: 5 },
