@@ -89,6 +89,7 @@ function makeValidator (overrides: any): AuctionValidator {
     voteAccount: 'v',
     country: 'C',
     aso: 'A',
+    totalActivatedStakeSol: 0,
     auctionStake: {
       externalActivatedSol: 0,
       marinadeMndeTargetSol: 0,
