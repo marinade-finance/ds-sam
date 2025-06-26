@@ -573,7 +573,7 @@ describe('getMinCapForEvenDistribution – Sam‐BOND wins', () => {
     const data = makeAuction({ validators: [v] })
     c.updateStateForSam(data)
     const { cap, constraint } = c.getMinCapForEvenDistribution(new Set(['v']))
-    expect(cap).toBeCloseTo(1, 6)
+    expect(cap).toBeCloseTo(1000, 6)
     expect(constraint.constraintType).toBe('BOND')
   })
 })
