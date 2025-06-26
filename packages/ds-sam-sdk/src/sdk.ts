@@ -45,6 +45,11 @@ export class DsSamSDK {
       minMaxStakeWanted: this.config.minMaxStakeWanted ?? Infinity,
       minBondEpochs: this.config.minBondEpochs,
       idealBondEpochs: this.config.idealBondEpochs,
+      spendRobustReputationBondBoostCoef: this.config.spendRobustReputationBondBoostCoef,
+      unprotectedValidatorStakeCapSol: marinadeTotalTvlSol * this.config.maxUnprotectedStakePerValidatorDec,
+      minUnprotectedStakeToDelegateSol: this.config.minUnprotectedStakeToDelegateSol,
+      unprotectedFoundationStakeDec: this.config.unprotectedFoundationStakeDec,
+      unprotectedDelegatedStakeDec: this.config.unprotectedDelegatedStakeDec,
     }
     this.debug.pushInfo('auction constraints', JSON.stringify(constraints))
     return new AuctionConstraints(constraints, debug)
@@ -76,6 +81,8 @@ export class DsSamSDK {
     }
 
     const minEffectiveRevSharePmpe = Math.max(0, rewards.inflationPmpe * (1 - this.config.validatorsMaxEffectiveCommissionDec))
+    const minSamRevSharePmpe = Math.max(0, rewards.inflationPmpe + rewards.mevPmpe + this.config.minEligibleFeePmpe)
+    const zeroCommissionPmpe = Math.max(0, rewards.inflationPmpe + rewards.mevPmpe)
     console.log('min rev share PMPE', minEffectiveRevSharePmpe)
     console.log('rewards', rewards)
     console.log('uptime thresholds', epochCreditsThresholds)
@@ -103,13 +110,14 @@ export class DsSamSDK {
           return { ...validator, revShare, auctionStake, ...ineligibleValidatorAggDefaults() }
         }
       }
+      const backstopEligible = this.config.enableZeroCommissionBackstop && (revShare.inflationPmpe + revShare.mevPmpe >= zeroCommissionPmpe)
       if (validator.bondBalanceSol === null) {
-        return { ...validator, revShare, auctionStake, ...ineligibleValidatorAggDefaults() }
+        return { ...validator, revShare, auctionStake, ...ineligibleValidatorAggDefaults(), backstopEligible }
       }
-      const samEligible = revShare.totalPmpe >= minEffectiveRevSharePmpe
+      const samEligible = revShare.totalPmpe >= Math.max(minEffectiveRevSharePmpe, minSamRevSharePmpe)
       const mndeEligible = revShare.inflationPmpe + revShare.mevPmpe >= minEffectiveRevSharePmpe
 
-      return { ...validator, revShare, auctionStake, samEligible, mndeEligible, ...validatorAggDefaults() }
+      return { ...validator, revShare, auctionStake, samEligible, mndeEligible, backstopEligible, ...validatorAggDefaults() }
     })
   }
 

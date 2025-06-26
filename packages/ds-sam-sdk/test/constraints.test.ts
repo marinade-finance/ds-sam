@@ -54,6 +54,31 @@ import { AuctionConstraintsConfig, AuctionValidator, AuctionData } from '../src/
 import { ineligibleValidatorAggDefaults } from '../src/utils'
 import { Debug } from '../src/debug'
 
+const BASE_CONSTRAINTS: AuctionConstraintsConfig = {
+  totalCountryStakeCapSol:              Infinity,
+  totalAsoStakeCapSol:                  Infinity,
+  marinadeCountryStakeCapSol:           Infinity,
+  marinadeAsoStakeCapSol:               Infinity,
+  marinadeValidatorStakeCapSol:         Infinity,
+  spendRobustReputationMult:            null,
+  minBondBalanceSol:                    0,
+  minMaxStakeWanted:                    0,
+  minBondEpochs:                        0,
+  idealBondEpochs:                      0,
+  spendRobustReputationBondBoostCoef:   0,
+  unprotectedValidatorStakeCapSol:   0,
+  minUnprotectedStakeToDelegateSol: 0,
+  unprotectedFoundationStakeDec:   1,
+  unprotectedDelegatedStakeDec:   1,
+}
+
+function mkConstraints (overrides: Partial<AuctionConstraintsConfig> = {}) {
+  return new AuctionConstraints(
+    { ...BASE_CONSTRAINTS, ...overrides },
+    new Debug(new Set())
+  )
+}
+
 /**
  * Minimal stub factory for AuctionValidator, re-using your ineligibleValidatorAggDefaults
  * and then merging in only the fields the cap functions actually read.
@@ -106,28 +131,16 @@ function makeValidator (overrides: any): AuctionValidator {
 }
 
 describe('clipBondStakeCap()', () => {
-  const cfg: AuctionConstraintsConfig = {
-    totalCountryStakeCapSol: 0,
-    totalAsoStakeCapSol: 0,
-    marinadeCountryStakeCapSol: 0,
-    marinadeAsoStakeCapSol: 0,
-    marinadeValidatorStakeCapSol: 0,
-    spendRobustReputationMult: null,
-    minBondBalanceSol: 1000,
-    minMaxStakeWanted: 0,
-    minBondEpochs: 0,
-    idealBondEpochs: 0,
-  }
-  const c = new AuctionConstraints(cfg, new Debug(new Set()))
+  const c = mkConstraints({ minBondBalanceSol: 1000 })
 
   it('returns 0 if balance < 0.8 * minBondBalanceSol', () => {
-    const v = makeValidator({ bondBalanceSol: 0.5 * cfg.minBondBalanceSol })
+    const v = makeValidator({ bondBalanceSol: 0.5 * 1000 })
     expect(c.clipBondStakeCap(v, 9999)).toBe(0)
   })
 
   it('clips to existing stake if balance < minBond but ≥ 0.8*min', () => {
     const v = makeValidator({
-      bondBalanceSol: 0.9 * cfg.minBondBalanceSol,
+      bondBalanceSol: 0.9 * 1000,
       marinadeActivatedStakeSol: 1234,
     })
     expect(c.clipBondStakeCap(v, 10000)).toBe(1234)
@@ -143,19 +156,12 @@ describe('clipBondStakeCap()', () => {
 })
 
 describe('bondStakeCapSam()', () => {
-  const cfg: AuctionConstraintsConfig = {
-    totalCountryStakeCapSol: 0,
-    totalAsoStakeCapSol: 0,
-    marinadeCountryStakeCapSol: 0,
-    marinadeAsoStakeCapSol: 0,
+  const c = mkConstraints({
     marinadeValidatorStakeCapSol: 1e9,
-    spendRobustReputationMult: null,
-    minBondBalanceSol: 1,
-    minMaxStakeWanted: 0,
-    minBondEpochs: 1,
-    idealBondEpochs: 2,
-  }
-  const c = new AuctionConstraints(cfg, new Debug(new Set()))
+    minBondBalanceSol:           1,
+    minBondEpochs:               1,
+    idealBondEpochs:             2,
+  })
 
   it('calculates the expected limit from PMPE-based formula', () => {
     const v = makeValidator({
@@ -176,12 +182,7 @@ describe('bondStakeCapSam()', () => {
   })
 
   it('when marinadeActivatedStakeSol is between ideal and min, cap=marinadeActivatedStakeSol', () => {
-    const cfg2: AuctionConstraintsConfig = {
-      ...cfg,
-      minBondEpochs: 1,
-      idealBondEpochs: 2,
-    }
-    const c2 = new AuctionConstraints(cfg2, new Debug(new Set()))
+    const c2 = mkConstraints({ minBondEpochs: 1, idealBondEpochs: 2 })
     const v = makeValidator({
       bondBalanceSol: 1000,
       marinadeActivatedStakeSol: 70000,
@@ -193,12 +194,7 @@ describe('bondStakeCapSam()', () => {
   })
 
   it('when marinadeActivatedStakeSol > minLimit, cap=minLimit', () => {
-    const cfg3: AuctionConstraintsConfig = {
-      ...cfg,
-      minBondEpochs: 1,
-      idealBondEpochs: 1,
-    }
-    const c3 = new AuctionConstraints(cfg3, new Debug(new Set()))
+    const c3 = mkConstraints({ minBondEpochs: 1, idealBondEpochs: 1 })
     const v = makeValidator({
       bondBalanceSol: 1000,
       marinadeActivatedStakeSol: 200000,
@@ -211,19 +207,7 @@ describe('bondStakeCapSam()', () => {
 })
 
 describe('bondStakeCapMnde()', () => {
-  const cfg: AuctionConstraintsConfig = {
-    totalCountryStakeCapSol: 0,
-    totalAsoStakeCapSol: 0,
-    marinadeCountryStakeCapSol: 0,
-    marinadeAsoStakeCapSol: 0,
-    marinadeValidatorStakeCapSol: 0,
-    spendRobustReputationMult: null,
-    minBondBalanceSol: 1,
-    minMaxStakeWanted: 0,
-    minBondEpochs: 0,
-    idealBondEpochs: 0,
-  }
-  const c = new AuctionConstraints(cfg, new Debug(new Set()))
+  const c = mkConstraints({ minBondBalanceSol: 1 })
 
   it('returns 0 when balance < 0.8*minBond', () => {
     const v = makeValidator({ bondBalanceSol: 0.5, marinadeActivatedStakeSol: 10 })
@@ -238,19 +222,7 @@ describe('bondStakeCapMnde()', () => {
 })
 
 describe('reputationStakeCap()', () => {
-  const baseCfg: AuctionConstraintsConfig = {
-    totalCountryStakeCapSol: 0,
-    totalAsoStakeCapSol: 0,
-    marinadeCountryStakeCapSol: 0,
-    marinadeAsoStakeCapSol: 0,
-    marinadeValidatorStakeCapSol: 0,
-    spendRobustReputationMult: 2.5,
-    minBondBalanceSol: 0,
-    minMaxStakeWanted: 0,
-    minBondEpochs: 0,
-    idealBondEpochs: 0,
-  }
-  const c = new AuctionConstraints(baseCfg, new Debug(new Set()))
+  const c = mkConstraints({ spendRobustReputationMult: 2.5 })
 
   it('returns max(adjMaxSpendRobustDelegation, marinadeActivatedStakeSol)', () => {
     const v = makeValidator({
@@ -271,27 +243,21 @@ describe('reputationStakeCap()', () => {
   })
 
   it('returns Infinity when spendRobustReputationMult is null', () => {
-    const c2 = new AuctionConstraints({ ...baseCfg, spendRobustReputationMult: null }, new Debug(new Set()))
+    const c2 = mkConstraints({ spendRobustReputationMult: null })
     const v = makeValidator({})
     expect(c2.reputationStakeCap(v)).toBe(Infinity)
   })
 })
 
 describe('getMinCapForEvenDistribution() & findCapForValidator()', () => {
-  const cfg: AuctionConstraintsConfig = {
-    totalCountryStakeCapSol: 100,
-    totalAsoStakeCapSol: 1000,
-    marinadeCountryStakeCapSol: 50,
-    marinadeAsoStakeCapSol: 1000,
-    marinadeValidatorStakeCapSol: 1000,
-    spendRobustReputationMult: null,
-    minBondBalanceSol: 0,
-    minMaxStakeWanted: 0,
-    minBondEpochs: 0,
-    idealBondEpochs: 0,
-  }
   const debug = new Debug(new Set(['v1', 'v2']))
-  const c = new AuctionConstraints(cfg, debug)
+  const c = mkConstraints({
+    totalCountryStakeCapSol:         100,
+    totalAsoStakeCapSol:             1000,
+    marinadeCountryStakeCapSol:      50,
+    marinadeAsoStakeCapSol:          1000,
+    marinadeValidatorStakeCapSol:    1000,
+  })
 
   const v1 = makeValidator({
     voteAccount: 'v1',
@@ -334,20 +300,14 @@ describe('getMinCapForEvenDistribution() & findCapForValidator()', () => {
 })
 
 describe('getMinCapForEvenDistribution positive scenarios', () => {
-  const cfg: AuctionConstraintsConfig = {
-    totalCountryStakeCapSol: 200,
-    totalAsoStakeCapSol: 1000,
-    marinadeCountryStakeCapSol: 100,
-    marinadeAsoStakeCapSol: 1000,
-    marinadeValidatorStakeCapSol: 1000,
-    spendRobustReputationMult: null,
-    minBondBalanceSol: 0,
-    minMaxStakeWanted: 0,
-    minBondEpochs: 0,
-    idealBondEpochs: 0,
-  }
   const debug = new Debug(new Set(['x1','x2']))
-  const cpos = new AuctionConstraints(cfg, debug)
+  const cpos = mkConstraints({
+    totalCountryStakeCapSol:         200,
+    totalAsoStakeCapSol:             1000,
+    marinadeCountryStakeCapSol:      100,
+    marinadeAsoStakeCapSol:          1000,
+    marinadeValidatorStakeCapSol:    1000,
+  })
 
   const x1 = makeValidator({
     voteAccount: 'x1', country: 'Z', aso: 'A1',
@@ -374,8 +334,7 @@ describe('getMinCapForEvenDistribution positive scenarios', () => {
   })
 
   it('selects the actual minimal constraint (COUNTRY) when ASO is less binding', () => {
-    const cfg2 = { ...cfg, totalCountryStakeCapSol: 1000000 }
-    const c2 = new AuctionConstraints(cfg2, new Debug(new Set(['y1'])))
+    const c2 = mkConstraints({ totalCountryStakeCapSol: 1000000 })
     const y1 = makeValidator({
       voteAccount: 'y1', country: 'Q', aso: 'B1',
       auctionStake: { externalActivatedSol: 20, marinadeMndeTargetSol:5, marinadeSamTargetSol:5 },
@@ -394,14 +353,14 @@ describe('getMinCapForEvenDistribution positive scenarios', () => {
 })
 
 describe('findCapForValidator when cap > EPSILON', () => {
-  const cfg: AuctionConstraintsConfig = {
-    ...{ totalCountryStakeCapSol: 100, totalAsoStakeCapSol:100, marinadeCountryStakeCapSol:50,
-      marinadeAsoStakeCapSol:100, marinadeValidatorStakeCapSol:100,
-      spendRobustReputationMult:null, minBondBalanceSol:0, minMaxStakeWanted:0,
-      minBondEpochs:0, idealBondEpochs:0 },
-  }
   const debug = new Debug(new Set(['z1']))
-  const c = new AuctionConstraints(cfg, debug)
+  const c = mkConstraints({
+    totalCountryStakeCapSol:         100,
+    totalAsoStakeCapSol:             100,
+    marinadeCountryStakeCapSol:      50,
+    marinadeAsoStakeCapSol:          100,
+    marinadeValidatorStakeCapSol:    100,
+  })
   const z1 = makeValidator({
     voteAccount: 'z1', country:'Z', aso:'A',
     auctionStake: { externalActivatedSol:1, marinadeMndeTargetSol:0, marinadeSamTargetSol:0 },

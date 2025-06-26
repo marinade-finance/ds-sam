@@ -172,6 +172,8 @@ export class DataProvider {
         },
         mndeVotesSolValue: validatorMndeVotes.mul(solPerMnde).toNumber(),
         mndeStakeCapIncrease: validatorMndeStakeCapIncrease.toNumber(),
+        foundationStakeSol: new Decimal(validator.foundation_stake).div(1e9).toNumber(),
+        selfStakeSol: new Decimal(validator.self_stake).div(1e9).toNumber(),
         epochStats: validator.epoch_stats.filter(({ epoch_end_at }) => !!epoch_end_at).map(es => ({
           epoch: es.epoch,
           totalActivatedStake: new Decimal(es.activated_stake),

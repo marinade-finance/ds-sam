@@ -137,6 +137,63 @@ export class Auction {
     return winningTotalPmpe
   }
 
+  distributeBackstopStake () {
+    this.constraints.updateStateForBackstop(this.data)
+    this.debug.getVoteAccounts().forEach((voteAccount) => {
+      const constraints = this.constraints.getValidatorConstraints(voteAccount)
+      this.debug.pushValidatorEvent(voteAccount, `SAM start constraints: ${constraints ? `${JSON.stringify(constraints.map(constraint => ({ ...constraint, validators: constraint.validators.length })))}` : 'NULL'}`)
+    })
+
+    let rounds = 0
+    let validators = this.data.validators.filter(validator => validator.backstopEligible && !validator.samBlocked)
+    console.log('BACKSTOP ========= new round ==========')
+    console.log('BACKSTOP', validators.length, 'validators eligible')
+    this.debug.pushValidatorSetEvent(new Set(validators.map(({ voteAccount }) => voteAccount)), `assigned as BACKSTOP eligible validator: ${validators.slice(0, 5).map(({ voteAccount }) => voteAccount).join(' ')}`)
+
+    if (this.data.stakeAmounts.marinadeRemainingSamSol < EPSILON) {
+      console.log('BACKSTOP No stake remaining to distribute')
+      this.debug.pushEvent('BACKSTOP No stake remaining to distribute')
+      return
+    }
+
+    while (validators.length > 0) {
+      rounds++
+      const remainingStakeToDistribute = this.data.stakeAmounts.marinadeRemainingSamSol
+      const groupValidators = new Map(validators.map(validator => [validator.voteAccount, validator]))
+      const groupVoteAccounts = new Set(groupValidators.keys())
+
+      const { cap } = this.constraints.getMinCapForEvenDistribution(groupVoteAccounts)
+      const evenDistributionCap = Math.min(cap, remainingStakeToDistribute / validators.length)
+      console.log('BACKSTOP distributing', evenDistributionCap, 'to every validator in the group', groupValidators.size)
+
+      for (const validator of groupValidators.values()) {
+        validator.auctionStake.marinadeSamTargetSol += evenDistributionCap
+        this.data.stakeAmounts.marinadeRemainingSamSol -= evenDistributionCap
+        this.debug.pushValidatorEvent(validator.voteAccount, `received ${evenDistributionCap} SAM stake in PMPE group ${validator.revShare.totalPmpe} with ${groupValidators.size} validators`)
+      }
+
+      this.constraints.updateStateForBackstop(this.data)
+      validators = validators.filter((validator) => {
+        const validatorCap = this.constraints.findCapForValidator(validator)
+        if (validatorCap < EPSILON) {
+          console.log('BACKSTOP removing validator', validator.voteAccount, 'from the group because the cap has been reached')
+          return false
+        }
+        return true
+      })
+
+      if (this.data.stakeAmounts.marinadeRemainingSamSol < EPSILON) {
+        console.log('BACKSTOP No stake remaining to distribute')
+        this.debug.pushEvent('BACKSTOP No stake remaining to distribute')
+        break
+      } else {
+        console.log('BACKSTOP Stake remaining', this.data.stakeAmounts.marinadeRemainingSamSol)
+      }
+    }
+
+    console.log('BACKSTOP rounds', rounds)
+  }
+
   setStakeUnstakePriorities () {
     this.data.validators.sort((a, b) => b.revShare.totalPmpe - a.revShare.totalPmpe)
 
@@ -472,10 +529,6 @@ export class Auction {
     const winningTotalPmpe = this.distributeSamStake()
     this.debug.pushEvent('STAKE DISTRIBUTED')
 
-    console.log('stake amounts after', this.data.stakeAmounts)
-    this.debug.pushInfo('end amounts', JSON.stringify(this.data.stakeAmounts))
-    this.debug.pushInfo('winning total PMPE', winningTotalPmpe.toString())
-
     if (!isFinite(winningTotalPmpe)) {
       throw new Error('winningTotalPmpe has to be finite')
     }
@@ -483,6 +536,15 @@ export class Auction {
     if (winningTotalPmpe <= 0) {
       throw new Error('winningTotalPmpe has to be positive')
     }
+
+    this.debug.pushInfo('pre BACKSTOP amounts', JSON.stringify(this.data.stakeAmounts))
+    this.debug.pushEvent('DISTRIBUTING BACKSTOP STAKE')
+    this.distributeBackstopStake()
+    this.debug.pushEvent('BACKSTOP STAKE DISTRIBUTED')
+
+    console.log('stake amounts after', this.data.stakeAmounts)
+    this.debug.pushInfo('end amounts', JSON.stringify(this.data.stakeAmounts))
+    this.debug.pushInfo('winning total PMPE', winningTotalPmpe.toString())
 
     return {
       auctionData: this.data,

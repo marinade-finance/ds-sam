@@ -11,7 +11,6 @@ export type DsSamConfig = {
   // Whether to cache input data (optional)
   cacheInputs?: boolean
 
-  // TODO? split into nested config sections
   // Base URL of the API to get validators info from
   validatorsApiBaseUrl: string
   // Base URL of the API to get bonds from
@@ -27,6 +26,9 @@ export type DsSamConfig = {
   // The base URL for the location of the overrides json
   overridesApiBaseUrl: string
 
+  // Use zero-commission validators for backstop
+  enableZeroCommissionBackstop: boolean
+
   // How many epochs in the past to fetch rewards for
   rewardsEpochsCount: number
   // How many epochs in the past to validators uptimes for
@@ -37,7 +39,10 @@ export type DsSamConfig = {
   validatorsClientVersionSemverExpr: string
   // Max effective commission of a validator to be eligible
   validatorsMaxEffectiveCommissionDec: number
-
+  // How much unprotected stake do we put on a validator w.r.t the foundation delegated stake
+  unprotectedFoundationStakeDec: number
+  // How much unprotected stake do we put on a validator w.r.t the other 3-rd party delegated stake
+  unprotectedDelegatedStakeDec: number
   // How many historical bids to consider when deciding how much to charge for
   // the BidTooLowPenalty
   bidTooLowPenaltyHistoryEpochs: number
@@ -56,6 +61,10 @@ export type DsSamConfig = {
   maxNetworkStakeConcentrationPerAsoDec: number
   // Cap of Marinade stake share on a single validator
   maxMarinadeTvlSharePerValidatorDec: number
+  // Max share of unprotected stake on 3-rd party stake of a validator
+  maxUnprotectedStakePerValidatorDec: number
+  // The minimum amount of unprotected stake we are willing to delegate to a validator
+  minUnprotectedStakeToDelegateSol: number
 
   // Multiplier to get from reputation to reputation limit; if null no limit is imposed
   spendRobustReputationMult: number | null
@@ -106,6 +115,9 @@ export type DsSamConfig = {
   // The estimated transaction fee Pmpe
   expectedFeePmpe: number
 
+  // The minimal eligible transaction fee Pmpe
+  minEligibleFeePmpe: number
+
   // Validator vote accounts to collect debug info for
   debugVoteAccounts: string[]
 }
@@ -121,11 +133,15 @@ export const DEFAULT_CONFIG: DsSamConfig = {
   snapshotsApiBaseUrl: 'https://snapshots-api.marinade.finance',
   scoringApiBaseUrl:  'https://scoring.marinade.finance',
 
+  enableZeroCommissionBackstop: false,
   rewardsEpochsCount: 10,
   validatorsUptimeEpochsCount: 3,
   validatorsUptimeThresholdDec: 0.8,
   validatorsClientVersionSemverExpr: '>=1.18.15 || >=0.101.20013 <1.0.0',
   validatorsMaxEffectiveCommissionDec: 0.07,
+  unprotectedDelegatedStakeDec: 0,
+  unprotectedFoundationStakeDec: 0,
+  minUnprotectedStakeToDelegateSol: 0,
   bidTooLowPenaltyHistoryEpochs: 3,
 
   mndeDirectedStakeShareDec: 0,
@@ -135,6 +151,7 @@ export const DEFAULT_CONFIG: DsSamConfig = {
   maxNetworkStakeConcentrationPerCountryDec: 0.3,
   maxNetworkStakeConcentrationPerAsoDec: 0.3,
   maxMarinadeTvlSharePerValidatorDec: 0.04,
+  maxUnprotectedStakePerValidatorDec: 0,
   spendRobustReputationMult: null,
   spendRobustReputationDecayEpochs: 50,
   minSpendRobustReputation: -20,
@@ -151,6 +168,7 @@ export const DEFAULT_CONFIG: DsSamConfig = {
   minMaxStakeWanted: null,
   expectedFeePmpe: 0,
   expectedMaxWinningBidRatio: null,
+  minEligibleFeePmpe: 0,
 
   debugVoteAccounts: [],
 }
