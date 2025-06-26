@@ -46,8 +46,9 @@ export class DsSamSDK {
       minBondEpochs: this.config.minBondEpochs,
       idealBondEpochs: this.config.idealBondEpochs,
       spendRobustReputationBondBoostCoef: this.config.spendRobustReputationBondBoostCoef,
-      maxUnprotectedStakePerValidatorDec: this.config.maxUnprotectedStakePerValidatorDec,
-      unprotectedStakeFoundationMult: this.config.unprotectedStakeFoundationMult,
+      unprotectedValidatorStakeCapSol: marinadeTotalTvlSol * this.config.maxUnprotectedStakePerValidatorDec,
+      unprotectedFoundationStakeDec: this.config.unprotectedFoundationStakeDec,
+      unprotectedDelegatedStakeDec: this.config.unprotectedDelegatedStakeDec,
     }
     this.debug.pushInfo('auction constraints', JSON.stringify(constraints))
     return new AuctionConstraints(constraints, debug)
@@ -108,7 +109,7 @@ export class DsSamSDK {
           return { ...validator, revShare, auctionStake, ...ineligibleValidatorAggDefaults() }
         }
       }
-      const backstopEligible = revShare.inflationPmpe + revShare.mevPmpe >= zeroCommissionPmpe
+      const backstopEligible = this.config.enableZeroCommissionBackstop && revShare.inflationPmpe + revShare.mevPmpe >= zeroCommissionPmpe
       if (validator.bondBalanceSol === null) {
         return { ...validator, revShare, auctionStake, ...ineligibleValidatorAggDefaults(), backstopEligible }
       }

@@ -52,6 +52,8 @@ export type AuctionValidator = AggregatedValidator & {
   stakePriority: number
   unstakePriority: number
   maxBondDelegation: number
+  bondSamStakeCapSol: number
+  unprotectedStakeCapSol: number
 }
 
 export type AggregatedValidator = {
@@ -127,14 +129,15 @@ export type AuctionConstraintsConfig = {
   marinadeCountryStakeCapSol: number
   marinadeAsoStakeCapSol: number
   marinadeValidatorStakeCapSol: number
+  unprotectedValidatorStakeCapSol: number
   spendRobustReputationMult: number | null
   minBondBalanceSol: number
   minMaxStakeWanted: number
   minBondEpochs: number
   idealBondEpochs: number
   spendRobustReputationBondBoostCoef: number
-  maxUnprotectedStakePerValidatorDec: number
-  unprotectedStakeFoundationMult: number
+  unprotectedDelegatedStakeDec: number
+  unprotectedFoundationStakeDec: number
 }
 
 export enum AuctionConstraintType {
