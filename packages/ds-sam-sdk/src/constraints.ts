@@ -179,13 +179,13 @@ export class AuctionConstraints {
 
   private buildBackstopConstraints ({ validators }: AuctionData) {
     return validators.map(validator => ({
-        constraintType: AuctionConstraintType.RISK,
-        constraintName: validator.voteAccount,
-        totalStakeSol: validatorTotalAuctionStakeSol(validator),
-        totalLeftToCapSol: Infinity,
-        marinadeStakeSol: validator.auctionStake.marinadeMndeTargetSol + validator.auctionStake.marinadeSamTargetSol,
-        marinadeLeftToCapSol: this.unprotectedStakeCap(validator) - validator.auctionStake.marinadeSamTargetSol,
-        validators: [validator],
+      constraintType: AuctionConstraintType.RISK,
+      constraintName: validator.voteAccount,
+      totalStakeSol: validatorTotalAuctionStakeSol(validator),
+      totalLeftToCapSol: Infinity,
+      marinadeStakeSol: validator.auctionStake.marinadeMndeTargetSol + validator.auctionStake.marinadeSamTargetSol,
+      marinadeLeftToCapSol: this.unprotectedStakeCap(validator) - validator.auctionStake.marinadeSamTargetSol,
+      validators: [validator],
     }))
   }
 

@@ -175,8 +175,8 @@ export class ValidatorMockBuilder {
         credits: credits,
         epoch_end_at: e === 0 ? null : 'TODO',
       })),
-      self_stake: "0",
-      foundation_stake: "0",
-   }
+      self_stake: '0',
+      foundation_stake: '0',
+    }
   }
 }

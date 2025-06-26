@@ -71,7 +71,7 @@ const BASE_CONSTRAINTS: AuctionConstraintsConfig = {
   unprotectedDelegatedStakeDec:   1,
 }
 
-function mkConstraints(overrides: Partial<AuctionConstraintsConfig> = {}) {
+function mkConstraints (overrides: Partial<AuctionConstraintsConfig> = {}) {
   return new AuctionConstraints(
     { ...BASE_CONSTRAINTS, ...overrides },
     new Debug(new Set())
