@@ -256,8 +256,8 @@ vote-acc--0000000018, inflation pmpe: 0.4698318496538081, mev pmpe: 0.3956478733
 `;
 
 exports[`constraints respects bond constraint relaxation I 1`] = `
-"vote-acc--0000000000, inflation pmpe: 0.1304586652018676, mev pmpe: 0.10985992859104639, bid pmpe: 100, total pmpe: 100.24031859379292, mnde_target_stake: 0, sam_target_stake: 16763.351749539604, last constraint: BOND (vote-acc--0000000000)
-vote-acc--0000000001, inflation pmpe: 0.1304586652018676, mev pmpe: 0.10985992859104639, bid pmpe: 3, total pmpe: 3.2403185937929138, mnde_target_stake: 0, sam_target_stake: 16763.351749539604, last constraint: BOND (vote-acc--0000000001)
+"vote-acc--0000000000, inflation pmpe: 0.1304586652018676, mev pmpe: 0.10985992859104639, bid pmpe: 100, total pmpe: 100.24031859379292, mnde_target_stake: 0, sam_target_stake: 16763.3517495396, last constraint: BOND (vote-acc--0000000000)
+vote-acc--0000000001, inflation pmpe: 0.1304586652018676, mev pmpe: 0.10985992859104639, bid pmpe: 3, total pmpe: 3.2403185937929138, mnde_target_stake: 0, sam_target_stake: 16763.3517495396, last constraint: BOND (vote-acc--0000000001)
 vote-acc--0000000002, inflation pmpe: 0.1304586652018676, mev pmpe: 0.10985992859104639, bid pmpe: 2, total pmpe: 2.2403185937929138, mnde_target_stake: 0, sam_target_stake: 23583.133622643953, last constraint: BOND (vote-acc--0000000002)
 vote-acc--0000000003, inflation pmpe: 0.1304586652018676, mev pmpe: 0.10985992859104639, bid pmpe: 1, total pmpe: 1.240318593792914, mnde_target_stake: 0, sam_target_stake: 44636.508520289324, last constraint: BOND (vote-acc--0000000003)
 vote-acc--0000000004, inflation pmpe: 0.1304586652018676, mev pmpe: 0.10985992859104639, bid pmpe: 0.5, total pmpe: 0.740318593792914, mnde_target_stake: 0, sam_target_stake: 8062.444641275466, last constraint: BOND (vote-acc--0000000004)
@@ -302,6 +302,6 @@ vote-acc--0000000019, inflation pmpe: 0.13033337906434353, mev pmpe: 0.109754424
 vote-acc--0000000020, inflation pmpe: 0.13033337906434353, mev pmpe: 0.10975442447523664, bid pmpe: 0.5, total pmpe: 0.7400878035395801, mnde_target_stake: 0, sam_target_stake: 8835.151515151514, last constraint: BOND (vote-acc--0000000020)
 vote-acc--0000000021, inflation pmpe: 0.13033337906434353, mev pmpe: 0.10975442447523664, bid pmpe: 0.5, total pmpe: 0.7400878035395801, mnde_target_stake: 0, sam_target_stake: 8835.151515151514, last constraint: BOND (vote-acc--0000000021)
 vote-acc--0000000022, inflation pmpe: 0.13033337906434353, mev pmpe: 0.10975442447523664, bid pmpe: 0.5, total pmpe: 0.7400878035395801, mnde_target_stake: 0, sam_target_stake: 8835.151515151514, last constraint: BOND (vote-acc--0000000022)
-vote-acc--0000000003, inflation pmpe: 0.13033337906434353, mev pmpe: 0.10975442447523664, bid pmpe: 0.2, total pmpe: 0.4400878035395802, mnde_target_stake: 0, sam_target_stake: 78114.28326474623, last constraint: BOND (vote-acc--0000000003)
+vote-acc--0000000003, inflation pmpe: 0.13033337906434353, mev pmpe: 0.10975442447523664, bid pmpe: 0.2, total pmpe: 0.4400878035395802, mnde_target_stake: 0, sam_target_stake: 78114.28326474622, last constraint: BOND (vote-acc--0000000003)
 vote-acc--0000000004, inflation pmpe: 0.13033337906434353, mev pmpe: 0.10975442447523664, bid pmpe: 0.1, total pmpe: 0.3400878035395802, mnde_target_stake: 0, sam_target_stake: 113613.69162666, last constraint: BOND (vote-acc--0000000004)"
 `;

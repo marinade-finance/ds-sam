@@ -81,7 +81,7 @@ export class DsSamSDK {
     }
 
     const minEffectiveRevSharePmpe = Math.max(0, rewards.inflationPmpe * (1 - this.config.validatorsMaxEffectiveCommissionDec))
-    const minSamRevSharePmpe = Math.max(0, rewards.inflationPmpe + rewards.mevPmpe + this.config.minEligibleFeePmpe)
+    const minSamRevSharePmpe = Math.max(0, rewards.inflationPmpe + rewards.mevPmpe + (this.config.minEligibleFeePmpe ?? -Infinity))
     const zeroCommissionPmpe = Math.max(0, rewards.inflationPmpe + rewards.mevPmpe)
     console.log('min rev share PMPE', minEffectiveRevSharePmpe)
     console.log('rewards', rewards)

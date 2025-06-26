@@ -57,7 +57,7 @@ vote-acc--0000000000, inflation pmpe: 0, mev pmpe: 0, bid pmpe: 0, total pmpe: 0
 
 exports[`sam distribution distributes stake to validators with good total pmpe 1`] = `
 "vote-acc-SAM-0000000052, inflation pmpe: 0.09019607843137255, mev pmpe: 0.39215686274509803, bid pmpe: 0, total pmpe: 0.4823529411764706, mnde_target_stake: 0, sam_target_stake: 207317.0731707317, last constraint: BOND (vote-acc-SAM-0000000052)
-vote-acc-SAM-0000000053, inflation pmpe: 0.09019607843137255, mev pmpe: 0, bid pmpe: 0.1, total pmpe: 0.19019607843137254, mnde_target_stake: 0, sam_target_stake: 344594.59459459456, last constraint: BOND (vote-acc-SAM-0000000053)
+vote-acc-SAM-0000000053, inflation pmpe: 0.09019607843137255, mev pmpe: 0, bid pmpe: 0.1, total pmpe: 0.19019607843137254, mnde_target_stake: 0, sam_target_stake: 344594.5945945947, last constraint: BOND (vote-acc-SAM-0000000053)
 vote-acc-SAM-0000000000, inflation pmpe: 0.09803921568627451, mev pmpe: 0, bid pmpe: 0, total pmpe: 0.09803921568627451, mnde_target_stake: 0, sam_target_stake: 388961.76664469345, last constraint: MNDE (vote-acc-SAM-0000000000)
 vote-acc-SAM-0000000001, inflation pmpe: 0.09803921568627451, mev pmpe: 0, bid pmpe: 0, total pmpe: 0.09803921568627451, mnde_target_stake: 0, sam_target_stake: 388961.76664469345, last constraint: MNDE (vote-acc-SAM-0000000001)
 vote-acc-SAM-0000000002, inflation pmpe: 0.09803921568627451, mev pmpe: 0, bid pmpe: 0, total pmpe: 0.09803921568627451, mnde_target_stake: 0, sam_target_stake: 388961.76664469345, last constraint: MNDE (vote-acc-SAM-0000000002)
