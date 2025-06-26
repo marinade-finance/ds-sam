@@ -444,3 +444,170 @@ describe('findCapForValidator when cap > EPSILON', () => {
     expect(z1.lastCapConstraint).toBeNull()
   })
 })
+
+/* -------------------------------------------------------------------
+ * 7) ASO constraint wins
+ * ------------------------------------------------------------------- */
+describe('getMinCapForEvenDistribution – ASO wins', () => {
+  const debug = new Debug(new Set(['v1','v2']))
+  const c = makeConstraints({
+    totalCountryStakeCapSol: 1e6,
+    marinadeCountryStakeCapSol: 1e6,
+    totalAsoStakeCapSol: 10,
+    marinadeAsoStakeCapSol: 2,
+  })
+
+  const v1 = makeValidator({
+    voteAccount: 'v1', country: 'X', aso: 'Z',
+    auctionStake: { externalActivatedSol: 3, marinadeMndeTargetSol: 0, marinadeSamTargetSol: 1 },
+  })
+  const v2 = makeValidator({
+    voteAccount: 'v2', country: 'X', aso: 'Z',
+    auctionStake: { externalActivatedSol: 3, marinadeMndeTargetSol: 0, marinadeSamTargetSol: 1 },
+  })
+
+  it('picks ASO when it is the tightest cap', () => {
+    const data = makeAuction({ validators: [v1, v2] })
+    c.updateStateForSam(data)
+    const { cap, constraint } = c.getMinCapForEvenDistribution(new Set(['v1','v2']))
+    expect(cap).toBe(0)
+    expect(constraint.constraintType).toBe('ASO')
+  })
+})
+
+/* -------------------------------------------------------------------
+ * 8) WANT constraint wins
+ * ------------------------------------------------------------------- */
+describe('getMinCapForEvenDistribution – WANT wins', () => {
+  const debug = new Debug(new Set(['v']))
+  const c = makeConstraints({
+    totalCountryStakeCapSol: Infinity,
+    marinadeCountryStakeCapSol: Infinity,
+    totalAsoStakeCapSol: Infinity,
+    marinadeAsoStakeCapSol: Infinity,
+    minMaxStakeWanted: 0,
+  })
+
+  const v = makeValidator({
+    voteAccount: 'v',
+    maxStakeWanted: 5,
+    auctionStake: { externalActivatedSol: 100, marinadeMndeTargetSol: 0, marinadeSamTargetSol: 0 },
+  })
+
+  it('picks WANT when maxStakeWanted is the binding cap', () => {
+    const data = makeAuction({ validators: [v] })
+    c.updateStateForSam(data)
+    const { cap, constraint } = c.getMinCapForEvenDistribution(new Set(['v']))
+    expect(cap).toBe(5)
+    expect(constraint.constraintType).toBe('WANT')
+  })
+})
+
+/* -------------------------------------------------------------------
+ * 9) REPUTATION constraint wins
+ * ------------------------------------------------------------------- */
+describe('getMinCapForEvenDistribution – REPUTATION wins', () => {
+  const debug = new Debug(new Set(['v']))
+  const c = makeConstraints({
+    totalCountryStakeCapSol: Infinity,
+    marinadeCountryStakeCapSol: Infinity,
+    totalAsoStakeCapSol: Infinity,
+    marinadeAsoStakeCapSol: Infinity,
+    spendRobustReputationMult: 1,
+  })
+
+  const v = makeValidator({
+    voteAccount: 'v',
+    values: {
+      adjMaxSpendRobustDelegation: 7,
+      spendRobustReputation: 0,
+      adjSpendRobustReputation: 0,
+      adjSpendRobustReputationInflationFactor: 1,
+      bondRiskFeeSol: 0,
+      paidUndelegationSol: 0,
+      marinadeActivatedStakeSolUndelegation: 0,
+    },
+    auctionStake: { externalActivatedSol: 0, marinadeMndeTargetSol: 0, marinadeSamTargetSol: 0 },
+  })
+
+  it('picks REPUTATION when adjMaxSpendRobustDelegation is smallest', () => {
+    const data = makeAuction({ validators: [v] })
+    c.updateStateForSam(data)
+    const { cap, constraint } = c.getMinCapForEvenDistribution(new Set(['v']))
+    expect(cap).toBe(7)
+    expect(constraint.constraintType).toBe('REPUTATION')
+  })
+})
+
+/* -------------------------------------------------------------------
+ * 10) Sam‐BOND constraint wins
+ * ------------------------------------------------------------------- */
+describe('getMinCapForEvenDistribution – Sam‐BOND wins', () => {
+  const debug = new Debug(new Set(['v']))
+  const c = makeConstraints({
+    totalCountryStakeCapSol: Infinity,
+    marinadeCountryStakeCapSol: Infinity,
+    totalAsoStakeCapSol: Infinity,
+    marinadeAsoStakeCapSol: Infinity,
+    minBondEpochs: 0,
+    idealBondEpochs: 0,
+    spendRobustReputationBondBoostCoef: 0,
+  })
+
+  const v = makeValidator({
+    voteAccount: 'v',
+    bondBalanceSol: 1000,
+    revShare: {
+      inflationPmpe: 0,
+      mevPmpe: 0,
+      bidPmpe: 0,
+      totalPmpe: 0,
+      auctionEffectiveBidPmpe: 0,
+      effParticipatingBidPmpe: 0,
+      expectedMaxEffBidPmpe: 1000,
+      bidTooLowPenaltyPmpe: 0,
+    },
+  })
+
+  it('picks BOND when its per‐validator bond cap is smallest', () => {
+    const data = makeAuction({ validators: [v] })
+    c.updateStateForSam(data)
+    const { cap, constraint } = c.getMinCapForEvenDistribution(new Set(['v']))
+    expect(cap).toBeCloseTo(1, 6)
+    expect(constraint.constraintType).toBe('BOND')
+  })
+})
+
+/* -------------------------------------------------------------------
+ * 11) MNDE constraint wins under the Mnde pipeline
+ * ------------------------------------------------------------------- */
+describe('getMinCapForEvenDistribution – MNDE wins (Mnde pipeline)', () => {
+  const debug = new Debug(new Set(['v']))
+  const c = makeConstraints({
+    minBondBalanceSol: 0,
+  })
+
+  const v = makeValidator({
+    voteAccount: 'v',
+    mndeVotesSolValue: 3,
+    auctionStake: { externalActivatedSol: 0, marinadeMndeTargetSol: 0, marinadeSamTargetSol: 0 },
+  })
+
+  it('picks MNDE when mndeVotesSolValue is the tightest', () => {
+    const data = makeAuction({ validators: [v] })
+    c.updateStateForMnde(data)
+    const { cap, constraint } = c.getMinCapForEvenDistribution(new Set(['v']))
+    expect(cap).toBe(3)
+    expect(constraint.constraintType).toBe('MNDE')
+  })
+})
+
+/* -------------------------------------------------------------------
+ * 12) Error when no constraints exist
+ * ------------------------------------------------------------------- */
+describe('getMinCapForEvenDistribution – no constraints', () => {
+  const c = makeConstraints()
+  it('throws if voteAccounts set is empty', () => {
+    expect(() => c.getMinCapForEvenDistribution(new Set())).toThrow(/Failed to find/)
+  })
+})
