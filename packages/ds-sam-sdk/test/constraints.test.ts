@@ -1,9 +1,9 @@
 /**
  * Test plan — high-level overview
  *
- * We exercise every exported “cap” helper in constraints.ts: 
+ * We exercise every exported “cap” helper in constraints.ts:
  *
- * 1a) clipBondStakeCap exact boundary values: 
+ * 1a) clipBondStakeCap exact boundary values:
  *     - bondBalanceSol === 0.8*minBondBalanceSol → hits the “hysteresis” branch
  *     - bondBalanceSol === minBondBalanceSol → returns raw limit
  *
@@ -14,7 +14,7 @@
  *    - When bondBalanceSol ≥ minBondBalanceSol
  *      → returns the raw limit argument
  *
- * 2a) bondStakeCapSam extra scenarios: 
+ * 2a) bondStakeCapSam extra scenarios:
  *    - marinadeActivatedStakeSol > idealLimit but < minLimit → cap = marinadeActivatedStakeSol
  *    - marinadeActivatedStakeSol > minLimit → cap = minLimit
  *
@@ -36,7 +36,7 @@
  *
  * 5) getMinCapForEvenDistribution()
  *    - Builds concentration constraints (country, aso, etc.)
- *    - Takes a set of voteAccounts: 
+ *    - Takes a set of voteAccounts:
  *      • calculates totalLeftToCapSol & marinadeLeftToCapSol
  *      • per-validator cap = max(0, min(totalLeftToCapSol, marinadeLeftToCapSol)/N)
  *    - Negative caps clamp to 0
@@ -142,7 +142,7 @@ function makeValidator (overrides: any): AuctionValidator {
   return { ...base, ...overrides }
 }
 
-function makeAuction(overrides: Partial<AuctionData> = {}): AuctionData {
+function makeAuction (overrides: Partial<AuctionData> = {}): AuctionData {
   const base: AuctionData = {
     epoch: 0,
     validators: [],
@@ -289,7 +289,7 @@ describe('unprotectedStakeCap()', () => {
     unprotectedDelegatedStakeDec: 1,
     unprotectedFoundationStakeDec: 1,
     minUnprotectedStakeToDelegateSol: 10,
-  });
+  })
 
   it('returns 0 if delegated stake <= 0', () => {
     // total 5, self+foundation = 10 → delegated = -5 → clamp to 0
@@ -297,9 +297,9 @@ describe('unprotectedStakeCap()', () => {
       totalActivatedStakeSol: 5,
       selfStakeSol: 6,
       foundationStakeSol: 4,
-    });
-    expect(c.unprotectedStakeCap(v)).toBe(0);
-  });
+    })
+    expect(c.unprotectedStakeCap(v)).toBe(0)
+  })
 
   it('returns 0 when computed cap is below the min threshold', () => {
     // total 15, self=10, foundation=0 → delegated=5 < min(10)
@@ -307,9 +307,9 @@ describe('unprotectedStakeCap()', () => {
       totalActivatedStakeSol: 15,
       selfStakeSol: 10,
       foundationStakeSol: 0,
-    });
-    expect(c.unprotectedStakeCap(v)).toBe(0);
-  });
+    })
+    expect(c.unprotectedStakeCap(v)).toBe(0)
+  })
 
   it('returns computed delegated stake when between min threshold and validator cap', () => {
     // total 30, self=10 → delegated=20 → above min(10) and below cap(100)
@@ -317,9 +317,9 @@ describe('unprotectedStakeCap()', () => {
       totalActivatedStakeSol: 30,
       selfStakeSol: 10,
       foundationStakeSol: 0,
-    });
-    expect(c.unprotectedStakeCap(v)).toBe(20);
-  });
+    })
+    expect(c.unprotectedStakeCap(v)).toBe(20)
+  })
 
   it('caps at unprotectedValidatorStakeCapSol when computed > capSol', () => {
     // total 200, self=50 → delegated=150 → capped to 100
@@ -327,9 +327,9 @@ describe('unprotectedStakeCap()', () => {
       totalActivatedStakeSol: 200,
       selfStakeSol: 50,
       foundationStakeSol: 0,
-    });
-    expect(c.unprotectedStakeCap(v)).toBe(100);
-  });
+    })
+    expect(c.unprotectedStakeCap(v)).toBe(100)
+  })
 
   it('includes foundationStakeSol at full weight', () => {
     // no delegated stake but 20 foundation stake → computed = 0*1 + 20*1 = 20
@@ -337,10 +337,10 @@ describe('unprotectedStakeCap()', () => {
       totalActivatedStakeSol: 20,
       selfStakeSol: 0,
       foundationStakeSol: 20,
-    });
-    expect(c.unprotectedStakeCap(v)).toBe(20);
-  });
-});
+    })
+    expect(c.unprotectedStakeCap(v)).toBe(20)
+  })
+})
 
 describe('getMinCapForEvenDistribution() & findCapForValidator()', () => {
   const debug = new Debug(new Set(['v1', 'v2']))
