@@ -263,8 +263,11 @@ export class AuctionConstraints {
     const effBondBalanceSol = (validator.bondBalanceSol ?? 0)
       * (1 + Math.min(this.config.spendRobustReputationBondBoostCoef * validator.values.spendRobustReputation, 1))
     const bondBalanceSol = Math.max(effBondBalanceSol - bondBalanceUsedForMnde(validator), 0)
-    const minUnprotectedReserve = this.unprotectedStakeCap(validator) * (minBidReservePmpe / 1000)
-    const idealUnprotectedReserve = this.unprotectedStakeCap(validator) * (idealBidReservePmpe / 1000)
+    // how much does the validator need to keep to pay for the unprotected stake
+    const maxUnprotectedStakeSol = bondBalanceSol / (idealBidReservePmpe / 1000)
+    const unprotectedStakeSol = Math.min(this.unprotectedStakeCap(validator), maxUnprotectedStakeSol)
+    const minUnprotectedReserve = unprotectedStakeSol * (minBidReservePmpe / 1000)
+    const idealUnprotectedReserve = unprotectedStakeSol * (idealBidReservePmpe / 1000)
     const minLimit = Math.max(0, bondBalanceSol - minUnprotectedReserve) / (minBondPmpe / 1000)
     const idealLimit = Math.max(0, bondBalanceSol - idealUnprotectedReserve) / (idealBondPmpe / 1000)
     // always minLimit > idealLimit, since minBondEpochs < idealBondEpochs
@@ -273,7 +276,8 @@ export class AuctionConstraints {
     // the limit will never exceed minLimit
     // which is also the limit at which we charge the bondRiskFeeSol
     const limit = Math.min(minLimit, Math.max(idealLimit, validator.marinadeActivatedStakeSol))
-    const cap = this.clipBondStakeCap(validator, limit) + this.unprotectedStakeCap(validator)
+    const cap = this.clipBondStakeCap(validator, limit) + unprotectedStakeSol
+    validator.unprotectedStakeSol = unprotectedStakeSol
     validator.bondSamStakeCapSol = cap
     return cap
   }
