@@ -264,7 +264,7 @@ export class AuctionConstraints {
       * (1 + Math.min(this.config.spendRobustReputationBondBoostCoef * validator.values.spendRobustReputation, 1))
     const bondBalanceSol = Math.max(effBondBalanceSol - bondBalanceUsedForMnde(validator), 0)
     // how much does the validator need to keep to pay for the unprotected stake
-    const maxUnprotectedStakeSol = bondBalanceSol / (idealBidReservePmpe / 1000)
+    const maxUnprotectedStakeSol = bondBalanceSol > 0 ? bondBalanceSol / (idealBidReservePmpe / 1000) : 0
     const unprotectedStakeSol = Math.min(this.unprotectedStakeCap(validator), maxUnprotectedStakeSol)
     const minUnprotectedReserve = unprotectedStakeSol * (minBidReservePmpe / 1000)
     const idealUnprotectedReserve = unprotectedStakeSol * (idealBidReservePmpe / 1000)
