@@ -21,6 +21,7 @@ export const validatorAggDefaults = () => ({
   maxBondDelegation: NaN,
   bondSamStakeCapSol: NaN,
   unprotectedStakeCapSol: NaN,
+  unprotectedStakeSol: NaN,
 })
 
 export const validatorTotalAuctionStakeSol = (validator: AuctionValidator): number =>
