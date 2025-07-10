@@ -276,7 +276,7 @@ export class AuctionConstraints {
     // the limit will never exceed minLimit
     // which is also the limit at which we charge the bondRiskFeeSol
     const limit = Math.min(minLimit, Math.max(idealLimit, validator.marinadeActivatedStakeSol))
-    const cap = this.clipBondStakeCap(validator, limit) + unprotectedStakeSol
+    const cap = this.clipBondStakeCap(validator, limit + unprotectedStakeSol)
     validator.unprotectedStakeSol = unprotectedStakeSol
     validator.bondSamStakeCapSol = cap
     return cap
