@@ -112,6 +112,9 @@ export type DsSamConfig = {
   // If null, expectedMaxWinningBidRatio will not have any effect
   expectedMaxWinningBidRatio: number | null
 
+  // The lower bound for the expectedMaxBidPmpe used for bond requirements calculation
+  minExpectedEffBidPmpe: number
+
   // The estimated transaction fee Pmpe
   expectedFeePmpe: number
 
@@ -169,6 +172,7 @@ export const DEFAULT_CONFIG: DsSamConfig = {
   minMaxStakeWanted: null,
   expectedFeePmpe: 0,
   expectedMaxWinningBidRatio: null,
+  minExpectedEffBidPmpe: 0,
   minEligibleFeePmpe: null,
 
   debugVoteAccounts: [],
