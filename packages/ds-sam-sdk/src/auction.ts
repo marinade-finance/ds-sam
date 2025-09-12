@@ -555,7 +555,7 @@ export class Auction {
   setExpectedMaxEffBidPmpes (expectedMaxTotalPmpe: number) {
     for (const validator of this.data.validators) {
       const { revShare } = validator
-      revShare.expectedMaxEffBidPmpe = Math.min(revShare.bidPmpe, expectedMaxTotalPmpe - revShare.inflationPmpe - revShare.mevPmpe)
+      revShare.expectedMaxEffBidPmpe = Math.max(this.config.minExpectedEffBidPmpe, Math.min(revShare.bidPmpe, expectedMaxTotalPmpe - revShare.inflationPmpe - revShare.mevPmpe))
     }
   }
 
