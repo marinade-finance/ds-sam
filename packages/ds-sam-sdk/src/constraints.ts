@@ -255,11 +255,14 @@ export class AuctionConstraints {
 
   bondStakeCapSam (validator: AuctionValidator): number {
     const { revShare } = validator
+    const onchainDistributedPmpe = revShare.onchainDistributedPmpe !== undefined
+      ? revShare.onchainDistributedPmpe
+      : revShare.inflationPmpe + revShare.mevPmpe
     // do not make validators over-collateralize
     const minBidReservePmpe = this.config.minBondEpochs * revShare.expectedMaxEffBidPmpe
     const idealBidReservePmpe = this.config.idealBondEpochs * revShare.expectedMaxEffBidPmpe
-    const minBondPmpe = revShare.inflationPmpe + revShare.mevPmpe + revShare.expectedMaxEffBidPmpe + minBidReservePmpe
-    const idealBondPmpe = revShare.inflationPmpe + revShare.mevPmpe + revShare.expectedMaxEffBidPmpe + idealBidReservePmpe
+    const minBondPmpe = onchainDistributedPmpe + revShare.expectedMaxEffBidPmpe + minBidReservePmpe
+    const idealBondPmpe = onchainDistributedPmpe + revShare.expectedMaxEffBidPmpe + idealBidReservePmpe
     const effBondBalanceSol = (validator.bondBalanceSol ?? 0)
       * (1 + Math.min(this.config.spendRobustReputationBondBoostCoef * validator.values.spendRobustReputation, 1))
     const bondBalanceSol = Math.max(effBondBalanceSol - bondBalanceUsedForMnde(validator), 0)
@@ -327,16 +330,22 @@ export const bondBalanceRequiredForCurrentStake = (validator: AuctionValidator):
 }
 
 export const bondBalanceRequiredForStakeAmount = (stakeSol: number, validator: AuctionValidator): number => {
+  const bondObligationPmpe = validator.revShare.bondObligationPmpe !== undefined ?
+    validator.revShare.bondObligationPmpe :
+    validator.revShare.bidPmpe
   // refundableDepositPerStake * stake + downtimeProtectionPerStake * stake + bidPerStake * stake = bondBalanceSol
-  const bidPerStake = validator.revShare.bidPmpe / 1000
+  const bidPerStake = bondObligationPmpe / 1000
   const downtimeProtectionPerStake = 0
   const refundableDepositPerStake = validator.revShare.totalPmpe / 1000
   return stakeSol * (bidPerStake + downtimeProtectionPerStake + refundableDepositPerStake)
 }
 
 export const bondBalanceRequiredForXEpochs = (stakeSol: number, validator: AuctionValidator, epochs: number): number => {
+  const bondObligationPmpe = validator.revShare.bondObligationPmpe !== undefined ?
+    validator.revShare.bondObligationPmpe :
+    validator.revShare.bidPmpe
   // refundableDepositPerStake * stake + downtimeProtectionPerStake * stake + bidPerStake * stake * epochs = bondBalanceSol
-  const bidPerStake = validator.revShare.bidPmpe / 1000
+  const bidPerStake = bondObligationPmpe / 1000
   const downtimeProtectionPerStake = 0
   const refundableDepositPerStake = validator.revShare.totalPmpe / 1000
   return stakeSol * ((bidPerStake * epochs) + downtimeProtectionPerStake + refundableDepositPerStake)

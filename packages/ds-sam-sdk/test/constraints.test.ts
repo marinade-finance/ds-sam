@@ -156,6 +156,7 @@ function makeAuction (overrides: Partial<AuctionData> = {}): AuctionData {
     rewards: {
       inflationPmpe: 0,
       mevPmpe: 0,
+      blockPmpe: 0,
     },
     blacklist: new Set<string>(),
   }
@@ -211,7 +212,22 @@ describe('bondStakeCapSam()', () => {
         bidTooLowPenaltyPmpe: 0,
       },
     })
-    expect(c.bondStakeCapSam(v)).toBeCloseTo(1000 / (25 / 1000), 6)
+    const result = 1000 / (25 / 1000)
+    expect(c.bondStakeCapSam(v)).toBeCloseTo(result, 6)
+
+    const v2 = makeValidator({
+      bondBalanceSol: 1000,
+      marinadeActivatedStakeSol: 50,
+      revShare: {
+        onchainDistributedPmpe: 10,
+        totalPmpe: 0,
+        auctionEffectiveBidPmpe: 0,
+        effParticipatingBidPmpe: 0,
+        expectedMaxEffBidPmpe: 5,
+        bidTooLowPenaltyPmpe: 0,
+      },
+    })
+    expect(c.bondStakeCapSam(v2)).toBeCloseTo(result, 6)
   })
 
   it('when marinadeActivatedStakeSol is between ideal and min, cap=marinadeActivatedStakeSol', () => {

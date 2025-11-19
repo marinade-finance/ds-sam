@@ -69,9 +69,10 @@ export type AggregatedValidator = {
   totalActivatedStakeSol: number
   marinadeActivatedStakeSol: number
   lastMarinadeActivatedStakeSol: number | null
-  inflationCommissionDec: number
   lastSamBlacklisted: boolean | null
+  inflationCommissionDec: number
   mevCommissionDec: number | null
+  blockRewardsCommissionDec: number | null
   bidCpmpe: number | null
   maxStakeWanted: number | null
   mndeStakeCapIncrease: number
@@ -94,18 +95,40 @@ export type AuctionValidatorValues = {
   bondRiskFeeSol: number
   paidUndelegationSol: number
   samBlacklisted: boolean
+  commissions: CommissionDetails
+}
+
+export type CommissionDetails = {
+  onchainInflationCommissionDec: number
+  onchainMevCommissionDec: number | null
+  inflationCommissionInBondsDec: number | null
+  mevCommissionInBondsDec: number | null
+  blockRewardsCommissionInBondsDec: number | null
+  inflationCommissionOverrideDec: number | null
+  mevCommissionOverrideDec: number | null
+  blockRewardsCommissionOverrideDec: number | null
 }
 
 export type Rewards = {
   inflationPmpe: number
   mevPmpe: number
+  blockPmpe: number
 }
 
 export type RevShare = {
+  // total value that the validator shares with stakers
   totalPmpe: number
+  // particles of totalPmpe per type
   inflationPmpe: number
   mevPmpe: number
   bidPmpe: number
+  blockPmpe: number
+  // what has already been shared on-chain via commissions
+  onchainDistributedPmpe: number
+  // assumption what the validator will share through bonds
+  bondObligationPmpe: number
+  // what is the PMPE to be charged directly from the bond as static bidding PMPE taken from bonds' CPMPE argument
+  auctionEffectiveStaticBidPmpe: number
   auctionEffectiveBidPmpe: number
   bidTooLowPenaltyPmpe: number
   effParticipatingBidPmpe: number

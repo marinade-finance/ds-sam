@@ -47,6 +47,7 @@ export class DataProvider {
     }
   }
 
+  // calculates a ratio of rewards to staked SOL in PMPE ('per mill/per 1000 SOL' per epoch)
   aggregateRewardsRecords (activatedStakePerEpochs: Map<number, Decimal>, rawRewardsRecord: RawRewardsRecordDto[]): number {
     const rewardsTotal = rawRewardsRecord.reduce((agg, [epoch, rewards]) => {
       const stake = activatedStakePerEpochs.get(epoch)
@@ -62,10 +63,16 @@ export class DataProvider {
     let epoch = Infinity
     let validators: RawScoredValidatorDto[] = []
     const finalizeEpoch = (validators: RawScoredValidatorDto[]) => {
-      validators.sort((a, b) => b.revShare.bidPmpe - a.revShare.bidPmpe)
+      validators.sort((a, b) => {
+        if (b.revShare.bondObligationPmpe != null && a.revShare.bondObligationPmpe != null) {
+          return b.revShare.bondObligationPmpe - a.revShare.bondObligationPmpe
+        } else {
+          return b.revShare.bidPmpe - a.revShare.bidPmpe
+        }
+      })
       const winningTotalPmpe = validators
         .filter((item) => item.marinadeSamTargetSol > 0)
-        .reduce((acc, item) => item.revShare.totalPmpe, 0)
+        .reduce((_, item) => item.revShare.totalPmpe, 0)
       result.push({ epoch, winningTotalPmpe, validators })
       validators = []
     }
@@ -92,6 +99,7 @@ export class DataProvider {
         winningTotalPmpe: auction.winningTotalPmpe,
         auctionEffectiveBidPmpe: 0,
         bidPmpe: 0,
+        obligationPmpe: null,
         effParticipatingBidPmpe: 0,
       }
     }
@@ -100,29 +108,55 @@ export class DataProvider {
       winningTotalPmpe: auction.winningTotalPmpe,
       auctionEffectiveBidPmpe: revShare.auctionEffectiveBidPmpe,
       bidPmpe: revShare.bidPmpe,
+      obligationPmpe: revShare.bondObligationPmpe ?? null,
       effParticipatingBidPmpe: calcEffParticipatingBidPmpe(revShare, auction.winningTotalPmpe),
     }
   }
 
-  aggregateValidators (data: RawSourceData, validatorsMndeVotes: Map<string, Decimal>, solPerMnde: number, mndeStakeCapIncreases: Map<string, Decimal>, blacklist: Set<string>, dataOverrides: SourceDataOverrides | null = null): AggregatedValidator[] {
+  aggregateValidators (
+    data: RawSourceData,
+    validatorsMndeVotes: Map<string, Decimal>,
+    solPerMnde: number,
+    mndeStakeCapIncreases: Map<string, Decimal>,
+    blacklist: Set<string>,
+    dataOverrides: SourceDataOverrides | null = null
+  ): AggregatedValidator[] {
     const auctionHistoriesData = this.processAuctions(data.auctions)
     return data.validators.validators.map((validator): AggregatedValidator => {
       const bond = data.bonds.bonds.find(({ vote_account }) => validator.vote_account === vote_account)
       const mev = data.mevInfo.validators.find(({ vote_account }) => validator.vote_account === vote_account)
       const override = data.overrides?.validators.find(({ voteAccount }) => validator.vote_account === voteAccount)
 
-      const inflationCommissionOverride = dataOverrides?.inflationCommissions.get(validator.vote_account)
-      const mevCommissionOverride = dataOverrides?.mevCommissions.get(validator.vote_account)
+      const inflationCommissionOverride = dataOverrides?.inflationCommissions?.get(validator.vote_account)
+      const mevCommissionOverride = dataOverrides?.mevCommissions?.get(validator.vote_account)
+      const blockRewardsCommissionOverride = dataOverrides?.blockRewardsCommissions?.get(validator.vote_account)
 
       const validatorMndeVotes = (validatorsMndeVotes.get(validator.vote_account) ?? new Decimal(0))
       const validatorMndeStakeCapIncrease = (mndeStakeCapIncreases.get(validator.vote_account) ?? new Decimal(0))
 
-      const inflationCommissionDec = (inflationCommissionOverride ?? validator.commission_effective ?? validator.commission_advertised ?? 100) / 100
-      const mevCommissionDec = (
-        mevCommissionOverride !== undefined
-          ? mevCommissionOverride / 10_000
-          : (mev ? mev.mev_commission_bps / 10_000 : null)
-      )
+      const inflationCommissionOverrideDec = inflationCommissionOverride !== undefined ? inflationCommissionOverride / 100 : null
+      const mevCommissionOverrideDec = mevCommissionOverride !== undefined ? mevCommissionOverride / 10_000 : null
+      const blockRewardsCommissionOverrideDec = blockRewardsCommissionOverride !== undefined ? blockRewardsCommissionOverride / 10_000 : null
+
+      const inflationCommissionInBondsDec = bond?.inflation_commission_bps ? Number(bond.inflation_commission_bps) / 10_000 : null
+      const mevCommissionInBondsDec = bond?.mev_commission_bps ? Number(bond.mev_commission_bps) / 10_000 : null
+      const blockRewardsCommissionInBondsDec = bond?.block_commission_bps ? Number(bond.block_commission_bps) / 10_000 : null
+
+      const onchainInflationCommissionDec = (validator.commission_effective ?? validator.commission_advertised ?? 100) / 100
+      const onchainMevCommissionDec = mev ? mev.mev_commission_bps / 10_000 : null
+
+      // data to be applied in calculation of rev share as it considers the overrides and bond commissions (note: it can be negative)
+      const inflationCommissionDec = inflationCommissionOverrideDec ?? ((inflationCommissionInBondsDec && inflationCommissionInBondsDec < onchainInflationCommissionDec) ? inflationCommissionInBondsDec : onchainInflationCommissionDec)
+      const mevCommissionDec = mevCommissionOverrideDec ?? (mevCommissionInBondsDec && mevCommissionInBondsDec < (onchainMevCommissionDec ?? 1) ? mevCommissionInBondsDec : onchainMevCommissionDec)
+      const blockRewardsCommissionDec = blockRewardsCommissionOverrideDec ?? blockRewardsCommissionInBondsDec
+
+      // TODO: delete me ;-P
+      // console.log(`Validator ${validator.vote_account}/${validator.identity} commissions: inflation ${inflationCommissionDec}, mev ${mevCommissionDec}, block ${blockRewardsCommissionDec}\n` +
+      //   `  Overrides: inflation ${inflationCommissionOverrideDec}, mev ${mevCommissionOverrideDec}, block ${blockRewardsCommissionOverrideDec}\n` +
+      //   `  On-chain: inflation ${onchainInflationCommissionDec}, mev ${onchainMevCommissionDec}\n` +
+      //   `  In bonds: inflation ${inflationCommissionInBondsDec}, mev ${mevCommissionInBondsDec}, block ${blockRewardsCommissionInBondsDec}\n`
+      // )
+
       const lastAuctionHistory = auctionHistoriesData
         .flatMap(auction => auction.validators)
         .find(v => v.voteAccount === validator.vote_account)
@@ -150,6 +184,7 @@ export class DataProvider {
         marinadeActivatedStakeSol,
         inflationCommissionDec,
         mevCommissionDec,
+        blockRewardsCommissionDec,
         bidCpmpe: bond ? new Decimal(bond.cpmpe).div(1e9).toNumber() : null,
         maxStakeWanted: (this.config.minMaxStakeWanted != null) && bond
           ? new Decimal(bond.max_stake_wanted).div(1e9).toNumber()
@@ -169,6 +204,16 @@ export class DataProvider {
           paidUndelegationSol: lastAuctionHistory?.values?.paidUndelegationSol ?? 0,
           bondRiskFeeSol: 0,
           samBlacklisted: blacklist.has(validator.vote_account),
+          commissions: {
+            onchainInflationCommissionDec,
+            onchainMevCommissionDec,
+            inflationCommissionOverrideDec,
+            mevCommissionOverrideDec,
+            blockRewardsCommissionOverrideDec,
+            inflationCommissionInBondsDec,
+            mevCommissionInBondsDec,
+            blockRewardsCommissionInBondsDec,
+          },
         },
         mndeVotesSolValue: validatorMndeVotes.mul(solPerMnde).toNumber(),
         mndeStakeCapIncrease: validatorMndeStakeCapIncrease.toNumber(),
@@ -240,6 +285,7 @@ export class DataProvider {
       rewards: {
         inflationPmpe: this.aggregateRewardsRecords(activatedStakePerEpochs, data.rewards.rewards_inflation_est),
         mevPmpe: this.aggregateRewardsRecords(activatedStakePerEpochs, data.rewards.rewards_mev),
+        blockPmpe: data.rewards.rewards_block ? this.aggregateRewardsRecords(activatedStakePerEpochs, data.rewards.rewards_block) : 0,
       },
       stakeAmounts: {
         networkTotalSol: externalStakeTotal.div(1e9).add(tvlSol).toNumber(),
@@ -350,7 +396,7 @@ export class DataProvider {
   }
 
   async fetchBonds (): Promise<RawBondsResponseDto> {
-    const url = `${this.config.bondsApiBaseUrl}/bonds`
+    const url = `${this.config.bondsApiBaseUrl}/bonds/bidding`
     const response = await axios.get<RawBondsResponseDto>(url)
     return response.data
   }

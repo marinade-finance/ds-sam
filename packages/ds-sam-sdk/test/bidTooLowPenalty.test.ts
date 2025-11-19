@@ -39,6 +39,7 @@ const calcBidTooLowPenalty = ({
       bidPmpe,
       inflationPmpe,
       mevPmpe,
+      blockPmpe: 0,
       effParticipatingBidPmpe: eff,
       totalPmpe: NaN,
       bidTooLowPenaltyPmpe: NaN

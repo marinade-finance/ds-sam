@@ -15,7 +15,9 @@ const baseRevShare = {
   totalPmpe: 500,
   effParticipatingBidPmpe: 200,
   inflationPmpe: 100,
-  mevPmpe: 100,
+  mevPmpe: 90,
+  blockPmpe: 10,
+
   auctionEffectiveBidPmpe: 200,
   expectedMaxEffBidPmpe: 200,
   blacklistPenaltyPmpe: NaN,
@@ -36,7 +38,14 @@ function makeValidator (overrides: {
   values?: { paidUndelegationSol: number }
   revShare?: Partial<RevShare>
 } = {}): AuctionValidator {
-  const defaultRevShare: RevShare = { ...baseRevShare, bidPmpe: 0, bidTooLowPenaltyPmpe: 0 }
+  const defaultRevShare: RevShare = {
+    ...baseRevShare,
+    bidPmpe: 0,
+    bidTooLowPenaltyPmpe: 0,
+    onchainDistributedPmpe: baseRevShare.inflationPmpe + baseRevShare.mevPmpe,
+    bondObligationPmpe: baseRevShare.blockPmpe,
+    auctionEffectiveStaticBidPmpe: 0,
+  }
   return {
     bondBalanceSol: overrides.bondBalanceSol ?? 0,
     claimableBondBalanceSol: overrides.bondBalanceSol ?? 0,
@@ -76,6 +85,7 @@ describe('calcBondRiskFee', () => {
       lastBondBalanceSol: 50,
       marinadeActivatedStakeSol: 50,
       values: { paidUndelegationSol: 5 },
+      revShare: { onchainDistributedPmpe: 200 },
     })
     const result = calcBondRiskFee(baseConfig, validator)!
     expect(result.bondForcedUndelegation).toBeDefined()
@@ -97,7 +107,7 @@ describe('calcBondRiskFee', () => {
       lastBondBalanceSol: 50,
       marinadeActivatedStakeSol: 50,
       values: { paidUndelegationSol: 5 },
-      revShare: { expectedMaxEffBidPmpe: 45 },
+      revShare: { expectedMaxEffBidPmpe: 45, onchainDistributedPmpe: 200 },
     })
     const result = calcBondRiskFee(baseConfig, validator)!
     expect(result.bondForcedUndelegation).toBeDefined()
@@ -119,7 +129,7 @@ describe('calcBondRiskFee', () => {
       lastBondBalanceSol: 50,
       marinadeActivatedStakeSol: 50,
       values: { paidUndelegationSol: 5 },
-      revShare: { expectedMaxEffBidPmpe: 45, auctionEffectiveBidPmpe: 40 },
+      revShare: { expectedMaxEffBidPmpe: 45, auctionEffectiveBidPmpe: 40, onchainDistributedPmpe: 200 },
     })
     const result = calcBondRiskFee(baseConfig, validator)!
     expect(result.bondForcedUndelegation).toBeDefined()
@@ -142,6 +152,7 @@ describe('calcBondRiskFee', () => {
       lastBondBalanceSol: 10,
       marinadeActivatedStakeSol: 50,
       values: { paidUndelegationSol: 0 },
+      revShare: { onchainDistributedPmpe: 200 },
     })
     const result = calcBondRiskFee(cfg, validator)!
     expect(result.bondForcedUndelegation!.value).toBeCloseTo(50)
@@ -150,7 +161,16 @@ describe('calcBondRiskFee', () => {
   })
 
   it('forces full undelegation when coefficient <= 0', () => {
-    const revShare = { ...baseRevShare, totalPmpe: 1000, effParticipatingBidPmpe: 200, inflationPmpe: 500, mevPmpe: 300, auctionEffectiveBidPmpe: 200 }
+    const revShare = {
+      ...baseRevShare,
+      totalPmpe: 1000,
+      effParticipatingBidPmpe: 200,
+      inflationPmpe: 490,
+      mevPmpe: 300,
+      blockPmpe: 10,
+      auctionEffectiveBidPmpe: 200,
+      onchainDistributedPmpe: 790,
+     }
     const validator = makeValidator({
       bondBalanceSol: 10,
       lastBondBalanceSol: 10,
@@ -160,11 +180,23 @@ describe('calcBondRiskFee', () => {
     })
     const result = calcBondRiskFee(baseConfig, validator)!
     expect(result.bondForcedUndelegation!.value).toBeCloseTo(50)
-    expect(result.bondRiskFeeSol).toBeCloseTo(baseConfig.bondRiskFeeMult * 50 * ((revShare.inflationPmpe + revShare.mevPmpe + revShare.auctionEffectiveBidPmpe) / 1000))
+    expect(result.bondRiskFeeSol)
+    .toBeCloseTo(baseConfig.bondRiskFeeMult * 50 * (
+      (revShare.onchainDistributedPmpe + revShare.auctionEffectiveBidPmpe) / 1000)
+    )
   })
 
   it('handles zero effective PMPE with zero fee', () => {
-    const revShare = { ...baseRevShare, totalPmpe: 0, effParticipatingBidPmpe: 0, inflationPmpe: 0, mevPmpe: 0, auctionEffectiveBidPmpe: 0 }
+    const revShare = {
+      ...baseRevShare,
+      totalPmpe: 0,
+      effParticipatingBidPmpe: 0,
+      inflationPmpe: 0,
+      mevPmpe: 0,
+      blockPmpe: 0,
+      auctionEffectiveBidPmpe: 0,
+      onchainDistributedPmpe: 0,
+    }
     const validator = makeValidator({
       bondBalanceSol: 0,
       lastBondBalanceSol: 10,
@@ -178,7 +210,7 @@ describe('calcBondRiskFee', () => {
   })
 
   it('handles zero expected max PMPE', () => {
-    const revShare = { ...baseRevShare, totalPmpe: 0, effParticipatingBidPmpe: 0, inflationPmpe: 0, mevPmpe: 0, auctionEffectiveBidPmpe: 0, expectedMaxEffBidPmpe: 0 }
+    const revShare = { ...baseRevShare, totalPmpe: 0, effParticipatingBidPmpe: 0, inflationPmpe: 0, mevPmpe: 0, blockPmpe: 0, auctionEffectiveBidPmpe: 0, expectedMaxEffBidPmpe: 0 }
     const validator = makeValidator({
       bondBalanceSol: 0,
       lastBondBalanceSol: 10,

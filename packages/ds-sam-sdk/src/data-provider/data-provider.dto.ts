@@ -7,7 +7,11 @@ export type RawScoredValidatorDto = {
     bidPmpe: number
     inflationPmpe: number
     mevPmpe: number
-    totalPmpe: number
+    blockPmpe?: number | null
+    totalPmpe: number,
+    calcEffParticipatingBidPmpe: number,
+    bondObligationPmpe?: number | null,
+    onchainDistributedPmpe?: number | null,
   }
   marinadeSamTargetSol: number
   values?: {
@@ -34,6 +38,7 @@ export type AuctionHistoryStats = {
   auctionEffectiveBidPmpe: number
   effParticipatingBidPmpe: number
   bidPmpe: number
+  obligationPmpe: number | null
   marinadeActivatedStakeSol?: number
 }
 
@@ -67,6 +72,9 @@ export type RawBondDto = {
   updated_at: string
   epoch: number
   max_stake_wanted: string
+  inflation_commission_bps: string | null
+  mev_commission_bps: string | null
+  block_commission_bps: string | null
 }
 export type RawBondsResponseDto = {
   bonds: RawBondDto[]
@@ -85,6 +93,7 @@ export type RawRewardsRecordDto = [number, number] // [epoch, SOL]
 export type RawRewardsResponseDto = {
   rewards_mev: RawRewardsRecordDto[]
   rewards_inflation_est: RawRewardsRecordDto[]
+  rewards_block: RawRewardsRecordDto[]
 }
 
 export type RawEpochStatDto = {
@@ -140,4 +149,5 @@ export type RawOverrideDataDto = {
 export type SourceDataOverrides = {
   inflationCommissions: Map<string, number>
   mevCommissions: Map<string, number>
+  blockRewardsCommissions: Map<string, number>
 }

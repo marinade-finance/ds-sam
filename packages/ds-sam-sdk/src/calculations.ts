@@ -1,17 +1,52 @@
-import { BidTooLowPenalty, AuctionValidator, Rewards, RevShare } from './types'
+import assert from 'assert'
+import { BidTooLowPenalty, AuctionValidator, Rewards, RevShare, CommissionDetails } from './types'
+import Decimal from 'decimal.js'
 
 export const calcValidatorRevShare = (
-  validator: { bidCpmpe: number | null, mevCommissionDec: number | null, inflationCommissionDec: number },
+  validator: {
+    inflationCommissionDec: number,
+    mevCommissionDec: number | null,
+    blockRewardsCommissionDec: number | null,
+    bidCpmpe: number | null,
+    values: {
+      commissions: CommissionDetails
+    }
+  },
   rewards: Rewards
 ): RevShare => {
-  const inflationPmpe = Math.max(0, rewards.inflationPmpe * (1 - validator.inflationCommissionDec))
-  const mevPmpe = Math.max(0, rewards.mevPmpe * (1 - (validator.mevCommissionDec ?? 1)))
+  // what the validator wants to share with stakers per 1000 SOL staked (of total, including bonds and overrides)
+  const inflationPmpe = calculatePmpe(rewards.inflationPmpe, validator.inflationCommissionDec)
+  const mevPmpe = calculatePmpe(rewards.mevPmpe, validator.mevCommissionDec)
+  const blockPmpe = calculatePmpe(rewards.blockPmpe, validator.blockRewardsCommissionDec)
   const bidPmpe = Math.max(0, validator.bidCpmpe ?? 0)
+
+  const commissions = validator.values.commissions
+  // here we need to calculate what the validator needs to pay on top of on-chain commissions from bonds claim
+  const bondInflationPmpe = calculatePmpe(rewards.inflationPmpe, commissions.inflationCommissionInBondsDec)
+  const bondMevPmpe = calculatePmpe(rewards.mevPmpe, commissions.mevCommissionInBondsDec)
+  const bondsInflationPmpeDiff = Math.max(0, bondInflationPmpe - inflationPmpe)
+  const bondsMevPmpeDiff = Math.max(0, bondMevPmpe - mevPmpe)
+
+  // calculating what has already been shared on-chain (overrides redefines everything)
+  const onchainDistributedInflationPmpe = commissions.inflationCommissionOverrideDec !== null ? inflationPmpe : calculatePmpe(rewards.inflationPmpe, commissions.onchainInflationCommissionDec)
+  const onchainDistributedMevPmpe = commissions.mevCommissionOverrideDec !== null ? mevPmpe : calculatePmpe(rewards.mevPmpe, commissions.onchainMevCommissionDec)
+
+  const totalPmpe = inflationPmpe + mevPmpe + bidPmpe + blockPmpe
+  assert(totalPmpe >= 0, 'Total PMPE cannot be negative')
+  assert(isFinite(totalPmpe), 'Total PMPE has to be finite')
+
   return {
-    totalPmpe: inflationPmpe + mevPmpe + bidPmpe,
+    // total value that the validator shares with stakers
+    totalPmpe,
     inflationPmpe,
     mevPmpe,
     bidPmpe,
+    blockPmpe,
+    // what has already been shared via commissions with stakers on-chain
+    onchainDistributedPmpe: onchainDistributedInflationPmpe + onchainDistributedMevPmpe,
+    // what the validator wants to share through bonds
+    bondObligationPmpe: bidPmpe + blockPmpe + bondsInflationPmpeDiff + bondsMevPmpeDiff,
+    auctionEffectiveStaticBidPmpe: NaN,
     auctionEffectiveBidPmpe: NaN,
     bidTooLowPenaltyPmpe: NaN,
     effParticipatingBidPmpe: NaN,
@@ -19,6 +54,29 @@ export const calcValidatorRevShare = (
     expectedMaxEffBidPmpe: bidPmpe,
     blacklistPenaltyPmpe: NaN,
   }
+}
+
+/** This method calculates the validator's revenue share with stakers for a given commission,
+ *  expressed in PMPE (per mille per epoch).
+ *
+ *  @param pmpe defines the overall rewards obtained by the validator before commission per 1,000 SOL staked.
+ *  @param commissionDec defines the portion of those rewards that the validator retains for itself
+ *                       When null, it is treated as 100% commission (i.e., all rewards are gained by validator).
+ *  @returns the portion of the rewards that goes to stakers after deducting the commission.
+ */
+const calculatePmpe = (pmpe: number | null, commissionDec: number | null): number => {
+  // No rewards to distribute
+  if (pmpe === null || pmpe <= 0) {
+    return 0
+  }
+  // No commission or bigger to 100%, validator keeps all rewards
+  if (commissionDec === null || commissionDec >= 1) {
+    return 0
+  }
+  // Negative commission means validator subsidizes stakers
+  const result = new Decimal(pmpe).mul(new Decimal(1).minus(commissionDec))
+  assert(result.gte(0), 'Calculated PMPE after commission cannot be negative')
+  return result.toNumber()
 }
 
 export type BondRiskFeeConfig = {
@@ -66,11 +124,16 @@ export const calcBondRiskFee = (
 ): BondRiskFeeResult | null => {
   const { revShare } = validator
   const projectedActivatedStakeSol = Math.max(0, validator.marinadeActivatedStakeSol - validator.values.paidUndelegationSol)
-  const minBondCoef = (revShare.inflationPmpe + revShare.mevPmpe + (cfg.minBondEpochs + 1) * revShare.expectedMaxEffBidPmpe) / 1000
+  const minBondCoef = (revShare.inflationPmpe + revShare.mevPmpe + revShare.blockPmpe + (cfg.minBondEpochs + 1) * revShare.expectedMaxEffBidPmpe) / 1000
   const riskBondSol = cfg.pendingWithdrawalBondMult * (validator.claimableBondBalanceSol ?? 0) + (1 - cfg.pendingWithdrawalBondMult) * (validator.bondBalanceSol ?? 0)
   if (riskBondSol < projectedActivatedStakeSol * minBondCoef) {
-    const idealBondCoef = (revShare.inflationPmpe + revShare.mevPmpe + (cfg.idealBondEpochs + 1) * revShare.expectedMaxEffBidPmpe) / 1000
-    const feeCoef = (revShare.inflationPmpe + revShare.mevPmpe + revShare.auctionEffectiveBidPmpe) / 1000
+    // TODO: why idelBondCoef is not calculated from totalPmpe?
+    const idealBondCoef = (revShare.inflationPmpe + revShare.mevPmpe + revShare.blockPmpe + (cfg.idealBondEpochs + 1) * revShare.expectedMaxEffBidPmpe) / 1000
+    // TODO: what to do with this? auctionEffectiveBidPmpe = winningTotalPmpe - onchainDistributedPmpe
+    const feeCoef = (revShare.onchainDistributedPmpe !== undefined ?
+      (revShare.onchainDistributedPmpe + revShare.auctionEffectiveBidPmpe) :
+      (revShare.inflationPmpe + revShare.mevPmpe + revShare.auctionEffectiveBidPmpe)
+    ) / 1000
     // always: base >= 0, even with no max, since idealBondCoef >= minBondCoef, since idealBondEpochs >= minBondEpochs
     // and we already ensured that riskBondSol / minBondCoef < projectedActivatedStakeSol above
     // also, if minBondCoef == 0, then we can never get here, in the opposite case, idealBondCoef >= minBondCoef > 0
@@ -78,7 +141,7 @@ export const calcBondRiskFee = (
     const coef = 1 - feeCoef / idealBondCoef
     let value = coef > 0 ? Math.min(projectedActivatedStakeSol, base / coef) : projectedActivatedStakeSol
     // always: value <= projectedActivatedStakeSol
-    if ((projectedActivatedStakeSol - value) * (revShare.inflationPmpe + revShare.mevPmpe + revShare.expectedMaxEffBidPmpe) / 1000 < cfg.minBondBalanceSol) {
+    if ((projectedActivatedStakeSol - value) * (revShare.inflationPmpe + revShare.mevPmpe + revShare.blockPmpe + revShare.expectedMaxEffBidPmpe) / 1000 < cfg.minBondBalanceSol) {
       value = projectedActivatedStakeSol
     }
     const bondRiskFeeSol = cfg.bondRiskFeeMult * value * feeCoef
@@ -99,14 +162,25 @@ export const calcBondRiskFee = (
   }
 }
 
+/**
+ * What is the PMPE that is expected to be shared from the bond by claiming
+ */
 export const calcEffParticipatingBidPmpe = (
   revShare: {
     inflationPmpe: number,
-    mevPmpe: number
+    mevPmpe: number,
+    onchainDistributedPmpe?: number | null,
   },
   winningTotalPmpe: number
-): number =>
-  Math.max(0, winningTotalPmpe - revShare.inflationPmpe - revShare.mevPmpe)
+): number => {
+  // for a better memory, later this comment can be deleted; before introduction of blockPmpe this was the code:
+  // return Math.max(0, winningTotalPmpe - revShare.inflationPmpe - revShare.mevPmpe)
+  if (revShare.onchainDistributedPmpe != null) {
+    return Math.max(0, winningTotalPmpe - revShare.onchainDistributedPmpe)
+  } else {
+    return Math.max(0, winningTotalPmpe - revShare.inflationPmpe - revShare.mevPmpe)
+  }
+}
 
 export type BidTooLowPenaltyResult = {
   bidTooLowPenalty: BidTooLowPenalty
@@ -127,6 +201,7 @@ export const calcBidTooLowPenalty = (
     Infinity
   )
   const limit = Math.min(revShare.effParticipatingBidPmpe, historicalPmpe)
+  // TODO: idea is that the penalty is calculated only from bidPmpe, as of the static bidding model
   const penaltyCoef = limit > 0
     ? Math.min(1, Math.sqrt(scale_coef * Math.max(0, (limit - revShare.bidPmpe) / limit)))
     : 0
@@ -137,7 +212,7 @@ export const calcBidTooLowPenalty = (
       : 0
   }
   const bidTooLowPenaltyPmpe = bidTooLowPenaltyValue.coef * bidTooLowPenaltyValue.base
-  const auctionPmpe = revShare.inflationPmpe + revShare.mevPmpe + revShare.effParticipatingBidPmpe
+  const auctionPmpe = winningTotalPmpe // TODO: isn't this supposed to be winning total PMPE?
   const paidUndelegationSol = bidTooLowPenaltyPmpe > 0
     ? bidTooLowPenaltyPmpe * validator.marinadeActivatedStakeSol / auctionPmpe
     : 0

@@ -125,6 +125,9 @@ export class ValidatorMockBuilder {
       updated_at: 'some date',
       epoch: currentEpoch,
       max_stake_wanted: new Decimal(stakeWanted).mul(1e9).toString(),
+      inflation_commission_bps: null,
+      mev_commission_bps: null,
+      block_commission_bps: null,
     }
   }
 

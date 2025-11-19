@@ -126,6 +126,7 @@ export type DsSamConfig = {
   debugVoteAccounts: string[]
 }
 
+// NOTE: It’s not a good idea to make changes here because the tests rely on DEFAULT_CONFIG.
 export const DEFAULT_CONFIG: DsSamConfig = {
   inputsSource: InputsSource.APIS,
 
@@ -177,3 +178,4 @@ export const DEFAULT_CONFIG: DsSamConfig = {
 
   debugVoteAccounts: [],
 }
+

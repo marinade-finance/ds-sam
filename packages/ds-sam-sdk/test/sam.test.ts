@@ -241,6 +241,11 @@ describe('sam', () => {
               revShare.effParticipatingBidPmpe -
               result.winningTotalPmpe
           )).toBeLessThan(1e-12)
+          expect(Math.abs(
+            revShare.onchainDistributedPmpe +
+              revShare.effParticipatingBidPmpe -
+              result.winningTotalPmpe
+          )).toBeLessThan(1e-12)
         })
 
       result.auctionData.validators
@@ -261,6 +266,11 @@ describe('sam', () => {
           expect(Math.abs(
             revShare.mevPmpe +
               revShare.inflationPmpe +
+              revShare.auctionEffectiveBidPmpe -
+              result.winningTotalPmpe
+          )).toBeLessThan(1e-12)
+          expect(Math.abs(
+            revShare.onchainDistributedPmpe +
               revShare.auctionEffectiveBidPmpe -
               result.winningTotalPmpe
           )).toBeLessThan(1e-12)
@@ -299,6 +309,11 @@ describe('sam', () => {
               revShare.effParticipatingBidPmpe -
               result.winningTotalPmpe
           )).toBeLessThan(1e-12)
+          expect(Math.abs(
+            revShare.onchainDistributedPmpe +
+              revShare.effParticipatingBidPmpe -
+              result.winningTotalPmpe
+          )).toBeLessThan(1e-12)
         })
 
       result.auctionData.validators
@@ -313,6 +328,11 @@ describe('sam', () => {
           expect(Math.abs(
             revShare.mevPmpe +
               revShare.inflationPmpe +
+              revShare.auctionEffectiveBidPmpe -
+              result.winningTotalPmpe
+          )).toBeLessThan(1e-12)
+          expect(Math.abs(
+            revShare.onchainDistributedPmpe +
               revShare.auctionEffectiveBidPmpe -
               result.winningTotalPmpe
           )).toBeLessThan(1e-12)

@@ -67,6 +67,7 @@ export const loadSnapshotValidatorsCollection = (path: string): SnapshotValidato
 export const getValidatorOverrides = (snapshotValidatorsCollection: SnapshotValidatorsCollection): SourceDataOverrides => {
   const inflationCommissions = new Map()
   const mevCommissions = new Map()
+  const blockRewardsCommissions = new Map()
 
   for (const validatorMeta of snapshotValidatorsCollection.validator_metas) {
     inflationCommissions.set(validatorMeta.vote_account, validatorMeta.commission)
@@ -76,6 +77,7 @@ export const getValidatorOverrides = (snapshotValidatorsCollection: SnapshotVali
   return {
     inflationCommissions,
     mevCommissions,
+    blockRewardsCommissions,
   }
 }
 
@@ -190,7 +192,10 @@ export class AnalyzeRevenuesCommand extends CommandRunner {
         continue
       }
 
+      // TODO: we are missing the information about blockCommission
+
       // TODO: temporary fix for wrong value of MEV commission when there is no MEV data for epoch, skipping MEV for now
+      // --> TODO: it does not seem temporary and I don't know what does it mean "no MEV data for epoch"
       // const expectedNonBidPmpe = validatorBefore.revShare.inflationPmpe + validatorBefore.revShare.mevPmpe
       // const actualNonBidPmpe = validatorAfter.revShare.inflationPmpe + validatorAfter.revShare.mevPmpe
       const expectedNonBidPmpe = validatorBefore.revShare.inflationPmpe
@@ -225,6 +230,7 @@ export class AnalyzeRevenuesCommand extends CommandRunner {
         })
       }
 
+      // TODO: code has not been changed with addition of inflationCommissionOverrideDec and mevCommissionOverrideDec
       evaluation.push({
         voteAccount: validatorBefore.voteAccount,
         expectedInflationCommission: validatorBefore.inflationCommissionDec,

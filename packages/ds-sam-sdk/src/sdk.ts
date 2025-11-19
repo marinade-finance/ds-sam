@@ -80,9 +80,10 @@ export class DsSamSDK {
       epochCreditsThresholds.set(epoch, threshold)
     }
 
+    // TODO: why this is original setup where calculation consders only `inflationPmpe` (and not mevPmpe)?
     const minEffectiveRevSharePmpe = Math.max(0, rewards.inflationPmpe * (1 - this.config.validatorsMaxEffectiveCommissionDec))
-    const minSamRevSharePmpe = Math.max(0, rewards.inflationPmpe + rewards.mevPmpe + (this.config.minEligibleFeePmpe ?? -Infinity))
-    const zeroCommissionPmpe = Math.max(0, rewards.inflationPmpe + rewards.mevPmpe)
+    const minSamRevSharePmpe = Math.max(0, rewards.inflationPmpe + rewards.mevPmpe + rewards.blockPmpe + (this.config.minEligibleFeePmpe ?? -Infinity))
+    const zeroCommissionPmpe = Math.max(0, rewards.inflationPmpe + rewards.mevPmpe + rewards.blockPmpe)
     console.log('min rev share PMPE', minEffectiveRevSharePmpe)
     console.log('rewards', rewards)
     console.log('uptime thresholds', epochCreditsThresholds)
@@ -110,12 +111,12 @@ export class DsSamSDK {
           return { ...validator, revShare, auctionStake, ...ineligibleValidatorAggDefaults() }
         }
       }
-      const backstopEligible = this.config.enableZeroCommissionBackstop && (revShare.inflationPmpe + revShare.mevPmpe >= zeroCommissionPmpe)
+      const backstopEligible = this.config.enableZeroCommissionBackstop && (revShare.inflationPmpe + revShare.mevPmpe + revShare.blockPmpe >= zeroCommissionPmpe)
       if (validator.bondBalanceSol === null) {
         return { ...validator, revShare, auctionStake, ...ineligibleValidatorAggDefaults(), backstopEligible }
       }
       const samEligible = revShare.totalPmpe >= Math.max(minEffectiveRevSharePmpe, minSamRevSharePmpe)
-      const mndeEligible = revShare.inflationPmpe + revShare.mevPmpe >= minEffectiveRevSharePmpe
+      const mndeEligible = revShare.inflationPmpe + revShare.mevPmpe + revShare.blockPmpe >= minEffectiveRevSharePmpe
 
       return { ...validator, revShare, auctionStake, samEligible, mndeEligible, backstopEligible, ...validatorAggDefaults() }
     })
