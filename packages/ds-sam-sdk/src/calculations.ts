@@ -28,8 +28,8 @@ export const calcValidatorRevShare = (
   const bondsMevPmpeDiff = Math.max(0, bondMevPmpe - mevPmpe)
 
   // calculating what has already been shared on-chain (overrides redefines everything)
-  const onchainDistributedInflationPmpe = commissions.inflationCommissionOverrideDec !== null ? inflationPmpe : calculatePmpe(rewards.inflationPmpe, commissions.onchainInflationCommissionDec)
-  const onchainDistributedMevPmpe = commissions.mevCommissionOverrideDec !== null ? mevPmpe : calculatePmpe(rewards.mevPmpe, commissions.onchainMevCommissionDec)
+  const onchainDistributedInflationPmpe = commissions.inflationCommissionOverrideDec !== null ? inflationPmpe : calculatePmpe(rewards.inflationPmpe, commissions.inflationCommissionOnchainDec)
+  const onchainDistributedMevPmpe = commissions.mevCommissionOverrideDec !== null ? mevPmpe : calculatePmpe(rewards.mevPmpe, commissions.mevCommissionOnchainDec)
 
   const totalPmpe = inflationPmpe + mevPmpe + bidPmpe + blockPmpe
   assert(totalPmpe >= 0, 'Total PMPE cannot be negative')

@@ -99,13 +99,18 @@ export type AuctionValidatorValues = {
 }
 
 export type CommissionDetails = {
-  onchainInflationCommissionDec: number
-  onchainMevCommissionDec: number | null
+  // values used to calculate total PMPE
+  inflationCommissionDec: number
+  mevCommissionDec: number
+  blockRewardsCommissionDec: number
+  // detailed breakdown of commission settings
+  inflationCommissionOnchainDec: number
   inflationCommissionInBondsDec: number | null
-  mevCommissionInBondsDec: number | null
-  blockRewardsCommissionInBondsDec: number | null
   inflationCommissionOverrideDec: number | null
+  mevCommissionOnchainDec: number | null
+  mevCommissionInBondsDec: number | null
   mevCommissionOverrideDec: number | null
+  blockRewardsCommissionInBondsDec: number | null
   blockRewardsCommissionOverrideDec: number | null
 }
 

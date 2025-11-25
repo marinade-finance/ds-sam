@@ -170,7 +170,7 @@ describe('calcBondRiskFee', () => {
       blockPmpe: 10,
       auctionEffectiveBidPmpe: 200,
       onchainDistributedPmpe: 790,
-     }
+    }
     const validator = makeValidator({
       bondBalanceSol: 10,
       lastBondBalanceSol: 10,
@@ -181,9 +181,9 @@ describe('calcBondRiskFee', () => {
     const result = calcBondRiskFee(baseConfig, validator)!
     expect(result.bondForcedUndelegation!.value).toBeCloseTo(50)
     expect(result.bondRiskFeeSol)
-    .toBeCloseTo(baseConfig.bondRiskFeeMult * 50 * (
-      (revShare.onchainDistributedPmpe + revShare.auctionEffectiveBidPmpe) / 1000)
-    )
+      .toBeCloseTo(baseConfig.bondRiskFeeMult * 50 * (
+        (revShare.onchainDistributedPmpe + revShare.auctionEffectiveBidPmpe) / 1000)
+      )
   })
 
   it('handles zero effective PMPE with zero fee', () => {

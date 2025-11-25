@@ -142,12 +142,12 @@ export class DataProvider {
       const mevCommissionInBondsDec = bond?.mev_commission_bps ? Number(bond.mev_commission_bps) / 10_000 : null
       const blockRewardsCommissionInBondsDec = bond?.block_commission_bps ? Number(bond.block_commission_bps) / 10_000 : null
 
-      const onchainInflationCommissionDec = (validator.commission_effective ?? validator.commission_advertised ?? 100) / 100
-      const onchainMevCommissionDec = mev ? mev.mev_commission_bps / 10_000 : null
+      const inflationCommissionOnchainDec = (validator.commission_effective ?? validator.commission_advertised ?? 100) / 100
+      const mevCommissionOnchainDec = mev ? mev.mev_commission_bps / 10_000 : null
 
       // data to be applied in calculation of rev share as it considers the overrides and bond commissions (note: it can be negative)
-      const inflationCommissionDec = inflationCommissionOverrideDec ?? ((inflationCommissionInBondsDec && inflationCommissionInBondsDec < onchainInflationCommissionDec) ? inflationCommissionInBondsDec : onchainInflationCommissionDec)
-      const mevCommissionDec = mevCommissionOverrideDec ?? (mevCommissionInBondsDec && mevCommissionInBondsDec < (onchainMevCommissionDec ?? 1) ? mevCommissionInBondsDec : onchainMevCommissionDec)
+      const inflationCommissionDec = inflationCommissionOverrideDec ?? ((inflationCommissionInBondsDec && inflationCommissionInBondsDec < inflationCommissionOnchainDec) ? inflationCommissionInBondsDec : inflationCommissionOnchainDec)
+      const mevCommissionDec = mevCommissionOverrideDec ?? (mevCommissionInBondsDec && mevCommissionInBondsDec < (mevCommissionOnchainDec ?? 1) ? mevCommissionInBondsDec : mevCommissionOnchainDec)
       const blockRewardsCommissionDec = blockRewardsCommissionOverrideDec ?? blockRewardsCommissionInBondsDec
 
       // TODO: delete me ;-P
@@ -205,8 +205,11 @@ export class DataProvider {
           bondRiskFeeSol: 0,
           samBlacklisted: blacklist.has(validator.vote_account),
           commissions: {
-            onchainInflationCommissionDec,
-            onchainMevCommissionDec,
+            inflationCommissionDec,
+            mevCommissionDec,
+            blockRewardsCommissionDec,
+            inflationCommissionOnchainDec,
+            mevCommissionOnchainDec,
             inflationCommissionOverrideDec,
             mevCommissionOverrideDec,
             blockRewardsCommissionOverrideDec,
