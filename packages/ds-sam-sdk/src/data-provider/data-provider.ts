@@ -47,7 +47,7 @@ export class DataProvider {
     }
   }
 
-  // calculates a ratio of rewards to staked SOL in PMPE ('per mill/per 1000 SOL' per epoch)
+  // calculates a ratio of rewards to staked SOL in PMPE ('per 1000 SOL' per epoch)
   aggregateRewardsRecords (activatedStakePerEpochs: Map<number, Decimal>, rawRewardsRecord: RawRewardsRecordDto[]): number {
     const rewardsTotal = rawRewardsRecord.reduce((agg, [epoch, rewards]) => {
       const stake = activatedStakePerEpochs.get(epoch)
@@ -99,7 +99,7 @@ export class DataProvider {
         winningTotalPmpe: auction.winningTotalPmpe,
         auctionEffectiveBidPmpe: 0,
         bidPmpe: 0,
-        obligationPmpe: null,
+        bondObligationPmpe: null,
         effParticipatingBidPmpe: 0,
       }
     }
@@ -108,7 +108,7 @@ export class DataProvider {
       winningTotalPmpe: auction.winningTotalPmpe,
       auctionEffectiveBidPmpe: revShare.auctionEffectiveBidPmpe,
       bidPmpe: revShare.bidPmpe,
-      obligationPmpe: revShare.bondObligationPmpe ?? null,
+      bondObligationPmpe: revShare.bondObligationPmpe ?? null,
       effParticipatingBidPmpe: calcEffParticipatingBidPmpe(revShare, auction.winningTotalPmpe),
     }
   }
@@ -146,8 +146,10 @@ export class DataProvider {
       const mevCommissionOnchainDec = mev ? mev.mev_commission_bps / 10_000 : null
 
       // data to be applied in calculation of rev share as it considers the overrides and bond commissions (note: it can be negative)
-      const inflationCommissionDec = inflationCommissionOverrideDec ?? ((inflationCommissionInBondsDec && inflationCommissionInBondsDec < inflationCommissionOnchainDec) ? inflationCommissionInBondsDec : inflationCommissionOnchainDec)
-      const mevCommissionDec = mevCommissionOverrideDec ?? (mevCommissionInBondsDec && mevCommissionInBondsDec < (mevCommissionOnchainDec ?? 1) ? mevCommissionInBondsDec : mevCommissionOnchainDec)
+      const inflationCommissionDec = inflationCommissionOverrideDec ?? Math.min(inflationCommissionInBondsDec ?? Infinity, inflationCommissionOnchainDec)
+      const mevCommissionDec = mevCommissionOverrideDec ?? (mevCommissionInBondsDec && mevCommissionInBondsDec < (mevCommissionOnchainDec ?? 1)
+        ? mevCommissionInBondsDec
+        : mevCommissionOnchainDec)
       const blockRewardsCommissionDec = blockRewardsCommissionOverrideDec ?? blockRewardsCommissionInBondsDec
 
       // TODO: delete me ;-P
@@ -206,8 +208,8 @@ export class DataProvider {
           samBlacklisted: blacklist.has(validator.vote_account),
           commissions: {
             inflationCommissionDec,
-            mevCommissionDec,
-            blockRewardsCommissionDec,
+            mevCommissionDec: mevCommissionDec ?? 1,
+            blockRewardsCommissionDec: blockRewardsCommissionDec ?? 1,
             inflationCommissionOnchainDec,
             mevCommissionOnchainDec,
             inflationCommissionOverrideDec,

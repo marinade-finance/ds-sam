@@ -38,7 +38,7 @@ export type AuctionHistoryStats = {
   auctionEffectiveBidPmpe: number
   effParticipatingBidPmpe: number
   bidPmpe: number
-  obligationPmpe: number | null
+  bondObligationPmpe: number | null
   marinadeActivatedStakeSol?: number
 }
 

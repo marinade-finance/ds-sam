@@ -65,11 +65,9 @@ export const calcValidatorRevShare = (
  *  @returns the portion of the rewards that goes to stakers after deducting the commission.
  */
 const calculatePmpe = (pmpe: number | null, commissionDec: number | null): number => {
-  // No rewards to distribute
   if (pmpe === null || pmpe <= 0) {
     return 0
   }
-  // No commission or bigger to 100%, validator keeps all rewards
   if (commissionDec === null || commissionDec >= 1) {
     return 0
   }
@@ -127,9 +125,7 @@ export const calcBondRiskFee = (
   const minBondCoef = (revShare.inflationPmpe + revShare.mevPmpe + revShare.blockPmpe + (cfg.minBondEpochs + 1) * revShare.expectedMaxEffBidPmpe) / 1000
   const riskBondSol = cfg.pendingWithdrawalBondMult * (validator.claimableBondBalanceSol ?? 0) + (1 - cfg.pendingWithdrawalBondMult) * (validator.bondBalanceSol ?? 0)
   if (riskBondSol < projectedActivatedStakeSol * minBondCoef) {
-    // TODO: why idelBondCoef is not calculated from totalPmpe?
     const idealBondCoef = (revShare.inflationPmpe + revShare.mevPmpe + revShare.blockPmpe + (cfg.idealBondEpochs + 1) * revShare.expectedMaxEffBidPmpe) / 1000
-    // TODO: what to do with this? auctionEffectiveBidPmpe = winningTotalPmpe - onchainDistributedPmpe
     const feeCoef = (revShare.onchainDistributedPmpe !== undefined ?
       (revShare.onchainDistributedPmpe + revShare.auctionEffectiveBidPmpe) :
       (revShare.inflationPmpe + revShare.mevPmpe + revShare.auctionEffectiveBidPmpe)
@@ -163,7 +159,9 @@ export const calcBondRiskFee = (
 }
 
 /**
- * What is the PMPE that is expected to be shared from the bond by claiming
+ * The validator’s PMPE represents the portion to be shared by claiming from bond.
+ * Because PMPE is based on estimated rewards for the next epoch, the actual bond claim
+ * is recalculated using the real rewards obtained at the end of the epoch.
  */
 export const calcEffParticipatingBidPmpe = (
   revShare: {

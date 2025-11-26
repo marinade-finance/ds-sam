@@ -80,7 +80,6 @@ export class DsSamSDK {
       epochCreditsThresholds.set(epoch, threshold)
     }
 
-    // TODO: why this is original setup where calculation consders only `inflationPmpe` (and not mevPmpe)?
     const minEffectiveRevSharePmpe = Math.max(0, rewards.inflationPmpe * (1 - this.config.validatorsMaxEffectiveCommissionDec))
     const minSamRevSharePmpe = Math.max(0, rewards.inflationPmpe + rewards.mevPmpe + rewards.blockPmpe + (this.config.minEligibleFeePmpe ?? -Infinity))
     const zeroCommissionPmpe = Math.max(0, rewards.inflationPmpe + rewards.mevPmpe + rewards.blockPmpe)
