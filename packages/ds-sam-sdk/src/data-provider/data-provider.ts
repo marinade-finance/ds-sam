@@ -48,7 +48,7 @@ export class DataProvider {
   }
 
   // calculates a ratio of rewards to staked SOL in PMPE ('per 1000 SOL' per epoch)
-  aggregateRewardsRecords (activatedStakePerEpochs: Map<number, Decimal>, rawRewardsRecord: RawRewardsRecordDto[]): number {
+  private aggregateRewardsRecords (activatedStakePerEpochs: Map<number, Decimal>, rawRewardsRecord: RawRewardsRecordDto[]): number {
     const rewardsTotal = rawRewardsRecord.reduce((agg, [epoch, rewards]) => {
       const stake = activatedStakePerEpochs.get(epoch)
       // Rewards in SOL (1e9) + stake in lamports (1e-0) + result in PMPE (1e3) = 1e12
@@ -58,23 +58,17 @@ export class DataProvider {
     return rewardsTotal.total.div(rewardsTotal.epochs).toNumber()
   }
 
-  processAuctions (input: RawScoredValidatorDto[]): AuctionHistory[] {
+  private processAuctions (input: RawScoredValidatorDto[]): AuctionHistory[] {
     const result: AuctionHistory[] = []
     let epoch = Infinity
     let validators: RawScoredValidatorDto[] = []
-    const finalizeEpoch = (validators: RawScoredValidatorDto[]) => {
-      validators.sort((a, b) => {
-        if (b.revShare.bondObligationPmpe != null && a.revShare.bondObligationPmpe != null) {
-          return b.revShare.bondObligationPmpe - a.revShare.bondObligationPmpe
-        } else {
-          return b.revShare.bidPmpe - a.revShare.bidPmpe
-        }
-      })
-      const winningTotalPmpe = validators
+    const finalizeEpoch = (inputValidators: RawScoredValidatorDto[]) => {
+      inputValidators.sort((a, b) => b.revShare.bondObligationPmpe - a.revShare.bondObligationPmpe)
+      const winningTotalPmpe = inputValidators
         .filter((item) => item.marinadeSamTargetSol > 0)
         .reduce((_, item) => item.revShare.totalPmpe, 0)
       result.push({ epoch, winningTotalPmpe, validators })
-      validators = []
+      inputValidators = []
     }
     for (const entry of input) {
       if (entry.epoch < epoch) {
@@ -99,7 +93,7 @@ export class DataProvider {
         winningTotalPmpe: auction.winningTotalPmpe,
         auctionEffectiveBidPmpe: 0,
         bidPmpe: 0,
-        bondObligationPmpe: null,
+        bondObligationPmpe: 0,
         effParticipatingBidPmpe: 0,
       }
     }
@@ -108,12 +102,12 @@ export class DataProvider {
       winningTotalPmpe: auction.winningTotalPmpe,
       auctionEffectiveBidPmpe: revShare.auctionEffectiveBidPmpe,
       bidPmpe: revShare.bidPmpe,
-      bondObligationPmpe: revShare.bondObligationPmpe ?? null,
+      bondObligationPmpe: revShare.bondObligationPmpe,
       effParticipatingBidPmpe: calcEffParticipatingBidPmpe(revShare, auction.winningTotalPmpe),
     }
   }
 
-  aggregateValidators (
+  private aggregateValidators (
     data: RawSourceData,
     validatorsMndeVotes: Map<string, Decimal>,
     solPerMnde: number,
@@ -151,13 +145,6 @@ export class DataProvider {
         ? mevCommissionInBondsDec
         : mevCommissionOnchainDec)
       const blockRewardsCommissionDec = blockRewardsCommissionOverrideDec ?? blockRewardsCommissionInBondsDec
-
-      // TODO: delete me ;-P
-      // console.log(`Validator ${validator.vote_account}/${validator.identity} commissions: inflation ${inflationCommissionDec}, mev ${mevCommissionDec}, block ${blockRewardsCommissionDec}\n` +
-      //   `  Overrides: inflation ${inflationCommissionOverrideDec}, mev ${mevCommissionOverrideDec}, block ${blockRewardsCommissionOverrideDec}\n` +
-      //   `  On-chain: inflation ${onchainInflationCommissionDec}, mev ${onchainMevCommissionDec}\n` +
-      //   `  In bonds: inflation ${inflationCommissionInBondsDec}, mev ${mevCommissionInBondsDec}, block ${blockRewardsCommissionInBondsDec}\n`
-      // )
 
       const lastAuctionHistory = auctionHistoriesData
         .flatMap(auction => auction.validators)
@@ -337,6 +324,7 @@ export class DataProvider {
       fs.existsSync(auctionsFile)
         ? JSON.parse(fs.readFileSync(auctionsFile).toString())
         : []
+    this.fixRawScoredValidatorsDto(auctions)
 
     const overridesFile = `${this.config.inputsCacheDirPath}/overrides.json`
     const overrides: RawOverrideDataDto =
@@ -386,6 +374,18 @@ export class DataProvider {
       this.cacheSourceData(data)
     }
     return data
+  }
+
+  // Fixing missing data in validators response from older API versions
+  private fixRawScoredValidatorsDto (validators: RawScoredValidatorDto[]): void {
+    validators.forEach((v) => {
+      v.revShare = {
+        ...v.revShare,
+        blockPmpe: v.revShare.blockPmpe ?? 0,
+        bondObligationPmpe: v.revShare.bondObligationPmpe ?? v.revShare.bidPmpe,
+        onchainDistributedPmpe: v.revShare.onchainDistributedPmpe ?? (v.revShare.inflationPmpe + v.revShare.mevPmpe),
+      }
+    })
   }
 
   async fetchValidators (): Promise<RawValidatorsResponseDto> {
@@ -439,6 +439,7 @@ export class DataProvider {
   async fetchAuctions (n: number): Promise<RawScoredValidatorDto[]> {
     const url = `${this.config.scoringApiBaseUrl}/api/v1/scores/sam?lastEpochs=${n + 1}`
     const response = await axios.get<RawScoredValidatorDto[]>(url)
+    this.fixRawScoredValidatorsDto(response.data)
     return response.data
   }
 

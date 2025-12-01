@@ -126,10 +126,7 @@ export const calcBondRiskFee = (
   const riskBondSol = cfg.pendingWithdrawalBondMult * (validator.claimableBondBalanceSol ?? 0) + (1 - cfg.pendingWithdrawalBondMult) * (validator.bondBalanceSol ?? 0)
   if (riskBondSol < projectedActivatedStakeSol * minBondCoef) {
     const idealBondCoef = (revShare.inflationPmpe + revShare.mevPmpe + revShare.blockPmpe + (cfg.idealBondEpochs + 1) * revShare.expectedMaxEffBidPmpe) / 1000
-    const feeCoef = (revShare.onchainDistributedPmpe !== undefined ?
-      (revShare.onchainDistributedPmpe + revShare.auctionEffectiveBidPmpe) :
-      (revShare.inflationPmpe + revShare.mevPmpe + revShare.auctionEffectiveBidPmpe)
-    ) / 1000
+    const feeCoef = (revShare.onchainDistributedPmpe + revShare.auctionEffectiveBidPmpe) / 1000
     // always: base >= 0, even with no max, since idealBondCoef >= minBondCoef, since idealBondEpochs >= minBondEpochs
     // and we already ensured that riskBondSol / minBondCoef < projectedActivatedStakeSol above
     // also, if minBondCoef == 0, then we can never get here, in the opposite case, idealBondCoef >= minBondCoef > 0
@@ -167,17 +164,13 @@ export const calcEffParticipatingBidPmpe = (
   revShare: {
     inflationPmpe: number,
     mevPmpe: number,
-    onchainDistributedPmpe?: number | null,
+    onchainDistributedPmpe: number,
   },
   winningTotalPmpe: number
 ): number => {
   // for a better memory, later this comment can be deleted; before introduction of blockPmpe this was the code:
   // return Math.max(0, winningTotalPmpe - revShare.inflationPmpe - revShare.mevPmpe)
-  if (revShare.onchainDistributedPmpe != null) {
-    return Math.max(0, winningTotalPmpe - revShare.onchainDistributedPmpe)
-  } else {
-    return Math.max(0, winningTotalPmpe - revShare.inflationPmpe - revShare.mevPmpe)
-  }
+  return Math.max(0, winningTotalPmpe - revShare.onchainDistributedPmpe)
 }
 
 export type BidTooLowPenaltyResult = {
@@ -210,7 +203,7 @@ export const calcBidTooLowPenalty = (
       : 0
   }
   const bidTooLowPenaltyPmpe = bidTooLowPenaltyValue.coef * bidTooLowPenaltyValue.base
-  const auctionPmpe = winningTotalPmpe // TODO: isn't this supposed to be winning total PMPE?
+  const auctionPmpe = winningTotalPmpe
   const paidUndelegationSol = bidTooLowPenaltyPmpe > 0
     ? bidTooLowPenaltyPmpe * validator.marinadeActivatedStakeSol / auctionPmpe
     : 0

@@ -122,6 +122,11 @@ export type DsSamConfig = {
   // If null, minimal eligible transaction fee Pmpe is not enforced as if it was -inf
   minEligibleFeePmpe: number | null
 
+  // Multiplier for bond balance requirements when calculating stake caps constraints.
+  // We assume some bond balance for the stake is required and multiply the calculated bond requirement
+  // by this factor to be more conservative(>=1)/aggressive(<=1).
+  bondObligationSafetyMult: number
+
   // Validator vote accounts to collect debug info for
   debugVoteAccounts: string[]
 }
@@ -175,6 +180,7 @@ export const DEFAULT_CONFIG: DsSamConfig = {
   expectedMaxWinningBidRatio: null,
   minExpectedEffBidPmpe: 0,
   minEligibleFeePmpe: null,
+  bondObligationSafetyMult: 1,
 
   debugVoteAccounts: [],
 }

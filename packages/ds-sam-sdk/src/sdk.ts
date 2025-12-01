@@ -50,6 +50,7 @@ export class DsSamSDK {
       minUnprotectedStakeToDelegateSol: this.config.minUnprotectedStakeToDelegateSol,
       unprotectedFoundationStakeDec: this.config.unprotectedFoundationStakeDec,
       unprotectedDelegatedStakeDec: this.config.unprotectedDelegatedStakeDec,
+      bondObligationSafetyMult: this.config.bondObligationSafetyMult,
     }
     this.debug.pushInfo('auction constraints', JSON.stringify(constraints))
     return new AuctionConstraints(constraints, debug)

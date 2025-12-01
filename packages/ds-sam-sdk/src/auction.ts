@@ -1,6 +1,6 @@
 import { calcBondRiskFee, calcEffParticipatingBidPmpe, calcBidTooLowPenalty } from './calculations'
 import { AuctionData, AuctionResult, AuctionValidator } from './types'
-import { AuctionConstraints, bondBalanceRequiredForCurrentStake } from './constraints'
+import { AuctionConstraints } from './constraints'
 import { DsSamConfig } from './config'
 import { Debug } from './debug'
 
@@ -217,7 +217,7 @@ export class Auction {
       .filter(({ unstakePriority }) => Number.isNaN(unstakePriority))
       .map(validator => ({
         validator,
-        bondBalanceDiff: ((validator.bondBalanceSol ?? 0) - bondBalanceRequiredForCurrentStake(validator)) / validator.marinadeActivatedStakeSol
+        bondBalanceDiff: ((validator.bondBalanceSol ?? 0) - this.constraints.bondBalanceRequiredForCurrentStake(validator)) / validator.marinadeActivatedStakeSol
       }))
       .filter(({ bondBalanceDiff }) => bondBalanceDiff < 0) // Infinity and NaN filtered out too
       .sort((a, b) => a.bondBalanceDiff - b.bondBalanceDiff)

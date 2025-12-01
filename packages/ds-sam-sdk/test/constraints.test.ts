@@ -79,6 +79,7 @@ const BASE_CONSTRAINTS: AuctionConstraintsConfig = {
   minUnprotectedStakeToDelegateSol: 0,
   unprotectedFoundationStakeDec: 1,
   unprotectedDelegatedStakeDec: 1,
+  bondObligationSafetyMult: 1,
 }
 
 function makeConstraints (overrides: Partial<AuctionConstraintsConfig> = {}) {

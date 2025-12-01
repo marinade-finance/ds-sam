@@ -7,11 +7,11 @@ export type RawScoredValidatorDto = {
     bidPmpe: number
     inflationPmpe: number
     mevPmpe: number
-    blockPmpe?: number | null
+    blockPmpe: number
     totalPmpe: number,
     calcEffParticipatingBidPmpe: number,
-    bondObligationPmpe?: number | null,
-    onchainDistributedPmpe?: number | null,
+    bondObligationPmpe: number,
+    onchainDistributedPmpe: number,
   }
   marinadeSamTargetSol: number
   values?: {
@@ -38,7 +38,7 @@ export type AuctionHistoryStats = {
   auctionEffectiveBidPmpe: number
   effParticipatingBidPmpe: number
   bidPmpe: number
-  bondObligationPmpe: number | null
+  bondObligationPmpe: number
   marinadeActivatedStakeSol?: number
 }
 
