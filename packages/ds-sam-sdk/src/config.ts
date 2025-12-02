@@ -124,7 +124,7 @@ export type DsSamConfig = {
 
   // Multiplier for bond balance requirements when calculating stake caps constraints.
   // We assume some bond balance for the stake is required and multiply the calculated bond requirement
-  // by this factor to be more conservative(>=1)/aggressive(<=1).
+  // by this factor must be in interval [1.0, 2.0].
   bondObligationSafetyMult: number
 
   // Validator vote accounts to collect debug info for

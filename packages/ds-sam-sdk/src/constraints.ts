@@ -328,7 +328,6 @@ export class AuctionConstraints {
   }
 
   private bondBalanceUsedForMnde (validator: AuctionValidator): number{
-    // downtimeProtectionPerStake * stake = bondBalanceSol
     const downtimeProtectionPerStake = 0
     return validator.auctionStake.marinadeMndeTargetSol * downtimeProtectionPerStake
   }
@@ -337,6 +336,9 @@ export class AuctionConstraints {
 export const bondBalanceRequiredForXEpochs = (stakeSol: number, validator: AuctionValidator, epochs: number, bondObligationSafetyMult?: number): number => {
   // refundableDepositPerStake * stake + downtimeProtectionPerStake * stake + bidPerStake * stake * epochs = bondBalanceSol
   const bondsObligationMultiplier = bondObligationSafetyMult ?? 1
+  if (bondsObligationMultiplier < 1.0 || bondsObligationMultiplier > 2.0) {
+    throw new Error(`Invalid bondObligationSafetyMult: must be in interval [1.0, 2.0], got ${bondsObligationMultiplier}`)
+  }
   const bidPerStake = (validator.revShare.bondObligationPmpe / 1000) * bondsObligationMultiplier
   const downtimeProtectionPerStake = 0
   const refundableDepositPerStake = validator.revShare.totalPmpe / 1000

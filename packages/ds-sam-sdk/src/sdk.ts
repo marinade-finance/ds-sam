@@ -26,8 +26,15 @@ export class DsSamSDK {
 
   constructor (config: Partial<DsSamConfig> = {}, dataProviderBuilder = defaultDataProviderBuilder) {
     this.config = { ...DEFAULT_CONFIG, ...config }
+    DsSamSDK.validateConfig(this.config)
     this.dataProvider = dataProviderBuilder(this.config)
     this.debug = new Debug(new Set(this.config.debugVoteAccounts))
+  }
+
+  private static validateConfig (config: DsSamConfig) {
+    if (config.bondObligationSafetyMult < 1.0 || config.bondObligationSafetyMult > 2.0) {
+      throw new Error(`Invalid config: bondObligationSafetyMult must be in interval [1.0, 2.0], got ${config.bondObligationSafetyMult}`)
+    }
   }
 
   getAuctionConstraints ({ stakeAmounts }: AggregatedData, debug: Debug): AuctionConstraints {
