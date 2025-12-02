@@ -62,6 +62,7 @@ import { AuctionConstraints } from '../src/constraints'
 import { AuctionConstraintsConfig, AuctionValidator, AuctionData } from '../src/types'
 import { ineligibleValidatorAggDefaults } from '../src/utils'
 import { Debug } from '../src/debug'
+import { on } from 'events'
 
 const BASE_CONSTRAINTS: AuctionConstraintsConfig = {
   totalCountryStakeCapSol: Infinity,
@@ -211,24 +212,11 @@ describe('bondStakeCapSam()', () => {
         effParticipatingBidPmpe: 0,
         expectedMaxEffBidPmpe: 5,
         bidTooLowPenaltyPmpe: 0,
+        onchainDistributedPmpe: 10,
       },
     })
     const result = 1000 / (25 / 1000)
     expect(c.bondStakeCapSam(v)).toBeCloseTo(result, 6)
-
-    const v2 = makeValidator({
-      bondBalanceSol: 1000,
-      marinadeActivatedStakeSol: 50,
-      revShare: {
-        onchainDistributedPmpe: 10,
-        totalPmpe: 0,
-        auctionEffectiveBidPmpe: 0,
-        effParticipatingBidPmpe: 0,
-        expectedMaxEffBidPmpe: 5,
-        bidTooLowPenaltyPmpe: 0,
-      },
-    })
-    expect(c.bondStakeCapSam(v2)).toBeCloseTo(result, 6)
   })
 
   it('when marinadeActivatedStakeSol is between ideal and min, cap=marinadeActivatedStakeSol', () => {
@@ -236,9 +224,13 @@ describe('bondStakeCapSam()', () => {
     const v = makeValidator({
       bondBalanceSol: 1000,
       marinadeActivatedStakeSol: 70000,
-      revShare: { inflationPmpe: 0, mevPmpe: 0, bidPmpe: 0, totalPmpe: 0,
-        auctionEffectiveBidPmpe: 0, effParticipatingBidPmpe: 0,
-        expectedMaxEffBidPmpe: 5, bidTooLowPenaltyPmpe: 0 },
+      revShare: {
+        auctionEffectiveBidPmpe: 0,
+        effParticipatingBidPmpe: 0,
+        expectedMaxEffBidPmpe: 5,
+        bidTooLowPenaltyPmpe: 0,
+        onchainDistributedPmpe: 0,
+      },
     })
     expect(c2.bondStakeCapSam(v)).toBe(70000)
   })
@@ -248,9 +240,13 @@ describe('bondStakeCapSam()', () => {
     const v = makeValidator({
       bondBalanceSol: 1000,
       marinadeActivatedStakeSol: 200000,
-      revShare: { inflationPmpe: 0, mevPmpe: 0, bidPmpe: 0, totalPmpe: 0,
-        auctionEffectiveBidPmpe: 0, effParticipatingBidPmpe: 0,
-        expectedMaxEffBidPmpe: 5, bidTooLowPenaltyPmpe: 0 },
+      revShare: {
+        auctionEffectiveBidPmpe: 0,
+        effParticipatingBidPmpe: 0,
+        expectedMaxEffBidPmpe: 5,
+        bidTooLowPenaltyPmpe: 0,
+        onchainDistributedPmpe: 0,
+      },
     })
     expect(c3.bondStakeCapSam(v)).toBeCloseTo(100000, 0)
   })
@@ -576,6 +572,10 @@ describe('getMinCapForEvenDistribution – Sam‐BOND wins', () => {
 
   it('picks BOND when its per‐validator bond cap is smallest', () => {
     const data = makeAuction({ validators: [v] })
+    data.validators.forEach((val) => {
+      val.revShare.onchainDistributedPmpe = val.revShare.inflationPmpe + val.revShare.mevPmpe
+      val.revShare.bondObligationPmpe = val.revShare.bidPmpe
+    })
     c.updateStateForSam(data)
     const { cap, constraint } = c.getMinCapForEvenDistribution(new Set(['v']))
     expect(cap).toBeCloseTo(1000, 6)

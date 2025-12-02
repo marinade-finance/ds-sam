@@ -69,3 +69,11 @@ export const defaultStaticDataProviderBuilder = (validators: ValidatorMockBuilde
   .withBlockRewardsPerEpoch(0)
   .withValidators(validators)
   .builder()
+
+export const blockRewardsStaticDataProviderBuilder = (validators: ValidatorMockBuilder[]) => new StaticDataProviderBuilder()
+  .withCurrentEpoch(1000)
+  .withInflationRewardsPerEpoch(200000)
+  .withMevRewardsPerEpoch(50000)
+  .withBlockRewardsPerEpoch(90000)
+  .withValidators(validators)
+  .builder()

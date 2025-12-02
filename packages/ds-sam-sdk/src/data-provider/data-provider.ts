@@ -141,7 +141,7 @@ export class DataProvider {
 
       // data to be applied in calculation of rev share as it considers the overrides and bond commissions (note: it can be negative)
       const inflationCommissionDec = inflationCommissionOverrideDec ?? Math.min(inflationCommissionInBondsDec ?? Infinity, inflationCommissionOnchainDec)
-      const mevCommissionDec = mevCommissionOverrideDec ?? (mevCommissionInBondsDec && mevCommissionInBondsDec < (mevCommissionOnchainDec ?? 1)
+      const mevCommissionDec = mevCommissionOverrideDec ?? (mevCommissionInBondsDec != null && mevCommissionInBondsDec < (mevCommissionOnchainDec ?? 1)
         ? mevCommissionInBondsDec
         : mevCommissionOnchainDec)
       const blockRewardsCommissionDec = blockRewardsCommissionOverrideDec ?? blockRewardsCommissionInBondsDec

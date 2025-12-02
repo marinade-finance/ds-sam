@@ -9,6 +9,15 @@ const infiniteGenerator = function* (prefix: string, padding: number) {
 export const generateVoteAccounts = (label = '') => infiniteGenerator(`vote-acc-${label}-`, 10)
 export const generateIdentities = () => infiniteGenerator('identity-', 10)
 
+export type BondDataType = {
+    stakeWanted: number,
+    cpmpe: number,
+    balance: number,
+    bondInflationCommission?: number | null,
+    bondMevCommission?: number | null,
+    bondBlockCommission?: number | null
+  }
+
 export class ValidatorMockBuilder {
   private inflationCommission = 0
   private mevCommission: number | null = null
@@ -19,13 +28,13 @@ export class ValidatorMockBuilder {
   private liquidStake = 0
   private externalStake = 0
   private version = '1.18.15'
-  private bond: { stakeWanted: number, cpmpe: number, balance: number } | null = null
+  private bond: BondDataType | null = null
   private country: string | null = null
   private aso: string | null = null
 
   constructor (public readonly voteAccount: string, public readonly identity: string,) { }
 
-  withEligibleDefaults () {
+  withEligibleDefaults (): this {
     this.inflationCommission = 5
     this.mevCommission = 80
     this.isBlacklisted = false
@@ -34,74 +43,74 @@ export class ValidatorMockBuilder {
     this.nativeStake = 50_000
     this.liquidStake = 100_000
     this.externalStake = 200_000
-    this.bond = { stakeWanted: 150_000, cpmpe: 0, balance: 1000 }
+    this.bond = { stakeWanted: 150_000, cpmpe: 0, balance: 1000, bondInflationCommission: null, bondMevCommission: null, bondBlockCommission: null }
     return this
   }
 
-  withCountry (country: string) {
+  withCountry (country: string): this {
     this.country = country
     return this
   }
 
-  withAso (aso: string) {
+  withAso (aso: string): this {
     this.aso = aso
     return this
   }
 
-  withInflationCommission (commission: number) {
+  withInflationCommission (commission: number): this {
     this.inflationCommission = commission
     return this
   }
 
-  withMevCommission (commission: number) {
+  withMevCommission (commission: number): this {
     this.mevCommission = commission
     return this
   }
 
-  withMndeVotes (votes: number) {
+  withMndeVotes (votes: number): this {
     this.mndeVotes = votes
     return this
   }
 
-  withNativeStake (stake: number) {
+  withNativeStake (stake: number): this {
     this.nativeStake = stake
     return this
   }
 
-  withLiquidStake (stake: number) {
+  withLiquidStake (stake: number): this {
     this.liquidStake = stake
     return this
   }
 
-  withExternalStake (stake: number) {
+  withExternalStake (stake: number): this {
     this.externalStake = stake
     return this
   }
 
-  withCredits (...credits: number[]) {
+  withCredits (...credits: number[]): this {
     this.credits = credits
     return this
   }
 
-  withGoodPerformance () {
+  withGoodPerformance (): this {
     return this.withCredits(...Array.from({ length: 10 }, () => 432000 - Math.round(Math.random() * 10000)))
   }
 
-  withBadPerformance () {
+  withBadPerformance (): this {
     return this.withCredits(...Array.from({ length: 10 }, () => Math.round(Math.random() * 10000)))
   }
 
-  blacklisted () {
+  blacklisted (): this {
     this.isBlacklisted = true
     return this
   }
 
-  withBond (bond: { stakeWanted: number, cpmpe: number, balance: number } | null) {
+  withBond (bond: BondDataType | null): this {
     this.bond = bond
     return this
   }
 
-  withVersion (version: string) {
+  withVersion (version: string): this {
     this.version = version
     return this
   }
@@ -112,7 +121,7 @@ export class ValidatorMockBuilder {
       return null
     }
 
-    const { balance, cpmpe, stakeWanted } = bond
+    const { balance, cpmpe, stakeWanted, bondBlockCommission, bondInflationCommission, bondMevCommission } = bond
     return {
       pubkey: '@todo some bond account',
       vote_account: this.voteAccount,
@@ -125,9 +134,9 @@ export class ValidatorMockBuilder {
       updated_at: 'some date',
       epoch: currentEpoch,
       max_stake_wanted: new Decimal(stakeWanted).mul(1e9).toString(),
-      inflation_commission_bps: null,
-      mev_commission_bps: null,
-      block_commission_bps: null,
+      inflation_commission_bps: bondInflationCommission != null ? String(bondInflationCommission * 100) : null,
+      mev_commission_bps: bondMevCommission != null ? String(bondMevCommission * 100) : null,
+      block_commission_bps: bondBlockCommission != null ? String(bondBlockCommission * 100) : null,
     }
   }
 
