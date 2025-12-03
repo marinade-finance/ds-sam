@@ -1,6 +1,6 @@
-import assert from 'assert'
 import { BidTooLowPenalty, AuctionValidator, Rewards, RevShare, CommissionDetails } from './types'
 import Decimal from 'decimal.js'
+import { assert } from './utils'
 
 export const calcValidatorRevShare = (
   validator: {
