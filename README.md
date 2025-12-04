@@ -114,8 +114,13 @@ Config [defaults](./packages/ds-sam-sdk/src/config.ts#L35)
   // Every new vote account that joins the auction gets initialSpendRobustReputation at the start
   initialSpendRobustReputation: number
 
-  // The minimal bond balanace to have to get and retain any stake
+  // The minimal bond balance to have to get and retain any stake
   minBondBalanceSol: number
+
+  // Multiplier for bond balance requirements when calculating stake caps constraints.
+  // We assume some bond balance for the stake is required and multiply the calculated bond requirement
+  // by this factor must be in interval [1.0, 2.0].
+  bondObligationSafetyMult: number
 
   // Validator vote accounts to collect debug info for
   debugVoteAccounts: string[]
