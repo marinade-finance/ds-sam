@@ -85,7 +85,20 @@ export class DataProvider {
 
   extractAuctionHistoryStats (auction: AuctionHistory, validator: RawValidatorDto): AuctionHistoryStats {
     const entry = auction.validators.find(({ voteAccount }) => validator.vote_account === voteAccount)
-    const revShare = entry?.revShare
+    const { revShare, values } = entry ?? {
+      revShare: null,
+      values: null,
+    }
+    const commissions = values?.commissions ?? {
+          inflationCommissionDec: 1,
+          mevCommissionDec: 1,
+          blockRewardsCommissionDec: 1,
+          inflationCommissionOnchainDec: 1,
+          inflationCommissionInBondsDec: null,
+          mevCommissionOnchainDec: null,
+          mevCommissionInBondsDec: null,
+          blockRewardsCommissionInBondsDec: null,
+        }
     if (revShare == null) {
       console.log(`validator ${validator.vote_account} did not participate in auction in epoch ${auction.epoch}`)
       return {
@@ -93,8 +106,10 @@ export class DataProvider {
         winningTotalPmpe: auction.winningTotalPmpe,
         auctionEffectiveBidPmpe: 0,
         bidPmpe: 0,
+        totalPmpe: 0,
         bondObligationPmpe: 0,
         effParticipatingBidPmpe: 0,
+        commissions,
       }
     }
     return {
@@ -102,8 +117,10 @@ export class DataProvider {
       winningTotalPmpe: auction.winningTotalPmpe,
       auctionEffectiveBidPmpe: revShare.auctionEffectiveBidPmpe,
       bidPmpe: revShare.bidPmpe,
+      totalPmpe: revShare.totalPmpe,
       bondObligationPmpe: revShare.bondObligationPmpe,
       effParticipatingBidPmpe: calcEffParticipatingBidPmpe(revShare, auction.winningTotalPmpe),
+      commissions,
     }
   }
 

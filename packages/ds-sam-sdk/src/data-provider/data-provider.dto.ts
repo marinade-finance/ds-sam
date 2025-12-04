@@ -1,4 +1,4 @@
-import { AuctionValidator } from '../types'
+import { AuctionValidator, CommissionDetails } from '../types'
 
 export type RawScoredValidatorDto = {
   voteAccount: string
@@ -22,6 +22,7 @@ export type RawScoredValidatorDto = {
     projectedUndelegation?: number
     paidUndelegationSol?: number
     samBlacklisted?: boolean
+    commissions?: CommissionDetails
   }
   epoch: number
 }
@@ -38,7 +39,9 @@ export type AuctionHistoryStats = {
   auctionEffectiveBidPmpe: number
   effParticipatingBidPmpe: number
   bidPmpe: number
+  totalPmpe: number
   bondObligationPmpe: number
+  commissions: CommissionDetails
   marinadeActivatedStakeSol?: number
 }
 

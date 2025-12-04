@@ -20,6 +20,7 @@ const calcBidTooLowPenalty = ({
   bidPmpe,
   inflationPmpe,
   mevPmpe,
+  blockPmpe,
   winningTotalPmpe,
   pastEffParticipating,
   historyLength
@@ -27,26 +28,40 @@ const calcBidTooLowPenalty = ({
   bidPmpe: number
   inflationPmpe: number
   mevPmpe: number
+  blockPmpe: number
   winningTotalPmpe: number
   pastEffParticipating: number[]
   historyLength: number
 }) => {
-  const eff = (bidPmpe + inflationPmpe + mevPmpe) >= winningTotalPmpe
-    ? bidPmpe
+  const eff = (bidPmpe + inflationPmpe + mevPmpe + blockPmpe) >= winningTotalPmpe
+    ? bidPmpe + blockPmpe // no bonds commission is setup
     : Math.max(0, winningTotalPmpe - inflationPmpe - mevPmpe)
   const validator = {
     revShare: {
       bidPmpe,
       inflationPmpe,
       mevPmpe,
-      blockPmpe: 0,
+      blockPmpe,
+      bondObligationPmpe: bidPmpe + blockPmpe,
       effParticipatingBidPmpe: eff,
       totalPmpe: NaN,
       bidTooLowPenaltyPmpe: NaN
     },
     auctions: pastEffParticipating.map(e => ({ effParticipatingBidPmpe: e, bidPmpe: e })),
     bidTooLowPenalty: { coef: NaN, base: NaN },
-    marinadeActivatedStakeSol: 1000
+    marinadeActivatedStakeSol: 1000,
+    values: {
+      commissions: {
+        inflationCommissionDec: 1,
+        mevCommissionDec: 1,
+        blockRewardsCommissionDec: 1,
+        inflationCommissionOnchainDec: 1,
+        inflationCommissionInBondsDec: null,
+        mevCommissionOnchainDec: null,
+        mevCommissionInBondsDec: null,
+        blockRewardsCommissionInBondsDec: null,
+      }
+    }
   } as unknown as AuctionValidator
 
   const res = _nativeCalc(historyLength, winningTotalPmpe, validator) as any
@@ -66,6 +81,7 @@ describe('calcBidTooLowPenalty', () => {
       bidPmpe: 30,
       inflationPmpe: 10,
       mevPmpe: 5,
+      blockPmpe: 0,
       winningTotalPmpe: 40,
       pastEffParticipating: [25, 22, 18],
       historyLength,
@@ -80,6 +96,7 @@ describe('calcBidTooLowPenalty', () => {
       bidPmpe: 15,
       inflationPmpe: 10,
       mevPmpe: 5,
+      blockPmpe: 0,
       winningTotalPmpe: 40,
       pastEffParticipating: [20, 22, 24, 30],
       historyLength,
@@ -97,6 +114,7 @@ describe('calcBidTooLowPenalty', () => {
       bidPmpe: 0,
       inflationPmpe: 5,
       mevPmpe: 5,
+      blockPmpe: 0,
       winningTotalPmpe: 20,
       pastEffParticipating: [10, 12, 14],
       historyLength,
@@ -111,6 +129,7 @@ describe('calcBidTooLowPenalty', () => {
       bidPmpe: 10,
       inflationPmpe: 0,
       mevPmpe: 0,
+      blockPmpe: 0,
       winningTotalPmpe: 10,
       pastEffParticipating: [12, 14, 16],
       historyLength,
@@ -124,6 +143,7 @@ describe('calcBidTooLowPenalty', () => {
       bidPmpe: 1.2345,
       inflationPmpe: 0.5,
       mevPmpe: 0.25,
+      blockPmpe: 0,
       winningTotalPmpe: 3.14159,
       pastEffParticipating: [1.8, 2.2, 2.9],
       historyLength,
@@ -140,6 +160,7 @@ describe('calcBidTooLowPenalty', () => {
       bidPmpe: 0,
       inflationPmpe: 0,
       mevPmpe: 0,
+      blockPmpe: 0,
       winningTotalPmpe: 0,
       pastEffParticipating: [1, 0, 0],
       historyLength,
@@ -153,6 +174,7 @@ describe('calcBidTooLowPenalty', () => {
       bidPmpe: 1,
       inflationPmpe: 0,
       mevPmpe: 0,
+      blockPmpe: 0,
       winningTotalPmpe: 5,
       pastEffParticipating: [5, 3, 8, 2],
       historyLength: 2,
@@ -167,6 +189,7 @@ describe('calcBidTooLowPenalty', () => {
       bidPmpe: 3,
       inflationPmpe: 1,
       mevPmpe: 1,
+      blockPmpe: 0,
       winningTotalPmpe: 10,
       pastEffParticipating: [3, 4, 5],
       historyLength,
@@ -180,6 +203,7 @@ describe('calcBidTooLowPenalty', () => {
       bidPmpe: 2,
       inflationPmpe: 1,
       mevPmpe: 1,
+      blockPmpe: 0,
       winningTotalPmpe: 100,
       pastEffParticipating: [50, 60, 70],
       historyLength,
@@ -207,11 +231,13 @@ describe('calcBidTooLowPenalty', () => {
         mevPmpe,
         effParticipatingBidPmpe,
         totalPmpe: NaN,
-        bidTooLowPenaltyPmpe: NaN
+        bidTooLowPenaltyPmpe: NaN,
+        bondObligationPmpe: bidPmpe,
       },
       auctions: pastEffParticipating.map(x => ({ effParticipatingBidPmpe: x, bidPmpe: x })),
       bidTooLowPenalty: { coef: NaN, base: NaN },
-      marinadeActivatedStakeSol
+      marinadeActivatedStakeSol,
+      values: {commissions: null},
     } as unknown as AuctionValidator
 
     const native = _nativeCalc(historyLength, winningTotalPmpe, validator)
@@ -234,12 +260,18 @@ describe('calcBidTooLowPenalty', () => {
         inflationPmpe: 0,
         mevPmpe: 0,
         effParticipatingBidPmpe: Infinity,
+        bondObligationPmpe: Infinity,
         totalPmpe: NaN,
-        bidTooLowPenaltyPmpe: NaN
+        bidTooLowPenaltyPmpe: NaN,
       },
       auctions: [],
       bidTooLowPenalty: { coef: NaN, base: NaN },
-      marinadeActivatedStakeSol: NaN
+      marinadeActivatedStakeSol: NaN,
+      values: {commissions: {
+        inflationCommissionDec: 1,
+        mevCommissionDec: 1,
+        blockRewardsCommissionDec: 1,
+      }},
     } as unknown as AuctionValidator
     expect(() => _nativeCalc(1, 10, validator))
       .toThrow('bidTooLowPenaltyPmpe has to be finite')
