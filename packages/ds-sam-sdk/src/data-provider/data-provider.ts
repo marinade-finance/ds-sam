@@ -157,11 +157,28 @@ export class DataProvider {
       const mevCommissionOnchainDec = mev ? mev.mev_commission_bps / 10_000 : null
 
       // data to be applied in calculation of rev share as it considers the overrides and bond commissions (note: it can be negative)
-      const inflationCommissionDec = inflationCommissionOverrideDec ?? Math.min(inflationCommissionInBondsDec ?? Infinity, inflationCommissionOnchainDec)
-      const mevCommissionDec = mevCommissionOverrideDec ?? (mevCommissionInBondsDec != null && mevCommissionInBondsDec < (mevCommissionOnchainDec ?? 1)
+      let inflationCommissionDec = inflationCommissionOverrideDec ?? Math.min(inflationCommissionInBondsDec ?? Infinity, inflationCommissionOnchainDec)
+      let mevCommissionDec = mevCommissionOverrideDec ?? (mevCommissionInBondsDec != null && mevCommissionInBondsDec < (mevCommissionOnchainDec ?? 1)
         ? mevCommissionInBondsDec
         : mevCommissionOnchainDec)
-      const blockRewardsCommissionDec = blockRewardsCommissionOverrideDec ?? blockRewardsCommissionInBondsDec
+      let blockRewardsCommissionDec = blockRewardsCommissionOverrideDec ?? blockRewardsCommissionInBondsDec
+
+      // safeguard against validator accidentally overly low commission to pay overly more than 100% of rewards
+      let minimalCommissionDec: number | undefined = undefined
+      if (this.config.minimalCommission != null) {
+        if (inflationCommissionDec < this.config.minimalCommission) {
+          minimalCommissionDec = this.config.minimalCommission
+          inflationCommissionDec = this.config.minimalCommission
+        }
+        if (mevCommissionDec && mevCommissionDec < this.config.minimalCommission) {
+          minimalCommissionDec = this.config.minimalCommission
+          mevCommissionDec = this.config.minimalCommission
+        }
+        if (blockRewardsCommissionDec && blockRewardsCommissionDec < this.config.minimalCommission) {
+          minimalCommissionDec = this.config.minimalCommission
+          blockRewardsCommissionDec = this.config.minimalCommission
+        }
+      }
 
       const lastAuctionHistory = auctionHistoriesData
         .flatMap(auction => auction.validators)
@@ -216,12 +233,13 @@ export class DataProvider {
             blockRewardsCommissionDec: blockRewardsCommissionDec ?? 1,
             inflationCommissionOnchainDec,
             mevCommissionOnchainDec,
-            inflationCommissionOverrideDec,
-            mevCommissionOverrideDec,
-            blockRewardsCommissionOverrideDec,
             inflationCommissionInBondsDec,
             mevCommissionInBondsDec,
             blockRewardsCommissionInBondsDec,
+            inflationCommissionOverrideDec: inflationCommissionOverrideDec ?? undefined,
+            mevCommissionOverrideDec: mevCommissionOverrideDec ?? undefined,
+            blockRewardsCommissionOverrideDec: blockRewardsCommissionOverrideDec ?? undefined,
+            minimalCommissionDec,
           },
         },
         mndeVotesSolValue: validatorMndeVotes.mul(solPerMnde).toNumber(),

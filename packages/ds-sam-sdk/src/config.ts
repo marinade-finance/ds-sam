@@ -122,6 +122,10 @@ export type DsSamConfig = {
   // If null, minimal eligible transaction fee Pmpe is not enforced as if it was -inf
   minEligibleFeePmpe: number | null
 
+  // Minimum commission a validator can set (probably in bond configuration)
+  // Prevents validators from setting overly negative commissions
+  minimalCommission: number | null
+
   // Multiplier for bond balance requirements when calculating stake caps constraints.
   // We assume some bond balance for the stake is required and multiply the calculated bond requirement
   // by this factor must be in interval [1.0, 2.0].
@@ -181,6 +185,7 @@ export const DEFAULT_CONFIG: DsSamConfig = {
   minExpectedEffBidPmpe: 0,
   minEligibleFeePmpe: null,
   bondObligationSafetyMult: 1,
+  minimalCommission: -2.0,
 
   debugVoteAccounts: [],
 }

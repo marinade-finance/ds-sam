@@ -117,6 +117,12 @@ Config [defaults](./packages/ds-sam-sdk/src/config.ts#L35)
   // The minimal bond balance to have to get and retain any stake
   minBondBalanceSol: number
 
+  // Minimum commission a validator can set on bonds.
+  // Prevents validators from setting excessively negative commissions.
+  // This is expected to be a negative value, allowing a validator to share
+  // additional rewards beyond 100%, but protecting against accidental overcommitment.
+  minimalCommission: number
+
   // Multiplier for bond balance requirements when calculating stake caps constraints.
   // We assume some bond balance for the stake is required and multiply the calculated bond requirement
   // by this factor must be in interval [1.0, 2.0].
