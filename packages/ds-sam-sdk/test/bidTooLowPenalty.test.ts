@@ -56,10 +56,10 @@ const calcBidTooLowPenalty = ({
         mevCommissionDec: 1,
         blockRewardsCommissionDec: 1,
         inflationCommissionOnchainDec: 1,
-        inflationCommissionInBondsDec: null,
+        inflationCommissionInBondDec: null,
         mevCommissionOnchainDec: null,
-        mevCommissionInBondsDec: null,
-        blockRewardsCommissionInBondsDec: null,
+        mevCommissionInBondDec: null,
+        blockRewardsCommissionInBondDec: null,
       }
     }
   } as unknown as AuctionValidator
@@ -237,7 +237,7 @@ describe('calcBidTooLowPenalty', () => {
       auctions: pastEffParticipating.map(x => ({ effParticipatingBidPmpe: x, bidPmpe: x })),
       bidTooLowPenalty: { coef: NaN, base: NaN },
       marinadeActivatedStakeSol,
-      values: {commissions: null},
+      values: { commissions: null },
     } as unknown as AuctionValidator
 
     const native = _nativeCalc(historyLength, winningTotalPmpe, validator)
@@ -267,11 +267,11 @@ describe('calcBidTooLowPenalty', () => {
       auctions: [],
       bidTooLowPenalty: { coef: NaN, base: NaN },
       marinadeActivatedStakeSol: NaN,
-      values: {commissions: {
+      values: { commissions: {
         inflationCommissionDec: 1,
         mevCommissionDec: 1,
         blockRewardsCommissionDec: 1,
-      }},
+      } },
     } as unknown as AuctionValidator
     expect(() => _nativeCalc(1, 10, validator))
       .toThrow('bidTooLowPenaltyPmpe has to be finite')

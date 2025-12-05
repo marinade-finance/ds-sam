@@ -24,8 +24,8 @@ export const calcValidatorRevShare = (
 
   const commissions = validator.values.commissions
   // here we need to calculate what the validator needs to pay on top of on-chain commissions from bonds claim
-  const bondInflationPmpe = calculatePmpe(rewards.inflationPmpe, commissions.inflationCommissionInBondsDec)
-  const bondMevPmpe = calculatePmpe(rewards.mevPmpe, commissions.mevCommissionInBondsDec)
+  const bondInflationPmpe = calculatePmpe(rewards.inflationPmpe, commissions.inflationCommissionInBondDec)
+  const bondMevPmpe = calculatePmpe(rewards.mevPmpe, commissions.mevCommissionInBondDec)
   const bondsInflationPmpeDiff = Math.max(0, bondInflationPmpe - inflationPmpe)
   const bondsMevPmpeDiff = Math.max(0, bondMevPmpe - mevPmpe)
 
@@ -206,12 +206,12 @@ export const calcBidTooLowPenalty = (
   // TODO: what should be the safe change of commission without penalty?
   //       with tol_coef = 0.99999 it seems that validator can increase commission by 0.001% without penalty. Is that meant so?
   const pastAuction = auctions[0]
-  const isNegativeBiddingChange = 
+  const isNegativeBiddingChange =
     revShare.bidPmpe < tol_coef * (pastAuction?.bidPmpe ?? 0) ||
     tol_coef * commissions.inflationCommissionDec > (pastAuction?.commissions?.inflationCommissionDec ?? Infinity) ||
     tol_coef * commissions.mevCommissionDec > (pastAuction?.commissions?.mevCommissionDec ?? Infinity) ||
-    tol_coef * commissions.blockRewardsCommissionDec > (pastAuction?.commissions?.blockRewardsCommissionDec ?? Infinity);
-  console.log('revShare.bidPmpe', revShare.bidPmpe, 'tol_coef', 
+    tol_coef * commissions.blockRewardsCommissionDec > (pastAuction?.commissions?.blockRewardsCommissionDec ?? Infinity)
+  console.log('revShare.bidPmpe', revShare.bidPmpe, 'tol_coef',
     tol_coef, 'pastAuction?.bidPmpe', pastAuction?.bidPmpe ?? 0,
     'penaltyCoef', penaltyCoef,
     'isNegativeBiddingChange', isNegativeBiddingChange)

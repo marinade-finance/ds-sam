@@ -90,15 +90,15 @@ export class DataProvider {
       values: null,
     }
     const commissions = values?.commissions ?? {
-          inflationCommissionDec: 1,
-          mevCommissionDec: 1,
-          blockRewardsCommissionDec: 1,
-          inflationCommissionOnchainDec: 1,
-          inflationCommissionInBondsDec: null,
-          mevCommissionOnchainDec: null,
-          mevCommissionInBondsDec: null,
-          blockRewardsCommissionInBondsDec: null,
-        }
+      inflationCommissionDec: 1,
+      mevCommissionDec: 1,
+      blockRewardsCommissionDec: 1,
+      inflationCommissionOnchainDec: 1,
+      inflationCommissionInBondDec: null,
+      mevCommissionOnchainDec: null,
+      mevCommissionInBondDec: null,
+      blockRewardsCommissionInBondDec: null,
+    }
     if (revShare == null) {
       console.log(`validator ${validator.vote_account} did not participate in auction in epoch ${auction.epoch}`)
       return {
@@ -149,19 +149,19 @@ export class DataProvider {
       const mevCommissionOverrideDec = mevCommissionOverride !== undefined ? mevCommissionOverride / 10_000 : null
       const blockRewardsCommissionOverrideDec = blockRewardsCommissionOverride !== undefined ? blockRewardsCommissionOverride / 10_000 : null
 
-      const inflationCommissionInBondsDec = bond?.inflation_commission_bps ? Number(bond.inflation_commission_bps) / 10_000 : null
-      const mevCommissionInBondsDec = bond?.mev_commission_bps ? Number(bond.mev_commission_bps) / 10_000 : null
-      const blockRewardsCommissionInBondsDec = bond?.block_commission_bps ? Number(bond.block_commission_bps) / 10_000 : null
+      const inflationCommissionInBondDec = bond?.inflation_commission_bps ? Number(bond.inflation_commission_bps) / 10_000 : null
+      const mevCommissionInBondDec = bond?.mev_commission_bps ? Number(bond.mev_commission_bps) / 10_000 : null
+      const blockRewardsCommissionInBondDec = bond?.block_commission_bps ? Number(bond.block_commission_bps) / 10_000 : null
 
       const inflationCommissionOnchainDec = (validator.commission_effective ?? validator.commission_advertised ?? 100) / 100
       const mevCommissionOnchainDec = mev ? mev.mev_commission_bps / 10_000 : null
 
       // data to be applied in calculation of rev share as it considers the overrides and bond commissions (note: it can be negative)
-      let inflationCommissionDec = inflationCommissionOverrideDec ?? Math.min(inflationCommissionInBondsDec ?? Infinity, inflationCommissionOnchainDec)
-      let mevCommissionDec = mevCommissionOverrideDec ?? (mevCommissionInBondsDec != null && mevCommissionInBondsDec < (mevCommissionOnchainDec ?? 1)
-        ? mevCommissionInBondsDec
+      let inflationCommissionDec = inflationCommissionOverrideDec ?? Math.min(inflationCommissionInBondDec ?? Infinity, inflationCommissionOnchainDec)
+      let mevCommissionDec = mevCommissionOverrideDec ?? (mevCommissionInBondDec != null && mevCommissionInBondDec < (mevCommissionOnchainDec ?? 1)
+        ? mevCommissionInBondDec
         : mevCommissionOnchainDec)
-      let blockRewardsCommissionDec = blockRewardsCommissionOverrideDec ?? blockRewardsCommissionInBondsDec
+      let blockRewardsCommissionDec = blockRewardsCommissionOverrideDec ?? blockRewardsCommissionInBondDec
 
       // safeguard against validator accidentally overly low commission to pay overly more than 100% of rewards
       let minimalCommissionDec: number | undefined = undefined
@@ -233,9 +233,9 @@ export class DataProvider {
             blockRewardsCommissionDec: blockRewardsCommissionDec ?? 1,
             inflationCommissionOnchainDec,
             mevCommissionOnchainDec,
-            inflationCommissionInBondsDec,
-            mevCommissionInBondsDec,
-            blockRewardsCommissionInBondsDec,
+            inflationCommissionInBondDec,
+            mevCommissionInBondDec,
+            blockRewardsCommissionInBondDec,
             inflationCommissionOverrideDec: inflationCommissionOverrideDec ?? undefined,
             mevCommissionOverrideDec: mevCommissionOverrideDec ?? undefined,
             blockRewardsCommissionOverrideDec: blockRewardsCommissionOverrideDec ?? undefined,

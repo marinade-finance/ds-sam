@@ -105,12 +105,12 @@ export type CommissionDetails = {
   blockRewardsCommissionDec: number
   // detailed breakdown of commission settings
   inflationCommissionOnchainDec: number
-  inflationCommissionInBondsDec: number | null
+  inflationCommissionInBondDec: number | null
   inflationCommissionOverrideDec?: number
   mevCommissionOnchainDec: number | null
-  mevCommissionInBondsDec: number | null
+  mevCommissionInBondDec: number | null
   mevCommissionOverrideDec?: number
-  blockRewardsCommissionInBondsDec: number | null
+  blockRewardsCommissionInBondDec: number | null
   blockRewardsCommissionOverrideDec?: number
   minimalCommissionDec?: number
 }
