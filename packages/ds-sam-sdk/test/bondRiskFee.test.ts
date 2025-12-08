@@ -210,7 +210,17 @@ describe('calcBondRiskFee', () => {
   })
 
   it('handles zero expected max PMPE', () => {
-    const revShare = { ...baseRevShare, totalPmpe: 0, effParticipatingBidPmpe: 0, inflationPmpe: 0, mevPmpe: 0, blockPmpe: 0, auctionEffectiveBidPmpe: 0, expectedMaxEffBidPmpe: 0 }
+    const revShare = {
+      ...baseRevShare,
+      totalPmpe: 0,
+      effParticipatingBidPmpe: 0,
+      inflationPmpe: 0,
+      mevPmpe: 0,
+      blockPmpe: 0,
+      auctionEffectiveBidPmpe: 0,
+      expectedMaxEffBidPmpe: 0,
+      onchainDistributedPmpe: 0,
+    }
     const validator = makeValidator({
       bondBalanceSol: 0,
       lastBondBalanceSol: 10,

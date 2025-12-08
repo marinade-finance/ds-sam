@@ -341,7 +341,7 @@ describe('sam', () => {
     })
   })
 
-  describe.only('test dynamic commission', () => {
+  describe('test dynamic commission', () => {
     it('ds sam sdk run', async () => {
       const voteAccounts = generateVoteAccounts()
       const identities = generateIdentities()
@@ -368,14 +368,14 @@ describe('sam', () => {
         .withMevCommission(10)
         .withLiquidStake(10_000)
         .withExternalStake(100_000)
-        // Blacklisted validator - should be ineligible
+      // Blacklisted validator - should be ineligible
       const validator4Blacklist = new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
         .withGoodPerformance()
         .blacklisted()
         .withBond({ stakeWanted: 1_000_000, cpmpe: 0, balance: 100 })
         .withLiquidStake(10_000)
         .withExternalStake(100_000)
-        // Validator with poor performance (bad uptime) - should be ineligible
+      // Validator with poor performance (bad uptime) - should be ineligible
       const validator5Poor = new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
         .withBadPerformance()
         .withInflationCommission(5)
@@ -390,7 +390,7 @@ describe('sam', () => {
         })
         .withLiquidStake(100_000)
         .withExternalStake(100_000)
-        // Validator with high commission - test SAM vs MNDE eligibility
+      // Validator with high commission - test SAM vs MNDE eligibility
       const validator6HighCommission = new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
         .withGoodPerformance()
         .withInflationCommission(95)
@@ -399,7 +399,7 @@ describe('sam', () => {
         .withLiquidStake(100_000)
         .withNativeStake(1_000_000)
         .withExternalStake(100_000)
-        // Zero commission validator - should be backstop eligible
+      // Zero commission validator - should be backstop eligible
       const validator7BackStop = new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
         .withGoodPerformance()
         .withInflationCommission(10)
@@ -449,7 +449,7 @@ describe('sam', () => {
       const ineligibleValidators = result.auctionData.validators.filter(v => !v.samEligible && !v.mndeEligible)
       expect(ineligibleValidators.length).toEqual(4)
       const backstopValidators = result.auctionData.validators.filter(v => v.backstopEligible)
-      expect(backstopValidators.length).toEqual(1)
+      expect(backstopValidators.length).toEqual(4) // including 3 eligible + 1 zero commission
 
       let marinateTargetSolSum = 0
       result.auctionData.validators.forEach(validator => {

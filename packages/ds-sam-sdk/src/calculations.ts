@@ -80,6 +80,7 @@ const calculatePmpe = (pmpe: number | null, commissionDec: number | null): numbe
   return result.toNumber()
 }
 
+// cf. https://www.notion.so/marinade/20250527-MRP-4-Stake-Auction-Marketplace-Re-balance-Dynamics-1e4e465715a480589819c33ab013c697
 export type BondRiskFeeConfig = {
   minBondEpochs: number
   idealBondEpochs: number
@@ -125,10 +126,10 @@ export const calcBondRiskFee = (
 ): BondRiskFeeResult | null => {
   const { revShare } = validator
   const projectedActivatedStakeSol = Math.max(0, validator.marinadeActivatedStakeSol - validator.values.paidUndelegationSol)
-  const minBondCoef = (revShare.inflationPmpe + revShare.mevPmpe + revShare.blockPmpe + (cfg.minBondEpochs + 1) * revShare.expectedMaxEffBidPmpe) / 1000
+  const minBondCoef = (revShare.onchainDistributedPmpe + (cfg.minBondEpochs + 1) * revShare.expectedMaxEffBidPmpe) / 1000
   const riskBondSol = cfg.pendingWithdrawalBondMult * (validator.claimableBondBalanceSol ?? 0) + (1 - cfg.pendingWithdrawalBondMult) * (validator.bondBalanceSol ?? 0)
   if (riskBondSol < projectedActivatedStakeSol * minBondCoef) {
-    const idealBondCoef = (revShare.inflationPmpe + revShare.mevPmpe + revShare.blockPmpe + (cfg.idealBondEpochs + 1) * revShare.expectedMaxEffBidPmpe) / 1000
+    const idealBondCoef = (revShare.onchainDistributedPmpe + (cfg.idealBondEpochs + 1) * revShare.expectedMaxEffBidPmpe) / 1000
     const feeCoef = (revShare.onchainDistributedPmpe + revShare.auctionEffectiveBidPmpe) / 1000
     // always: base >= 0, even with no max, since idealBondCoef >= minBondCoef, since idealBondEpochs >= minBondEpochs
     // and we already ensured that riskBondSol / minBondCoef < projectedActivatedStakeSol above
@@ -137,7 +138,7 @@ export const calcBondRiskFee = (
     const coef = 1 - feeCoef / idealBondCoef
     let value = coef > 0 ? Math.min(projectedActivatedStakeSol, base / coef) : projectedActivatedStakeSol
     // always: value <= projectedActivatedStakeSol
-    if ((projectedActivatedStakeSol - value) * (revShare.inflationPmpe + revShare.mevPmpe + revShare.blockPmpe + revShare.expectedMaxEffBidPmpe) / 1000 < cfg.minBondBalanceSol) {
+    if ((projectedActivatedStakeSol - value) * (revShare.onchainDistributedPmpe + revShare.expectedMaxEffBidPmpe) / 1000 < cfg.minBondBalanceSol) {
       value = projectedActivatedStakeSol
     }
     const bondRiskFeeSol = cfg.bondRiskFeeMult * value * feeCoef
@@ -184,6 +185,7 @@ export type BidTooLowPenaltyResult = {
 
 // Calculates the penalty for lowering the bid (considered whatever static, or dynamic commission)
 //  compared to the last epochs - i.e., penalizes validators who reduce their commitment
+// cf. https://www.notion.so/marinade/20250416-MRP-2-Stake-Auction-Marketplace-Bid-Penalty-1d7e465715a480cc80cecd86d63ce6af
 export const calcBidTooLowPenalty = (
   bidTooLowPenaltyHistoryEpochs: number,
   winningTotalPmpe: number,
@@ -198,27 +200,16 @@ export const calcBidTooLowPenalty = (
     Infinity
   )
   const limit = Math.min(revShare.effParticipatingBidPmpe, historicalPmpe)
-  console.log('revShare.effParticipatingBidPmpe', revShare.effParticipatingBidPmpe, 'historicalPmpe',
-    historicalPmpe, 'limit', limit)
   const penaltyCoef = limit > 0
     ? Math.min(1, Math.sqrt(scale_coef * Math.max(0, (limit - revShare.bondObligationPmpe) / limit)))
     : 0
-  // TODO: what should be the safe change of commission without penalty?
-  //       with tol_coef = 0.99999 it seems that validator can increase commission by 0.001% without penalty. Is that meant so?
   const pastAuction = auctions[0]
   const isNegativeBiddingChange =
     revShare.bidPmpe < tol_coef * (pastAuction?.bidPmpe ?? 0) ||
     tol_coef * commissions.inflationCommissionDec > (pastAuction?.commissions?.inflationCommissionDec ?? Infinity) ||
     tol_coef * commissions.mevCommissionDec > (pastAuction?.commissions?.mevCommissionDec ?? Infinity) ||
     tol_coef * commissions.blockRewardsCommissionDec > (pastAuction?.commissions?.blockRewardsCommissionDec ?? Infinity)
-  console.log('revShare.bidPmpe', revShare.bidPmpe, 'tol_coef',
-    tol_coef, 'pastAuction?.bidPmpe', pastAuction?.bidPmpe ?? 0,
-    'penaltyCoef', penaltyCoef,
-    'isNegativeBiddingChange', isNegativeBiddingChange)
   const bidTooLowPenaltyValue = {
-    // TODO: before there was: winningTotalPmpe + revShare.effParticipatingBidPmpe which is winning total pmp + what validator wants to pay
-    //       https://github.com/marinade-finance/ds-sam/blob/8a617fda5c73f709a9ca8b49a17b803e9b550f07/packages/ds-sam-sdk/src/calculations.ts#L102-L142
-    //       so wondering about the formula where the winningTotalPmpe seems to me being on top of everything
     base: winningTotalPmpe + revShare.effParticipatingBidPmpe,
     // did validator lower its bid compared to last epoch; if so how much
     coef: isNegativeBiddingChange ? penaltyCoef : 0
@@ -227,8 +218,6 @@ export const calcBidTooLowPenalty = (
   const paidUndelegationSol = bidTooLowPenaltyPmpe > 0
     ? bidTooLowPenaltyPmpe * validator.marinadeActivatedStakeSol / winningTotalPmpe
     : 0
-  console.log('bidTooLowPenaltyValue', bidTooLowPenaltyValue, 'bidTooLowPenaltyPmpe', bidTooLowPenaltyPmpe,
-    'paidUndelegationSol', paidUndelegationSol)
   if (!isFinite(bidTooLowPenaltyPmpe)) {
     throw new Error(`bidTooLowPenaltyPmpe has to be finite # ${JSON.stringify(bidTooLowPenaltyValue)}`)
   }

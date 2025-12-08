@@ -15,10 +15,10 @@ pnpm run cli -- auction [--options...]
 
 ```bash
 cache_dir="/tmp/cache"
-rm -rf "$cache_dir" &&\
-  mkdir -p "${cache_dir}/inputs" "${cache_dir}/outputs" &&\
-  inputs_dir="${cache_dir}/inputs" &&\
-  outputs_dir="${cache_dir}/outputs"  &&\
+rm -rf "$cache_dir" && \
+  mkdir -p "${cache_dir}/inputs" "${cache_dir}/outputs" && \
+  inputs_dir="${cache_dir}/inputs" && \
+  outputs_dir="${cache_dir}/outputs"  && \
   curl 'https://raw.githubusercontent.com/marinade-finance/ds-sam-pipeline/refs/heads/main/auction-config.json' \
     > "${inputs_dir}/config.json"
 

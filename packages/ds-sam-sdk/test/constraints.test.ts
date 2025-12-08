@@ -62,7 +62,6 @@ import { AuctionConstraints } from '../src/constraints'
 import { AuctionConstraintsConfig, AuctionValidator, AuctionData } from '../src/types'
 import { ineligibleValidatorAggDefaults } from '../src/utils'
 import { Debug } from '../src/debug'
-import { on } from 'events'
 
 const BASE_CONSTRAINTS: AuctionConstraintsConfig = {
   totalCountryStakeCapSol: Infinity,
@@ -608,5 +607,26 @@ describe('getMinCapForEvenDistribution – no constraints', () => {
   const c = makeConstraints()
   it('throws if voteAccounts set is empty', () => {
     expect(() => c.getMinCapForEvenDistribution(new Set())).toThrow(/Failed to find/)
+  })
+})
+
+describe('bondObligationSafetyMult effect on bond caps', () => {
+  it('applies safety multiplier to bond obligation calculation', () => {
+    const c = makeConstraints({
+      bondObligationSafetyMult: 1.35,
+    })
+
+    const v = makeValidator({
+      bondBalanceSol: 1000,
+      marinadeActivatedStakeSol: 50,
+      revShare: {
+        totalPmpe: 0.2,
+        bondObligationPmpe: 0.1,
+      },
+    })
+
+    const bondBalanceC = c.bondBalanceRequiredForCurrentStake(v)
+    // ( refundable deposit (total Pmpe) + bondObligationPerStake (what from bond) + downtime (= 0) ) * stake
+    expect(bondBalanceC).toBeCloseTo((0.1/1000*1.35 + 0.2/1000 + 0) * 50, 6)
   })
 })
