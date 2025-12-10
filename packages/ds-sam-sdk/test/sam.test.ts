@@ -449,7 +449,7 @@ describe('sam', () => {
       const ineligibleValidators = result.auctionData.validators.filter(v => !v.samEligible && !v.mndeEligible)
       expect(ineligibleValidators.length).toEqual(4)
       const backstopValidators = result.auctionData.validators.filter(v => v.backstopEligible)
-      expect(backstopValidators.length).toEqual(4) // including 3 eligible + 1 zero commission
+      expect(backstopValidators.length).toEqual(2) // including 1 eligible + 1 zero commission
 
       let marinateTargetSolSum = 0
       result.auctionData.validators.forEach(validator => {

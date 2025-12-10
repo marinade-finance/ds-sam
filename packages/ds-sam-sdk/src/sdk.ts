@@ -117,7 +117,7 @@ export class DsSamSDK {
           return { ...validator, revShare, auctionStake, ...ineligibleValidatorAggDefaults() }
         }
       }
-      const zeroCommissionPmpe = Math.max(0, rewards.inflationPmpe)
+      const zeroCommissionPmpe = Math.max(0, rewards.inflationPmpe + rewards.mevPmpe)
       const backstopEligible = this.config.enableZeroCommissionBackstop && (revShare.inflationPmpe + revShare.mevPmpe + revShare.blockPmpe >= zeroCommissionPmpe)
       if (validator.bondBalanceSol === null) {
         return { ...validator, revShare, auctionStake, ...ineligibleValidatorAggDefaults(), backstopEligible }
