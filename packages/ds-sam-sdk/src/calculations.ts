@@ -193,6 +193,7 @@ export const calcBidTooLowPenalty = (
 ): BidTooLowPenaltyResult => {
   const tol_coef = 0.99999
   const scale_coef = 1.5
+  const permitted_bid_deviation = 0.05
   const { revShare, auctions, values: { commissions } } = validator
 
   const historicalPmpe = auctions.slice(0, bidTooLowPenaltyHistoryEpochs).reduce(
@@ -200,8 +201,9 @@ export const calcBidTooLowPenalty = (
     Infinity
   )
   const limit = Math.min(revShare.effParticipatingBidPmpe, historicalPmpe)
-  const penaltyCoef = limit > 0
-    ? Math.min(1, Math.sqrt(scale_coef * Math.max(0, (limit - revShare.bondObligationPmpe) / limit)))
+  const adjusted_limit = limit * (1 - permitted_bid_deviation)
+  const penaltyCoef = adjusted_limit > 0
+    ? Math.min(1, Math.sqrt(scale_coef * Math.max(0, (adjusted_limit - revShare.bondObligationPmpe) / adjusted_limit)))
     : 0
   const pastAuction = auctions[0]
   const isNegativeBiddingChange =
@@ -211,7 +213,7 @@ export const calcBidTooLowPenalty = (
     tol_coef * commissions.blockRewardsCommissionDec > (pastAuction?.commissions?.blockRewardsCommissionDec ?? Infinity)
   const bidTooLowPenaltyValue = {
     base: winningTotalPmpe + revShare.effParticipatingBidPmpe,
-    // did validator lower its bid compared to last epoch; if so how much
+    // how validator  did validator lower its bid compared to last epoch; if so how much
     coef: isNegativeBiddingChange ? penaltyCoef : 0
   }
   const bidTooLowPenaltyPmpe = bidTooLowPenaltyValue.coef * bidTooLowPenaltyValue.base

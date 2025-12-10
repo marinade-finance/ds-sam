@@ -43,7 +43,14 @@ export class ValidatorMockBuilder {
     this.nativeStake = 50_000
     this.liquidStake = 100_000
     this.externalStake = 200_000
-    this.bond = { stakeWanted: 150_000, cpmpe: 0, balance: 1000, bondInflationCommission: null, bondMevCommission: null, bondBlockCommission: null }
+    this.bond = {
+      stakeWanted: 150_000,
+      cpmpe: 0,
+      balance: 1000,
+      bondInflationCommission: null,
+      bondMevCommission: null,
+      bondBlockCommission: null
+    }
     return this
   }
 

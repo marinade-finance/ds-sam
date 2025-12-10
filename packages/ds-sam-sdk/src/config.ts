@@ -40,6 +40,7 @@ export type DsSamConfig = {
   // Max effective commission of a validator to be eligible
   validatorsMaxEffectiveCommissionDec: number
   // How much unprotected stake do we put on a validator w.r.t the foundation delegated stake
+  // Note: In the docs, the term "stake matching" is used instead of "unprotected stake"
   unprotectedFoundationStakeDec: number
   // How much unprotected stake do we put on a validator w.r.t the other 3-rd party delegated stake
   unprotectedDelegatedStakeDec: number
