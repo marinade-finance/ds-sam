@@ -132,6 +132,11 @@ export type DsSamConfig = {
   // by this factor must be in interval [1.0, 2.0].
   bondObligationSafetyMult: number
 
+  // Permitted deviation in bid Pmpe below the winning bid Pmpe
+  // This deviation will not be penalized when calculating the BidTooLowPenalty meaning validator
+  // may slightly underbid the winning bid without being penalized. Permitted interval is [0, 1.0].
+  bidTooLowPenaltyPermittedDeviationPmpe: number
+
   // Validator vote accounts to collect debug info for
   debugVoteAccounts: string[]
 }
@@ -186,6 +191,7 @@ export const DEFAULT_CONFIG: DsSamConfig = {
   minExpectedEffBidPmpe: 0,
   minEligibleFeePmpe: null,
   bondObligationSafetyMult: 1,
+  bidTooLowPenaltyPermittedDeviationPmpe: 0.05,
   minimalCommission: -2.0,
 
   debugVoteAccounts: [],

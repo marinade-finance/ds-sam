@@ -66,7 +66,7 @@ const calcBidTooLowPenalty = ({
     }
   } as unknown as AuctionValidator
 
-  const res = _nativeCalc(historyLength, winningTotalPmpe, validator) as any
+  const res = _nativeCalc({ historyEpochs: historyLength, winningTotalPmpe, validator, permittedBidDeviation: 0.05 } ) as any
   return {
     coef: res.bidTooLowPenalty.coef,
     base: res.bidTooLowPenalty.base,
@@ -245,7 +245,7 @@ describe('calcBidTooLowPenalty', () => {
       values: { commissions: null },
     } as unknown as AuctionValidator
 
-    const native = _nativeCalc(historyLength, winningTotalPmpe, validator)
+    const native = _nativeCalc({ historyEpochs: historyLength, winningTotalPmpe, validator, permittedBidDeviation: 0.05 })
     const expectedCoef = Math.min(1, Math.sqrt(1.5 * (20 * COEF_DEVIATION - 15) / (20 * COEF_DEVIATION)))
     const expectedBase = winningTotalPmpe + effParticipatingBidPmpe
     const expectedPmpe = expectedCoef * expectedBase
@@ -278,19 +278,18 @@ describe('calcBidTooLowPenalty', () => {
         blockRewardsCommissionDec: 1,
       } },
     } as unknown as AuctionValidator
-    expect(() => _nativeCalc(1, 10, validator))
+    expect(() => _nativeCalc({ historyEpochs: 1, winningTotalPmpe: 10, validator }))
       .toThrow('bidTooLowPenaltyPmpe has to be finite')
   })
 
-  it('no penalty when commissions stay the same', () => {
+  it('no penalty when commissions increased in the permitted limits', () => {
     const validator = {
       revShare: {
         bidPmpe: 20,
-        inflationPmpe: 10,
-        mevPmpe: 5,
-        blockPmpe: 0,
-        bondObligationPmpe: 20,
-        effParticipatingBidPmpe: 20,
+        // for penalty would be hit we need to see that the effective participating has decreased
+        effParticipatingBidPmpe: 16.6,
+        // bond obligation has decreased with the effective participating bid has decreased
+        bondObligationPmpe: 15.6,
         totalPmpe: NaN,
         bidTooLowPenaltyPmpe: NaN
       },
@@ -298,6 +297,7 @@ describe('calcBidTooLowPenalty', () => {
         effParticipatingBidPmpe: 20,
         bidPmpe: 20,
         commissions: {
+          // last auction commissions
           inflationCommissionDec: 0.05,
           mevCommissionDec: 0.05,
           blockRewardsCommissionDec: 0.05
@@ -306,10 +306,71 @@ describe('calcBidTooLowPenalty', () => {
       bidTooLowPenalty: { coef: NaN, base: NaN },
       marinadeActivatedStakeSol: 1000,
       values: {
+        // current commissions have slightly increased but within permitted deviation
         commissions: {
+          inflationCommissionDec: 0.07,
+          mevCommissionDec: 0.07,
+          blockRewardsCommissionDec: 0.07,
+          inflationCommissionOnchainDec: NaN,
+          inflationCommissionInBondDec: null,
+          mevCommissionOnchainDec: null,
+          mevCommissionInBondDec: null,
+          blockRewardsCommissionInBondDec: null,
+        }
+      }
+    } as unknown as AuctionValidator
+
+    const res = _nativeCalc({
+      historyEpochs: historyLength,
+      winningTotalPmpe: 40,
+      validator,
+      permittedBidDeviation: 0.07,
+    })
+    // as of permitted deviation the coef is zero
+    expect(res.bidTooLowPenalty.coef).toBe(0)
+    expect(res.bidTooLowPenalty.base).toBe(56.6) // 40 + 16.6
+    expect(res.bidTooLowPenaltyPmpe).toBe(0)
+    expect(res.paidUndelegationSol).toBe(0)
+
+    const resWithPenalty = _nativeCalc({
+      historyEpochs: historyLength,
+      winningTotalPmpe: 40,
+      validator,
+      permittedBidDeviation: 0,
+    })
+    expect(resWithPenalty.bidTooLowPenalty.coef).toBeGreaterThan(0)
+    expect(resWithPenalty.bidTooLowPenaltyPmpe).toBeGreaterThan(0)
+    expect(resWithPenalty.paidUndelegationSol).toBeGreaterThan(0)
+  })
+
+  it('we can decrease commission and increase bid and no penalty is applied', () => {
+    const validator = {
+      revShare: {
+        bidPmpe: 20,
+        effParticipatingBidPmpe: 16.6,
+        bondObligationPmpe: 15.6,
+        totalPmpe: NaN,
+        bidTooLowPenaltyPmpe: NaN
+      },
+      auctions: [{
+        // last auction bids (bid pmpe increased from last time)
+        effParticipatingBidPmpe: 16.6,
+        bidPmpe: 0,
+        commissions: {
+          // last auction commissions
           inflationCommissionDec: 0.05,
           mevCommissionDec: 0.05,
-          blockRewardsCommissionDec: 0.05,
+          blockRewardsCommissionDec: 0.05
+        }
+      }],
+      bidTooLowPenalty: { coef: NaN, base: NaN },
+      marinadeActivatedStakeSol: 1000,
+      values: {
+        // commissions decreased
+        commissions: {
+          inflationCommissionDec: -0.1,
+          mevCommissionDec: -2.0,
+          blockRewardsCommissionDec: -0.8,
           inflationCommissionOnchainDec: 0.05,
           inflationCommissionInBondDec: null,
           mevCommissionOnchainDec: null,
@@ -319,10 +380,14 @@ describe('calcBidTooLowPenalty', () => {
       }
     } as unknown as AuctionValidator
 
-    const res = _nativeCalc(historyLength, 40, validator)
+    const res = _nativeCalc({
+      historyEpochs: historyLength,
+      winningTotalPmpe: 40,
+      validator,
+      permittedBidDeviation: 0,
+    })
     // isNegativeBiddingChange = false (nothing changed)
     expect(res.bidTooLowPenalty.coef).toBe(0)
-    expect(res.bidTooLowPenalty.base).toBe(60) // 40 + 20
     expect(res.bidTooLowPenaltyPmpe).toBe(0)
     expect(res.paidUndelegationSol).toBe(0)
   })
@@ -364,7 +429,7 @@ describe('calcBidTooLowPenalty', () => {
       }
     } as unknown as AuctionValidator
 
-    const res = _nativeCalc(historyLength, winningTotalPmpe, validator)
+    const res = _nativeCalc({ historyEpochs: historyLength, winningTotalPmpe, validator, permittedBidDeviation: 0.05 })
 
     const adjusted_limit = 25 * COEF_DEVIATION
 
@@ -411,7 +476,7 @@ describe('calcBidTooLowPenalty', () => {
       }
     } as unknown as AuctionValidator
 
-    const res = _nativeCalc(historyLength, 40, validator)
+    const res = _nativeCalc({ historyEpochs: historyLength, winningTotalPmpe: 40, validator, permittedBidDeviation: 0.05 })
     // Should apply penalty based on bidPmpe reduction
     expect(res.bidTooLowPenalty.coef).toBeGreaterThan(0)
   })

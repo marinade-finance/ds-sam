@@ -282,7 +282,12 @@ export class Auction {
   setBidTooLowPenalties (winningTotalPmpe: number) {
     const k = this.config.bidTooLowPenaltyHistoryEpochs
     for (const validator of this.data.validators) {
-      const value = calcBidTooLowPenalty(k, winningTotalPmpe, validator)
+      const value = calcBidTooLowPenalty({
+        historyEpochs: k,
+        winningTotalPmpe,
+        validator,
+        permittedBidDeviation: this.config.bidTooLowPenaltyPermittedDeviationPmpe,
+      })
       validator.bidTooLowPenalty = value.bidTooLowPenalty
       validator.revShare.bidTooLowPenaltyPmpe = value.bidTooLowPenaltyPmpe
       validator.values.paidUndelegationSol += value.paidUndelegationSol

@@ -26,6 +26,10 @@ export class AuctionCommand extends CommandRunner {
     const fileConfig: AuctionCommandOptions = options.configFilePath ? JSON.parse(fs.readFileSync(options.configFilePath).toString()) : {}
     const config: AuctionCommandOptions = { ...fileConfig, ...options }
 
+    if (config.outputDirPath && !fs.existsSync(config.outputDirPath)) {
+      throw new Error(`Output directory path "${config.outputDirPath}" does not exist`)
+    }
+
     this.logger.log(`Running "${COMMAND_NAME}" command...`, { ...config })
     const dsSam = new DsSamSDK({ ...config })
     const result = options.runFinalOnly ? await dsSam.runFinalOnly() : await dsSam.run()
