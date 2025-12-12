@@ -119,8 +119,9 @@ export class AnalyzeRevenuesCommand extends CommandRunner {
       pastSnapshotValidatorsCollection = loadSnapshotValidatorsCollection(options.snapshotPastValidatorsFilePath)
       assert(
         pastSnapshotValidatorsCollection.epoch === snapshotValidatorsCollection.epoch -1,
-        'Epoch loaded from argument data \'--snapshot-past-validators-file-path\' has to be one less than the current snapshot epoch, ' +
-        `but validators epoch is ${snapshotValidatorsCollection.epoch} and past validators is ${pastSnapshotValidatorsCollection.epoch}`
+        `Epoch loaded from argument data '--snapshot-past-validators-file-path ${options.snapshotValidatorsFilePath}' ` +
+        `has to be one less than the current snapshot epoch, but validators epoch is '${snapshotValidatorsCollection.epoch}' ` +
+        `and past validators is '${pastSnapshotValidatorsCollection.epoch}'`
       )
     }
 

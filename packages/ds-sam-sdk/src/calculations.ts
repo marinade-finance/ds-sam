@@ -17,7 +17,6 @@ export const calcValidatorRevShare = (
 ): RevShare => {
   // what the validator wants to share with stakers per 1000 SOL staked (of total, including bonds and overrides)
   const inflationPmpe = calculatePmpe(rewards.inflationPmpe, validator.inflationCommissionDec)
-  console.log({ inflationPmpe, rewardsInflation: rewards.inflationPmpe, commission: validator.inflationCommissionDec })
   const mevPmpe = calculatePmpe(rewards.mevPmpe, validator.mevCommissionDec)
   const blockPmpe = calculatePmpe(rewards.blockPmpe, validator.blockRewardsCommissionDec)
   const bidPmpe = Math.max(0, validator.bidCpmpe ?? 0)
@@ -34,7 +33,6 @@ export const calcValidatorRevShare = (
   const onchainDistributedMevPmpe = commissions.mevCommissionOverrideDec !== null ? mevPmpe : calculatePmpe(rewards.mevPmpe, commissions.mevCommissionOnchainDec)
 
   const totalPmpe = inflationPmpe + mevPmpe + bidPmpe + blockPmpe
-  console.log({ vote: validator.voteAccount, totalPmpe, inflationPmpe, mevPmpe, bidPmpe, blockPmpe })
   assert(totalPmpe >= 0, 'Total PMPE cannot be negative')
   assert(isFinite(totalPmpe), 'Total PMPE has to be finite')
 
@@ -210,8 +208,6 @@ export const calcBidTooLowPenalty = ({
   const penaltyCoef = adjustedLimit > 0
     ? Math.min(1, Math.sqrt(scaleCoef * Math.max(0, (adjustedLimit - revShare.bondObligationPmpe) / adjustedLimit)))
     : 0
-  console.log({ vote: validator.voteAccount,
-    limit, adjustedLimit, penaltyCoef, bondObligation: revShare.bondObligationPmpe })
   const pastAuction = auctions[0]
   const isNegativeBiddingChange =
     revShare.bidPmpe < tolCoef * (pastAuction?.bidPmpe ?? 0) ||
