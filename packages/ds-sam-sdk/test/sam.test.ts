@@ -1,8 +1,9 @@
 import { DsSamSDK } from '../src'
-import { defaultStaticDataProviderBuilder } from './helpers/static-data-provider-builder'
+import { blockRewardsStaticDataProviderBuilder, defaultStaticDataProviderBuilder } from './helpers/static-data-provider-builder'
 import { prettyPrintAuctionResult, prettyPrintStakeUnstakePriorities } from './helpers/utils'
 import { ValidatorMockBuilder, generateIdentities, generateVoteAccounts } from './helpers/validator-mock-builder'
 import { MNDE_VOTE_DELEGATION_STRATEGY } from '../src/utils'
+import assert from 'assert'
 
 describe('sam', () => {
   describe('distribution', () => {
@@ -241,6 +242,11 @@ describe('sam', () => {
               revShare.effParticipatingBidPmpe -
               result.winningTotalPmpe
           )).toBeLessThan(1e-12)
+          expect(Math.abs(
+            revShare.onchainDistributedPmpe +
+              revShare.effParticipatingBidPmpe -
+              result.winningTotalPmpe
+          )).toBeLessThan(1e-12)
         })
 
       result.auctionData.validators
@@ -261,6 +267,11 @@ describe('sam', () => {
           expect(Math.abs(
             revShare.mevPmpe +
               revShare.inflationPmpe +
+              revShare.auctionEffectiveBidPmpe -
+              result.winningTotalPmpe
+          )).toBeLessThan(1e-12)
+          expect(Math.abs(
+            revShare.onchainDistributedPmpe +
               revShare.auctionEffectiveBidPmpe -
               result.winningTotalPmpe
           )).toBeLessThan(1e-12)
@@ -299,6 +310,11 @@ describe('sam', () => {
               revShare.effParticipatingBidPmpe -
               result.winningTotalPmpe
           )).toBeLessThan(1e-12)
+          expect(Math.abs(
+            revShare.onchainDistributedPmpe +
+              revShare.effParticipatingBidPmpe -
+              result.winningTotalPmpe
+          )).toBeLessThan(1e-12)
         })
 
       result.auctionData.validators
@@ -316,8 +332,205 @@ describe('sam', () => {
               revShare.auctionEffectiveBidPmpe -
               result.winningTotalPmpe
           )).toBeLessThan(1e-12)
+          expect(Math.abs(
+            revShare.onchainDistributedPmpe +
+              revShare.auctionEffectiveBidPmpe -
+              result.winningTotalPmpe
+          )).toBeLessThan(1e-12)
         })
+    })
+  })
 
+  describe('test dynamic commission', () => {
+    it('ds sam sdk run', async () => {
+      const voteAccounts = generateVoteAccounts()
+      const identities = generateIdentities()
+
+      // Validator with good performance and bond - should be SAM and MNDE eligible
+      const validator1Good = new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
+        .withInflationCommission(5)
+        .withMevCommission(10)
+        .withGoodPerformance()
+        .withBond({ stakeWanted: 1_000_000, cpmpe: 0, balance: 100 })
+        .withNativeStake(0)
+        .withExternalStake(100_000)
+      const validator2Good = new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
+        .withInflationCommission(5)
+        .withMevCommission(10)
+        .withGoodPerformance()
+        .withBond({ stakeWanted: 1_000_000, cpmpe: 0, balance: 100, bondBlockCommission: 20 })
+        .withNativeStake(0)
+        .withExternalStake(100_000)
+      // Validator with no bond - should not be SAM eligible
+      const validator3NoBond = new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
+        .withGoodPerformance()
+        .withInflationCommission(5)
+        .withMevCommission(10)
+        .withLiquidStake(10_000)
+        .withExternalStake(100_000)
+      // Blacklisted validator - should be ineligible
+      const validator4Blacklist = new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
+        .withGoodPerformance()
+        .blacklisted()
+        .withBond({ stakeWanted: 1_000_000, cpmpe: 0, balance: 100 })
+        .withLiquidStake(10_000)
+        .withExternalStake(100_000)
+      // Validator with poor performance (bad uptime) - should be ineligible
+      const validator5Poor = new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
+        .withBadPerformance()
+        .withInflationCommission(5)
+        .withMevCommission(1)
+        .withBond({
+          stakeWanted: 1_000_000,
+          cpmpe: 0,
+          balance: 100,
+          bondInflationCommission: 4,
+          bondMevCommission: 1,
+          bondBlockCommission: 98,
+        })
+        .withLiquidStake(100_000)
+        .withExternalStake(100_000)
+      // Validator with high commission - test SAM vs MNDE eligibility
+      const validator6HighCommission = new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
+        .withGoodPerformance()
+        .withInflationCommission(95)
+        .withMevCommission(95)
+        .withBond({ stakeWanted: 1_000_000, cpmpe: 0, balance: 100, bondBlockCommission: 95 })
+        .withLiquidStake(100_000)
+        .withNativeStake(1_000_000)
+        .withExternalStake(100_000)
+      // Zero commission validator - should be backstop eligible
+      const validator7BackStop = new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
+        .withGoodPerformance()
+        .withInflationCommission(10)
+        .withMevCommission(20)
+        .withBond({
+          stakeWanted: 1_000_000,
+          cpmpe: 0,
+          balance: 10_000,
+          bondBlockCommission: 0,
+          bondInflationCommission: 0,
+          bondMevCommission: 0,
+        })
+        .withLiquidStake(1_000_000)
+        .withNativeStake(1_000_000)
+        .withExternalStake(1_000_000)
+
+      const validators = [
+        validator1Good,
+        validator2Good,
+        validator3NoBond,
+        validator4Blacklist,
+        validator5Poor,
+        validator6HighCommission,
+        validator7BackStop
+      ]
+
+      const dsSam = new DsSamSDK(
+        { enableZeroCommissionBackstop: true },
+        blockRewardsStaticDataProviderBuilder(validators)
+      )
+
+      const result = await dsSam.run()
+      const auctionRewards = result.auctionData.rewards
+
+      for (const validator of result.auctionData.validators) {
+        // Verify zero commission validator is backstop eligible
+        if (validator.voteAccount === validator7BackStop.voteAccount) {
+          expect(validator.backstopEligible).toBe(true)
+          expect(validator.revShare.inflationPmpe + validator.revShare.mevPmpe + validator.revShare.blockPmpe).
+            toEqual(validator.revShare.totalPmpe)
+          expect(validator.revShare.totalPmpe).toEqual(auctionRewards.blockPmpe + auctionRewards.inflationPmpe + auctionRewards.mevPmpe)
+        }
+      }
+
+      const eligibleValidators = result.auctionData.validators.filter(v => v.samEligible || v.mndeEligible)
+      expect(eligibleValidators.length).toEqual(3)
+      const ineligibleValidators = result.auctionData.validators.filter(v => !v.samEligible && !v.mndeEligible)
+      expect(ineligibleValidators.length).toEqual(4)
+      const backstopValidators = result.auctionData.validators.filter(v => v.backstopEligible)
+      expect(backstopValidators.length).toEqual(2) // including 1 eligible + 1 zero commission
+
+      let marinateTargetSolSum = 0
+      result.auctionData.validators.forEach(validator => {
+        expect(validator.revShare).toBeDefined()
+        expect(validator.revShare.totalPmpe).toBeDefined()
+        expect(validator.revShare.inflationPmpe).toBeDefined()
+        expect(validator.revShare.mevPmpe).toBeDefined()
+        expect(validator.revShare.blockPmpe).toBeDefined()
+        marinateTargetSolSum += validator.auctionStake.marinadeSamTargetSol + validator.auctionStake.marinadeMndeTargetSol
+      })
+
+      const backStopValidator = result.auctionData.validators.find(v => v.voteAccount === validator7BackStop.voteAccount)
+      assert(backStopValidator, 'Backstopped validator not found in results')
+      expect(backStopValidator.backstopEligible).toBe(true)
+      expect(backStopValidator.revShare.inflationPmpe + backStopValidator.revShare.mevPmpe + backStopValidator.revShare.blockPmpe).
+        toEqual(backStopValidator.revShare.totalPmpe)
+      expect(backStopValidator.revShare.totalPmpe).toEqual(auctionRewards.blockPmpe + auctionRewards.inflationPmpe + auctionRewards.mevPmpe)
+      expect(backStopValidator.values.commissions.blockRewardsCommissionDec).toEqual(0)
+      expect(backStopValidator.values.commissions.blockRewardsCommissionInBondDec).toEqual(0)
+      expect(backStopValidator.values.commissions.inflationCommissionDec).toEqual(0)
+      expect(backStopValidator.values.commissions.inflationCommissionInBondDec).toEqual(0)
+      expect(backStopValidator.values.commissions.inflationCommissionOnchainDec).toEqual(0.1)
+      expect(backStopValidator.values.commissions.mevCommissionDec).toEqual(0)
+      expect(backStopValidator.values.commissions.mevCommissionInBondDec).toEqual(0)
+      expect(backStopValidator.values.commissions.mevCommissionOnchainDec).toEqual(0.2)
+      expect(backStopValidator.samEligible).toBe(true)
+      expect(backStopValidator.mndeEligible).toBe(true)
+
+      const poorValidator = result.auctionData.validators.find(v => v.voteAccount === validator5Poor.voteAccount)
+      assert(poorValidator, 'Poor validator not found in results')
+      expect(poorValidator.samEligible).toBe(false)
+      expect(poorValidator.mndeEligible).toBe(false)
+      expect(poorValidator.values.commissions.blockRewardsCommissionDec).toEqual(0.98)
+      expect(poorValidator.values.commissions.blockRewardsCommissionInBondDec).toEqual(0.98)
+      expect(poorValidator.values.commissions.inflationCommissionDec).toEqual(0.04)
+      expect(poorValidator.values.commissions.inflationCommissionInBondDec).toEqual(0.04)
+      expect(poorValidator.values.commissions.inflationCommissionOnchainDec).toEqual(0.05)
+      expect(poorValidator.values.commissions.mevCommissionDec).toEqual(0.01)
+      expect(poorValidator.values.commissions.mevCommissionInBondDec).toEqual(0.01)
+      expect(poorValidator.values.commissions.mevCommissionOnchainDec).toEqual(0.01)
+      expect(poorValidator.auctionStake.marinadeSamTargetSol).toEqual(0)
+      expect(poorValidator.auctionStake.marinadeMndeTargetSol).toEqual(0)
+
+      const blacklistedValidator = result.auctionData.validators.find(v => v.voteAccount === validator4Blacklist.voteAccount)
+      assert(blacklistedValidator, 'Blacklisted validator not found in results')
+      expect(blacklistedValidator.samEligible).toBe(false)
+      expect(blacklistedValidator.mndeEligible).toBe(false)
+      expect(blacklistedValidator.auctionStake.marinadeSamTargetSol).toEqual(0)
+      expect(blacklistedValidator.auctionStake.marinadeMndeTargetSol).toEqual(0)
+
+      const noBondValidator = result.auctionData.validators.find(v => v.voteAccount === validator3NoBond.voteAccount)
+      assert(noBondValidator, 'No bond validator not found in results')
+      expect(noBondValidator.samEligible).toBe(false)
+      expect(noBondValidator.mndeEligible).toBe(false)
+      expect(noBondValidator.auctionStake.marinadeSamTargetSol).toEqual(0)
+      expect(noBondValidator.auctionStake.marinadeMndeTargetSol).toEqual(0)
+
+      const highCommissionValidator = result.auctionData.validators.find(v => v.voteAccount === validator6HighCommission.voteAccount)
+      assert(highCommissionValidator, 'High commission validator not found in results')
+      expect(highCommissionValidator.samEligible).toBe(false)
+      expect(highCommissionValidator.mndeEligible).toBe(false)
+      expect(highCommissionValidator.values.commissions.blockRewardsCommissionDec).toEqual(0.95)
+      expect(highCommissionValidator.values.commissions.inflationCommissionDec).toEqual(0.95)
+      expect(highCommissionValidator.values.commissions.mevCommissionDec).toEqual(0.95)
+      expect(highCommissionValidator.auctionStake.marinadeSamTargetSol).toEqual(0)
+      expect(highCommissionValidator.auctionStake.marinadeMndeTargetSol).toEqual(0)
+
+      const goodValidator1 = result.auctionData.validators.find(v => v.voteAccount === validator1Good.voteAccount)
+      assert(goodValidator1, 'Good validator not found in results')
+      expect(goodValidator1.samEligible).toBe(true)
+      expect(goodValidator1.mndeEligible).toBe(true)
+      const goodValidator2 = result.auctionData.validators.find(v => v.voteAccount === validator2Good.voteAccount)
+      assert(goodValidator2, 'Good validator not found in results')
+      expect(goodValidator2.samEligible).toBe(true)
+      expect(goodValidator2.mndeEligible).toBe(true)
+
+      expect(goodValidator2.auctionStake.marinadeSamTargetSol).toEqual(goodValidator1.auctionStake.marinadeSamTargetSol)
+      expect(goodValidator2.revShare.totalPmpe).toBeGreaterThan(goodValidator1.revShare.totalPmpe)
+      expect(goodValidator1.revShare.totalPmpe).toEqual(result.winningTotalPmpe)
+      expect(backStopValidator.revShare.totalPmpe).toBeGreaterThan(result.winningTotalPmpe)
+      expect(goodValidator2.revShare.totalPmpe).toBeGreaterThan(result.winningTotalPmpe)
     })
   })
 })

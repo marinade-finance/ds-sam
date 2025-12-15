@@ -1,6 +1,6 @@
 import { calcBondRiskFee, calcEffParticipatingBidPmpe, calcBidTooLowPenalty } from './calculations'
 import { AuctionData, AuctionResult, AuctionValidator } from './types'
-import { AuctionConstraints, bondBalanceRequiredForCurrentStake } from './constraints'
+import { AuctionConstraints } from './constraints'
 import { DsSamConfig } from './config'
 import { Debug } from './debug'
 
@@ -217,7 +217,7 @@ export class Auction {
       .filter(({ unstakePriority }) => Number.isNaN(unstakePriority))
       .map(validator => ({
         validator,
-        bondBalanceDiff: ((validator.bondBalanceSol ?? 0) - bondBalanceRequiredForCurrentStake(validator)) / validator.marinadeActivatedStakeSol
+        bondBalanceDiff: ((validator.bondBalanceSol ?? 0) - this.constraints.bondBalanceRequiredForCurrentStake(validator)) / validator.marinadeActivatedStakeSol
       }))
       .filter(({ bondBalanceDiff }) => bondBalanceDiff < 0) // Infinity and NaN filtered out too
       .sort((a, b) => a.bondBalanceDiff - b.bondBalanceDiff)
@@ -239,9 +239,35 @@ export class Auction {
     for (const validator of this.data.validators) {
       const { revShare } = validator
       if (revShare.totalPmpe < winningTotalPmpe) {
-        revShare.auctionEffectiveBidPmpe = revShare.bidPmpe
+        // The validator’s total PMPE (total amount expected to be shared with stakers) is lower
+        // than the total PMPE of the last validator group (i.e., winningTotalPmpe) which is still in the auction
+        // we expect nothing to be charged from the bond for this validator as its total PMPE is lower
+        revShare.auctionEffectiveBidPmpe = revShare.bondObligationPmpe
       } else {
-        revShare.auctionEffectiveBidPmpe = Math.max(0, winningTotalPmpe - revShare.inflationPmpe - revShare.mevPmpe)
+        // The validator is in the winning group, we calculate what is the assumed PMPE distributed from bond
+        // The real distribution depends on how much stake the validator will get in the auction and on its rewards
+        // (rewards are calculated from the previous epoch, so they are not known at time the auction is calculated)
+        revShare.auctionEffectiveBidPmpe = calcEffParticipatingBidPmpe(revShare, winningTotalPmpe)
+      }
+    }
+    this.setAuctionEffectiveStaticBids(winningTotalPmpe)
+  }
+
+  /**
+   * What PMPE the validator will pay directly from its bond when using a static bid (`cpmpe`) in the bond configuration.
+   *
+   * This does not include any dynamic commission bidding the validator may configure
+   * through commission arguments.
+   */
+  private setAuctionEffectiveStaticBids (winningTotalPmpe: number) {
+    for (const validator of this.data.validators) {
+      const { revShare } = validator
+      if (revShare.totalPmpe < winningTotalPmpe) {
+        // not in the auction, we expect nothing to be charged from the bond for this validator
+        revShare.auctionEffectiveStaticBidPmpe = revShare.bidPmpe
+      } else {
+        // The validator is in the winning group, we calculate what PMPE is to be charged by bond static bid
+        revShare.auctionEffectiveStaticBidPmpe = Math.max(0, winningTotalPmpe - revShare.inflationPmpe - revShare.mevPmpe - revShare.blockPmpe)
       }
     }
   }
@@ -256,7 +282,12 @@ export class Auction {
   setBidTooLowPenalties (winningTotalPmpe: number) {
     const k = this.config.bidTooLowPenaltyHistoryEpochs
     for (const validator of this.data.validators) {
-      const value = calcBidTooLowPenalty(k, winningTotalPmpe, validator)
+      const value = calcBidTooLowPenalty({
+        historyEpochs: k,
+        winningTotalPmpe,
+        validator,
+        permittedBidDeviation: this.config.bidTooLowPenaltyPermittedDeviationPmpe,
+      })
       validator.bidTooLowPenalty = value.bidTooLowPenalty
       validator.revShare.bidTooLowPenaltyPmpe = value.bidTooLowPenaltyPmpe
       validator.values.paidUndelegationSol += value.paidUndelegationSol
@@ -429,8 +460,8 @@ export class Auction {
    * and that high-bid validators with low reputation can not easily game the scaling.
    */
   scaleReputationToFitTvl () {
-    const { inflationPmpe, mevPmpe } = this.data.rewards
-    const initialTotalPmpeLimit = inflationPmpe + mevPmpe + this.config.expectedFeePmpe
+    const { inflationPmpe, mevPmpe, blockPmpe } = this.data.rewards
+    const initialTotalPmpeLimit = inflationPmpe + mevPmpe + blockPmpe + this.config.expectedFeePmpe
     console.log(`SCALING reputation to fit tvl with pmpe above: ${initialTotalPmpeLimit}`)
     for (const entry of this.data.validators) {
       const values = entry.values
@@ -472,7 +503,7 @@ export class Auction {
       factor = Math.max(0, leftToScale) / totalScalable
       console.log(`SCALING round ${i} # ${JSON.stringify({ factor, leftToScale, leftTvl, totalScalable, totalPmpeLimit })}`)
       if (totalScalable == 0 && leftToScale > 0) {
-        if (totalPmpeLimit > inflationPmpe + mevPmpe) {
+        if (totalPmpeLimit > inflationPmpe + mevPmpe + blockPmpe) {
           totalPmpeLimit *= 0.99
           console.log(`SCALING decreasing limit bid to: ${totalPmpeLimit}`)
           factor = 1
@@ -555,7 +586,10 @@ export class Auction {
   setExpectedMaxEffBidPmpes (expectedMaxTotalPmpe: number) {
     for (const validator of this.data.validators) {
       const { revShare } = validator
-      revShare.expectedMaxEffBidPmpe = Math.max(this.config.minExpectedEffBidPmpe, Math.min(revShare.bidPmpe, expectedMaxTotalPmpe - revShare.inflationPmpe - revShare.mevPmpe))
+      revShare.expectedMaxEffBidPmpe = Math.max(
+        this.config.minExpectedEffBidPmpe,
+        Math.min(revShare.bondObligationPmpe, expectedMaxTotalPmpe - revShare.onchainDistributedPmpe)
+      )
     }
   }
 
@@ -563,14 +597,15 @@ export class Auction {
     if (this.config.expectedMaxWinningBidRatio == null) {
       return
     }
-    const { inflationPmpe, mevPmpe } = this.data.rewards
-    const initialTotalPmpeLimit = inflationPmpe + mevPmpe + this.config.expectedFeePmpe
+    const { inflationPmpe, mevPmpe, blockPmpe } = this.data.rewards
+    const rewardsBase = inflationPmpe + mevPmpe + blockPmpe
+    const initialTotalPmpeLimit = rewardsBase + this.config.expectedFeePmpe
     this.setExpectedMaxEffBidPmpes(initialTotalPmpeLimit)
     const result = this.evaluateOne()
     this.reset()
-    const base = inflationPmpe + mevPmpe
-    const shift = this.config.expectedMaxWinningBidRatio * Math.max(0, result.winningTotalPmpe - base)
-    this.setExpectedMaxEffBidPmpes(base + shift)
+
+    const shift = this.config.expectedMaxWinningBidRatio * Math.max(0, result.winningTotalPmpe - rewardsBase)
+    this.setExpectedMaxEffBidPmpes(rewardsBase + shift)
   }
 
   setBlacklistPenalties (winningTotalPmpe: number) {

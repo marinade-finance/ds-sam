@@ -69,9 +69,10 @@ export type AggregatedValidator = {
   totalActivatedStakeSol: number
   marinadeActivatedStakeSol: number
   lastMarinadeActivatedStakeSol: number | null
-  inflationCommissionDec: number
   lastSamBlacklisted: boolean | null
+  inflationCommissionDec: number
   mevCommissionDec: number | null
+  blockRewardsCommissionDec: number | null
   bidCpmpe: number | null
   maxStakeWanted: number | null
   mndeStakeCapIncrease: number
@@ -94,18 +95,46 @@ export type AuctionValidatorValues = {
   bondRiskFeeSol: number
   paidUndelegationSol: number
   samBlacklisted: boolean
+  commissions: CommissionDetails
+}
+
+export type CommissionDetails = {
+  // values used to calculate total PMPE
+  inflationCommissionDec: number
+  mevCommissionDec: number
+  blockRewardsCommissionDec: number
+  // detailed breakdown of commission settings
+  inflationCommissionOnchainDec: number
+  inflationCommissionInBondDec: number | null
+  inflationCommissionOverrideDec?: number
+  mevCommissionOnchainDec: number | null
+  mevCommissionInBondDec: number | null
+  mevCommissionOverrideDec?: number
+  blockRewardsCommissionInBondDec: number | null
+  blockRewardsCommissionOverrideDec?: number
+  minimalCommissionDec?: number
 }
 
 export type Rewards = {
   inflationPmpe: number
   mevPmpe: number
+  blockPmpe: number
 }
 
 export type RevShare = {
+  // total value that the validator shares with stakers
   totalPmpe: number
+  // particles of totalPmpe per type
   inflationPmpe: number
   mevPmpe: number
   bidPmpe: number
+  blockPmpe: number
+  // what has already been shared on-chain via commissions
+  onchainDistributedPmpe: number
+  // assumption what the validator will share through bonds
+  bondObligationPmpe: number
+  // what is the PMPE to be charged directly from the bond as static bidding PMPE taken from bonds' CPMPE argument
+  auctionEffectiveStaticBidPmpe: number
   auctionEffectiveBidPmpe: number
   bidTooLowPenaltyPmpe: number
   effParticipatingBidPmpe: number
@@ -140,6 +169,7 @@ export type AuctionConstraintsConfig = {
   minUnprotectedStakeToDelegateSol: number
   unprotectedDelegatedStakeDec: number
   unprotectedFoundationStakeDec: number
+  bondObligationSafetyMult: number
 }
 
 export enum AuctionConstraintType {

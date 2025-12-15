@@ -1,8 +1,9 @@
+import assert from 'assert'
+
 import { Command, CommandRunner, Option } from 'nest-commander'
 import { Logger } from '@nestjs/common'
 import { AuctionResult, AuctionValidator, DsSamSDK, InputsSource, Rewards, SourceDataOverrides } from '@marinade.finance/ds-sam-sdk'
 import fs from 'fs'
-import assert from 'assert'
 
 const COMMAND_NAME = 'analyze-revenues'
 
@@ -67,6 +68,7 @@ export const loadSnapshotValidatorsCollection = (path: string): SnapshotValidato
 export const getValidatorOverrides = (snapshotValidatorsCollection: SnapshotValidatorsCollection): SourceDataOverrides => {
   const inflationCommissions = new Map()
   const mevCommissions = new Map()
+  const blockRewardsCommissions = new Map()
 
   for (const validatorMeta of snapshotValidatorsCollection.validator_metas) {
     inflationCommissions.set(validatorMeta.vote_account, validatorMeta.commission)
@@ -76,6 +78,7 @@ export const getValidatorOverrides = (snapshotValidatorsCollection: SnapshotVali
   return {
     inflationCommissions,
     mevCommissions,
+    blockRewardsCommissions,
   }
 }
 
@@ -116,8 +119,9 @@ export class AnalyzeRevenuesCommand extends CommandRunner {
       pastSnapshotValidatorsCollection = loadSnapshotValidatorsCollection(options.snapshotPastValidatorsFilePath)
       assert(
         pastSnapshotValidatorsCollection.epoch === snapshotValidatorsCollection.epoch -1,
-        'Epoch loaded from argument data \'--snapshot-past-validators-file-path\' has to be one less than the current snapshot epoch, ' +
-        `but validators epoch is ${snapshotValidatorsCollection.epoch} and past validators is ${pastSnapshotValidatorsCollection.epoch}`
+        `Epoch loaded from argument data '--snapshot-past-validators-file-path ${options.snapshotValidatorsFilePath}' ` +
+        `has to be one less than the current snapshot epoch, but validators epoch is '${snapshotValidatorsCollection.epoch}' ` +
+        `and past validators is '${pastSnapshotValidatorsCollection.epoch}'`
       )
     }
 
@@ -190,7 +194,10 @@ export class AnalyzeRevenuesCommand extends CommandRunner {
         continue
       }
 
+      // TODO: we are missing the information about blockCommission
+
       // TODO: temporary fix for wrong value of MEV commission when there is no MEV data for epoch, skipping MEV for now
+      // --> TODO: it does not seem temporary and I don't know what does it mean "no MEV data for epoch"
       // const expectedNonBidPmpe = validatorBefore.revShare.inflationPmpe + validatorBefore.revShare.mevPmpe
       // const actualNonBidPmpe = validatorAfter.revShare.inflationPmpe + validatorAfter.revShare.mevPmpe
       const expectedNonBidPmpe = validatorBefore.revShare.inflationPmpe
@@ -225,6 +232,7 @@ export class AnalyzeRevenuesCommand extends CommandRunner {
         })
       }
 
+      // TODO: code has not been changed with addition of inflationCommissionOverrideDec and mevCommissionOverrideDec
       evaluation.push({
         voteAccount: validatorBefore.voteAccount,
         expectedInflationCommission: validatorBefore.inflationCommissionDec,

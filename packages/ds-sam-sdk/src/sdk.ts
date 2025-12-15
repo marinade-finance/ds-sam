@@ -26,8 +26,18 @@ export class DsSamSDK {
 
   constructor (config: Partial<DsSamConfig> = {}, dataProviderBuilder = defaultDataProviderBuilder) {
     this.config = { ...DEFAULT_CONFIG, ...config }
+    DsSamSDK.validateConfig(this.config)
     this.dataProvider = dataProviderBuilder(this.config)
     this.debug = new Debug(new Set(this.config.debugVoteAccounts))
+  }
+
+  private static validateConfig (config: DsSamConfig) {
+    if (config.bondObligationSafetyMult < 1.0 || config.bondObligationSafetyMult > 2.0) {
+      throw new Error(`Invalid config: bondObligationSafetyMult must be in interval [1.0, 2.0], got ${config.bondObligationSafetyMult}`)
+    }
+    if (config.bidTooLowPenaltyPermittedDeviationPmpe < 0 || config.bidTooLowPenaltyPermittedDeviationPmpe > 1.0) {
+      throw new Error(`Invalid config: bidTooLowPenaltyPermittedDeviationPmpe must be in interval [0.0, 1.0], got ${config.bidTooLowPenaltyPermittedDeviationPmpe}`)
+    }
   }
 
   getAuctionConstraints ({ stakeAmounts }: AggregatedData, debug: Debug): AuctionConstraints {
@@ -50,6 +60,7 @@ export class DsSamSDK {
       minUnprotectedStakeToDelegateSol: this.config.minUnprotectedStakeToDelegateSol,
       unprotectedFoundationStakeDec: this.config.unprotectedFoundationStakeDec,
       unprotectedDelegatedStakeDec: this.config.unprotectedDelegatedStakeDec,
+      bondObligationSafetyMult: this.config.bondObligationSafetyMult,
     }
     this.debug.pushInfo('auction constraints', JSON.stringify(constraints))
     return new AuctionConstraints(constraints, debug)
@@ -81,8 +92,7 @@ export class DsSamSDK {
     }
 
     const minEffectiveRevSharePmpe = Math.max(0, rewards.inflationPmpe * (1 - this.config.validatorsMaxEffectiveCommissionDec))
-    const minSamRevSharePmpe = Math.max(0, rewards.inflationPmpe + rewards.mevPmpe + (this.config.minEligibleFeePmpe ?? -Infinity))
-    const zeroCommissionPmpe = Math.max(0, rewards.inflationPmpe + rewards.mevPmpe)
+    const minSamRevSharePmpe = Math.max(0, rewards.inflationPmpe + rewards.mevPmpe + rewards.blockPmpe + (this.config.minEligibleFeePmpe ?? -Infinity))
     console.log('min rev share PMPE', minEffectiveRevSharePmpe)
     console.log('rewards', rewards)
     console.log('uptime thresholds', epochCreditsThresholds)
@@ -110,12 +120,13 @@ export class DsSamSDK {
           return { ...validator, revShare, auctionStake, ...ineligibleValidatorAggDefaults() }
         }
       }
-      const backstopEligible = this.config.enableZeroCommissionBackstop && (revShare.inflationPmpe + revShare.mevPmpe >= zeroCommissionPmpe)
+      const zeroCommissionPmpe = Math.max(0, rewards.inflationPmpe + rewards.mevPmpe)
+      const backstopEligible = this.config.enableZeroCommissionBackstop && (revShare.inflationPmpe + revShare.mevPmpe + revShare.blockPmpe >= zeroCommissionPmpe)
       if (validator.bondBalanceSol === null) {
         return { ...validator, revShare, auctionStake, ...ineligibleValidatorAggDefaults(), backstopEligible }
       }
       const samEligible = revShare.totalPmpe >= Math.max(minEffectiveRevSharePmpe, minSamRevSharePmpe)
-      const mndeEligible = revShare.inflationPmpe + revShare.mevPmpe >= minEffectiveRevSharePmpe
+      const mndeEligible = revShare.inflationPmpe + revShare.mevPmpe + revShare.blockPmpe >= minEffectiveRevSharePmpe
 
       return { ...validator, revShare, auctionStake, samEligible, mndeEligible, backstopEligible, ...validatorAggDefaults() }
     })

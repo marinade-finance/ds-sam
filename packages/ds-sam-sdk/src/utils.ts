@@ -46,3 +46,9 @@ export const minCapFromConstraint = (constraint: AuctionConstraint, voteAccounts
 }
 
 export const formatLastCapConstraint = (constraint: AuctionConstraint | null) => constraint ? `${constraint.constraintType} (${constraint.constraintName})` : 'NULL'
+
+export function assert (condition: boolean, message: string): asserts condition {
+  if (!condition) {
+    throw new Error(message)
+  }
+}

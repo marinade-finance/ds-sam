@@ -38,7 +38,7 @@ describe('Auction.updatePaidUndelegation (simplified)', () => {
         marinadeRemainingMndeSol: NaN,
         marinadeRemainingSamSol: NaN
       },
-      rewards: { inflationPmpe: NaN, mevPmpe: NaN },
+      rewards: { inflationPmpe: NaN, mevPmpe: NaN, blockPmpe: NaN },
       blacklist: new Set<string>()
     }
     const auction = new Auction(data, {} as any, {} as any, new Debug(new Set()))
@@ -88,7 +88,7 @@ describe('Auction.updatePaidUndelegation (simplified)', () => {
         marinadeRemainingMndeSol: NaN,
         marinadeRemainingSamSol: NaN
       },
-      rewards: { inflationPmpe: NaN, mevPmpe: NaN },
+      rewards: { inflationPmpe: NaN, mevPmpe: NaN, blockPmpe: NaN },
       blacklist: new Set<string>()
     }
     const auction = new Auction(data, {} as any, {} as any, new Debug(new Set()))

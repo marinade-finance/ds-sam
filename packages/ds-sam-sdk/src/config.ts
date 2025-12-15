@@ -40,6 +40,7 @@ export type DsSamConfig = {
   // Max effective commission of a validator to be eligible
   validatorsMaxEffectiveCommissionDec: number
   // How much unprotected stake do we put on a validator w.r.t the foundation delegated stake
+  // Note: In the docs, the term "stake matching" is used instead of "unprotected stake"
   unprotectedFoundationStakeDec: number
   // How much unprotected stake do we put on a validator w.r.t the other 3-rd party delegated stake
   unprotectedDelegatedStakeDec: number
@@ -122,10 +123,25 @@ export type DsSamConfig = {
   // If null, minimal eligible transaction fee Pmpe is not enforced as if it was -inf
   minEligibleFeePmpe: number | null
 
+  // Minimum commission a validator can set (probably in bond configuration)
+  // Prevents validators from setting overly negative commissions
+  minimalCommission: number | null
+
+  // Multiplier for bond balance requirements when calculating stake caps constraints.
+  // We assume some bond balance for the stake is required and multiply the calculated bond requirement
+  // by this factor must be in interval [1.0, 2.0].
+  bondObligationSafetyMult: number
+
+  // Permitted deviation in bid Pmpe below the winning bid Pmpe
+  // This deviation will not be penalized when calculating the BidTooLowPenalty meaning validator
+  // may slightly underbid the winning bid without being penalized. Permitted interval is [0, 1.0].
+  bidTooLowPenaltyPermittedDeviationPmpe: number
+
   // Validator vote accounts to collect debug info for
   debugVoteAccounts: string[]
 }
 
+// NOTE: It’s not a good idea to make changes here because the tests rely on DEFAULT_CONFIG.
 export const DEFAULT_CONFIG: DsSamConfig = {
   inputsSource: InputsSource.APIS,
 
@@ -174,6 +190,10 @@ export const DEFAULT_CONFIG: DsSamConfig = {
   expectedMaxWinningBidRatio: null,
   minExpectedEffBidPmpe: 0,
   minEligibleFeePmpe: null,
+  bondObligationSafetyMult: 1,
+  bidTooLowPenaltyPermittedDeviationPmpe: 0.05,
+  minimalCommission: -2.0,
 
   debugVoteAccounts: [],
 }
+

@@ -8,6 +8,7 @@ export type StaticDataProviderConfig = {
   validatorMockBuilders: ValidatorMockBuilder[]
   inflationRewardsPerEpoch: number
   mevRewardsPerEpoch: number
+  blockRewardsPerEpoch: number
   currentEpoch: number
 }
 
@@ -53,10 +54,12 @@ export class StaticDataProvider extends DataProvider {
     const epochs = this.config.rewardsEpochsCount
     const rewards_mev = Array.from({ length: epochs }, (_, i): RawRewardsRecordDto => [this.staticDataProviderConfig.currentEpoch - i - 1, this.staticDataProviderConfig.inflationRewardsPerEpoch])
     const rewards_inflation_est = Array.from({ length: epochs }, (_, i): RawRewardsRecordDto => [this.staticDataProviderConfig.currentEpoch - i - 1, this.staticDataProviderConfig.mevRewardsPerEpoch])
+    const rewards_block = Array.from({ length: epochs }, (_, i): RawRewardsRecordDto => [this.staticDataProviderConfig.currentEpoch - i - 1, this.staticDataProviderConfig.blockRewardsPerEpoch])
 
     return {
       rewards_mev,
       rewards_inflation_est,
+      rewards_block,
     }
   }
 

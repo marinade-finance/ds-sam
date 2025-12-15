@@ -11,6 +11,33 @@ Evaluate the auction
 pnpm run cli -- auction [--options...]
 ```
 
+### Example from ds-sam-pipeline
+
+```bash
+cache_dir="/tmp/cache"
+rm -rf "$cache_dir" && \
+  mkdir -p "${cache_dir}/inputs" "${cache_dir}/outputs" && \
+  inputs_dir="${cache_dir}/inputs" && \
+  outputs_dir="${cache_dir}/outputs"  && \
+  curl 'https://raw.githubusercontent.com/marinade-finance/ds-sam-pipeline/refs/heads/main/auction-config.json' \
+    > "${inputs_dir}/config.json"
+
+pnpm run cli -- auction --inputs-source APIS --cache-inputs --cache-dir-path "$inputs_dir" \
+  -c "${inputs_dir}/config.json"  -o "$outputs_dir" > /dev/null
+```
+
+# Example to re-run with cached files
+
+```bash
+cache_dir="/tmp/cache"
+inputs_dir="${cache_dir}/inputs"
+outputs_dir="${cache_dir}/outputs-2"
+mkdir -p "$outputs_dir"
+
+pnpm run cli -- auction --inputs-source FILES --cache-dir-path "$inputs_dir" \
+  -c "${inputs_dir}/config.json"  -o "$outputs_dir" > /dev/null
+```
+
 ## CLI config
 Configured using CLI options or a config file passed in via the `-c` (`--config-file-path`) option
 
@@ -87,8 +114,19 @@ Config [defaults](./packages/ds-sam-sdk/src/config.ts#L35)
   // Every new vote account that joins the auction gets initialSpendRobustReputation at the start
   initialSpendRobustReputation: number
 
-  // The minimal bond balanace to have to get and retain any stake
+  // The minimal bond balance to have to get and retain any stake
   minBondBalanceSol: number
+
+  // Minimum commission a validator can set on bonds.
+  // Prevents validators from setting excessively negative commissions.
+  // This is expected to be a negative value, allowing a validator to share
+  // additional rewards beyond 100%, but protecting against accidental overcommitment.
+  minimalCommission: number
+
+  // Multiplier for bond balance requirements when calculating stake caps constraints.
+  // We assume some bond balance for the stake is required and multiply the calculated bond requirement
+  // by this factor must be in interval [1.0, 2.0].
+  bondObligationSafetyMult: number
 
   // Validator vote accounts to collect debug info for
   debugVoteAccounts: string[]

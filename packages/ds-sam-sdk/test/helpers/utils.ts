@@ -5,8 +5,12 @@ export const isNotNull = <T>(value: T | null): value is T => value !== null
 
 export const prettyPrintAuctionResult = (auctionResult: AuctionResult) => {
   return [
-    ...auctionResult.auctionData.validators.map(({ voteAccount, revShare, auctionStake, lastCapConstraint }) =>
-      `${voteAccount}, inflation pmpe: ${revShare.inflationPmpe}, mev pmpe: ${revShare.mevPmpe}, bid pmpe: ${revShare.bidPmpe}, total pmpe: ${revShare.totalPmpe}, mnde_target_stake: ${auctionStake.marinadeMndeTargetSol}, sam_target_stake: ${auctionStake.marinadeSamTargetSol}, last constraint: ${formatLastCapConstraint(lastCapConstraint)}`)
+    ...auctionResult.auctionData.validators.map((
+      { voteAccount, revShare, auctionStake, lastCapConstraint }) =>
+      `${voteAccount}, inflation pmpe: ${revShare.inflationPmpe}, mev pmpe: ${revShare.mevPmpe}, bid pmpe: ${revShare.bidPmpe}, block pmpe: ${revShare.blockPmpe}, ` +
+        `on-chain distributed pmpe: ${revShare.onchainDistributedPmpe} total pmpe: ${revShare.totalPmpe}, mnde_target_stake: ${auctionStake.marinadeMndeTargetSol}, ` +
+        `sam_target_stake: ${auctionStake.marinadeSamTargetSol}, last constraint: ${formatLastCapConstraint(lastCapConstraint)}`
+    )
   ].join('\n')
 }
 

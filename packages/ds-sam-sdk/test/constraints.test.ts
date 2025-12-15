@@ -79,6 +79,7 @@ const BASE_CONSTRAINTS: AuctionConstraintsConfig = {
   minUnprotectedStakeToDelegateSol: 0,
   unprotectedFoundationStakeDec: 1,
   unprotectedDelegatedStakeDec: 1,
+  bondObligationSafetyMult: 1,
 }
 
 function makeConstraints (overrides: Partial<AuctionConstraintsConfig> = {}) {
@@ -156,6 +157,7 @@ function makeAuction (overrides: Partial<AuctionData> = {}): AuctionData {
     rewards: {
       inflationPmpe: 0,
       mevPmpe: 0,
+      blockPmpe: 0,
     },
     blacklist: new Set<string>(),
   }
@@ -209,9 +211,11 @@ describe('bondStakeCapSam()', () => {
         effParticipatingBidPmpe: 0,
         expectedMaxEffBidPmpe: 5,
         bidTooLowPenaltyPmpe: 0,
+        onchainDistributedPmpe: 10,
       },
     })
-    expect(c.bondStakeCapSam(v)).toBeCloseTo(1000 / (25 / 1000), 6)
+    const result = 1000 / (25 / 1000)
+    expect(c.bondStakeCapSam(v)).toBeCloseTo(result, 6)
   })
 
   it('when marinadeActivatedStakeSol is between ideal and min, cap=marinadeActivatedStakeSol', () => {
@@ -219,9 +223,13 @@ describe('bondStakeCapSam()', () => {
     const v = makeValidator({
       bondBalanceSol: 1000,
       marinadeActivatedStakeSol: 70000,
-      revShare: { inflationPmpe: 0, mevPmpe: 0, bidPmpe: 0, totalPmpe: 0,
-        auctionEffectiveBidPmpe: 0, effParticipatingBidPmpe: 0,
-        expectedMaxEffBidPmpe: 5, bidTooLowPenaltyPmpe: 0 },
+      revShare: {
+        auctionEffectiveBidPmpe: 0,
+        effParticipatingBidPmpe: 0,
+        expectedMaxEffBidPmpe: 5,
+        bidTooLowPenaltyPmpe: 0,
+        onchainDistributedPmpe: 0,
+      },
     })
     expect(c2.bondStakeCapSam(v)).toBe(70000)
   })
@@ -231,9 +239,13 @@ describe('bondStakeCapSam()', () => {
     const v = makeValidator({
       bondBalanceSol: 1000,
       marinadeActivatedStakeSol: 200000,
-      revShare: { inflationPmpe: 0, mevPmpe: 0, bidPmpe: 0, totalPmpe: 0,
-        auctionEffectiveBidPmpe: 0, effParticipatingBidPmpe: 0,
-        expectedMaxEffBidPmpe: 5, bidTooLowPenaltyPmpe: 0 },
+      revShare: {
+        auctionEffectiveBidPmpe: 0,
+        effParticipatingBidPmpe: 0,
+        expectedMaxEffBidPmpe: 5,
+        bidTooLowPenaltyPmpe: 0,
+        onchainDistributedPmpe: 0,
+      },
     })
     expect(c3.bondStakeCapSam(v)).toBeCloseTo(100000, 0)
   })
@@ -559,6 +571,10 @@ describe('getMinCapForEvenDistribution – Sam‐BOND wins', () => {
 
   it('picks BOND when its per‐validator bond cap is smallest', () => {
     const data = makeAuction({ validators: [v] })
+    data.validators.forEach((val) => {
+      val.revShare.onchainDistributedPmpe = val.revShare.inflationPmpe + val.revShare.mevPmpe
+      val.revShare.bondObligationPmpe = val.revShare.bidPmpe
+    })
     c.updateStateForSam(data)
     const { cap, constraint } = c.getMinCapForEvenDistribution(new Set(['v']))
     expect(cap).toBeCloseTo(1000, 6)
@@ -591,5 +607,26 @@ describe('getMinCapForEvenDistribution – no constraints', () => {
   const c = makeConstraints()
   it('throws if voteAccounts set is empty', () => {
     expect(() => c.getMinCapForEvenDistribution(new Set())).toThrow(/Failed to find/)
+  })
+})
+
+describe('bondObligationSafetyMult effect on bond caps', () => {
+  it('applies safety multiplier to bond obligation calculation', () => {
+    const c = makeConstraints({
+      bondObligationSafetyMult: 1.35,
+    })
+
+    const v = makeValidator({
+      bondBalanceSol: 1000,
+      marinadeActivatedStakeSol: 50,
+      revShare: {
+        totalPmpe: 0.2,
+        bondObligationPmpe: 0.1,
+      },
+    })
+
+    const bondBalanceC = c.bondBalanceRequiredForCurrentStake(v)
+    // ( refundable deposit (total Pmpe) + bondObligationPerStake (what from bond) + downtime (= 0) ) * stake
+    expect(bondBalanceC).toBeCloseTo((0.1/1000*1.35 + 0.2/1000 + 0) * 50, 6)
   })
 })
