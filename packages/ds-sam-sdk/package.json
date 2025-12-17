@@ -22,7 +22,7 @@
     "marinade.finance"
   ],
   "dependencies": {
-    "axios": "^1.8.2",
+    "axios": "^1.12.0",
     "decimal.js": "^10.4.3",
     "semver": "^7.6.2"
   },
