@@ -161,3 +161,17 @@ export class DsSamSDK {
     return this.dataProvider.aggregateData(sourceData, dataOverrides)
   }
 }
+
+/**
+ * An SDK utility class method to load the DS-SAM config from the default remote location.
+ * This can be used from various 3rd party scripts/tools when a local config file is not available.
+ */
+export async function loadSamConfig (): Promise<DsSamConfig> {
+  const url = 'https://thru.marinade.finance/marinade-finance/ds-sam-pipeline/main/auction-config.json'
+  const response = await fetch(url)
+  const dataJson = (await response.json()) as DsSamConfig
+  // Use Marinade proxy cache to bypass GitHub raw URL rate limits
+  dataJson.blacklistApiBaseUrl = 'https://thru.marinade.finance/marinade-finance/delegation-strategy-2/master'
+  dataJson.overridesApiBaseUrl = 'https://thru.marinade.finance/marinade-finance/ds-sam-pipeline/main/epochs'
+  return dataJson
+}
