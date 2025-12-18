@@ -200,10 +200,14 @@ describe('Data Provider Testing Setup', () => {
             bondBlockCommission: 50,
           }),
       ]
-      const agg = await runStaticAggregate(
-        validators,
-        [],
-        { minimalCommission: 0.4 },
+      const agg = await runStaticAggregate(validators, [], { minimalCommission: 0.4 }, {
+        inflationCommissions: new Map<string, number>().set('validator', 80),
+        mevCommissions: new Map<string, number>().set('validator', 90),
+        blockRewardsCommissions: new Map<string, number>().set('validator', 100),
+        cpmpes: new Map<string, number>(),
+      }
+      )
+      expect(agg.validators[0]?.values.commissions).toEqual(
         {
           inflationCommissions: new Map<string, number>().set('validator', 80),
           mevCommissions: new Map<string, number>().set('validator', 90),

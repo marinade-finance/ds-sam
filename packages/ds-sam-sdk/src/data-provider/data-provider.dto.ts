@@ -153,4 +153,5 @@ export type SourceDataOverrides = {
   inflationCommissions: Map<string, number | undefined>
   mevCommissions: Map<string, number | undefined>
   blockRewardsCommissions: Map<string, number | undefined>
+  cpmpes: Map<string, number | undefined>
 }

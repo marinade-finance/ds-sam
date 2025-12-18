@@ -589,7 +589,6 @@ export class Auction {
 
   evaluateOne(): AuctionResult {
     console.log('EVALUATING new auction ----------------------------------------')
-    console.log('stake amounts before', this.data.stakeAmounts)
     this.debug.pushInfo('start amounts', JSON.stringify(this.data.stakeAmounts))
     this.debug.pushEvent('DISTRIBUTING MNDE STAKE')
     this.distributeMndeStake()
@@ -624,7 +623,6 @@ export class Auction {
     this.distributeBackstopStake()
     this.debug.pushEvent('BACKSTOP STAKE DISTRIBUTED')
 
-    console.log('stake amounts after', this.data.stakeAmounts)
     this.debug.pushInfo('end amounts', JSON.stringify(this.data.stakeAmounts))
     this.debug.pushInfo('winning total PMPE', winningTotalPmpe.toString())
 

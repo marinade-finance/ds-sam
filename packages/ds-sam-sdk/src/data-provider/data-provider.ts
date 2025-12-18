@@ -162,6 +162,7 @@ export class DataProvider {
       const inflationCommissionOverride = dataOverrides?.inflationCommissions?.get(validator.vote_account)
       const mevCommissionOverride = dataOverrides?.mevCommissions?.get(validator.vote_account)
       const blockRewardsCommissionOverride = dataOverrides?.blockRewardsCommissions?.get(validator.vote_account)
+      const bondCpmpeOverride = dataOverrides?.cpmpes?.get(validator.vote_account)
 
       const validatorMndeVotes = validatorsMndeVotes.get(validator.vote_account) ?? new Decimal(0)
       const validatorMndeStakeCapIncrease = mndeStakeCapIncreases.get(validator.vote_account) ?? new Decimal(0)
@@ -171,6 +172,7 @@ export class DataProvider {
       const mevCommissionOverrideDec = mevCommissionOverride !== undefined ? mevCommissionOverride / 10_000 : null
       const blockRewardsCommissionOverrideDec =
         blockRewardsCommissionOverride !== undefined ? blockRewardsCommissionOverride / 10_000 : null
+      const bidCpmpeOverrideDec = bondCpmpeOverride !== undefined ? bondCpmpeOverride / 1e9 : null
 
       const inflationCommissionInBondDec =
         bond?.inflation_commission_bps != null ? Number(bond.inflation_commission_bps) / 10_000 : null
@@ -192,6 +194,8 @@ export class DataProvider {
           ? mevCommissionInBondDec
           : mevCommissionOnchainDec)
       let blockRewardsCommissionDec = blockRewardsCommissionOverrideDec ?? blockRewardsCommissionInBondDec
+
+      const bidCpmpeDec = bidCpmpeOverrideDec ?? (bond ? new Decimal(bond.cpmpe).div(1e9).toNumber() : null)
 
       // safeguard against validator accidentally overly low commission to pay overly more than 100% of rewards
       let minimalCommissionDec: number | undefined = undefined
@@ -239,7 +243,7 @@ export class DataProvider {
         inflationCommissionDec,
         mevCommissionDec,
         blockRewardsCommissionDec,
-        bidCpmpe: bond ? new Decimal(bond.cpmpe).div(1e9).toNumber() : null,
+        bidCpmpe: bidCpmpeDec,
         maxStakeWanted:
           this.config.minMaxStakeWanted != null && bond ? new Decimal(bond.max_stake_wanted).div(1e9).toNumber() : null,
         values: {
