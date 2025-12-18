@@ -182,8 +182,8 @@ export class DsSamSDK {
     })
   }
 
-  async auction(): Promise<Auction> {
-    const aggregatedData = await this.getAggregatedData()
+  async auction (dataOverrides: SourceDataOverrides | null = null): Promise<Auction> {
+    const aggregatedData = await this.getAggregatedData(dataOverrides)
     const constraints = this.getAuctionConstraints(aggregatedData, this.debug)
     const auctionData: AuctionData = {
       ...aggregatedData,
@@ -192,8 +192,8 @@ export class DsSamSDK {
     return new Auction(auctionData, constraints, this.config, this.debug)
   }
 
-  async run(): Promise<AuctionResult> {
-    const auction = await this.auction()
+  async run (dataOverrides: SourceDataOverrides | null = null): Promise<AuctionResult> {
+    const auction = await this.auction(dataOverrides)
     const result = auction.evaluate()
     console.log(
       `==============================\n${this.debug.formatInfo()}\n${this.debug.formatEvents()}\n==============================`,
@@ -201,8 +201,8 @@ export class DsSamSDK {
     return result
   }
 
-  async runFinalOnly(): Promise<AuctionResult> {
-    const auction = await this.auction()
+  async runFinalOnly (dataOverrides: SourceDataOverrides | null = null): Promise<AuctionResult> {
+    const auction = await this.auction(dataOverrides)
     const result = auction.evaluateFinal()
     console.log(
       `==============================\n${this.debug.formatInfo()}\n${this.debug.formatEvents()}\n==============================`,
