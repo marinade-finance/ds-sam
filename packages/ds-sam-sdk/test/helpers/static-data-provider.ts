@@ -1,8 +1,20 @@
-import { DsSamConfig, RawBlacklistResponseDto, RawBondsResponseDto, RawMevInfoResponseDto, RawMndeVotesResponseDto, RawRewardsRecordDto, RawRewardsResponseDto, RawTvlResponseDto, RawValidatorsResponseDto } from '../../src'
-import { DataProvider } from '../../src/data-provider/data-provider'
-import { ValidatorMockBuilder } from './validator-mock-builder'
-import { isNotNull } from './utils'
 import Decimal from 'decimal.js'
+
+import { isNotNull } from './utils'
+import { DataProvider } from '../../src/data-provider/data-provider'
+
+import type { ValidatorMockBuilder } from './validator-mock-builder'
+import type {
+  DsSamConfig,
+  RawBlacklistResponseDto,
+  RawBondsResponseDto,
+  RawMevInfoResponseDto,
+  RawMndeVotesResponseDto,
+  RawRewardsRecordDto,
+  RawRewardsResponseDto,
+  RawTvlResponseDto,
+  RawValidatorsResponseDto,
+} from '../../src'
 
 export type StaticDataProviderConfig = {
   validatorMockBuilders: ValidatorMockBuilder[]
@@ -15,46 +27,86 @@ export type StaticDataProviderConfig = {
 export class StaticDataProvider extends DataProvider {
   private validatorMockBuilders: ValidatorMockBuilder[] = []
 
-  constructor (config: DsSamConfig, private readonly staticDataProviderConfig: StaticDataProviderConfig) {
+  constructor(
+    config: DsSamConfig,
+    private readonly staticDataProviderConfig: StaticDataProviderConfig,
+  ) {
     super(config, config.inputsSource)
     this.validatorMockBuilders = staticDataProviderConfig.validatorMockBuilders
   }
 
-  async fetchValidators (): Promise<RawValidatorsResponseDto> {
-    return {
+  override fetchValidators(): Promise<RawValidatorsResponseDto> {
+    return Promise.resolve({
       validators: this.validatorMockBuilders.map(v => v.toRawValidatorDto(this.staticDataProviderConfig.currentEpoch)),
-    }
+    })
   }
 
-  async fetchBonds (): Promise<RawBondsResponseDto> {
+  async fetchBonds(): Promise<RawBondsResponseDto> {
     return {
-      bonds: this.validatorMockBuilders.map(v => v.toRawBondDto(this.staticDataProviderConfig.currentEpoch)).filter(isNotNull)
+      bonds: this.validatorMockBuilders
+        .map(v => v.toRawBondDto(this.staticDataProviderConfig.currentEpoch))
+        .filter(isNotNull),
     }
   }
 
-  async fetchTvlInfo (): Promise<RawTvlResponseDto> {
+  async fetchTvlInfo(): Promise<RawTvlResponseDto> {
     return {
-      total_virtual_staked_sol: this.validatorMockBuilders.reduce((sum, v) => sum + new Decimal(v.toRawValidatorDto(this.staticDataProviderConfig.currentEpoch).marinade_stake).div(1e9).toNumber(), 0),
-      marinade_native_stake_sol: this.validatorMockBuilders.reduce((sum, v) => sum + new Decimal(v.toRawValidatorDto(this.staticDataProviderConfig.currentEpoch).marinade_native_stake).div(1e9).toNumber(), 0),
+      total_virtual_staked_sol: this.validatorMockBuilders.reduce(
+        (sum, v) =>
+          sum +
+          new Decimal(v.toRawValidatorDto(this.staticDataProviderConfig.currentEpoch).marinade_stake)
+            .div(1e9)
+            .toNumber(),
+        0,
+      ),
+      marinade_native_stake_sol: this.validatorMockBuilders.reduce(
+        (sum, v) =>
+          sum +
+          new Decimal(v.toRawValidatorDto(this.staticDataProviderConfig.currentEpoch).marinade_native_stake)
+            .div(1e9)
+            .toNumber(),
+        0,
+      ),
     }
   }
 
-  async fetchBlacklist (): Promise<RawBlacklistResponseDto> {
-    return `vote_account,code\n${this.validatorMockBuilders.map(v => v.toRawBlacklistResponseDtoRow()).filter(isNotNull).join('\n')}`
+  async fetchBlacklist(): Promise<RawBlacklistResponseDto> {
+    return `vote_account,code\n${this.validatorMockBuilders
+      .map(v => v.toRawBlacklistResponseDtoRow())
+      .filter(isNotNull)
+      .join('\n')}`
   }
 
-  async fetchMndeVotes (): Promise<RawMndeVotesResponseDto> {
+  async fetchMndeVotes(): Promise<RawMndeVotesResponseDto> {
     return {
       voteRecordsCreatedAt: '2222-02-02T00:00:00Z',
       records: this.validatorMockBuilders.map(v => v.toRawMndeVoteDto()).filter(isNotNull),
-    }
+    })
   }
 
-  async fetchRewards (): Promise<RawRewardsResponseDto> {
+  async fetchRewards(): Promise<RawRewardsResponseDto> {
     const epochs = this.config.rewardsEpochsCount
-    const rewards_mev = Array.from({ length: epochs }, (_, i): RawRewardsRecordDto => [this.staticDataProviderConfig.currentEpoch - i - 1, this.staticDataProviderConfig.inflationRewardsPerEpoch])
-    const rewards_inflation_est = Array.from({ length: epochs }, (_, i): RawRewardsRecordDto => [this.staticDataProviderConfig.currentEpoch - i - 1, this.staticDataProviderConfig.mevRewardsPerEpoch])
-    const rewards_block = Array.from({ length: epochs }, (_, i): RawRewardsRecordDto => [this.staticDataProviderConfig.currentEpoch - i - 1, this.staticDataProviderConfig.blockRewardsPerEpoch])
+    const rewards_mev = Array.from(
+      { length: epochs },
+      (_, i): RawRewardsRecordDto => [
+        this.staticDataProviderConfig.currentEpoch - i - 1,
+        this.staticDataProviderConfig.inflationRewardsPerEpoch,
+      ],
+    )
+    const rewards_inflation_est = Array.from(
+      { length: epochs },
+      (_, i): RawRewardsRecordDto => [
+        this.staticDataProviderConfig.currentEpoch - i - 1,
+        this.staticDataProviderConfig.mevRewardsPerEpoch,
+      ],
+    )
+    const rewards_block = Array.from(
+      { length: epochs },
+      (_, i): RawRewardsRecordDto => [
+        this.staticDataProviderConfig.currentEpoch - i - 1,
+        this.staticDataProviderConfig.blockRewardsPerEpoch,
+      ],
+    )
 
     return {
       rewards_mev,
@@ -63,9 +115,9 @@ export class StaticDataProvider extends DataProvider {
     }
   }
 
-  async fetchMevInfo (): Promise<RawMevInfoResponseDto> {
-    return {
+  override fetchMevInfo(): Promise<RawMevInfoResponseDto> {
+    return Promise.resolve({
       validators: this.validatorMockBuilders.map(v => v.toRawValidatorMevInfoDto()).filter(isNotNull),
-    }
+    })
   }
 }

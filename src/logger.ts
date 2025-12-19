@@ -1,5 +1,6 @@
-import { LoggerService } from '@nestjs/common'
 import * as log4js from 'log4js'
+
+import type { LoggerService } from '@nestjs/common'
 
 const InternalLoggerFactory = () => {
   log4js.configure({
@@ -18,15 +19,9 @@ const InternalLoggerFactory = () => {
               }
 
               const ctxSerialized = ctx ? ` ${JSON.stringify(ctx)}` : ''
-              const errSerialized =
-                err instanceof Error
-                  ? ` <${err.name}: ${err.message}> (${err.stack})`
-                  : ''
+              const errSerialized = err instanceof Error ? ` <${err.name}: ${err.message}> (${err.stack})` : ''
 
-              return `${msg}${errSerialized}${ctxSerialized}`.replace(
-                /\n/g,
-                '\\n',
-              )
+              return `${msg}${errSerialized}${ctxSerialized}`.replace(/\n/g, '\\n')
             },
           },
         },
@@ -42,13 +37,13 @@ const InternalLoggerFactory = () => {
 export class Logger implements LoggerService {
   private readonly logger = InternalLoggerFactory()
 
-  log (...args: any[]) {
+  log(...args: any[]) {
     this.logger.log('INFO', ...args)
   }
-  error (...args: any[]) {
+  error(...args: any[]) {
     this.logger.log('ERROR', ...args)
   }
-  warn (...args: any[]) {
+  warn(...args: any[]) {
     this.logger.log('WARN', ...args)
   }
 }

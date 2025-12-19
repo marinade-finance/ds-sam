@@ -1,6 +1,7 @@
-import { Debug } from '../src/debug'
 import { Auction } from '../src/auction'
+import { Debug } from '../src/debug'
 import { ineligibleValidatorAggDefaults } from '../src/utils'
+
 import type { AuctionData } from '../src/types'
 
 describe('Auction.updatePaidUndelegation (simplified)', () => {
@@ -12,34 +13,32 @@ describe('Auction.updatePaidUndelegation (simplified)', () => {
    * @param priorPaid previous paidUndelegationSol
    * @returns paidUndelegationSol
    */
-  function run (
-    last: number,
-    current: number,
-    priorPaid: number
-  ): number {
+  function run(last: number, current: number, priorPaid: number): number {
     const aggDefaults = ineligibleValidatorAggDefaults()
     const data: AuctionData = {
       epoch: NaN,
-      validators: [{
-        voteAccount: 'v1',
-        marinadeActivatedStakeSol: current,
-        lastMarinadeActivatedStakeSol: last,
-        values: {
-          paidUndelegationSol: priorPaid,
-          marinadeActivatedStakeSolUndelegation: 0,
-          ...aggDefaults.bidTooLowPenalty
-        } as any,
-        ...aggDefaults
-      }] as any[],
+      validators: [
+        {
+          voteAccount: 'v1',
+          marinadeActivatedStakeSol: current,
+          lastMarinadeActivatedStakeSol: last,
+          values: {
+            paidUndelegationSol: priorPaid,
+            marinadeActivatedStakeSolUndelegation: 0,
+            ...aggDefaults.bidTooLowPenalty,
+          } as any,
+          ...aggDefaults,
+        },
+      ] as any[],
       stakeAmounts: {
         networkTotalSol: NaN,
         marinadeMndeTvlSol: NaN,
         marinadeSamTvlSol: NaN,
         marinadeRemainingMndeSol: NaN,
-        marinadeRemainingSamSol: NaN
+        marinadeRemainingSamSol: NaN,
       },
       rewards: { inflationPmpe: NaN, mevPmpe: NaN, blockPmpe: NaN },
-      blacklist: new Set<string>()
+      blacklist: new Set<string>(),
     }
     const auction = new Auction(data, {} as any, {} as any, new Debug(new Set()))
     auction.updatePaidUndelegation()
@@ -70,26 +69,28 @@ describe('Auction.updatePaidUndelegation (simplified)', () => {
     const aggDefaults = ineligibleValidatorAggDefaults()
     const data: AuctionData = {
       epoch: NaN,
-      validators: [{
-        voteAccount: 'v1',
-        auctions: [],
-        marinadeActivatedStakeSol: 25,
-        values: {
-          paidUndelegationSol: 0,
-          marinadeActivatedStakeSolUndelegation: NaN,
-          ...aggDefaults.bidTooLowPenalty
-        } as any,
-        ...aggDefaults
-      }] as any[],
+      validators: [
+        {
+          voteAccount: 'v1',
+          auctions: [],
+          marinadeActivatedStakeSol: 25,
+          values: {
+            paidUndelegationSol: 0,
+            marinadeActivatedStakeSolUndelegation: NaN,
+            ...aggDefaults.bidTooLowPenalty,
+          } as any,
+          ...aggDefaults,
+        },
+      ] as any[],
       stakeAmounts: {
         networkTotalSol: NaN,
         marinadeMndeTvlSol: NaN,
         marinadeSamTvlSol: NaN,
         marinadeRemainingMndeSol: NaN,
-        marinadeRemainingSamSol: NaN
+        marinadeRemainingSamSol: NaN,
       },
       rewards: { inflationPmpe: NaN, mevPmpe: NaN, blockPmpe: NaN },
-      blacklist: new Set<string>()
+      blacklist: new Set<string>(),
     }
     const auction = new Auction(data, {} as any, {} as any, new Debug(new Set()))
     auction.updatePaidUndelegation()

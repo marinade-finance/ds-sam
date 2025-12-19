@@ -8,7 +8,9 @@
  *  - error thrown when result is non-finite
  */
 
-import { calcBondRiskFee, BondRiskFeeConfig } from '../src/calculations'
+import { calcBondRiskFee } from '../src/calculations'
+
+import type { BondRiskFeeConfig } from '../src/calculations'
 import type { AuctionValidator, RevShare } from '../src/types'
 
 const baseRevShare = {
@@ -31,13 +33,15 @@ const baseConfig: BondRiskFeeConfig = {
   pendingWithdrawalBondMult: 0,
 }
 
-function makeValidator (overrides: {
-  bondBalanceSol?: number
-  lastBondBalanceSol?: number
-  marinadeActivatedStakeSol?: number
-  values?: { paidUndelegationSol: number }
-  revShare?: Partial<RevShare>
-} = {}): AuctionValidator {
+function makeValidator(
+  overrides: {
+    bondBalanceSol?: number
+    lastBondBalanceSol?: number
+    marinadeActivatedStakeSol?: number
+    values?: { paidUndelegationSol: number }
+    revShare?: Partial<RevShare>
+  } = {},
+): AuctionValidator {
   const defaultRevShare: RevShare = {
     ...baseRevShare,
     bidPmpe: 0,
@@ -93,7 +97,7 @@ describe('calcBondRiskFee', () => {
     expect(result.paidUndelegationSol).toBeDefined()
 
     // Numerical assertions
-    const bf = result.bondForcedUndelegation!
+    const bf = result.bondForcedUndelegation
     expect(bf.base).toBeCloseTo(12.5, 6)
     expect(bf.coef).toBeCloseTo(0.5, 6)
     expect(bf.value).toBeCloseTo(45, 6)
@@ -115,7 +119,7 @@ describe('calcBondRiskFee', () => {
     expect(result.paidUndelegationSol).toBeDefined()
 
     // Numerical assertions
-    const bf = result.bondForcedUndelegation!
+    const bf = result.bondForcedUndelegation
     expect(bf.base).toBeCloseTo(9.179104477611943, 6)
     expect(bf.coef).toBeCloseTo(-0.19402985074626855, 5)
     expect(bf.value).toBeCloseTo(45, 6)
@@ -129,7 +133,11 @@ describe('calcBondRiskFee', () => {
       lastBondBalanceSol: 50,
       marinadeActivatedStakeSol: 50,
       values: { paidUndelegationSol: 5 },
-      revShare: { expectedMaxEffBidPmpe: 45, auctionEffectiveBidPmpe: 40, onchainDistributedPmpe: 200 },
+      revShare: {
+        expectedMaxEffBidPmpe: 45,
+        auctionEffectiveBidPmpe: 40,
+        onchainDistributedPmpe: 200,
+      },
     })
     const result = calcBondRiskFee(baseConfig, validator)!
     expect(result.bondForcedUndelegation).toBeDefined()
@@ -137,7 +145,7 @@ describe('calcBondRiskFee', () => {
     expect(result.paidUndelegationSol).toBeDefined()
 
     // Numerical assertions
-    const bf = result.bondForcedUndelegation!
+    const bf = result.bondForcedUndelegation
     expect(bf.base).toBeCloseTo(15.149253731343286, 6)
     expect(bf.coef).toBeCloseTo(0.28358208955223885, 5)
     expect(bf.value).toBeCloseTo(45, 6)
@@ -155,7 +163,7 @@ describe('calcBondRiskFee', () => {
       revShare: { onchainDistributedPmpe: 200 },
     })
     const result = calcBondRiskFee(cfg, validator)!
-    expect(result.bondForcedUndelegation!.value).toBeCloseTo(50)
+    expect(result.bondForcedUndelegation.value).toBeCloseTo(50)
     expect(result.bondRiskFeeSol).toBeCloseTo(2.0, 6)
     expect(result.paidUndelegationSol).toBeCloseTo(5, 6)
   })
@@ -179,11 +187,10 @@ describe('calcBondRiskFee', () => {
       revShare,
     })
     const result = calcBondRiskFee(baseConfig, validator)!
-    expect(result.bondForcedUndelegation!.value).toBeCloseTo(50)
-    expect(result.bondRiskFeeSol)
-      .toBeCloseTo(baseConfig.bondRiskFeeMult * 50 * (
-        (revShare.onchainDistributedPmpe + revShare.auctionEffectiveBidPmpe) / 1000)
-      )
+    expect(result.bondForcedUndelegation.value).toBeCloseTo(50)
+    expect(result.bondRiskFeeSol).toBeCloseTo(
+      baseConfig.bondRiskFeeMult * 50 * ((revShare.onchainDistributedPmpe + revShare.auctionEffectiveBidPmpe) / 1000),
+    )
   })
 
   it('handles zero effective PMPE with zero fee', () => {

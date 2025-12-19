@@ -1,4 +1,4 @@
-import { AuctionValidator, CommissionDetails } from '../types'
+import type { AuctionValidator, CommissionDetails } from '../types'
 
 export type RawScoredValidatorDto = {
   voteAccount: string
@@ -8,10 +8,10 @@ export type RawScoredValidatorDto = {
     inflationPmpe: number
     mevPmpe: number
     blockPmpe: number
-    totalPmpe: number,
-    calcEffParticipatingBidPmpe: number,
-    bondObligationPmpe: number,
-    onchainDistributedPmpe: number,
+    totalPmpe: number
+    calcEffParticipatingBidPmpe: number
+    bondObligationPmpe: number
+    onchainDistributedPmpe: number
   }
   marinadeSamTargetSol: number
   values?: {

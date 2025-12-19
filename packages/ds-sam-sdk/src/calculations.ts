@@ -1,19 +1,21 @@
-import { BidTooLowPenalty, AuctionValidator, Rewards, RevShare, CommissionDetails } from './types'
 import Decimal from 'decimal.js'
+
 import { assert } from './utils'
+
+import type { BidTooLowPenalty, AuctionValidator, Rewards, RevShare, CommissionDetails } from './types'
 
 export const calcValidatorRevShare = (
   validator: {
-    voteAccount: string,
-    inflationCommissionDec: number,
-    mevCommissionDec: number | null,
-    blockRewardsCommissionDec: number | null,
-    bidCpmpe: number | null,
+    voteAccount: string
+    inflationCommissionDec: number
+    mevCommissionDec: number | null
+    blockRewardsCommissionDec: number | null
+    bidCpmpe: number | null
     values: {
       commissions: CommissionDetails
     }
   },
-  rewards: Rewards
+  rewards: Rewards,
 ): RevShare => {
   // what the validator wants to share with stakers per 1000 SOL staked (of total, including bonds and overrides)
   const inflationPmpe = calculatePmpe(rewards.inflationPmpe, validator.inflationCommissionDec)
@@ -29,8 +31,14 @@ export const calcValidatorRevShare = (
   const bondsMevPmpeDiff = Math.max(0, bondMevPmpe - mevPmpe)
 
   // calculating what has already been shared on-chain (overrides redefines everything)
-  const onchainDistributedInflationPmpe = commissions.inflationCommissionOverrideDec !== null ? inflationPmpe : calculatePmpe(rewards.inflationPmpe, commissions.inflationCommissionOnchainDec)
-  const onchainDistributedMevPmpe = commissions.mevCommissionOverrideDec !== null ? mevPmpe : calculatePmpe(rewards.mevPmpe, commissions.mevCommissionOnchainDec)
+  const onchainDistributedInflationPmpe =
+    commissions.inflationCommissionOverrideDec !== null
+      ? inflationPmpe
+      : calculatePmpe(rewards.inflationPmpe, commissions.inflationCommissionOnchainDec)
+  const onchainDistributedMevPmpe =
+    commissions.mevCommissionOverrideDec !== null
+      ? mevPmpe
+      : calculatePmpe(rewards.mevPmpe, commissions.mevCommissionOnchainDec)
 
   const totalPmpe = inflationPmpe + mevPmpe + bidPmpe + blockPmpe
   assert(totalPmpe >= 0, 'Total PMPE cannot be negative')
@@ -118,16 +126,20 @@ export type BondRiskFeeResult = {
  *   bondRiskFeeSol    = forcedUndelegation * effPmpe / 1000
  *
  */
-export const calcBondRiskFee = (
-  cfg: BondRiskFeeConfig,
-  validator: AuctionValidator,
-): BondRiskFeeResult | null => {
+export const calcBondRiskFee = (cfg: BondRiskFeeConfig, validator: AuctionValidator): BondRiskFeeResult | null => {
   const { revShare } = validator
-  const projectedActivatedStakeSol = Math.max(0, validator.marinadeActivatedStakeSol - validator.values.paidUndelegationSol)
-  const minBondCoef = (revShare.onchainDistributedPmpe + (cfg.minBondEpochs + 1) * revShare.expectedMaxEffBidPmpe) / 1000
-  const riskBondSol = cfg.pendingWithdrawalBondMult * (validator.claimableBondBalanceSol ?? 0) + (1 - cfg.pendingWithdrawalBondMult) * (validator.bondBalanceSol ?? 0)
+  const projectedActivatedStakeSol = Math.max(
+    0,
+    validator.marinadeActivatedStakeSol - validator.values.paidUndelegationSol,
+  )
+  const minBondCoef =
+    (revShare.onchainDistributedPmpe + (cfg.minBondEpochs + 1) * revShare.expectedMaxEffBidPmpe) / 1000
+  const riskBondSol =
+    cfg.pendingWithdrawalBondMult * (validator.claimableBondBalanceSol ?? 0) +
+    (1 - cfg.pendingWithdrawalBondMult) * (validator.bondBalanceSol ?? 0)
   if (riskBondSol < projectedActivatedStakeSol * minBondCoef) {
-    const idealBondCoef = (revShare.onchainDistributedPmpe + (cfg.idealBondEpochs + 1) * revShare.expectedMaxEffBidPmpe) / 1000
+    const idealBondCoef =
+      (revShare.onchainDistributedPmpe + (cfg.idealBondEpochs + 1) * revShare.expectedMaxEffBidPmpe) / 1000
     const feeCoef = (revShare.onchainDistributedPmpe + revShare.auctionEffectiveBidPmpe) / 1000
     // always: base >= 0, even with no max, since idealBondCoef >= minBondCoef, since idealBondEpochs >= minBondEpochs
     // and we already ensured that riskBondSol / minBondCoef < projectedActivatedStakeSol above
@@ -136,7 +148,11 @@ export const calcBondRiskFee = (
     const coef = 1 - feeCoef / idealBondCoef
     let value = coef > 0 ? Math.min(projectedActivatedStakeSol, base / coef) : projectedActivatedStakeSol
     // always: value <= projectedActivatedStakeSol
-    if ((projectedActivatedStakeSol - value) * (revShare.onchainDistributedPmpe + revShare.expectedMaxEffBidPmpe) / 1000 < cfg.minBondBalanceSol) {
+    if (
+      ((projectedActivatedStakeSol - value) * (revShare.onchainDistributedPmpe + revShare.expectedMaxEffBidPmpe)) /
+        1000 <
+      cfg.minBondBalanceSol
+    ) {
       value = projectedActivatedStakeSol
     }
     const bondRiskFeeSol = cfg.bondRiskFeeMult * value * feeCoef
@@ -164,11 +180,11 @@ export const calcBondRiskFee = (
  */
 export const calcEffParticipatingBidPmpe = (
   revShare: {
-    inflationPmpe: number,
-    mevPmpe: number,
-    onchainDistributedPmpe: number,
+    inflationPmpe: number
+    mevPmpe: number
+    onchainDistributedPmpe: number
   },
-  winningTotalPmpe: number
+  winningTotalPmpe: number,
 ): number => {
   // for a better memory, later this comment can be deleted; before introduction of blockPmpe this was the code:
   // return Math.max(0, winningTotalPmpe - revShare.inflationPmpe - revShare.mevPmpe)
@@ -189,25 +205,29 @@ export const calcBidTooLowPenalty = ({
   winningTotalPmpe,
   validator,
   permittedBidDeviation = 0,
-}:{
-  historyEpochs: number,
-  winningTotalPmpe: number,
-  validator: AuctionValidator,
-  permittedBidDeviation?: number,
+}: {
+  historyEpochs: number
+  winningTotalPmpe: number
+  validator: AuctionValidator
+  permittedBidDeviation?: number
 }): BidTooLowPenaltyResult => {
   const tolCoef = 0.99999
   const scaleCoef = 1.5
   assert(permittedBidDeviation >= 0 && permittedBidDeviation <= 1, 'permittedBidDeviation has to be in [0, 1]')
-  const { revShare, auctions, values: { commissions } } = validator
-  const historicalPmpe = auctions.slice(0, historyEpochs).reduce(
-    (acc, { effParticipatingBidPmpe }) => Math.min(acc, effParticipatingBidPmpe ?? Infinity),
-    Infinity
-  )
+  const {
+    revShare,
+    auctions,
+    values: { commissions },
+  } = validator
+  const historicalPmpe = auctions
+    .slice(0, historyEpochs)
+    .reduce((acc, { effParticipatingBidPmpe }) => Math.min(acc, effParticipatingBidPmpe ?? Infinity), Infinity)
   const limit = Math.min(revShare.effParticipatingBidPmpe, historicalPmpe)
   const adjustedLimit = limit * (1 - permittedBidDeviation)
-  const penaltyCoef = adjustedLimit > 0
-    ? Math.min(1, Math.sqrt(scaleCoef * Math.max(0, (adjustedLimit - revShare.bondObligationPmpe) / adjustedLimit)))
-    : 0
+  const penaltyCoef =
+    adjustedLimit > 0
+      ? Math.min(1, Math.sqrt(scaleCoef * Math.max(0, (adjustedLimit - revShare.bondObligationPmpe) / adjustedLimit)))
+      : 0
   const pastAuction = auctions[0]
   const isNegativeBiddingChange =
     revShare.bidPmpe < tolCoef * (pastAuction?.bidPmpe ?? 0) ||
@@ -217,12 +237,11 @@ export const calcBidTooLowPenalty = ({
   const bidTooLowPenaltyValue = {
     base: winningTotalPmpe + revShare.effParticipatingBidPmpe,
     // did validator lower its bid compared to last epoch; if so how much
-    coef: isNegativeBiddingChange ? penaltyCoef : 0
+    coef: isNegativeBiddingChange ? penaltyCoef : 0,
   }
   const bidTooLowPenaltyPmpe = bidTooLowPenaltyValue.coef * bidTooLowPenaltyValue.base
-  const paidUndelegationSol = bidTooLowPenaltyPmpe > 0
-    ? bidTooLowPenaltyPmpe * validator.marinadeActivatedStakeSol / winningTotalPmpe
-    : 0
+  const paidUndelegationSol =
+    bidTooLowPenaltyPmpe > 0 ? (bidTooLowPenaltyPmpe * validator.marinadeActivatedStakeSol) / winningTotalPmpe : 0
   if (!isFinite(bidTooLowPenaltyPmpe)) {
     throw new Error(`bidTooLowPenaltyPmpe has to be finite # ${JSON.stringify(bidTooLowPenaltyValue)}`)
   }
@@ -230,10 +249,14 @@ export const calcBidTooLowPenalty = ({
     throw new Error(`bidTooLowPenaltyPmpe can not be negative # ${JSON.stringify(bidTooLowPenaltyValue)}`)
   }
   if (!isFinite(paidUndelegationSol)) {
-    throw new Error(`paidUndelegationSol has to be finite # ${JSON.stringify({ bidTooLowPenaltyPmpe, winningTotalPmpe })}`)
+    throw new Error(
+      `paidUndelegationSol has to be finite # ${JSON.stringify({ bidTooLowPenaltyPmpe, winningTotalPmpe })}`,
+    )
   }
   if (paidUndelegationSol < 0) {
-    throw new Error(`paidUndelegationSol can not be negative # ${JSON.stringify({ bidTooLowPenaltyPmpe, winningTotalPmpe })}`)
+    throw new Error(
+      `paidUndelegationSol can not be negative # ${JSON.stringify({ bidTooLowPenaltyPmpe, winningTotalPmpe })}`,
+    )
   }
   return {
     bidTooLowPenalty: bidTooLowPenaltyValue,

@@ -1,8 +1,13 @@
-import { AuctionValidator, AuctionConstraint, AuctionConstraintType } from './types'
+import type { AuctionValidator, AuctionConstraint, AuctionConstraintType } from './types'
 
 export const MNDE_VOTE_DELEGATION_STRATEGY = 'MarinadeA1gorithmicDe1egationStrategy111111'
 
-export const ineligibleValidatorAggDefaults = () => ({ samEligible: false, mndeEligible: false, backstopEligible: false, ...validatorAggDefaults() })
+export const ineligibleValidatorAggDefaults = () => ({
+  samEligible: false,
+  mndeEligible: false,
+  backstopEligible: false,
+  ...validatorAggDefaults(),
+})
 
 export const validatorAggDefaults = () => ({
   lastCapConstraint: null,
@@ -25,9 +30,15 @@ export const validatorAggDefaults = () => ({
 })
 
 export const validatorTotalAuctionStakeSol = (validator: AuctionValidator): number =>
-  validator.auctionStake.externalActivatedSol + validator.auctionStake.marinadeMndeTargetSol + validator.auctionStake.marinadeSamTargetSol
+  validator.auctionStake.externalActivatedSol +
+  validator.auctionStake.marinadeMndeTargetSol +
+  validator.auctionStake.marinadeSamTargetSol
 
-export const zeroStakeConcentration = (type: AuctionConstraintType, name: string, caps: { totalSol: number, marinadeSol: number }): AuctionConstraint => ({
+export const zeroStakeConcentration = (
+  type: AuctionConstraintType,
+  name: string,
+  caps: { totalSol: number; marinadeSol: number },
+): AuctionConstraint => ({
   constraintType: type,
   constraintName: name,
   totalStakeSol: 0,
@@ -37,17 +48,24 @@ export const zeroStakeConcentration = (type: AuctionConstraintType, name: string
   validators: [],
 })
 
-export const minCapFromConstraint = (constraint: AuctionConstraint, voteAccounts: Set<string>): { cap: number, affectedValidators: number } => {
-  const affectedValidators = constraint.validators.reduce((sum, { voteAccount }) => voteAccounts.has(voteAccount) ? sum + 1 : sum, 0)
+export const minCapFromConstraint = (
+  constraint: AuctionConstraint,
+  voteAccounts: Set<string>,
+): { cap: number; affectedValidators: number } => {
+  const affectedValidators = constraint.validators.reduce(
+    (sum, { voteAccount }) => (voteAccounts.has(voteAccount) ? sum + 1 : sum),
+    0,
+  )
   return {
     affectedValidators,
-    cap: Math.max(0, Math.min(constraint.totalLeftToCapSol, constraint.marinadeLeftToCapSol)) / affectedValidators
+    cap: Math.max(0, Math.min(constraint.totalLeftToCapSol, constraint.marinadeLeftToCapSol)) / affectedValidators,
   }
 }
 
-export const formatLastCapConstraint = (constraint: AuctionConstraint | null) => constraint ? `${constraint.constraintType} (${constraint.constraintName})` : 'NULL'
+export const formatLastCapConstraint = (constraint: AuctionConstraint | null) =>
+  constraint ? `${constraint.constraintType} (${constraint.constraintName})` : 'NULL'
 
-export function assert (condition: boolean, message: string): asserts condition {
+export function assert(condition: boolean, message: string): asserts condition {
   if (!condition) {
     throw new Error(message)
   }

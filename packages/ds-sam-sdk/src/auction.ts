@@ -1,8 +1,11 @@
+/* eslint-disable no-param-reassign */
+
 import { calcBondRiskFee, calcEffParticipatingBidPmpe, calcBidTooLowPenalty } from './calculations'
-import { AuctionData, AuctionResult, AuctionValidator } from './types'
-import { AuctionConstraints } from './constraints'
-import { DsSamConfig } from './config'
-import { Debug } from './debug'
+
+import type { DsSamConfig } from './config'
+import type { AuctionConstraints } from './constraints'
+import type { Debug } from './debug'
+import type { AuctionData, AuctionResult, AuctionValidator } from './types'
 
 export const EPSILON = 1e-4
 
@@ -25,14 +28,21 @@ export const setReputation = (validator: AuctionValidator, values: ReputationVal
 }
 
 export class Auction {
+  constructor(
+    private data: AuctionData,
+    private constraints: AuctionConstraints,
+    private config: DsSamConfig,
+    private debug: Debug,
+  ) {}
 
-  constructor (private data: AuctionData, private constraints: AuctionConstraints, private config: DsSamConfig, private debug: Debug) { }
-
-  distributeMndeStake () {
+  distributeMndeStake() {
     this.constraints.updateStateForMnde(this.data)
-    this.debug.getVoteAccounts().forEach((voteAccount) => {
+    this.debug.getVoteAccounts().forEach(voteAccount => {
       const constraints = this.constraints.getValidatorConstraints(voteAccount)
-      this.debug.pushValidatorEvent(voteAccount, `MNDE start constraints: ${constraints ? `${JSON.stringify(constraints.map(constraint => ({ ...constraint, validators: constraint.validators.length })))}` : 'NULL'}`)
+      this.debug.pushValidatorEvent(
+        voteAccount,
+        `MNDE start constraints: ${constraints ? `${JSON.stringify(constraints.map(constraint => ({ ...constraint, validators: constraint.validators.length })))}` : 'NULL'}`,
+      )
     })
 
     let remEligibleValidators = this.data.validators.filter(validator => validator.mndeEligible)
@@ -41,7 +51,7 @@ export class Auction {
       const eligibleValidators = new Map(remEligibleValidators.map(validator => [validator.voteAccount, validator]))
       const eligibleVoteAccounts = new Set(eligibleValidators.keys())
       const { cap: evenDistributionCap } = this.constraints.getMinCapForEvenDistribution(eligibleVoteAccounts)
-      console.log('MNDE distributing', evenDistributionCap, 'to every validator in the group', eligibleValidators.size)
+      console.log('MNDE distributing', evenDistributionCap, LOG_TO_EVERY_VALIDATOR, eligibleValidators.size)
 
       for (const validator of eligibleValidators.values()) {
         validator.auctionStake.marinadeMndeTargetSol += evenDistributionCap
@@ -49,10 +59,10 @@ export class Auction {
       }
 
       this.constraints.updateStateForMnde(this.data)
-      remEligibleValidators = remEligibleValidators.filter((validator) => {
+      remEligibleValidators = remEligibleValidators.filter(validator => {
         const validatorCap = this.constraints.findCapForValidator(validator)
         if (validatorCap < EPSILON) {
-          console.log('MNDE removing validator', validator.voteAccount, 'from the group because the cap has been reached')
+          console.log('MNDE removing validator', validator.voteAccount, LOG_CAP_REACHED)
           return false
         }
         return true
@@ -67,11 +77,14 @@ export class Auction {
     }
   }
 
-  distributeSamStake () {
+  distributeSamStake() {
     this.constraints.updateStateForSam(this.data)
-    this.debug.getVoteAccounts().forEach((voteAccount) => {
+    this.debug.getVoteAccounts().forEach(voteAccount => {
       const constraints = this.constraints.getValidatorConstraints(voteAccount)
-      this.debug.pushValidatorEvent(voteAccount, `SAM start constraints: ${constraints ? `${JSON.stringify(constraints.map(constraint => ({ ...constraint, validators: constraint.validators.length })))}` : 'NULL'}`)
+      this.debug.pushValidatorEvent(
+        voteAccount,
+        `SAM start constraints: ${constraints ? `${JSON.stringify(constraints.map(constraint => ({ ...constraint, validators: constraint.validators.length })))}` : 'NULL'}`,
+      )
     })
 
     let previousGroupPmpe = Infinity
@@ -79,13 +92,19 @@ export class Auction {
     let winningTotalPmpe = Infinity
     let groups = 0
     let rounds = 0
-    while (group = this.findNextPmpeGroup(previousGroupPmpe)) {
+    while ((group = this.findNextPmpeGroup(previousGroupPmpe))) {
       groups++
       group.validators = group.validators.filter(validator => validator.samEligible && !validator.samBlocked)
 
       console.log('SAM ========= new round ==========')
       console.log('SAM', group.validators.length, 'validators eligible')
-      this.debug.pushValidatorSetEvent(new Set(group.validators.map(({ voteAccount }) => voteAccount)), `assigned to PMPE group ${group.totalPmpe} with ${group.validators.length} eligible validators: ${group.validators.slice(0, 5).map(({ voteAccount }) => voteAccount).join(' ')}`)
+      this.debug.pushValidatorSetEvent(
+        new Set(group.validators.map(({ voteAccount }) => voteAccount)),
+        `assigned to PMPE group ${group.totalPmpe} with ${group.validators.length} eligible validators: ${group.validators
+          .slice(0, 5)
+          .map(({ voteAccount }) => voteAccount)
+          .join(' ')}`,
+      )
 
       if (this.data.stakeAmounts.marinadeRemainingSamSol < EPSILON) {
         console.log('SAM No stake remaining to distribute')
@@ -101,20 +120,23 @@ export class Auction {
 
         const { cap } = this.constraints.getMinCapForEvenDistribution(groupVoteAccounts)
         const evenDistributionCap = Math.min(cap, remainingStakeToDistribute / group.validators.length)
-        console.log('SAM distributing', evenDistributionCap, 'to every validator in the group', groupValidators.size)
+        console.log('SAM distributing', evenDistributionCap, LOG_TO_EVERY_VALIDATOR, groupValidators.size)
 
         for (const validator of groupValidators.values()) {
           validator.auctionStake.marinadeSamTargetSol += evenDistributionCap
           this.data.stakeAmounts.marinadeRemainingSamSol -= evenDistributionCap
           winningTotalPmpe = validator.revShare.totalPmpe
-          this.debug.pushValidatorEvent(validator.voteAccount, `received ${evenDistributionCap} SAM stake in PMPE group ${validator.revShare.totalPmpe} with ${groupValidators.size} validators`)
+          this.debug.pushValidatorEvent(
+            validator.voteAccount,
+            `received ${evenDistributionCap} SAM stake in PMPE group ${validator.revShare.totalPmpe} with ${groupValidators.size} validators`,
+          )
         }
 
         this.constraints.updateStateForSam(this.data)
-        group.validators = group.validators.filter((validator) => {
+        group.validators = group.validators.filter(validator => {
           const validatorCap = this.constraints.findCapForValidator(validator)
           if (validatorCap < EPSILON) {
-            console.log('SAM removing validator', validator.voteAccount, 'from the group because the cap has been reached')
+            console.log('SAM removing validator', validator.voteAccount, LOG_CAP_REACHED)
             return false
           }
           return true
@@ -137,18 +159,27 @@ export class Auction {
     return winningTotalPmpe
   }
 
-  distributeBackstopStake () {
+  distributeBackstopStake() {
     this.constraints.updateStateForBackstop(this.data)
-    this.debug.getVoteAccounts().forEach((voteAccount) => {
+    this.debug.getVoteAccounts().forEach(voteAccount => {
       const constraints = this.constraints.getValidatorConstraints(voteAccount)
-      this.debug.pushValidatorEvent(voteAccount, `SAM start constraints: ${constraints ? `${JSON.stringify(constraints.map(constraint => ({ ...constraint, validators: constraint.validators.length })))}` : 'NULL'}`)
+      this.debug.pushValidatorEvent(
+        voteAccount,
+        `SAM start constraints: ${constraints ? `${JSON.stringify(constraints.map(constraint => ({ ...constraint, validators: constraint.validators.length })))}` : 'NULL'}`,
+      )
     })
 
     let rounds = 0
     let validators = this.data.validators.filter(validator => validator.backstopEligible && !validator.samBlocked)
     console.log('BACKSTOP ========= new round ==========')
     console.log('BACKSTOP', validators.length, 'validators eligible')
-    this.debug.pushValidatorSetEvent(new Set(validators.map(({ voteAccount }) => voteAccount)), `assigned as BACKSTOP eligible validator: ${validators.slice(0, 5).map(({ voteAccount }) => voteAccount).join(' ')}`)
+    this.debug.pushValidatorSetEvent(
+      new Set(validators.map(({ voteAccount }) => voteAccount)),
+      `assigned as BACKSTOP eligible validator: ${validators
+        .slice(0, 5)
+        .map(({ voteAccount }) => voteAccount)
+        .join(' ')}`,
+    )
 
     if (this.data.stakeAmounts.marinadeRemainingSamSol < EPSILON) {
       console.log('BACKSTOP No stake remaining to distribute')
@@ -164,19 +195,22 @@ export class Auction {
 
       const { cap } = this.constraints.getMinCapForEvenDistribution(groupVoteAccounts)
       const evenDistributionCap = Math.min(cap, remainingStakeToDistribute / validators.length)
-      console.log('BACKSTOP distributing', evenDistributionCap, 'to every validator in the group', groupValidators.size)
+      console.log('BACKSTOP distributing', evenDistributionCap, LOG_TO_EVERY_VALIDATOR, groupValidators.size)
 
       for (const validator of groupValidators.values()) {
         validator.auctionStake.marinadeSamTargetSol += evenDistributionCap
         this.data.stakeAmounts.marinadeRemainingSamSol -= evenDistributionCap
-        this.debug.pushValidatorEvent(validator.voteAccount, `received ${evenDistributionCap} SAM stake in PMPE group ${validator.revShare.totalPmpe} with ${groupValidators.size} validators`)
+        this.debug.pushValidatorEvent(
+          validator.voteAccount,
+          `received ${evenDistributionCap} SAM stake in PMPE group ${validator.revShare.totalPmpe} with ${groupValidators.size} validators`,
+        )
       }
 
       this.constraints.updateStateForBackstop(this.data)
-      validators = validators.filter((validator) => {
+      validators = validators.filter(validator => {
         const validatorCap = this.constraints.findCapForValidator(validator)
         if (validatorCap < EPSILON) {
-          console.log('BACKSTOP removing validator', validator.voteAccount, 'from the group because the cap has been reached')
+          console.log('BACKSTOP removing validator', validator.voteAccount, LOG_CAP_REACHED)
           return false
         }
         return true
@@ -194,7 +228,7 @@ export class Auction {
     console.log('BACKSTOP rounds', rounds)
   }
 
-  setStakeUnstakePriorities () {
+  setStakeUnstakePriorities() {
     this.data.validators.sort((a, b) => b.revShare.totalPmpe - a.revShare.totalPmpe)
 
     let currentGroupPmpe = NaN
@@ -210,32 +244,38 @@ export class Auction {
 
     this.data.validators
       .filter(({ mndeEligible, samEligible }) => !mndeEligible && !samEligible)
-      .forEach(validator => validator.unstakePriority = 0)
+      .forEach(validator => (validator.unstakePriority = 0))
 
     let bondsMaxIndex = 0
     this.data.validators
       .filter(({ unstakePriority }) => Number.isNaN(unstakePriority))
       .map(validator => ({
         validator,
-        bondBalanceDiff: ((validator.bondBalanceSol ?? 0) - this.constraints.bondBalanceRequiredForCurrentStake(validator)) / validator.marinadeActivatedStakeSol
+        bondBalanceDiff:
+          ((validator.bondBalanceSol ?? 0) - this.constraints.bondBalanceRequiredForCurrentStake(validator)) /
+          validator.marinadeActivatedStakeSol,
       }))
       .filter(({ bondBalanceDiff }) => bondBalanceDiff < 0) // Infinity and NaN filtered out too
       .sort((a, b) => a.bondBalanceDiff - b.bondBalanceDiff)
-      .forEach(({ validator }, index) => bondsMaxIndex = validator.unstakePriority = index + 1)
+      .forEach(({ validator }, index) => (bondsMaxIndex = validator.unstakePriority = index + 1))
 
     this.data.validators
       .filter(({ unstakePriority }) => Number.isNaN(unstakePriority))
       .map(validator => ({
         validator,
-        stakeDiff: validator.marinadeActivatedStakeSol <= 0 ?
-          1 :
-          (validator.auctionStake.marinadeMndeTargetSol + validator.auctionStake.marinadeSamTargetSol - validator.marinadeActivatedStakeSol) / validator.marinadeActivatedStakeSol
+        stakeDiff:
+          validator.marinadeActivatedStakeSol <= 0
+            ? 1
+            : (validator.auctionStake.marinadeMndeTargetSol +
+                validator.auctionStake.marinadeSamTargetSol -
+                validator.marinadeActivatedStakeSol) /
+              validator.marinadeActivatedStakeSol,
       }))
       .sort((a, b) => a.stakeDiff - b.stakeDiff)
-      .forEach(({ validator }, index) => validator.unstakePriority = bondsMaxIndex + index + 1)
+      .forEach(({ validator }, index) => (validator.unstakePriority = bondsMaxIndex + index + 1))
   }
 
-  setAuctionEffectiveBids (winningTotalPmpe: number) {
+  setAuctionEffectiveBids(winningTotalPmpe: number) {
     for (const validator of this.data.validators) {
       const { revShare } = validator
       if (revShare.totalPmpe < winningTotalPmpe) {
@@ -259,7 +299,7 @@ export class Auction {
    * This does not include any dynamic commission bidding the validator may configure
    * through commission arguments.
    */
-  private setAuctionEffectiveStaticBids (winningTotalPmpe: number) {
+  private setAuctionEffectiveStaticBids(winningTotalPmpe: number) {
     for (const validator of this.data.validators) {
       const { revShare } = validator
       if (revShare.totalPmpe < winningTotalPmpe) {
@@ -267,19 +307,22 @@ export class Auction {
         revShare.auctionEffectiveStaticBidPmpe = revShare.bidPmpe
       } else {
         // The validator is in the winning group, we calculate what PMPE is to be charged by bond static bid
-        revShare.auctionEffectiveStaticBidPmpe = Math.max(0, winningTotalPmpe - revShare.inflationPmpe - revShare.mevPmpe - revShare.blockPmpe)
+        revShare.auctionEffectiveStaticBidPmpe = Math.max(
+          0,
+          winningTotalPmpe - revShare.inflationPmpe - revShare.mevPmpe - revShare.blockPmpe,
+        )
       }
     }
   }
 
-  setEffParticipatingBids (winningTotalPmpe: number) {
+  setEffParticipatingBids(winningTotalPmpe: number) {
     for (const validator of this.data.validators) {
       const { revShare } = validator
       revShare.effParticipatingBidPmpe = calcEffParticipatingBidPmpe(revShare, winningTotalPmpe)
     }
   }
 
-  setBidTooLowPenalties (winningTotalPmpe: number) {
+  setBidTooLowPenalties(winningTotalPmpe: number) {
     const k = this.config.bidTooLowPenaltyHistoryEpochs
     for (const validator of this.data.validators) {
       const value = calcBidTooLowPenalty({
@@ -294,14 +337,14 @@ export class Auction {
     }
   }
 
-  updatePaidUndelegation () {
+  updatePaidUndelegation() {
     for (const validator of this.data.validators) {
       const { values } = validator
       const delta = validator.lastMarinadeActivatedStakeSol
         ? validator.marinadeActivatedStakeSol - validator.lastMarinadeActivatedStakeSol
         : 0
       const undelegation = -Math.min(0, delta)
-      if (delta > 0.1 * values.paidUndelegationSol || validator.marinadeActivatedStakeSol == 0) {
+      if (delta > 0.1 * values.paidUndelegationSol || validator.marinadeActivatedStakeSol === 0) {
         values.paidUndelegationSol = 0
       } else {
         values.paidUndelegationSol -= Math.min(undelegation, values.paidUndelegationSol)
@@ -310,7 +353,7 @@ export class Auction {
     }
   }
 
-  setBondRiskFee () {
+  setBondRiskFee() {
     for (const validator of this.data.validators) {
       if ((validator.lastBondBalanceSol ?? validator.bondBalanceSol ?? 0) < 1) {
         continue
@@ -326,18 +369,18 @@ export class Auction {
     }
   }
 
-  getAuctionData (): AuctionData {
+  getAuctionData(): AuctionData {
     return this.data
   }
 
-  blockInSam (vote: string) {
+  blockInSam(vote: string) {
     const entry = this.data.validators.find(({ voteAccount }) => voteAccount === vote)
     if (entry != null) {
       entry.samBlocked = true
     }
   }
 
-  reset () {
+  reset() {
     console.log('----------------------------- resetting auction')
     this.data.stakeAmounts.marinadeRemainingMndeSol = this.data.stakeAmounts.marinadeMndeTvlSol
     this.data.stakeAmounts.marinadeRemainingSamSol = this.data.stakeAmounts.marinadeSamTvlSol
@@ -355,11 +398,14 @@ export class Auction {
     })
   }
 
-  updateSpendRobustReputations (winningTotalPmpe: number, totalMarinadeSpend: number) {
+  updateSpendRobustReputations(winningTotalPmpe: number, totalMarinadeSpend: number) {
     for (const validator of this.data.validators) {
       const { values } = validator
 
-      if (validator.revShare.totalPmpe >= winningTotalPmpe && (validator.bondBalanceSol ?? 0) >= this.config.minBondBalanceSol) {
+      if (
+        validator.revShare.totalPmpe >= winningTotalPmpe &&
+        (validator.bondBalanceSol ?? 0) >= this.config.minBondBalanceSol
+      ) {
         // counterfactual auction - the validator is not part of the auction
         this.reset()
         console.log(`EVALUATING counterfactual auction for ${validator.voteAccount}`)
@@ -369,19 +415,19 @@ export class Auction {
         // baseline auction - the validator is not bounded by its reputation
         this.reset()
         console.log(`EVALUATING baseline auction for ${validator.voteAccount}`)
-        const origReputation = setReputation(
-          validator,
-          {
-            spendRobustReputation: Infinity,
-            adjSpendRobustReputation: Infinity,
-            adjMaxSpendRobustDelegation: Infinity,
-          },
-        )
+        const origReputation = setReputation(validator, {
+          spendRobustReputation: Infinity,
+          adjSpendRobustReputation: Infinity,
+          adjMaxSpendRobustDelegation: Infinity,
+        })
         const unboundedResult = this.evaluateOne()
         setReputation(validator, origReputation)
 
         // the reputation is the gain the validator's participation brings
-        const marginalPmpeGain = Math.max(0, unboundedResult.winningTotalPmpe / counterfactualResult.winningTotalPmpe - 1)
+        const marginalPmpeGain = Math.max(
+          0,
+          unboundedResult.winningTotalPmpe / counterfactualResult.winningTotalPmpe - 1,
+        )
         values.spendRobustReputation += marginalPmpeGain * totalMarinadeSpend
       }
       const coef = 1 / validator.values.adjSpendRobustReputationInflationFactor
@@ -389,15 +435,12 @@ export class Auction {
         0,
         validator.lastMarinadeActivatedStakeSol
           ? validator.marinadeActivatedStakeSol - validator.lastMarinadeActivatedStakeSol
-          : 0
+          : 0,
       )
-      values.spendRobustReputation -= coef * values.marinadeActivatedStakeSolUndelegation * winningTotalPmpe / 1000
+      values.spendRobustReputation -= (coef * values.marinadeActivatedStakeSolUndelegation * winningTotalPmpe) / 1000
       values.spendRobustReputation = Math.max(
         this.config.minSpendRobustReputation,
-        Math.min(
-          this.config.maxSpendRobustReputation,
-          values.spendRobustReputation
-        )
+        Math.min(this.config.maxSpendRobustReputation, values.spendRobustReputation),
       )
       if (values.spendRobustReputation > Math.max(0, this.config.minSpendRobustReputation)) {
         values.spendRobustReputation *= 1 - 1 / this.config.spendRobustReputationDecayEpochs
@@ -405,13 +448,13 @@ export class Auction {
     }
   }
 
-  setMaxBondDelegations () {
+  setMaxBondDelegations() {
     const marinadeTvlSol = this.data.stakeAmounts.marinadeSamTvlSol + this.data.stakeAmounts.marinadeMndeTvlSol
     for (const validator of this.data.validators) {
       if (validator.revShare.totalPmpe > 0) {
         validator.maxBondDelegation = Math.min(
           this.constraints.bondStakeCapSam(validator),
-          this.config.maxMarinadeTvlSharePerValidatorDec * marinadeTvlSol
+          this.config.maxMarinadeTvlSharePerValidatorDec * marinadeTvlSol,
         )
       } else {
         validator.maxBondDelegation = 0
@@ -419,13 +462,13 @@ export class Auction {
     }
   }
 
-  setMaxSpendRobustDelegations () {
+  setMaxSpendRobustDelegations() {
     for (const validator of this.data.validators) {
       this.setMaxSpendRobustDelegationsForValidator(validator)
     }
   }
 
-  setMaxSpendRobustDelegationsForValidator (validator: AuctionValidator) {
+  setMaxSpendRobustDelegationsForValidator(validator: AuctionValidator) {
     const values = validator.values
     values.adjSpendRobustReputation = values.spendRobustReputation * values.adjSpendRobustReputationInflationFactor
     if (!isFinite(values.adjSpendRobustReputation)) {
@@ -434,7 +477,7 @@ export class Auction {
     if (validator.revShare.totalPmpe > 0) {
       values.adjMaxSpendRobustDelegation = Math.max(
         0,
-        values.adjSpendRobustReputation / (validator.revShare.totalPmpe / 1000)
+        values.adjSpendRobustReputation / (validator.revShare.totalPmpe / 1000),
       )
     } else {
       values.adjMaxSpendRobustDelegation = 0
@@ -459,7 +502,7 @@ export class Auction {
    * This ensures that the winning PMPE stays above a reasonable threshold
    * and that high-bid validators with low reputation can not easily game the scaling.
    */
-  scaleReputationToFitTvl () {
+  scaleReputationToFitTvl() {
     const { inflationPmpe, mevPmpe, blockPmpe } = this.data.rewards
     const initialTotalPmpeLimit = inflationPmpe + mevPmpe + blockPmpe + this.config.expectedFeePmpe
     console.log(`SCALING reputation to fit tvl with pmpe above: ${initialTotalPmpeLimit}`)
@@ -501,7 +544,9 @@ export class Auction {
       // if totalScalable = 0, we'll get Infinity or NaN which is caught below resulting in
       // either moving the totalPmpeLimit down or a break, us being done
       factor = Math.max(0, leftToScale) / totalScalable
-      console.log(`SCALING round ${i} # ${JSON.stringify({ factor, leftToScale, leftTvl, totalScalable, totalPmpeLimit })}`)
+      console.log(
+        `SCALING round ${i} # ${JSON.stringify({ factor, leftToScale, leftTvl, totalScalable, totalPmpeLimit })}`,
+      )
       if (totalScalable == 0 && leftToScale > 0) {
         if (totalPmpeLimit > inflationPmpe + mevPmpe + blockPmpe) {
           totalPmpeLimit *= 0.99
@@ -538,7 +583,7 @@ export class Auction {
     console.log(`SCALING factor found: ${mult * totalFactor}`)
   }
 
-  evaluateOne (): AuctionResult {
+  evaluateOne(): AuctionResult {
     console.log('EVALUATING new auction ----------------------------------------')
     console.log('stake amounts before', this.data.stakeAmounts)
     this.debug.pushInfo('start amounts', JSON.stringify(this.data.stakeAmounts))
@@ -548,7 +593,9 @@ export class Auction {
     this.debug.pushInfo('post MNDE amounts', JSON.stringify(this.data.stakeAmounts))
     console.log(`MNDE overflow: ${this.data.stakeAmounts.marinadeRemainingMndeSol}`)
     if (this.data.stakeAmounts.marinadeRemainingMndeSol > EPSILON) {
-      this.debug.pushEvent(`MNDE overflow ${this.data.stakeAmounts.marinadeRemainingMndeSol} SOL will be distributed in SAM`)
+      this.debug.pushEvent(
+        `MNDE overflow ${this.data.stakeAmounts.marinadeRemainingMndeSol} SOL will be distributed in SAM`,
+      )
       this.data.stakeAmounts.marinadeSamTvlSol += this.data.stakeAmounts.marinadeRemainingMndeSol
       this.data.stakeAmounts.marinadeRemainingSamSol += this.data.stakeAmounts.marinadeRemainingMndeSol
       this.data.stakeAmounts.marinadeMndeTvlSol -= this.data.stakeAmounts.marinadeRemainingMndeSol
@@ -583,17 +630,17 @@ export class Auction {
     }
   }
 
-  setExpectedMaxEffBidPmpes (expectedMaxTotalPmpe: number) {
+  setExpectedMaxEffBidPmpes(expectedMaxTotalPmpe: number) {
     for (const validator of this.data.validators) {
       const { revShare } = validator
       revShare.expectedMaxEffBidPmpe = Math.max(
         this.config.minExpectedEffBidPmpe,
-        Math.min(revShare.bondObligationPmpe, expectedMaxTotalPmpe - revShare.onchainDistributedPmpe)
+        Math.min(revShare.bondObligationPmpe, expectedMaxTotalPmpe - revShare.onchainDistributedPmpe),
       )
     }
   }
 
-  updateExpectedMaxEffBidPmpe () {
+  updateExpectedMaxEffBidPmpe() {
     if (this.config.expectedMaxWinningBidRatio == null) {
       return
     }
@@ -608,7 +655,7 @@ export class Auction {
     this.setExpectedMaxEffBidPmpes(rewardsBase + shift)
   }
 
-  setBlacklistPenalties (winningTotalPmpe: number) {
+  setBlacklistPenalties(winningTotalPmpe: number) {
     for (const validator of this.data.validators) {
       if (validator.values.samBlacklisted && validator.lastSamBlacklisted === false) {
         validator.revShare.blacklistPenaltyPmpe =
@@ -619,7 +666,7 @@ export class Auction {
     }
   }
 
-  evaluateFinal (): AuctionResult {
+  evaluateFinal(): AuctionResult {
     this.setMaxSpendRobustDelegations()
     this.updateExpectedMaxEffBidPmpe()
     this.updatePaidUndelegation()
@@ -634,14 +681,14 @@ export class Auction {
     return result
   }
 
-  evaluate (): AuctionResult {
+  evaluate(): AuctionResult {
     this.setMaxSpendRobustDelegations()
     this.updateExpectedMaxEffBidPmpe()
     const result = this.evaluateOne()
     this.setAuctionEffectiveBids(result.winningTotalPmpe)
     const totalMarinadeSpend = result.auctionData.validators.reduce(
-      (acc, entry) => acc + entry.revShare.auctionEffectiveBidPmpe * entry.marinadeActivatedStakeSol / 1000,
-      0
+      (acc, entry) => acc + (entry.revShare.auctionEffectiveBidPmpe * entry.marinadeActivatedStakeSol) / 1000,
+      0,
     )
     this.setMaxBondDelegations()
     this.updateSpendRobustReputations(result.winningTotalPmpe, totalMarinadeSpend)
@@ -651,15 +698,15 @@ export class Auction {
     return this.evaluateFinal()
   }
 
-  findNextPmpeGroup (totalPmpe: number): { totalPmpe: number, validators: AuctionValidator[] } | null {
+  findNextPmpeGroup(totalPmpe: number): { totalPmpe: number; validators: AuctionValidator[] } | null {
     console.log('finding next pmpe group...', totalPmpe)
-    const nextGroupCandidates = this.data.validators.filter((validator) => validator.revShare.totalPmpe < totalPmpe)
+    const nextGroupCandidates = this.data.validators.filter(validator => validator.revShare.totalPmpe < totalPmpe)
     if (nextGroupCandidates.length === 0) {
       console.log('...no pmpe group remaining', totalPmpe)
       return null
     }
     const maxPmpe = nextGroupCandidates.reduce((max, validator) => Math.max(validator.revShare.totalPmpe, max), 0)
-    const validators = nextGroupCandidates.filter((validator) => validator.revShare.totalPmpe === maxPmpe)
+    const validators = nextGroupCandidates.filter(validator => validator.revShare.totalPmpe === maxPmpe)
 
     console.log('...found next pmpe group', maxPmpe, validators.length)
     return {

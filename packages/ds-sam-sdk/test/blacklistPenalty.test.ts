@@ -10,7 +10,7 @@ describe('setBlacklistPenalties', () => {
         voteAccount: 'newly-blacklisted',
         revShare: {
           effParticipatingBidPmpe: 100,
-          blacklistPenaltyPmpe: 0
+          blacklistPenaltyPmpe: 0,
         },
         values: { samBlacklisted: true } as any,
         lastSamBlacklisted: false,
@@ -19,7 +19,7 @@ describe('setBlacklistPenalties', () => {
         voteAccount: 'still-blacklisted',
         revShare: {
           effParticipatingBidPmpe: 200,
-          blacklistPenaltyPmpe: 0
+          blacklistPenaltyPmpe: 0,
         },
         values: { samBlacklisted: true } as any,
         lastSamBlacklisted: true,
@@ -28,7 +28,7 @@ describe('setBlacklistPenalties', () => {
         voteAccount: 'not-blacklisted',
         revShare: {
           effParticipatingBidPmpe: 300,
-          blacklistPenaltyPmpe: 0
+          blacklistPenaltyPmpe: 0,
         },
         values: { samBlacklisted: false } as any,
         lastSamBlacklisted: false,
@@ -37,7 +37,7 @@ describe('setBlacklistPenalties', () => {
         voteAccount: 'newly-blacklisted-zero-eff',
         revShare: {
           effParticipatingBidPmpe: 0,
-          blacklistPenaltyPmpe: 0
+          blacklistPenaltyPmpe: 0,
         },
         values: { samBlacklisted: true } as any,
         lastSamBlacklisted: false,
@@ -53,13 +53,16 @@ describe('setBlacklistPenalties', () => {
     expect(
       validators.map(v => ({
         voteAccount: v.voteAccount,
-        blacklistPenaltyPmpe: v.revShare.blacklistPenaltyPmpe
-      }))
+        blacklistPenaltyPmpe: v.revShare.blacklistPenaltyPmpe,
+      })),
     ).toEqual([
       { voteAccount: 'newly-blacklisted', blacklistPenaltyPmpe: 1534.5 },
       { voteAccount: 'still-blacklisted', blacklistPenaltyPmpe: 0 },
       { voteAccount: 'not-blacklisted', blacklistPenaltyPmpe: 0 },
-      { voteAccount: 'newly-blacklisted-zero-eff', blacklistPenaltyPmpe: 1234.5 },
+      {
+        voteAccount: 'newly-blacklisted-zero-eff',
+        blacklistPenaltyPmpe: 1234.5,
+      },
     ])
   })
 })

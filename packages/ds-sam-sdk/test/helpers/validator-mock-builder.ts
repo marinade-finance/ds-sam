@@ -1,5 +1,6 @@
 import Decimal from 'decimal.js'
-import { RawBondDto, RawMndeVoteDto, RawValidatorDto, RawValidatorMevInfoDto } from '../../src'
+
+import type { RawBondDto, RawMndeVoteDto, RawValidatorDto, RawValidatorMevInfoDto } from '../../src'
 
 const infiniteGenerator = function* (prefix: string, padding: number) {
   for (let i = 0; ; i++) {
@@ -10,13 +11,13 @@ export const generateVoteAccounts = (label = '') => infiniteGenerator(`vote-acc-
 export const generateIdentities = () => infiniteGenerator('identity-', 10)
 
 export type BondDataType = {
-    stakeWanted: number,
-    cpmpe: number,
-    balance: number,
-    bondInflationCommission?: number | null,
-    bondMevCommission?: number | null,
-    bondBlockCommission?: number | null
-  }
+  stakeWanted: number
+  cpmpe: number
+  balance: number
+  bondInflationCommission?: number | null
+  bondMevCommission?: number | null
+  bondBlockCommission?: number | null
+}
 
 export class ValidatorMockBuilder {
   private inflationCommission = 0
@@ -32,9 +33,12 @@ export class ValidatorMockBuilder {
   private country: string | null = null
   private aso: string | null = null
 
-  constructor (public readonly voteAccount: string, public readonly identity: string,) { }
+  constructor(
+    public readonly voteAccount: string,
+    public readonly identity: string,
+  ) {}
 
-  withEligibleDefaults (): this {
+  withEligibleDefaults(): this {
     this.inflationCommission = 5
     this.mevCommission = 80
     this.isBlacklisted = false
@@ -49,82 +53,82 @@ export class ValidatorMockBuilder {
       balance: 1000,
       bondInflationCommission: null,
       bondMevCommission: null,
-      bondBlockCommission: null
+      bondBlockCommission: null,
     }
     return this
   }
 
-  withCountry (country: string): this {
+  withCountry(country: string): this {
     this.country = country
     return this
   }
 
-  withAso (aso: string): this {
+  withAso(aso: string): this {
     this.aso = aso
     return this
   }
 
-  withInflationCommission (commission: number): this {
+  withInflationCommission(commission: number): this {
     this.inflationCommission = commission
     return this
   }
 
-  withMevCommission (commission: number): this {
+  withMevCommission(commission: number): this {
     this.mevCommission = commission
     return this
   }
 
-  withMndeVotes (votes: number): this {
+  withMndeVotes(votes: number): this {
     this.mndeVotes = votes
     return this
   }
 
-  withNativeStake (stake: number): this {
+  withNativeStake(stake: number): this {
     this.nativeStake = stake
     return this
   }
 
-  withLiquidStake (stake: number): this {
+  withLiquidStake(stake: number): this {
     this.liquidStake = stake
     return this
   }
 
-  withExternalStake (stake: number): this {
+  withExternalStake(stake: number): this {
     this.externalStake = stake
     return this
   }
 
-  withCredits (...credits: number[]): this {
+  withCredits(...credits: number[]): this {
     this.credits = credits
     return this
   }
 
-  withGoodPerformance (): this {
+  withGoodPerformance(): this {
     return this.withCredits(...Array.from({ length: 10 }, () => 432000 - Math.round(Math.random() * 10000)))
   }
 
-  withBadPerformance (): this {
+  withBadPerformance(): this {
     return this.withCredits(...Array.from({ length: 10 }, () => Math.round(Math.random() * 10000)))
   }
 
-  blacklisted (): this {
+  blacklisted(): this {
     this.isBlacklisted = true
     return this
   }
 
-  withBond (bond: BondDataType | null): this {
+  withBond(bond: BondDataType | null): this {
     this.bond = bond
     return this
   }
 
-  withVersion (version: string): this {
+  withVersion(version: string): this {
     this.version = version
     return this
   }
 
-  toRawBondDto (currentEpoch: number): RawBondDto | null {
+  toRawBondDto(currentEpoch: number): RawBondDto | null {
     const { bond } = this
-    if(!bond) {
+    if (!bond) {
       return null
     }
 
@@ -147,29 +151,33 @@ export class ValidatorMockBuilder {
     }
   }
 
-  toRawBlacklistResponseDtoRow (): string | null {
+  toRawBlacklistResponseDtoRow(): string | null {
     return this.isBlacklisted ? `${this.voteAccount},DUMMY_REASON` : null
   }
 
-  toRawMndeVoteDto (): RawMndeVoteDto | null {
+  toRawMndeVoteDto(): RawMndeVoteDto | null {
     const { mndeVotes } = this
-    return mndeVotes === null ? null : {
-      amount: mndeVotes.toString(),
-      tokenOwner: 'some voter',
-      validatorVoteAccount: this.voteAccount,
-    }
+    return mndeVotes === null
+      ? null
+      : {
+          amount: mndeVotes.toString(),
+          tokenOwner: 'some voter',
+          validatorVoteAccount: this.voteAccount,
+        }
   }
 
-  toRawValidatorMevInfoDto (): RawValidatorMevInfoDto | null {
+  toRawValidatorMevInfoDto(): RawValidatorMevInfoDto | null {
     const { mevCommission } = this
-    return mevCommission === null ? null : {
-      vote_account: this.voteAccount,
-      mev_commission_bps: mevCommission * 100,
-      epoch: 0, // TODO?
-    }
+    return mevCommission === null
+      ? null
+      : {
+          vote_account: this.voteAccount,
+          mev_commission_bps: mevCommission * 100,
+          epoch: 0, // TODO?
+        }
   }
 
-  toRawValidatorDto (currentEpoch: number): RawValidatorDto {
+  toRawValidatorDto(currentEpoch: number): RawValidatorDto {
     const inflationCommission = this.inflationCommission
     return {
       identity: this.identity,
