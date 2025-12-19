@@ -4,9 +4,11 @@ import { ValidatorMockBuilder } from './helpers/validator-mock-builder'
 
 import type { SourceDataOverrides } from '../src/data-provider/data-provider.dto'
 
+type HistoryEntry = { voteAccount: string; values: { samBlacklisted: boolean } }
+
 async function runStaticAggregate(
   validators: ValidatorMockBuilder[],
-  history: any[] = [],
+  history: HistoryEntry[] = [],
   config: Partial<typeof DEFAULT_CONFIG> = {},
   dataOverrides?: SourceDataOverrides,
 ) {
@@ -15,7 +17,11 @@ async function runStaticAggregate(
     ...config,
   })
   const raw = await dp.fetchSourceData()
-  raw.auctions = history.map(entry => ({ ...entry, revShare: {}, epoch: 700 }))
+  raw.auctions = history.map(entry => ({
+    ...entry,
+    revShare: {},
+    epoch: 700,
+  })) as unknown as typeof raw.auctions
   return dp.aggregateData(raw, dataOverrides)
 }
 

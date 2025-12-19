@@ -47,6 +47,7 @@ export class AuctionConstraints {
     return { cap: resultMinCap, constraint: min }
   }
 
+  /* eslint-disable no-param-reassign */
   findCapForValidator(validator: AuctionValidator): number {
     const { cap, constraint } = this.getMinCapForEvenDistribution(new Set([validator.voteAccount]), false)
     if (cap < EPSILON) {
@@ -278,6 +279,7 @@ export class AuctionConstraints {
     }
   }
 
+  /* eslint-disable no-param-reassign */
   bondStakeCapSam(validator: AuctionValidator): number {
     const { revShare } = validator
     // do not make validators over-collateralize
@@ -308,6 +310,7 @@ export class AuctionConstraints {
     return cap
   }
 
+  /* eslint-disable no-param-reassign */
   unprotectedStakeCap(validator: AuctionValidator): number {
     let cap = Math.min(
       this.config.unprotectedValidatorStakeCapSol,

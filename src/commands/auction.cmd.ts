@@ -32,7 +32,7 @@ export class AuctionCommand extends CommandRunner {
     super()
   }
 
-  async run(inputs: string[], options: AuctionCommandOptions): Promise<void> {
+  async run(_inputs: string[], options: AuctionCommandOptions): Promise<void> {
     const fileConfig: AuctionCommandOptions = options.configFilePath
       ? (JSON.parse(fs.readFileSync(options.configFilePath).toString()) as AuctionCommandOptions)
       : {}

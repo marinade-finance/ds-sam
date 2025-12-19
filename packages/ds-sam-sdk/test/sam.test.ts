@@ -490,16 +490,12 @@ describe('sam', () => {
       const backstopValidators = result.auctionData.validators.filter(v => v.backstopEligible)
       expect(backstopValidators.length).toEqual(2) // including 1 eligible + 1 zero commission
 
-      let marinateTargetSolSum = 0
       result.auctionData.validators.forEach(validator => {
         expect(validator.revShare).toBeDefined()
         expect(validator.revShare.totalPmpe).toBeDefined()
         expect(validator.revShare.inflationPmpe).toBeDefined()
         expect(validator.revShare.mevPmpe).toBeDefined()
         expect(validator.revShare.blockPmpe).toBeDefined()
-        marinateTargetSolSum +=
-          validator.auctionStake.marinadeSamTargetSol +
-          validator.auctionStake.marinadeMndeTargetSol
       })
 
       const backStopValidator = result.auctionData.validators.find(

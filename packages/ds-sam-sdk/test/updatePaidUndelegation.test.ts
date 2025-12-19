@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-non-null-assertion */
 import { Auction } from '../src/auction'
 import { Debug } from '../src/debug'
 import { ineligibleValidatorAggDefaults } from '../src/utils'

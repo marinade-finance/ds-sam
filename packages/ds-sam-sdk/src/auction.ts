@@ -9,6 +9,10 @@ import type { AuctionData, AuctionResult, AuctionValidator } from './types'
 
 export const EPSILON = 1e-4
 
+const LOG_TO_EVERY_VALIDATOR = 'to every validator in the group'
+const LOG_CAP_REACHED = 'from the group because the cap has been reached'
+const LOG_NO_STAKE_REMAINING = 'No stake remaining to distribute'
+
 export type ReputationValues = {
   spendRobustReputation: number
   adjSpendRobustReputation: number
@@ -107,8 +111,8 @@ export class Auction {
       )
 
       if (this.data.stakeAmounts.marinadeRemainingSamSol < EPSILON) {
-        console.log('SAM No stake remaining to distribute')
-        this.debug.pushEvent('SAM No stake remaining to distribute')
+        console.log(`SAM ${LOG_NO_STAKE_REMAINING}`)
+        this.debug.pushEvent(`SAM ${LOG_NO_STAKE_REMAINING}`)
         break
       }
 
@@ -143,8 +147,8 @@ export class Auction {
         })
 
         if (this.data.stakeAmounts.marinadeRemainingSamSol < EPSILON) {
-          console.log('SAM No stake remaining to distribute')
-          this.debug.pushEvent('SAM No stake remaining to distribute')
+          console.log(`SAM ${LOG_NO_STAKE_REMAINING}`)
+          this.debug.pushEvent(`SAM ${LOG_NO_STAKE_REMAINING}`)
           break
         } else {
           console.log('SAM Stake remaining', this.data.stakeAmounts.marinadeRemainingSamSol)
@@ -182,8 +186,8 @@ export class Auction {
     )
 
     if (this.data.stakeAmounts.marinadeRemainingSamSol < EPSILON) {
-      console.log('BACKSTOP No stake remaining to distribute')
-      this.debug.pushEvent('BACKSTOP No stake remaining to distribute')
+      console.log(`BACKSTOP ${LOG_NO_STAKE_REMAINING}`)
+      this.debug.pushEvent(`BACKSTOP ${LOG_NO_STAKE_REMAINING}`)
       return
     }
 
@@ -217,8 +221,8 @@ export class Auction {
       })
 
       if (this.data.stakeAmounts.marinadeRemainingSamSol < EPSILON) {
-        console.log('BACKSTOP No stake remaining to distribute')
-        this.debug.pushEvent('BACKSTOP No stake remaining to distribute')
+        console.log(`BACKSTOP ${LOG_NO_STAKE_REMAINING}`)
+        this.debug.pushEvent(`BACKSTOP ${LOG_NO_STAKE_REMAINING}`)
         break
       } else {
         console.log('BACKSTOP Stake remaining', this.data.stakeAmounts.marinadeRemainingSamSol)
@@ -547,7 +551,7 @@ export class Auction {
       console.log(
         `SCALING round ${i} # ${JSON.stringify({ factor, leftToScale, leftTvl, totalScalable, totalPmpeLimit })}`,
       )
-      if (totalScalable == 0 && leftToScale > 0) {
+      if (totalScalable === 0 && leftToScale > 0) {
         if (totalPmpeLimit > inflationPmpe + mevPmpe + blockPmpe) {
           totalPmpeLimit *= 0.99
           console.log(`SCALING decreasing limit bid to: ${totalPmpeLimit}`)

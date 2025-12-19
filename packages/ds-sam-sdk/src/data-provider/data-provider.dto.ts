@@ -150,7 +150,7 @@ export type RawOverrideDataDto = {
 }
 
 export type SourceDataOverrides = {
-  inflationCommissions: Map<string, number>
-  mevCommissions: Map<string, number>
-  blockRewardsCommissions: Map<string, number>
+  inflationCommissions: Map<string, number | undefined>
+  mevCommissions: Map<string, number | undefined>
+  blockRewardsCommissions: Map<string, number | undefined>
 }

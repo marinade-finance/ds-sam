@@ -76,7 +76,7 @@ const calcBidTooLowPenalty = ({
     winningTotalPmpe,
     validator,
     permittedBidDeviation: 0.05,
-  }) as any
+  })
   return {
     coef: res.bidTooLowPenalty.coef,
     base: res.bidTooLowPenalty.base,
@@ -469,11 +469,9 @@ describe('calcBidTooLowPenalty', () => {
       permittedBidDeviation: 0.05,
     })
 
-    const adjusted_limit = 25 * COEF_DEVIATION
+    const adjustedLimit = 25 * COEF_DEVIATION
 
-    const expectedCoef = Math.sqrt(
-      (1.5 * (adjusted_limit - 20)) / adjusted_limit,
-    )
+    const expectedCoef = Math.sqrt((1.5 * (adjustedLimit - 20)) / adjustedLimit)
     const expectedBase = winningTotalPmpe + 25 // 65
     const expectedPenalty = expectedCoef * expectedBase
 

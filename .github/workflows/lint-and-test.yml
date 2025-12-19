@@ -35,4 +35,10 @@ jobs:
         run: pnpm check
 
       - name: 🧨 Run test
-        run: pnpm test
+        run: pnpm test | tee test-output.log | awk 'NR % 10000 == 0 {printf "."; fflush()}'
+
+      - name: 📁 Upload test logs
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-logs
+          path: test-output.log

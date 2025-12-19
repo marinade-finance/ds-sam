@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument */
+
 import * as log4js from 'log4js'
 
 import type { LoggerService } from '@nestjs/common'
@@ -11,7 +13,7 @@ const InternalLoggerFactory = () => {
           type: 'pattern',
           pattern: '%d %[[%p]%] %x{singleLine}',
           tokens: {
-            singleLine: (logEvent: any) => {
+            singleLine: (logEvent: log4js.LoggingEvent) => {
               const [msg, ctx] = logEvent.data
               const err = ctx?.err
               if (err) {
@@ -45,5 +47,8 @@ export class Logger implements LoggerService {
   }
   warn(...args: any[]) {
     this.logger.log('WARN', ...args)
+  }
+  debug(...args: any[]) {
+    this.logger.log('DEBUG', ...args)
   }
 }

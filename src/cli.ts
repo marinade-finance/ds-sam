@@ -7,4 +7,4 @@ async function bootstrap() {
   await CommandFactory.run(CliModule, new Logger())
 }
 
-bootstrap()
+void bootstrap()

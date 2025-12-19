@@ -10,7 +10,7 @@
   },
   "scripts": {
     "build": "tsc --build",
-    "test": "pnpm jest --config ../../jest.config.js --testPathPattern=\"$(pwd)\"",
+    "test": "pnpm jest --config ../../jest.config.js --testPathPatterns=\"$(pwd)\"",
     "prepack": "pnpm test && pnpm build"
   },
   "files": [

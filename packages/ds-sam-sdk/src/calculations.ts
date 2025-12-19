@@ -200,6 +200,7 @@ export type BidTooLowPenaltyResult = {
 // Calculates the penalty for lowering the bid (considered whatever static, or dynamic commission)
 //  compared to the last epochs - i.e., penalizes validators who reduce their commitment
 // cf. https://www.notion.so/marinade/20250416-MRP-2-Stake-Auction-Marketplace-Bid-Penalty-1d7e465715a480cc80cecd86d63ce6af
+/* eslint-disable complexity */
 export const calcBidTooLowPenalty = ({
   historyEpochs,
   winningTotalPmpe,

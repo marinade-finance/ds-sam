@@ -57,10 +57,10 @@ describe('eligibility', () => {
     assertValidatorIneligible(findValidatorInResult(commissionTooHighVal.voteAccount, result))
 
     const mndeIneligibleSamEligible = findValidatorInResult(mndeIneligibleSamEligibleVal.voteAccount, result)
-    expect(mndeIneligibleSamEligible.mndeEligible).toStrictEqual(false)
-    expect(mndeIneligibleSamEligible.samEligible).toStrictEqual(true)
-    expect(mndeIneligibleSamEligible.auctionStake.marinadeMndeTargetSol).toStrictEqual(0)
-    expect(mndeIneligibleSamEligible.auctionStake.marinadeSamTargetSol).toBeGreaterThan(0)
+    expect(mndeIneligibleSamEligible?.mndeEligible).toStrictEqual(false)
+    expect(mndeIneligibleSamEligible?.samEligible).toStrictEqual(true)
+    expect(mndeIneligibleSamEligible?.auctionStake.marinadeMndeTargetSol).toStrictEqual(0)
+    expect(mndeIneligibleSamEligible?.auctionStake.marinadeSamTargetSol).toBeGreaterThan(0)
   })
 
   it('considers also FD versions eligible', async () => {
@@ -174,9 +174,10 @@ describe('eligibility', () => {
     const result = await dsSam.run()
 
     validators.forEach(([validator, eligibility]) => {
-      const v = findValidatorInResult(validator.voteAccount, result)!
-      expect(v.mndeEligible).toStrictEqual(eligibility)
-      expect(v.samEligible).toStrictEqual(eligibility)
+      const v = findValidatorInResult(validator.voteAccount, result)
+      expect(v).toBeDefined()
+      expect(v?.mndeEligible).toStrictEqual(eligibility)
+      expect(v?.samEligible).toStrictEqual(eligibility)
     })
   })
 })

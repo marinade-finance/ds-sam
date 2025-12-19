@@ -5,6 +5,9 @@ build/
 target/
 out/
 
+test/__snapshots__/
+test/fixtures/
+
 *.tsbuildinfo
 pnpm-lock.yaml
 

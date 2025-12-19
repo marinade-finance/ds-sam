@@ -1,6 +1,5 @@
-import { Injectable } from '@nestjs/common'
+import { Injectable, Logger } from '@nestjs/common'
 import * as dotenv from 'dotenv'
-import { Logger } from 'logger'
 
 dotenv.config()
 

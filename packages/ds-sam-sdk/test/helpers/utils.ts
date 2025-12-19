@@ -26,9 +26,10 @@ export const prettyPrintStakeUnstakePriorities = (auctionResult: AuctionResult) 
 export const findValidatorInResult = (validatorVoteAccount: string, result: AuctionResult) =>
   result.auctionData.validators.find(({ voteAccount }) => voteAccount === validatorVoteAccount)
 
-export const assertValidatorIneligible = (validator: AuctionValidator) => {
-  expect(validator.mndeEligible).toStrictEqual(false)
-  expect(validator.samEligible).toStrictEqual(false)
-  expect(validator.auctionStake.marinadeMndeTargetSol).toStrictEqual(0)
-  expect(validator.auctionStake.marinadeSamTargetSol).toStrictEqual(0)
+export const assertValidatorIneligible = (validator: AuctionValidator | undefined) => {
+  expect(validator).toBeDefined()
+  expect(validator?.mndeEligible).toStrictEqual(false)
+  expect(validator?.samEligible).toStrictEqual(false)
+  expect(validator?.auctionStake.marinadeMndeTargetSol).toStrictEqual(0)
+  expect(validator?.auctionStake.marinadeSamTargetSol).toStrictEqual(0)
 }

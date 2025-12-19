@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Auction } from '../src/auction'
 import { Debug } from '../src/debug'
 

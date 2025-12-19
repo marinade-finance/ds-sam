@@ -41,16 +41,16 @@ export class StaticDataProvider extends DataProvider {
     })
   }
 
-  async fetchBonds(): Promise<RawBondsResponseDto> {
-    return {
+  override fetchBonds(): Promise<RawBondsResponseDto> {
+    return Promise.resolve({
       bonds: this.validatorMockBuilders
         .map(v => v.toRawBondDto(this.staticDataProviderConfig.currentEpoch))
         .filter(isNotNull),
-    }
+    })
   }
 
-  async fetchTvlInfo(): Promise<RawTvlResponseDto> {
-    return {
+  override fetchTvlInfo(): Promise<RawTvlResponseDto> {
+    return Promise.resolve({
       total_virtual_staked_sol: this.validatorMockBuilders.reduce(
         (sum, v) =>
           sum +
@@ -67,40 +67,41 @@ export class StaticDataProvider extends DataProvider {
             .toNumber(),
         0,
       ),
-    }
+    })
   }
 
-  async fetchBlacklist(): Promise<RawBlacklistResponseDto> {
-    return `vote_account,code\n${this.validatorMockBuilders
+  override fetchBlacklist(): Promise<RawBlacklistResponseDto> {
+    const rows = this.validatorMockBuilders
       .map(v => v.toRawBlacklistResponseDtoRow())
       .filter(isNotNull)
-      .join('\n')}`
+      .join('\n')
+    return Promise.resolve(`vote_account,code\n${rows}`)
   }
 
-  async fetchMndeVotes(): Promise<RawMndeVotesResponseDto> {
-    return {
+  override fetchMndeVotes(): Promise<RawMndeVotesResponseDto> {
+    return Promise.resolve({
       voteRecordsCreatedAt: '2222-02-02T00:00:00Z',
       records: this.validatorMockBuilders.map(v => v.toRawMndeVoteDto()).filter(isNotNull),
     })
   }
 
-  async fetchRewards(): Promise<RawRewardsResponseDto> {
+  override fetchRewards(): Promise<RawRewardsResponseDto> {
     const epochs = this.config.rewardsEpochsCount
-    const rewards_mev = Array.from(
+    const rewardsMev = Array.from(
       { length: epochs },
       (_, i): RawRewardsRecordDto => [
         this.staticDataProviderConfig.currentEpoch - i - 1,
         this.staticDataProviderConfig.inflationRewardsPerEpoch,
       ],
     )
-    const rewards_inflation_est = Array.from(
+    const rewardsInflationEst = Array.from(
       { length: epochs },
       (_, i): RawRewardsRecordDto => [
         this.staticDataProviderConfig.currentEpoch - i - 1,
         this.staticDataProviderConfig.mevRewardsPerEpoch,
       ],
     )
-    const rewards_block = Array.from(
+    const rewardsBlock = Array.from(
       { length: epochs },
       (_, i): RawRewardsRecordDto => [
         this.staticDataProviderConfig.currentEpoch - i - 1,
@@ -108,11 +109,11 @@ export class StaticDataProvider extends DataProvider {
       ],
     )
 
-    return {
-      rewards_mev,
-      rewards_inflation_est,
-      rewards_block,
-    }
+    return Promise.resolve({
+      rewards_mev: rewardsMev,
+      rewards_inflation_est: rewardsInflationEst,
+      rewards_block: rewardsBlock,
+    })
   }
 
   override fetchMevInfo(): Promise<RawMevInfoResponseDto> {

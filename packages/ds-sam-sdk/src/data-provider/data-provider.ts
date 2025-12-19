@@ -51,7 +51,7 @@ export class DataProvider {
         }
         break
       default:
-        throw new Error(`Unsupported inputs source: ${this.dataSource}`)
+        throw new Error(`Unsupported inputs source: ${String(this.dataSource)}`)
     }
   }
 
@@ -77,6 +77,7 @@ export class DataProvider {
     return rewardsTotal.total.div(rewardsTotal.epochs).toNumber()
   }
 
+  /* eslint-disable no-param-reassign */
   private processAuctions(input: RawScoredValidatorDto[]): AuctionHistory[] {
     const result: AuctionHistory[] = []
     let epoch = Infinity
@@ -143,6 +144,7 @@ export class DataProvider {
     }
   }
 
+  /* eslint-disable complexity */
   private aggregateValidators(
     data: RawSourceData,
     validatorsMndeVotes: Map<string, Decimal>,
@@ -410,7 +412,6 @@ export class DataProvider {
     const tvlInfo: RawTvlResponseDto = JSON.parse(
       fs.readFileSync(`${this.config.inputsCacheDirPath}/tvl-info.json`).toString(),
     ) as RawTvlResponseDto
-    // TODO: is blacklist correctly typed here?
     const blacklist: RawBlacklistResponseDto = fs
       .readFileSync(`${this.config.inputsCacheDirPath}/blacklist.csv`)
       .toString()
@@ -549,12 +550,11 @@ export class DataProvider {
     try {
       const response = await axios.get<RawOverrideDataDto>(url)
       return response.data
-    } catch (error: any) {
-      if ((error.status ?? error.response.status) == 404) {
+    } catch (error: unknown) {
+      if (axios.isAxiosError(error) && error.response?.status === 404) {
         return null
-      } else {
-        throw error
       }
+      throw error
     }
   }
 }

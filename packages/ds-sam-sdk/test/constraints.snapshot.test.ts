@@ -1,4 +1,4 @@
-import { DsSamSDK } from '../src'
+import { assert, DsSamSDK } from '../src'
 import { defaultStaticDataProviderBuilder } from './helpers/static-data-provider-builder'
 import { findValidatorInResult, prettyPrintAuctionResult } from './helpers/utils'
 import { ValidatorMockBuilder, generateIdentities, generateVoteAccounts } from './helpers/validator-mock-builder'
@@ -320,7 +320,8 @@ describe('constraints', () => {
     const result = await dsSam.run()
 
     const validator = findValidatorInResult('dummy-validator', result)
-    const { auctionStake } = validator!
+    const { auctionStake } = validator ?? {}
+    assert(auctionStake !== undefined, 'Validator not found in auction result')
 
     // 100_000 * 0.04 -> TVL * Default cap per validator
     // (0.1 * 100 / 2000) * 100_000 -> (mndeStakeCapMultiplier * validator MNDE votes / total MNDE votes) * TVL

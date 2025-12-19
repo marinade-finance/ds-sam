@@ -7,6 +7,7 @@ import { Command, CommandRunner, Option } from 'nest-commander'
 import {
   AuctionResult,
   AuctionValidator,
+  DsSamConfig,
   DsSamSDK,
   InputsSource,
   Rewards,
@@ -77,9 +78,9 @@ export const loadSnapshotValidatorsCollection = (path: string): SnapshotValidato
 export const getValidatorOverrides = (
   snapshotValidatorsCollection: SnapshotValidatorsCollection,
 ): SourceDataOverrides => {
-  const inflationCommissions = new Map()
-  const mevCommissions = new Map()
-  const blockRewardsCommissions = new Map()
+  const inflationCommissions = new Map<string, number>()
+  const mevCommissions = new Map<string, number | undefined>()
+  const blockRewardsCommissions = new Map<string, number>()
 
   for (const validatorMeta of snapshotValidatorsCollection.validator_metas) {
     inflationCommissions.set(validatorMeta.vote_account, validatorMeta.commission)
@@ -180,7 +181,7 @@ export class AnalyzeRevenuesCommand extends CommandRunner {
     }
 
     for (const validatorMeta of pastValidatorCollection.validator_metas) {
-      const vote_account = validatorMeta.vote_account
+      const voteAccount = validatorMeta.vote_account
       const inflationLastEpoch = validatorMeta.commission / 100
       const mevLastEpoch = validatorMeta.mev_commission ? validatorMeta.mev_commission / 100 : null
       commissionMap.set(voteAccount, {
@@ -210,9 +211,7 @@ export class AnalyzeRevenuesCommand extends CommandRunner {
       }
 
       // TODO: we are missing the information about blockCommission
-
       // TODO: temporary fix for wrong value of MEV commission when there is no MEV data for epoch, skipping MEV for now
-      // --> TODO: it does not seem temporary and I don't know what does it mean "no MEV data for epoch"
       // const expectedNonBidPmpe = validatorBefore.revShare.inflationPmpe + validatorBefore.revShare.mevPmpe
       // const actualNonBidPmpe = validatorAfter.revShare.inflationPmpe + validatorAfter.revShare.mevPmpe
       const expectedNonBidPmpe = validatorBefore.revShare.inflationPmpe
@@ -250,7 +249,6 @@ export class AnalyzeRevenuesCommand extends CommandRunner {
         })
       }
 
-      // TODO: code has not been changed with addition of inflationCommissionOverrideDec and mevCommissionOverrideDec
       evaluation.push({
         voteAccount: validatorBefore.voteAccount,
         expectedInflationCommission: validatorBefore.inflationCommissionDec,

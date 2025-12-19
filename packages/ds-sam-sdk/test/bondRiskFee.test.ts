@@ -8,6 +8,8 @@
  *  - error thrown when result is non-finite
  */
 
+import assert from 'assert'
+
 import { calcBondRiskFee } from '../src/calculations'
 
 import type { BondRiskFeeConfig } from '../src/calculations'
@@ -68,7 +70,7 @@ describe('calcBondRiskFee', () => {
       marinadeActivatedStakeSol: 50,
       values: { paidUndelegationSol: 0 },
     })
-    const result = calcBondRiskFee(baseConfig, validator)!
+    const result = calcBondRiskFee(baseConfig, validator)
     expect(result).toBeNull()
   })
 
@@ -79,7 +81,7 @@ describe('calcBondRiskFee', () => {
       marinadeActivatedStakeSol: 50,
       values: { paidUndelegationSol: 0 },
     })
-    const result = calcBondRiskFee(baseConfig, validator)!
+    const result = calcBondRiskFee(baseConfig, validator)
     expect(result).toBeNull()
   })
 
@@ -91,7 +93,9 @@ describe('calcBondRiskFee', () => {
       values: { paidUndelegationSol: 5 },
       revShare: { onchainDistributedPmpe: 200 },
     })
-    const result = calcBondRiskFee(baseConfig, validator)!
+    const result = calcBondRiskFee(baseConfig, validator)
+    expect(result).not.toBeNull()
+    assert(result)
     expect(result.bondForcedUndelegation).toBeDefined()
     expect(result.bondRiskFeeSol).toBeDefined()
     expect(result.paidUndelegationSol).toBeDefined()
@@ -113,7 +117,9 @@ describe('calcBondRiskFee', () => {
       values: { paidUndelegationSol: 5 },
       revShare: { expectedMaxEffBidPmpe: 45, onchainDistributedPmpe: 200 },
     })
-    const result = calcBondRiskFee(baseConfig, validator)!
+    const result = calcBondRiskFee(baseConfig, validator)
+    expect(result).not.toBeNull()
+    assert(result)
     expect(result.bondForcedUndelegation).toBeDefined()
     expect(result.bondRiskFeeSol).toBeDefined()
     expect(result.paidUndelegationSol).toBeDefined()
@@ -139,7 +145,9 @@ describe('calcBondRiskFee', () => {
         onchainDistributedPmpe: 200,
       },
     })
-    const result = calcBondRiskFee(baseConfig, validator)!
+    const result = calcBondRiskFee(baseConfig, validator)
+    expect(result).not.toBeNull()
+    assert(result)
     expect(result.bondForcedUndelegation).toBeDefined()
     expect(result.bondRiskFeeSol).toBeDefined()
     expect(result.paidUndelegationSol).toBeDefined()
@@ -162,7 +170,9 @@ describe('calcBondRiskFee', () => {
       values: { paidUndelegationSol: 0 },
       revShare: { onchainDistributedPmpe: 200 },
     })
-    const result = calcBondRiskFee(cfg, validator)!
+    const result = calcBondRiskFee(cfg, validator)
+    expect(result).not.toBeNull()
+    assert(result)
     expect(result.bondForcedUndelegation.value).toBeCloseTo(50)
     expect(result.bondRiskFeeSol).toBeCloseTo(2.0, 6)
     expect(result.paidUndelegationSol).toBeCloseTo(5, 6)
@@ -186,7 +196,9 @@ describe('calcBondRiskFee', () => {
       values: { paidUndelegationSol: 0 },
       revShare,
     })
-    const result = calcBondRiskFee(baseConfig, validator)!
+    const result = calcBondRiskFee(baseConfig, validator)
+    expect(result).not.toBeNull()
+    assert(result)
     expect(result.bondForcedUndelegation.value).toBeCloseTo(50)
     expect(result.bondRiskFeeSol).toBeCloseTo(
       baseConfig.bondRiskFeeMult * 50 * ((revShare.onchainDistributedPmpe + revShare.auctionEffectiveBidPmpe) / 1000),
@@ -211,7 +223,9 @@ describe('calcBondRiskFee', () => {
       values: { paidUndelegationSol: 0 },
       revShare,
     })
-    const result = calcBondRiskFee(baseConfig, validator)!
+    const result = calcBondRiskFee(baseConfig, validator)
+    expect(result).not.toBeNull()
+    assert(result)
     expect(result.paidUndelegationSol).toBeCloseTo(5)
     expect(result.bondRiskFeeSol).toBeCloseTo(0)
   })
