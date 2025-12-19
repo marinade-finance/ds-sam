@@ -7,6 +7,7 @@
     "build": "nest build",
     "test": "jest -- \"$FILE\"",
     "cli": "nest start --entryFile ./src/cli",
+    "check": "gts check",
     "lint": "gts lint",
     "lint:fix": "gts fix",
     "lint:clean": "gts clean"
