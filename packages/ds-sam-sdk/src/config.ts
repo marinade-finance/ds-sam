@@ -148,8 +148,10 @@ export const DEFAULT_CONFIG: DsSamConfig = {
   validatorsApiBaseUrl: 'https://validators-api.marinade.finance',
   bondsApiBaseUrl: 'https://validator-bonds-api.marinade.finance',
   tvlInfoApiBaseUrl: 'https://api.marinade.finance',
-  blacklistApiBaseUrl: 'https://raw.githubusercontent.com/marinade-finance/delegation-strategy-2/master',
-  overridesApiBaseUrl: 'https://raw.githubusercontent.com/marinade-finance/ds-sam-pipeline/main/epochs',
+  // marinade proxy cache API, pointing to raw gh: 'https://raw.githubusercontent.com/marinade-finance/delegation-strategy-2/master'
+  blacklistApiBaseUrl: 'https://thru.marinade.finance/marinade-finance/delegation-strategy-2/master',
+  // marinade proxy cache API, pointing to 'https://raw.githubusercontent.com/marinade-finance/ds-sam-pipeline/main/epochs'
+  overridesApiBaseUrl: 'https://thru.marinade.finance/marinade-finance/ds-sam-pipeline/main/epochs',
   snapshotsApiBaseUrl: 'https://snapshots-api.marinade.finance',
   scoringApiBaseUrl:  'https://scoring.marinade.finance',
 
