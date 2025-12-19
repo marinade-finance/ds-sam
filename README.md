@@ -149,3 +149,10 @@ pnpm test
 # single test file
 FILE='testfile.test.ts' pnpm test
 ```
+
+### Publishing SDK package
+
+```sh
+cd packages/ds-sam-sdk
+npm publish
+```

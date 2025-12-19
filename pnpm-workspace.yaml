@@ -3,3 +3,4 @@ packages:
 
 onlyBuiltDependencies:
   - '@nestjs/core'
+  - unrs-resolver

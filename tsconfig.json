@@ -1,30 +1,30 @@
 {
-  "extends": "./node_modules/gts/tsconfig-google.json",
   "compilerOptions": {
-    "target": "es2021",
-    "module": "commonjs",
-    "resolveJsonModule": true,
-    "rootDir": ".",
-    "outDir": "./dist",
+    "target": "ES2022",
+    "module": "CommonJS",
     "incremental": true,
-    "strict": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
+    "moduleResolution": "node",
+    "removeComments": true,
+    "resolveJsonModule": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
+
+    /* Strictness */
+    "strict": true,
     "noUncheckedIndexedAccess": true,
-    "sourceMap": true,
-    "noImplicitAny": true,
-    "lib": ["es2021", "dom"],
+    "noImplicitOverride": true,
+    "forceConsistentCasingInFileNames": true,
+
+    /* Transpiling with TypeScript: */
+    "outDir": "dist",
+    "declaration": true,
     "composite": true,
-  },
-  "include": [
-    "packages/**/*.ts",
-    "src/**/*.ts",
-    "test/**/*.ts",
-  ],
-  "exclude": [
-    "./node_modules",
-    "./dist",
-  ]
+    "sourceMap": true,
+    "declarationMap": true,
+
+    /* TypeScript doesn't recognize the CryptoKeyPair type by default, Web Crypto API needed */
+    "lib": ["dom"]
+  }
 }

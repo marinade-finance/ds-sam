@@ -1,21 +1,10 @@
 {
+  "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "module": "commonjs",
-    "declaration": true,
-    "removeComments": true,
-    "emitDecoratorMetadata": true,
-    "experimentalDecorators": true,
-    "allowSyntheticDefaultImports": true,
-    "strict": true,
-    "resolveJsonModule": true,
-    "esModuleInterop": true,
-    "noImplicitAny": true,
-    "target": "ES2021",
-    "sourceMap": true,
-    "outDir": "dist",
-    "baseUrl": "./",
-    "composite": true,
+    "outDir": "./dist",
+    "rootDir": ".",
+    "tsBuildInfoFile": ".tsbuildinfo"
   },
-  "include": ["src/**/*.ts", "test/**/*.ts"],
-  "exclude": ["node_modules", "**/*.spec.ts", "**/*.spec.ts"]
+  "include": ["src/**/*", "package.json"],
+  "exclude": ["node_modules", "dist"]
 }

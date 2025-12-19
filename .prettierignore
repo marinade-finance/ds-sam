@@ -1,0 +1,14 @@
+.DS_Store
+node_modules/
+dist/
+build/
+target/
+out/
+
+*.tsbuildinfo
+pnpm-lock.yaml
+
+.vscode/
+.idea/
+
+README.md
