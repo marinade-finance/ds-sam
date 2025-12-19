@@ -1,5 +1,7 @@
 # ds-sam
 
+<a href="https://www.npmjs.com/package/@marinade.finance/ds-sam-sdk"><img src="https://img.shields.io/npm/v/%40marinade.finance%2Fds-sam-sdk?logo=npm&color=377CC0" /></a>
+
 ## Running the CLI
 Get info about available CLI options
 ```bash
