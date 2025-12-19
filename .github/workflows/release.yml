@@ -37,7 +37,7 @@ jobs:
       - name: 🏋️ Install and 🔨 build
         run: |
           pnpm install --frozen-lockfile
-          pnpm build
+          pnpm -r build
           pnpm -r pack
 
       - name: 🔮 Determine tag
