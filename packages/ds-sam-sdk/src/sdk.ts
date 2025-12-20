@@ -100,7 +100,7 @@ export class DsSamSDK {
     this.debug.pushInfo('estimated rewards', JSON.stringify(rewards))
 
     return validators.map((validator): AuctionValidator => {
-      const revShare = calcValidatorRevShare(validator, rewards)
+      const revShare = calcValidatorRevShare(validator, rewards, this.debug)
       this.debug.pushValidatorInfo(validator.voteAccount, 'revenue share', JSON.stringify(revShare))
       const auctionStake: ValidatorAuctionStake = {
         externalActivatedSol: validator.totalActivatedStakeSol - validator.marinadeActivatedStakeSol,
