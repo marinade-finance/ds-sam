@@ -149,9 +149,9 @@ export class DataProvider {
       const mevCommissionOverrideDec = mevCommissionOverride !== undefined ? mevCommissionOverride / 10_000 : null
       const blockRewardsCommissionOverrideDec = blockRewardsCommissionOverride !== undefined ? blockRewardsCommissionOverride / 10_000 : null
 
-      const inflationCommissionInBondDec = bond?.inflation_commission_bps ? Number(bond.inflation_commission_bps) / 10_000 : null
-      const mevCommissionInBondDec = bond?.mev_commission_bps ? Number(bond.mev_commission_bps) / 10_000 : null
-      const blockRewardsCommissionInBondDec = bond?.block_commission_bps ? Number(bond.block_commission_bps) / 10_000 : null
+      const inflationCommissionInBondDec = bond?.inflation_commission_bps != null ? Number(bond.inflation_commission_bps) / 10_000 : null
+      const mevCommissionInBondDec = bond?.mev_commission_bps != null ? Number(bond.mev_commission_bps) / 10_000 : null
+      const blockRewardsCommissionInBondDec = bond?.block_commission_bps != null ? Number(bond.block_commission_bps) / 10_000 : null
 
       const inflationCommissionOnchainDec = (validator.commission_effective ?? validator.commission_advertised ?? 100) / 100
       const mevCommissionOnchainDec = mev ? mev.mev_commission_bps / 10_000 : null

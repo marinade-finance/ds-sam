@@ -1,6 +1,7 @@
 import { BidTooLowPenalty, AuctionValidator, Rewards, RevShare, CommissionDetails } from './types'
 import Decimal from 'decimal.js'
 import { assert } from './utils'
+import { Debug } from './debug'
 
 export const calcValidatorRevShare = (
   validator: {
@@ -13,7 +14,8 @@ export const calcValidatorRevShare = (
       commissions: CommissionDetails
     }
   },
-  rewards: Rewards
+  rewards: Rewards,
+  debug?: Debug,
 ): RevShare => {
   // what the validator wants to share with stakers per 1000 SOL staked (of total, including bonds and overrides)
   const inflationPmpe = calculatePmpe(rewards.inflationPmpe, validator.inflationCommissionDec)
@@ -22,19 +24,38 @@ export const calcValidatorRevShare = (
   const bidPmpe = Math.max(0, validator.bidCpmpe ?? 0)
 
   const commissions = validator.values.commissions
-  // here we need to calculate what the validator needs to pay on top of on-chain commissions from bonds claim
-  const bondInflationPmpe = calculatePmpe(rewards.inflationPmpe, commissions.inflationCommissionInBondDec)
-  const bondMevPmpe = calculatePmpe(rewards.mevPmpe, commissions.mevCommissionInBondDec)
-  const bondsInflationPmpeDiff = Math.max(0, bondInflationPmpe - inflationPmpe)
-  const bondsMevPmpeDiff = Math.max(0, bondMevPmpe - mevPmpe)
 
   // calculating what has already been shared on-chain (overrides redefines everything)
-  const onchainDistributedInflationPmpe = commissions.inflationCommissionOverrideDec !== null ? inflationPmpe : calculatePmpe(rewards.inflationPmpe, commissions.inflationCommissionOnchainDec)
-  const onchainDistributedMevPmpe = commissions.mevCommissionOverrideDec !== null ? mevPmpe : calculatePmpe(rewards.mevPmpe, commissions.mevCommissionOnchainDec)
+  const onchainDistributedInflationPmpe = commissions.inflationCommissionOverrideDec != null ? inflationPmpe : calculatePmpe(rewards.inflationPmpe, commissions.inflationCommissionOnchainDec)
+  const onchainDistributedMevPmpe = commissions.mevCommissionOverrideDec != null ? mevPmpe : calculatePmpe(rewards.mevPmpe, commissions.mevCommissionOnchainDec)
+
+  // here we need to calculate what the validator needs to pay on top of on-chain commissions from bonds claim
+  const bondInflationPmpe = calculatePmpe(rewards.inflationPmpe, commissions.inflationCommissionInBondDec)
+  const bondsInflationPmpeDiff = Math.max(0, bondInflationPmpe - onchainDistributedInflationPmpe)
+  const bondMevPmpe = calculatePmpe(rewards.mevPmpe, commissions.mevCommissionInBondDec)
+  const bondsMevPmpeDiff = Math.max(0, bondMevPmpe - onchainDistributedMevPmpe)
 
   const totalPmpe = inflationPmpe + mevPmpe + bidPmpe + blockPmpe
   assert(totalPmpe >= 0, 'Total PMPE cannot be negative')
   assert(isFinite(totalPmpe), 'Total PMPE has to be finite')
+
+  if (debug) {
+    debug.pushInfo('calculations', JSON.stringify({
+      voteAccount: validator.voteAccount,
+      inflationPmpe,
+      mevPmpe,
+      blockPmpe,
+      bidPmpe,
+      commissions,
+      bondInflationPmpe,
+      bondMevPmpe,
+      bondsInflationPmpeDiff,
+      bondsMevPmpeDiff,
+      onchainDistributedInflationPmpe,
+      onchainDistributedMevPmpe,
+      totalPmpe,
+    }))
+  }
 
   return {
     // total value that the validator shares with stakers
