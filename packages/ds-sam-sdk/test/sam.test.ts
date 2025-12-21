@@ -401,9 +401,17 @@ describe('sam', () => {
       const validator4Blacklist = new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
         .withGoodPerformance()
         .blacklisted()
-        .withBond({ stakeWanted: 1_000_000, cpmpe: 0, balance: 100 })
+        .withInflationCommission(5)
         .withLiquidStake(10_000)
         .withExternalStake(100_000)
+        .withBond({
+          stakeWanted: 1_000_000,
+          cpmpe: 0,
+          balance: 100,
+          bondInflationCommission: 0,
+          bondMevCommission: 0,
+          bondBlockCommission: 0,
+        })
       // Validator with poor performance (bad uptime) - should be ineligible
       const validator5Poor = new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
         .withBadPerformance()
@@ -543,6 +551,16 @@ describe('sam', () => {
       assert(blacklistedValidator, 'Blacklisted validator not found in results')
       expect(blacklistedValidator.samEligible).toBe(false)
       expect(blacklistedValidator.mndeEligible).toBe(false)
+      expect(blacklistedValidator.auctionStake.marinadeSamTargetSol).toEqual(0)
+      expect(blacklistedValidator.auctionStake.marinadeMndeTargetSol).toEqual(0)
+      expect(blacklistedValidator.values.commissions.blockRewardsCommissionDec).toEqual(0)
+      expect(blacklistedValidator.values.commissions.blockRewardsCommissionInBondDec).toEqual(0)
+      expect(blacklistedValidator.values.commissions.inflationCommissionDec).toEqual(0)
+      expect(blacklistedValidator.values.commissions.inflationCommissionInBondDec).toEqual(0)
+      expect(blacklistedValidator.values.commissions.inflationCommissionOnchainDec).toEqual(0.05)
+      expect(blacklistedValidator.values.commissions.mevCommissionDec).toEqual(0)
+      expect(blacklistedValidator.values.commissions.mevCommissionInBondDec).toEqual(0)
+      expect(blacklistedValidator.values.commissions.mevCommissionOnchainDec).toEqual(null)
       expect(blacklistedValidator.auctionStake.marinadeSamTargetSol).toEqual(0)
       expect(blacklistedValidator.auctionStake.marinadeMndeTargetSol).toEqual(0)
 
