@@ -1,5 +1,8 @@
-import { LoggerService } from '@nestjs/common'
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument */
+
 import * as log4js from 'log4js'
+
+import type { LoggerService } from '@nestjs/common'
 
 const InternalLoggerFactory = () => {
   log4js.configure({
@@ -10,7 +13,7 @@ const InternalLoggerFactory = () => {
           type: 'pattern',
           pattern: '%d %[[%p]%] %x{singleLine}',
           tokens: {
-            singleLine: (logEvent: any) => {
+            singleLine: (logEvent: log4js.LoggingEvent) => {
               const [msg, ctx] = logEvent.data
               const err = ctx?.err
               if (err) {
@@ -18,15 +21,9 @@ const InternalLoggerFactory = () => {
               }
 
               const ctxSerialized = ctx ? ` ${JSON.stringify(ctx)}` : ''
-              const errSerialized =
-                err instanceof Error
-                  ? ` <${err.name}: ${err.message}> (${err.stack})`
-                  : ''
+              const errSerialized = err instanceof Error ? ` <${err.name}: ${err.message}> (${err.stack})` : ''
 
-              return `${msg}${errSerialized}${ctxSerialized}`.replace(
-                /\n/g,
-                '\\n',
-              )
+              return `${msg}${errSerialized}${ctxSerialized}`.replace(/\n/g, '\\n')
             },
           },
         },
@@ -42,13 +39,16 @@ const InternalLoggerFactory = () => {
 export class Logger implements LoggerService {
   private readonly logger = InternalLoggerFactory()
 
-  log (...args: any[]) {
+  log(...args: any[]) {
     this.logger.log('INFO', ...args)
   }
-  error (...args: any[]) {
+  error(...args: any[]) {
     this.logger.log('ERROR', ...args)
   }
-  warn (...args: any[]) {
+  warn(...args: any[]) {
     this.logger.log('WARN', ...args)
+  }
+  debug(...args: any[]) {
+    this.logger.log('DEBUG', ...args)
   }
 }

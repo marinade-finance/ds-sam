@@ -1,12 +1,20 @@
-node_modules
+# JS
+node_modules/
 .env
-dist
+dist/
 
-.idea
-.vscode
+# IDE
+.idea/
+.vscode/
 
-data
+# Typescript
+*.tsbuildinfo
 
+# OS
+.DS_Store
+
+# Project specific
+data/
 *~
 \#*
 .aider*

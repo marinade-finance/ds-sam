@@ -1,22 +1,31 @@
-import { SourceDataOverrides } from '../src/data-provider/data-provider.dto'
 import { DEFAULT_CONFIG } from '../src/config'
 import { defaultStaticDataProviderBuilder } from './helpers/static-data-provider-builder'
 import { ValidatorMockBuilder } from './helpers/validator-mock-builder'
 
-async function runStaticAggregate (
+import type { SourceDataOverrides } from '../src/data-provider/data-provider.dto'
+
+type HistoryEntry = { voteAccount: string; values: { samBlacklisted: boolean } }
+
+async function runStaticAggregate(
   validators: ValidatorMockBuilder[],
-  history: any[] = [],
+  history: HistoryEntry[] = [],
   config: Partial<typeof DEFAULT_CONFIG> = {},
   dataOverrides?: SourceDataOverrides,
 ) {
-  const dp = defaultStaticDataProviderBuilder(validators)({ ...DEFAULT_CONFIG, ...config })
+  const dp = defaultStaticDataProviderBuilder(validators)({
+    ...DEFAULT_CONFIG,
+    ...config,
+  })
   const raw = await dp.fetchSourceData()
-  raw.auctions = history.map(entry => ({ ...entry, revShare: {}, epoch: 700 }))
+  raw.auctions = history.map(entry => ({
+    ...entry,
+    revShare: {},
+    epoch: 700,
+  })) as unknown as typeof raw.auctions
   return dp.aggregateData(raw, dataOverrides)
 }
 
 describe('Data Provider Testing Setup', () => {
-
   describe('StaticDataProvider → samBlacklisted / lastSamBlacklisted', () => {
     it('CSV only → samBlacklisted from builder.blacklisted()', async () => {
       const validators = [
@@ -26,14 +35,22 @@ describe('Data Provider Testing Setup', () => {
       ]
       const agg = await runStaticAggregate(validators)
       const flags = agg.validators.map(v => ({
-        voteAccount:        v.voteAccount,
-        samBlacklisted:     v.values.samBlacklisted,
+        voteAccount: v.voteAccount,
+        samBlacklisted: v.values.samBlacklisted,
         lastSamBlacklisted: v.lastSamBlacklisted,
       }))
       expect(flags).toEqual([
-        { voteAccount: 'alice', samBlacklisted: true, lastSamBlacklisted: null },
+        {
+          voteAccount: 'alice',
+          samBlacklisted: true,
+          lastSamBlacklisted: null,
+        },
         { voteAccount: 'bob', samBlacklisted: false, lastSamBlacklisted: null },
-        { voteAccount: 'carol', samBlacklisted: true, lastSamBlacklisted: null },
+        {
+          voteAccount: 'carol',
+          samBlacklisted: true,
+          lastSamBlacklisted: null,
+        },
       ])
     })
 
@@ -45,18 +62,26 @@ describe('Data Provider Testing Setup', () => {
       ]
       const history = [
         { voteAccount: 'bob', values: { samBlacklisted: true } },
-        { voteAccount: 'alice', values: { samBlacklisted: false } }
+        { voteAccount: 'alice', values: { samBlacklisted: false } },
       ]
       const agg = await runStaticAggregate(validators, history)
       const flags = agg.validators.map(v => ({
-        voteAccount:        v.voteAccount,
-        samBlacklisted:     v.values.samBlacklisted,
+        voteAccount: v.voteAccount,
+        samBlacklisted: v.values.samBlacklisted,
         lastSamBlacklisted: v.lastSamBlacklisted,
       }))
       expect(flags).toEqual([
-        { voteAccount: 'alice', samBlacklisted: false, lastSamBlacklisted: false },
+        {
+          voteAccount: 'alice',
+          samBlacklisted: false,
+          lastSamBlacklisted: false,
+        },
         { voteAccount: 'bob', samBlacklisted: false, lastSamBlacklisted: true },
-        { voteAccount: 'carol', samBlacklisted: false, lastSamBlacklisted: null },
+        {
+          voteAccount: 'carol',
+          samBlacklisted: false,
+          lastSamBlacklisted: null,
+        },
       ])
     })
 
@@ -68,18 +93,26 @@ describe('Data Provider Testing Setup', () => {
       ]
       const history = [
         { voteAccount: 'bob', values: { samBlacklisted: true } },
-        { voteAccount: 'alice', values: { samBlacklisted: false } }
+        { voteAccount: 'alice', values: { samBlacklisted: false } },
       ]
       const agg = await runStaticAggregate(validators, history)
       const flags = agg.validators.map(v => ({
-        voteAccount:        v.voteAccount,
-        samBlacklisted:     v.values.samBlacklisted,
+        voteAccount: v.voteAccount,
+        samBlacklisted: v.values.samBlacklisted,
         lastSamBlacklisted: v.lastSamBlacklisted,
       }))
       expect(flags).toEqual([
-        { voteAccount: 'alice', samBlacklisted: true, lastSamBlacklisted: false },
+        {
+          voteAccount: 'alice',
+          samBlacklisted: true,
+          lastSamBlacklisted: false,
+        },
         { voteAccount: 'bob', samBlacklisted: false, lastSamBlacklisted: true },
-        { voteAccount: 'carol', samBlacklisted: false, lastSamBlacklisted: null },
+        {
+          voteAccount: 'carol',
+          samBlacklisted: false,
+          lastSamBlacklisted: null,
+        },
       ])
     })
 
@@ -96,14 +129,26 @@ describe('Data Provider Testing Setup', () => {
       ]
       const agg = await runStaticAggregate(validators, history)
       const flags = agg.validators.map(v => ({
-        voteAccount:        v.voteAccount,
-        samBlacklisted:     v.values.samBlacklisted,
+        voteAccount: v.voteAccount,
+        samBlacklisted: v.values.samBlacklisted,
         lastSamBlacklisted: v.lastSamBlacklisted,
       }))
       expect(flags).toEqual([
-        { voteAccount: 'alice', samBlacklisted: false, lastSamBlacklisted: false },
-        { voteAccount: 'bob', samBlacklisted: false, lastSamBlacklisted: false },
-        { voteAccount: 'carol', samBlacklisted: true, lastSamBlacklisted: true },
+        {
+          voteAccount: 'alice',
+          samBlacklisted: false,
+          lastSamBlacklisted: false,
+        },
+        {
+          voteAccount: 'bob',
+          samBlacklisted: false,
+          lastSamBlacklisted: false,
+        },
+        {
+          voteAccount: 'carol',
+          samBlacklisted: true,
+          lastSamBlacklisted: true,
+        },
       ])
     })
   })
@@ -121,22 +166,23 @@ describe('Data Provider Testing Setup', () => {
             balance: 0,
             bondInflationCommission: 30,
             bondMevCommission: 40,
-            bondBlockCommission: -30
+            bondBlockCommission: -30,
           }),
       ]
-      const agg = await runStaticAggregate(validators, [], { minimalCommission: -0.2 })
-      expect(agg.validators[0]?.values.commissions).toEqual(
-        {
-          inflationCommissionDec: 0.1,
-          mevCommissionDec: 0.2,
-          blockRewardsCommissionDec: -0.2,
-          inflationCommissionOnchainDec: 0.1,
-          inflationCommissionInBondDec: 0.3,
-          mevCommissionOnchainDec: 0.2,
-          mevCommissionInBondDec: 0.4,
-          blockRewardsCommissionInBondDec: -0.3,
-          minimalCommissionDec: -0.2,
-        })
+      const agg = await runStaticAggregate(validators, [], {
+        minimalCommission: -0.2,
+      })
+      expect(agg.validators[0]?.values.commissions).toEqual({
+        inflationCommissionDec: 0.1,
+        mevCommissionDec: 0.2,
+        blockRewardsCommissionDec: -0.2,
+        inflationCommissionOnchainDec: 0.1,
+        inflationCommissionInBondDec: 0.3,
+        mevCommissionOnchainDec: 0.2,
+        mevCommissionInBondDec: 0.4,
+        blockRewardsCommissionInBondDec: -0.3,
+        minimalCommissionDec: -0.2,
+      })
     })
 
     it('data overrides', async () => {
@@ -151,31 +197,34 @@ describe('Data Provider Testing Setup', () => {
             balance: 0,
             bondInflationCommission: 30,
             bondMevCommission: 40,
-            bondBlockCommission: 50
+            bondBlockCommission: 50,
           }),
       ]
-      const agg = await runStaticAggregate(validators, [], { minimalCommission: 0.4 }, {
-        inflationCommissions: new Map<string, number>().set('validator', 80),
-        mevCommissions: new Map<string, number>().set('validator', 90),
-        blockRewardsCommissions: new Map<string, number>().set('validator', 100),
-      }
-      )
-      expect(agg.validators[0]?.values.commissions).toEqual(
+      const agg = await runStaticAggregate(
+        validators,
+        [],
+        { minimalCommission: 0.4 },
         {
-          inflationCommissionDec: 0.8, // override applied
-          mevCommissionDec: 0.4, // override not applied as above minimal
-          blockRewardsCommissionDec: 0.4, // override not applied as above minimal
-          inflationCommissionOnchainDec: 0.1,
-          inflationCommissionInBondDec: 0.3,
-          mevCommissionOnchainDec: 0.2,
-          mevCommissionInBondDec: 0.4,
-          blockRewardsCommissionInBondDec: 0.5,
-          minimalCommissionDec: 0.4,
-          // override for inflation in different units than block and mev
-          inflationCommissionOverrideDec: 0.8,
-          blockRewardsCommissionOverrideDec: 0.01,
-          mevCommissionOverrideDec: 0.009,
-        })
+          inflationCommissions: new Map<string, number>().set('validator', 80),
+          mevCommissions: new Map<string, number>().set('validator', 90),
+          blockRewardsCommissions: new Map<string, number>().set('validator', 100),
+        },
+      )
+      expect(agg.validators[0]?.values.commissions).toEqual({
+        inflationCommissionDec: 0.8, // override applied
+        mevCommissionDec: 0.4, // override not applied as above minimal
+        blockRewardsCommissionDec: 0.4, // override not applied as above minimal
+        inflationCommissionOnchainDec: 0.1,
+        inflationCommissionInBondDec: 0.3,
+        mevCommissionOnchainDec: 0.2,
+        mevCommissionInBondDec: 0.4,
+        blockRewardsCommissionInBondDec: 0.5,
+        minimalCommissionDec: 0.4,
+        // override for inflation in different units than block and mev
+        inflationCommissionOverrideDec: 0.8,
+        blockRewardsCommissionOverrideDec: 0.01,
+        mevCommissionOverrideDec: 0.009,
+      })
     })
 
     it('commissions rewritten correctly', async () => {
@@ -190,31 +239,36 @@ describe('Data Provider Testing Setup', () => {
             balance: 500,
             bondInflationCommission: 5,
             bondMevCommission: 15,
-            bondBlockCommission: 25
+            bondBlockCommission: 25,
           }),
-        new ValidatorMockBuilder('second', 'id-2')
-          .withEligibleDefaults()
-          .withInflationCommission(20)
-          .withBond({
-            stakeWanted: 200_000,
-            cpmpe: 0,
-            balance: 800,
-            bondInflationCommission: null,
-            bondMevCommission: -500,
-            bondBlockCommission: -100
-          }),
+        new ValidatorMockBuilder('second', 'id-2').withEligibleDefaults().withInflationCommission(20).withBond({
+          stakeWanted: 200_000,
+          cpmpe: 0,
+          balance: 800,
+          bondInflationCommission: null,
+          bondMevCommission: -500,
+          bondBlockCommission: -100,
+        }),
       ]
-      const agg = await runStaticAggregate(validators, [], { minimalCommission: -2.0 })
+      const agg = await runStaticAggregate(validators, [], {
+        minimalCommission: -2.0,
+      })
       const commissions = agg.validators.map(v => ({
-        voteAccount:  v.voteAccount,
-        inflation:    v.values.commissions.inflationCommissionDec,
-        mev:          v.values.commissions.mevCommissionDec,
-        block:        v.values.commissions.blockRewardsCommissionDec,
-        minimal:      v.values.commissions.minimalCommissionDec,
+        voteAccount: v.voteAccount,
+        inflation: v.values.commissions.inflationCommissionDec,
+        mev: v.values.commissions.mevCommissionDec,
+        block: v.values.commissions.blockRewardsCommissionDec,
+        minimal: v.values.commissions.minimalCommissionDec,
       }))
       expect(commissions).toEqual([
-        { voteAccount: 'first', inflation: 0.05, mev: 0.10, block: 0.25 },
-        { voteAccount: 'second', inflation: 0.20, mev: -2.0, block: -1.0, minimal: -2.0 },
+        { voteAccount: 'first', inflation: 0.05, mev: 0.1, block: 0.25 },
+        {
+          voteAccount: 'second',
+          inflation: 0.2,
+          mev: -2.0,
+          block: -1.0,
+          minimal: -2.0,
+        },
       ])
     })
   })

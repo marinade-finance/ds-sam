@@ -1,5 +1,5 @@
-import Decimal from 'decimal.js'
-import { AuctionHistoryStats } from './data-provider/data-provider.dto'
+import type { AuctionHistoryStats } from './data-provider/data-provider.dto'
+import type Decimal from 'decimal.js'
 
 export type AuctionResult = {
   auctionData: AuctionData

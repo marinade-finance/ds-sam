@@ -1,9 +1,13 @@
+import assert from 'assert'
+
 import { DsSamSDK } from '../src'
-import { blockRewardsStaticDataProviderBuilder, defaultStaticDataProviderBuilder } from './helpers/static-data-provider-builder'
+import {
+  blockRewardsStaticDataProviderBuilder,
+  defaultStaticDataProviderBuilder,
+} from './helpers/static-data-provider-builder'
 import { prettyPrintAuctionResult, prettyPrintStakeUnstakePriorities } from './helpers/utils'
 import { ValidatorMockBuilder, generateIdentities, generateVoteAccounts } from './helpers/validator-mock-builder'
 import { MNDE_VOTE_DELEGATION_STRATEGY } from '../src/utils'
-import assert from 'assert'
 
 describe('sam', () => {
   describe('distribution', () => {
@@ -16,11 +20,12 @@ describe('sam', () => {
           .withMevCommission(100)
           .withGoodPerformance()
           .withExternalStake(500_000_000),
-        ...Array.from({ length: 50 }, () => new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
-          .withGoodPerformance()
-          .withLiquidStake(100_000)
-          .withNativeStake(50_000)
-          .withBond({ stakeWanted: 1e6, cpmpe: 0, balance: 100 })
+        ...Array.from({ length: 50 }, () =>
+          new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
+            .withGoodPerformance()
+            .withLiquidStake(100_000)
+            .withNativeStake(50_000)
+            .withBond({ stakeWanted: 1e6, cpmpe: 0, balance: 100 }),
         ),
         new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
           .withGoodPerformance()
@@ -45,10 +50,11 @@ describe('sam', () => {
           .withLiquidStake(10_000_000)
           .withNativeStake(10_000_000)
           .withExternalStake(490_000_000),
-        ...Array.from({ length: 50 }, () => new ValidatorMockBuilder(voteAccountsSam.next().value, identities.next().value)
-          .withGoodPerformance()
-          .withMndeVotes(1)
-          .withBond({ stakeWanted: 160_000, cpmpe: 0, balance: 100 })
+        ...Array.from({ length: 50 }, () =>
+          new ValidatorMockBuilder(voteAccountsSam.next().value, identities.next().value)
+            .withGoodPerformance()
+            .withMndeVotes(1)
+            .withBond({ stakeWanted: 160_000, cpmpe: 0, balance: 100 }),
         ),
         new ValidatorMockBuilder(voteAccountsSam.next().value, identities.next().value)
           .withInflationCommission(6)
@@ -94,12 +100,13 @@ describe('sam', () => {
           .withNativeStake(5_000)
           .withLiquidStake(5_000)
           .withMndeVotes(50),
-        ...Array.from({ length: 8 }, () => new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
-          .withEligibleDefaults()
-          .withExternalStake(1_000_000)
-          .withNativeStake(5_000)
-          .withLiquidStake(5_000)
-          .withMndeVotes(50),
+        ...Array.from({ length: 8 }, () =>
+          new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
+            .withEligibleDefaults()
+            .withExternalStake(1_000_000)
+            .withNativeStake(5_000)
+            .withLiquidStake(5_000)
+            .withMndeVotes(50),
         ),
         new ValidatorMockBuilder(MNDE_VOTE_DELEGATION_STRATEGY, 'marinade-delstrat-virtual-validator')
           .blacklisted() // avoid distributing stake to this virtual validator
@@ -110,7 +117,10 @@ describe('sam', () => {
       const dsSam = new DsSamSDK({}, defaultStaticDataProviderBuilder(validators))
       const result = await dsSam.run()
 
-      const totalMndeStake = result.auctionData.validators.reduce((sum, validator) => sum + validator.auctionStake.marinadeMndeTargetSol, 0)
+      const totalMndeStake = result.auctionData.validators.reduce(
+        (sum, validator) => sum + validator.auctionStake.marinadeMndeTargetSol,
+        0,
+      )
       // 100k total TVL => 0 MNDE TVL & 50% of votes for DelStrat => 0 MNDE stake distributed
       // Default config has MNDE TVL share = 0%
       expect(result.auctionData.stakeAmounts.marinadeMndeTvlSol).toStrictEqual(0)
@@ -132,17 +142,24 @@ describe('sam', () => {
           .withExternalStake(1_000_000)
           .blacklisted()
           .withMndeVotes(100),
-        ...Array.from({ length: 98 }, () => new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
-          .withEligibleDefaults()
-          .withExternalStake(1_000_000)
-          .withMndeVotes(0),
+        ...Array.from({ length: 98 }, () =>
+          new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
+            .withEligibleDefaults()
+            .withExternalStake(1_000_000)
+            .withMndeVotes(0),
         ),
       ]
       const dsSam = new DsSamSDK({}, defaultStaticDataProviderBuilder(validators))
       const result = await dsSam.run()
 
-      const totalMndeStake = result.auctionData.validators.reduce((sum, validator) => sum + validator.auctionStake.marinadeMndeTargetSol, 0)
-      const totalSamStake = result.auctionData.validators.reduce((sum, validator) => sum + validator.auctionStake.marinadeSamTargetSol, 0)
+      const totalMndeStake = result.auctionData.validators.reduce(
+        (sum, validator) => sum + validator.auctionStake.marinadeMndeTargetSol,
+        0,
+      )
+      const totalSamStake = result.auctionData.validators.reduce(
+        (sum, validator) => sum + validator.auctionStake.marinadeSamTargetSol,
+        0,
+      )
       expect(result.auctionData.stakeAmounts.marinadeMndeTvlSol).toStrictEqual(0)
       expect(result.auctionData.stakeAmounts.marinadeSamTvlSol).toStrictEqual(15_000_000)
       expect(totalMndeStake).toStrictEqual(0)
@@ -155,25 +172,29 @@ describe('sam', () => {
       const voteAccounts = generateVoteAccounts()
       const identities = generateIdentities()
       const validators = [
-        ...Array.from({ length: 5 }, (_, index) =>
+        ...Array.from({ length: 5 }, () =>
           new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
             .withEligibleDefaults()
-            .withBond({ stakeWanted: 1_000_000, cpmpe: 0, balance: 1_000 })
+            .withBond({ stakeWanted: 1_000_000, cpmpe: 0, balance: 1_000 }),
         ),
         ...Array.from({ length: 5 }, (_, index) =>
-          new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
-            .withEligibleDefaults()
-            .withBond({ stakeWanted: 1_000_000, cpmpe: 0.1 + (0.1 * (index % 2)), balance: 1_000 })
+          new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value).withEligibleDefaults().withBond({
+            stakeWanted: 1_000_000,
+            cpmpe: 0.1 + 0.1 * (index % 2),
+            balance: 1_000,
+          }),
         ),
         ...Array.from({ length: 5 }, (_, index) =>
-          new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
-            .withEligibleDefaults()
-            .withBond({ stakeWanted: 1_000_000, cpmpe: 0.01 + (0.01 * (index % 2)), balance: 1_000 })
+          new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value).withEligibleDefaults().withBond({
+            stakeWanted: 1_000_000,
+            cpmpe: 0.01 + 0.01 * (index % 2),
+            balance: 1_000,
+          }),
         ),
-        ...Array.from({ length: 5 }, (_, index) =>
+        ...Array.from({ length: 5 }, () =>
           new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
             .withEligibleDefaults()
-            .withBond({ stakeWanted: 1_000_000, cpmpe: 0.2, balance: 1_000 })
+            .withBond({ stakeWanted: 1_000_000, cpmpe: 0.2, balance: 1_000 }),
         ),
       ]
       const dsSam = new DsSamSDK({}, defaultStaticDataProviderBuilder(validators))
@@ -188,21 +209,25 @@ describe('sam', () => {
         ...Array.from({ length: 5 }, (_, index) =>
           new ValidatorMockBuilder(`ineligible-${index}`, identities.next().value)
             .withExternalStake(1_000_000)
-            .blacklisted()
+            .blacklisted(),
         ),
         ...Array.from({ length: 10 }, (_, index) =>
           new ValidatorMockBuilder(`underfunded-${index}`, identities.next().value)
             .withGoodPerformance()
             .withExternalStake(10_000_000)
             .withLiquidStake(10_000 * (index + 1))
-            .withBond({ stakeWanted: 1_000_000, cpmpe: 0.1 * (index + 1), balance: 1 })
+            .withBond({
+              stakeWanted: 1_000_000,
+              cpmpe: 0.1 * (index + 1),
+              balance: 1,
+            }),
         ),
         ...Array.from({ length: 10 }, (_, index) =>
           new ValidatorMockBuilder(`overstaked-${index}`, identities.next().value)
             .withGoodPerformance()
             .withExternalStake(10_000_000)
             .withLiquidStake(100_000 + 10_000 * (index + 1))
-            .withBond({ stakeWanted: 1_000_000, cpmpe: 0, balance: 1_000 })
+            .withBond({ stakeWanted: 1_000_000, cpmpe: 0, balance: 1_000 }),
         ),
       ]
       const dsSam = new DsSamSDK({}, defaultStaticDataProviderBuilder(validators))
@@ -221,32 +246,35 @@ describe('sam', () => {
             .withExternalStake(1_000_000)
             .withLiquidStake(10_000)
             .withInflationCommission(index)
-            .withBond({ stakeWanted: 1_000_000, cpmpe: index + 1, balance: 1_000 })
+            .withBond({
+              stakeWanted: 1_000_000,
+              cpmpe: index + 1,
+              balance: 1_000,
+            }),
         ),
       ]
       const dsSam = new DsSamSDK({}, defaultStaticDataProviderBuilder(validators))
       const result = await dsSam.run()
 
-      result.auctionData.validators
-        .forEach(({ revShare }) => expect(isFinite(revShare.effParticipatingBidPmpe)).toBe(true))
+      result.auctionData.validators.forEach(({ revShare }) =>
+        expect(isFinite(revShare.effParticipatingBidPmpe)).toBe(true),
+      )
 
-      result.auctionData.validators
-        .forEach(({ revShare }) => expect(isFinite(revShare.auctionEffectiveBidPmpe)).toBe(true))
+      result.auctionData.validators.forEach(({ revShare }) =>
+        expect(isFinite(revShare.auctionEffectiveBidPmpe)).toBe(true),
+      )
 
       result.auctionData.validators
         .filter(validator => validator.revShare.effParticipatingBidPmpe > 0)
         .forEach(({ revShare }) => {
-          expect(Math.abs(
-            revShare.mevPmpe +
-              revShare.inflationPmpe +
-              revShare.effParticipatingBidPmpe -
-              result.winningTotalPmpe
-          )).toBeLessThan(1e-12)
-          expect(Math.abs(
-            revShare.onchainDistributedPmpe +
-              revShare.effParticipatingBidPmpe -
-              result.winningTotalPmpe
-          )).toBeLessThan(1e-12)
+          expect(
+            Math.abs(
+              revShare.mevPmpe + revShare.inflationPmpe + revShare.effParticipatingBidPmpe - result.winningTotalPmpe,
+            ),
+          ).toBeLessThan(1e-12)
+          expect(
+            Math.abs(revShare.onchainDistributedPmpe + revShare.effParticipatingBidPmpe - result.winningTotalPmpe),
+          ).toBeLessThan(1e-12)
         })
 
       result.auctionData.validators
@@ -264,19 +292,15 @@ describe('sam', () => {
       result.auctionData.validators
         .filter(validator => validator.revShare.totalPmpe >= result.winningTotalPmpe)
         .forEach(({ revShare }) => {
-          expect(Math.abs(
-            revShare.mevPmpe +
-              revShare.inflationPmpe +
-              revShare.auctionEffectiveBidPmpe -
-              result.winningTotalPmpe
-          )).toBeLessThan(1e-12)
-          expect(Math.abs(
-            revShare.onchainDistributedPmpe +
-              revShare.auctionEffectiveBidPmpe -
-              result.winningTotalPmpe
-          )).toBeLessThan(1e-12)
+          expect(
+            Math.abs(
+              revShare.mevPmpe + revShare.inflationPmpe + revShare.auctionEffectiveBidPmpe - result.winningTotalPmpe,
+            ),
+          ).toBeLessThan(1e-12)
+          expect(
+            Math.abs(revShare.onchainDistributedPmpe + revShare.auctionEffectiveBidPmpe - result.winningTotalPmpe),
+          ).toBeLessThan(1e-12)
         })
-
     })
 
     it('runFinalOnly() assigns effective participating bids', async () => {
@@ -289,32 +313,35 @@ describe('sam', () => {
             .withExternalStake(1_000_000)
             .withLiquidStake(10_000)
             .withInflationCommission(index)
-            .withBond({ stakeWanted: 1_000_000, cpmpe: index + 1, balance: 1_000 })
+            .withBond({
+              stakeWanted: 1_000_000,
+              cpmpe: index + 1,
+              balance: 1_000,
+            }),
         ),
       ]
       const dsSam = new DsSamSDK({}, defaultStaticDataProviderBuilder(validators))
       const result = await dsSam.runFinalOnly()
 
-      result.auctionData.validators
-        .forEach(({ revShare }) => expect(isFinite(revShare.effParticipatingBidPmpe)).toBe(true))
+      result.auctionData.validators.forEach(({ revShare }) =>
+        expect(isFinite(revShare.effParticipatingBidPmpe)).toBe(true),
+      )
 
-      result.auctionData.validators
-        .forEach(({ revShare }) => expect(isFinite(revShare.auctionEffectiveBidPmpe)).toBe(true))
+      result.auctionData.validators.forEach(({ revShare }) =>
+        expect(isFinite(revShare.auctionEffectiveBidPmpe)).toBe(true),
+      )
 
       result.auctionData.validators
         .filter(validator => validator.revShare.effParticipatingBidPmpe > 0)
         .forEach(({ revShare }) => {
-          expect(Math.abs(
-            revShare.mevPmpe +
-              revShare.inflationPmpe +
-              revShare.effParticipatingBidPmpe -
-              result.winningTotalPmpe
-          )).toBeLessThan(1e-12)
-          expect(Math.abs(
-            revShare.onchainDistributedPmpe +
-              revShare.effParticipatingBidPmpe -
-              result.winningTotalPmpe
-          )).toBeLessThan(1e-12)
+          expect(
+            Math.abs(
+              revShare.mevPmpe + revShare.inflationPmpe + revShare.effParticipatingBidPmpe - result.winningTotalPmpe,
+            ),
+          ).toBeLessThan(1e-12)
+          expect(
+            Math.abs(revShare.onchainDistributedPmpe + revShare.effParticipatingBidPmpe - result.winningTotalPmpe),
+          ).toBeLessThan(1e-12)
         })
 
       result.auctionData.validators
@@ -326,17 +353,14 @@ describe('sam', () => {
       result.auctionData.validators
         .filter(validator => validator.revShare.totalPmpe >= result.winningTotalPmpe)
         .forEach(({ revShare }) => {
-          expect(Math.abs(
-            revShare.mevPmpe +
-              revShare.inflationPmpe +
-              revShare.auctionEffectiveBidPmpe -
-              result.winningTotalPmpe
-          )).toBeLessThan(1e-12)
-          expect(Math.abs(
-            revShare.onchainDistributedPmpe +
-              revShare.auctionEffectiveBidPmpe -
-              result.winningTotalPmpe
-          )).toBeLessThan(1e-12)
+          expect(
+            Math.abs(
+              revShare.mevPmpe + revShare.inflationPmpe + revShare.auctionEffectiveBidPmpe - result.winningTotalPmpe,
+            ),
+          ).toBeLessThan(1e-12)
+          expect(
+            Math.abs(revShare.onchainDistributedPmpe + revShare.auctionEffectiveBidPmpe - result.winningTotalPmpe),
+          ).toBeLessThan(1e-12)
         })
     })
   })
@@ -358,7 +382,12 @@ describe('sam', () => {
         .withInflationCommission(5)
         .withMevCommission(10)
         .withGoodPerformance()
-        .withBond({ stakeWanted: 1_000_000, cpmpe: 0, balance: 100, bondBlockCommission: 20 })
+        .withBond({
+          stakeWanted: 1_000_000,
+          cpmpe: 0,
+          balance: 100,
+          bondBlockCommission: 20,
+        })
         .withNativeStake(0)
         .withExternalStake(100_000)
       // Validator with no bond - should not be SAM eligible
@@ -381,7 +410,7 @@ describe('sam', () => {
           balance: 100,
           bondInflationCommission: 0,
           bondMevCommission: 0,
-          bondBlockCommission: 0
+          bondBlockCommission: 0,
         })
       // Validator with poor performance (bad uptime) - should be ineligible
       const validator5Poor = new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
@@ -403,7 +432,12 @@ describe('sam', () => {
         .withGoodPerformance()
         .withInflationCommission(95)
         .withMevCommission(95)
-        .withBond({ stakeWanted: 1_000_000, cpmpe: 0, balance: 100, bondBlockCommission: 95 })
+        .withBond({
+          stakeWanted: 1_000_000,
+          cpmpe: 0,
+          balance: 100,
+          bondBlockCommission: 95,
+        })
         .withLiquidStake(100_000)
         .withNativeStake(1_000_000)
         .withExternalStake(100_000)
@@ -431,26 +465,31 @@ describe('sam', () => {
         validator4Blacklist,
         validator5Poor,
         validator6HighCommission,
-        validator7BackStop
+        validator7BackStop,
       ]
 
       const dsSam = new DsSamSDK(
         { enableZeroCommissionBackstop: true },
-        blockRewardsStaticDataProviderBuilder(validators)
+        blockRewardsStaticDataProviderBuilder(validators),
       )
 
       const result = await dsSam.run()
       const auctionRewards = result.auctionData.rewards
 
-      for (const validator of result.auctionData.validators) {
-        // Verify zero commission validator is backstop eligible
-        if (validator.voteAccount === validator7BackStop.voteAccount) {
-          expect(validator.backstopEligible).toBe(true)
-          expect(validator.revShare.inflationPmpe + validator.revShare.mevPmpe + validator.revShare.blockPmpe).
-            toEqual(validator.revShare.totalPmpe)
-          expect(validator.revShare.totalPmpe).toEqual(auctionRewards.blockPmpe + auctionRewards.inflationPmpe + auctionRewards.mevPmpe)
-        }
-      }
+      // Verify zero commission validator is backstop eligible
+      const backstopValidator7 = result.auctionData.validators.find(
+        v => v.voteAccount === validator7BackStop.voteAccount,
+      )
+      expect(backstopValidator7).toBeDefined()
+      expect(backstopValidator7?.backstopEligible).toBe(true)
+      expect(
+        (backstopValidator7?.revShare.inflationPmpe ?? 0) +
+          (backstopValidator7?.revShare.mevPmpe ?? 0) +
+          (backstopValidator7?.revShare.blockPmpe ?? 0),
+      ).toEqual(backstopValidator7?.revShare.totalPmpe)
+      expect(backstopValidator7?.revShare.totalPmpe).toEqual(
+        auctionRewards.blockPmpe + auctionRewards.inflationPmpe + auctionRewards.mevPmpe,
+      )
 
       const eligibleValidators = result.auctionData.validators.filter(v => v.samEligible || v.mndeEligible)
       expect(eligibleValidators.length).toEqual(3)
@@ -459,22 +498,27 @@ describe('sam', () => {
       const backstopValidators = result.auctionData.validators.filter(v => v.backstopEligible)
       expect(backstopValidators.length).toEqual(2) // including 1 eligible + 1 zero commission
 
-      let marinateTargetSolSum = 0
       result.auctionData.validators.forEach(validator => {
         expect(validator.revShare).toBeDefined()
         expect(validator.revShare.totalPmpe).toBeDefined()
         expect(validator.revShare.inflationPmpe).toBeDefined()
         expect(validator.revShare.mevPmpe).toBeDefined()
         expect(validator.revShare.blockPmpe).toBeDefined()
-        marinateTargetSolSum += validator.auctionStake.marinadeSamTargetSol + validator.auctionStake.marinadeMndeTargetSol
       })
 
-      const backStopValidator = result.auctionData.validators.find(v => v.voteAccount === validator7BackStop.voteAccount)
+      const backStopValidator = result.auctionData.validators.find(
+        v => v.voteAccount === validator7BackStop.voteAccount,
+      )
       assert(backStopValidator, 'Backstopped validator not found in results')
       expect(backStopValidator.backstopEligible).toBe(true)
-      expect(backStopValidator.revShare.inflationPmpe + backStopValidator.revShare.mevPmpe + backStopValidator.revShare.blockPmpe).
-        toEqual(backStopValidator.revShare.totalPmpe)
-      expect(backStopValidator.revShare.totalPmpe).toEqual(auctionRewards.blockPmpe + auctionRewards.inflationPmpe + auctionRewards.mevPmpe)
+      expect(
+        backStopValidator.revShare.inflationPmpe +
+          backStopValidator.revShare.mevPmpe +
+          backStopValidator.revShare.blockPmpe,
+      ).toEqual(backStopValidator.revShare.totalPmpe)
+      expect(backStopValidator.revShare.totalPmpe).toEqual(
+        auctionRewards.blockPmpe + auctionRewards.inflationPmpe + auctionRewards.mevPmpe,
+      )
       expect(backStopValidator.values.commissions.blockRewardsCommissionDec).toEqual(0)
       expect(backStopValidator.values.commissions.blockRewardsCommissionInBondDec).toEqual(0)
       expect(backStopValidator.values.commissions.inflationCommissionDec).toEqual(0)
@@ -501,7 +545,9 @@ describe('sam', () => {
       expect(poorValidator.auctionStake.marinadeSamTargetSol).toEqual(0)
       expect(poorValidator.auctionStake.marinadeMndeTargetSol).toEqual(0)
 
-      const blacklistedValidator = result.auctionData.validators.find(v => v.voteAccount === validator4Blacklist.voteAccount)
+      const blacklistedValidator = result.auctionData.validators.find(
+        v => v.voteAccount === validator4Blacklist.voteAccount,
+      )
       assert(blacklistedValidator, 'Blacklisted validator not found in results')
       expect(blacklistedValidator.samEligible).toBe(false)
       expect(blacklistedValidator.mndeEligible).toBe(false)
@@ -525,7 +571,9 @@ describe('sam', () => {
       expect(noBondValidator.auctionStake.marinadeSamTargetSol).toEqual(0)
       expect(noBondValidator.auctionStake.marinadeMndeTargetSol).toEqual(0)
 
-      const highCommissionValidator = result.auctionData.validators.find(v => v.voteAccount === validator6HighCommission.voteAccount)
+      const highCommissionValidator = result.auctionData.validators.find(
+        v => v.voteAccount === validator6HighCommission.voteAccount,
+      )
       assert(highCommissionValidator, 'High commission validator not found in results')
       expect(highCommissionValidator.samEligible).toBe(false)
       expect(highCommissionValidator.mndeEligible).toBe(false)

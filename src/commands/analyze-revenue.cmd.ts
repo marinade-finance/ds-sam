@@ -1,9 +1,18 @@
 import assert from 'assert'
-
-import { Command, CommandRunner, Option } from 'nest-commander'
-import { Logger } from '@nestjs/common'
-import { AuctionResult, AuctionValidator, DsSamSDK, InputsSource, Rewards, SourceDataOverrides } from '@marinade.finance/ds-sam-sdk'
 import fs from 'fs'
+
+import { Logger } from '@nestjs/common'
+import { Command, CommandRunner, Option } from 'nest-commander'
+
+import {
+  AuctionResult,
+  AuctionValidator,
+  DsSamConfig,
+  DsSamSDK,
+  InputsSource,
+  Rewards,
+  SourceDataOverrides,
+} from '@marinade.finance/ds-sam-sdk'
 
 const COMMAND_NAME = 'analyze-revenues'
 
@@ -36,8 +45,8 @@ export type SnapshotValidatorsCollection = {
 type PastValidatorCommissionsMap = Map<string, PastValidatorCommissions>
 
 type PastValidatorCommissions = {
-  inflation: number,
-  mev: number | null,
+  inflation: number
+  mev: number | null
 }
 
 export type RevenueExpectationCollection = {
@@ -63,12 +72,15 @@ export type RevenueExpectation = {
   lossPerStake: number
 }
 
-export const loadSnapshotValidatorsCollection = (path: string): SnapshotValidatorsCollection => JSON.parse(fs.readFileSync(path).toString())
+export const loadSnapshotValidatorsCollection = (path: string): SnapshotValidatorsCollection =>
+  JSON.parse(fs.readFileSync(path).toString()) as SnapshotValidatorsCollection
 
-export const getValidatorOverrides = (snapshotValidatorsCollection: SnapshotValidatorsCollection): SourceDataOverrides => {
-  const inflationCommissions = new Map()
-  const mevCommissions = new Map()
-  const blockRewardsCommissions = new Map()
+export const getValidatorOverrides = (
+  snapshotValidatorsCollection: SnapshotValidatorsCollection,
+): SourceDataOverrides => {
+  const inflationCommissions = new Map<string, number>()
+  const mevCommissions = new Map<string, number | undefined>()
+  const blockRewardsCommissions = new Map<string, number>()
 
   for (const validatorMeta of snapshotValidatorsCollection.validator_metas) {
     inflationCommissions.set(validatorMeta.vote_account, validatorMeta.commission)
@@ -89,11 +101,11 @@ export const getValidatorOverrides = (snapshotValidatorsCollection: SnapshotVali
 export class AnalyzeRevenuesCommand extends CommandRunner {
   private readonly logger = new Logger()
 
-  constructor () {
+  constructor() {
     super()
   }
 
-  async run (inputs: string[], options: AnalyzeRevenuesCommandOptions): Promise<void> {
+  async run(inputs: string[], options: AnalyzeRevenuesCommandOptions): Promise<void> {
     const revenueExpectationCollection = await this.getRevenueExpectationCollection(options)
 
     const { resultsFilePath } = options
@@ -102,9 +114,12 @@ export class AnalyzeRevenuesCommand extends CommandRunner {
     }
   }
 
-  async getRevenueExpectationCollection (options: AnalyzeRevenuesCommandOptions): Promise<RevenueExpectationCollection> {
-    const fileConfig: AnalyzeRevenuesCommandOptions = {
-      ...JSON.parse(fs.readFileSync(`${options.inputsCacheDirPath}/config.json`).toString()),
+  async getRevenueExpectationCollection(options: AnalyzeRevenuesCommandOptions): Promise<RevenueExpectationCollection> {
+    const parsedConfig: DsSamConfig = JSON.parse(
+      fs.readFileSync(`${options.inputsCacheDirPath}/config.json`).toString(),
+    ) as DsSamConfig
+    const fileConfig: DsSamConfig = {
+      ...parsedConfig,
       inputsSource: InputsSource.FILES,
       inputsCacheDirPath: options.inputsCacheDirPath,
     }
@@ -118,37 +133,36 @@ export class AnalyzeRevenuesCommand extends CommandRunner {
     if (options.snapshotPastValidatorsFilePath) {
       pastSnapshotValidatorsCollection = loadSnapshotValidatorsCollection(options.snapshotPastValidatorsFilePath)
       assert(
-        pastSnapshotValidatorsCollection.epoch === snapshotValidatorsCollection.epoch -1,
+        pastSnapshotValidatorsCollection.epoch === snapshotValidatorsCollection.epoch - 1,
         `Epoch loaded from argument data '--snapshot-past-validators-file-path ${options.snapshotValidatorsFilePath}' ` +
-        `has to be one less than the current snapshot epoch, but validators epoch is '${snapshotValidatorsCollection.epoch}' ` +
-        `and past validators is '${pastSnapshotValidatorsCollection.epoch}'`
+          `has to be one less than the current snapshot epoch, but validators epoch is '${snapshotValidatorsCollection.epoch}' ` +
+          `and past validators is '${pastSnapshotValidatorsCollection.epoch}'`,
       )
     }
 
     const sourceDataOverrides = getValidatorOverrides(snapshotValidatorsCollection)
-    const pastValidatorChangeCommissions = this.getPastValidatorCommissions(
-      pastSnapshotValidatorsCollection
-    )
+    const pastValidatorChangeCommissions = this.getPastValidatorCommissions(pastSnapshotValidatorsCollection)
 
     const dsSam = new DsSamSDK({ ...config })
     const auctionDataCalculatedFromFixtures = await dsSam.runFinalOnly()
     const auctionDataParsedFromFixtures: AuctionResult = JSON.parse(
-      fs.readFileSync(options.samResultsFixtureFilePath).toString()
-    )
+      fs.readFileSync(options.samResultsFixtureFilePath).toString(),
+    ) as AuctionResult
     console.log('Winning Total PMPE parsed from static results:', auctionDataParsedFromFixtures.winningTotalPmpe)
-    console.log('Winning Total PMPE calculated from static results:', auctionDataCalculatedFromFixtures.winningTotalPmpe)
+    console.log(
+      'Winning Total PMPE calculated from static results:',
+      auctionDataCalculatedFromFixtures.winningTotalPmpe,
+    )
 
     const aggregatedData = await dsSam.getAggregatedData(sourceDataOverrides)
-    const auctionValidatorsCalculatedWithOverrides = dsSam.transformValidators(
-      aggregatedData
-    )
+    const auctionValidatorsCalculatedWithOverrides = dsSam.transformValidators(aggregatedData)
 
     const revenueExpectations = this.evaluateRevenueExpectationForAuctionValidators(
       auctionDataCalculatedFromFixtures.auctionData.validators,
       auctionValidatorsCalculatedWithOverrides,
       auctionDataCalculatedFromFixtures, // TODO: difference between auction calculated and parsed data?
       pastValidatorChangeCommissions,
-      aggregatedData.rewards
+      aggregatedData.rewards,
     )
 
     return {
@@ -159,7 +173,7 @@ export class AnalyzeRevenuesCommand extends CommandRunner {
   }
 
   getPastValidatorCommissions = (
-    pastValidatorCollection: SnapshotValidatorsCollection | null
+    pastValidatorCollection: SnapshotValidatorsCollection | null,
   ): PastValidatorCommissionsMap => {
     const commissionMap: PastValidatorCommissionsMap = new Map()
     if (pastValidatorCollection == null) {
@@ -167,10 +181,10 @@ export class AnalyzeRevenuesCommand extends CommandRunner {
     }
 
     for (const validatorMeta of pastValidatorCollection.validator_metas) {
-      const vote_account = validatorMeta.vote_account
+      const voteAccount = validatorMeta.vote_account
       const inflationLastEpoch = validatorMeta.commission / 100
       const mevLastEpoch = validatorMeta.mev_commission ? validatorMeta.mev_commission / 100 : null
-      commissionMap.set(vote_account, {
+      commissionMap.set(voteAccount, {
         inflation: inflationLastEpoch,
         mev: mevLastEpoch,
       })
@@ -184,20 +198,20 @@ export class AnalyzeRevenuesCommand extends CommandRunner {
     validatorsAfter: AuctionValidator[],
     auctionResult: AuctionResult,
     pastValidatorCommissions: PastValidatorCommissionsMap,
-    rewards: Rewards
+    rewards: Rewards,
   ): RevenueExpectation[] => {
     const evaluation: RevenueExpectation[] = []
     for (const validatorBefore of validatorsBefore) {
-      const validatorAfter = validatorsAfter.find((v) => v.voteAccount === validatorBefore.voteAccount)
+      const validatorAfter = validatorsAfter.find(v => v.voteAccount === validatorBefore.voteAccount)
       if (!validatorAfter) {
-        this.logger.warn('Validator not present in the snapshot!', { voteAccount: validatorBefore.voteAccount })
+        this.logger.warn('Validator not present in the snapshot!', {
+          voteAccount: validatorBefore.voteAccount,
+        })
         continue
       }
 
       // TODO: we are missing the information about blockCommission
-
       // TODO: temporary fix for wrong value of MEV commission when there is no MEV data for epoch, skipping MEV for now
-      // --> TODO: it does not seem temporary and I don't know what does it mean "no MEV data for epoch"
       // const expectedNonBidPmpe = validatorBefore.revShare.inflationPmpe + validatorBefore.revShare.mevPmpe
       // const actualNonBidPmpe = validatorAfter.revShare.inflationPmpe + validatorAfter.revShare.mevPmpe
       const expectedNonBidPmpe = validatorBefore.revShare.inflationPmpe
@@ -212,7 +226,10 @@ export class AnalyzeRevenuesCommand extends CommandRunner {
       // if validator increased commission (in comparison to last epoch) AND his auction bid is under the winning PMPE
       // he requires to top up the difference that is not covered by the bid (the part within winning PMPE range is covered by the bid)
       let beforeSamCommissionIncreasePmpe = 0
-      const lastEpochCommissions = pastValidatorCommissions.get(validatorBefore.voteAccount) ?? { inflation: 0, mev: null }
+      const lastEpochCommissions = pastValidatorCommissions.get(validatorBefore.voteAccount) ?? {
+        inflation: 0,
+        mev: null,
+      }
       const lastEpochInflationPmpe = rewards.inflationPmpe * (1.0 - lastEpochCommissions.inflation)
       if (
         // validatorBefore.revShare.inflationPmpe - inflation at time SAM was run
@@ -232,7 +249,6 @@ export class AnalyzeRevenuesCommand extends CommandRunner {
         })
       }
 
-      // TODO: code has not been changed with addition of inflationCommissionOverrideDec and mevCommissionOverrideDec
       evaluation.push({
         voteAccount: validatorBefore.voteAccount,
         expectedInflationCommission: validatorBefore.inflationCommissionDec,
@@ -246,7 +262,8 @@ export class AnalyzeRevenuesCommand extends CommandRunner {
         expectedSamPmpe: expectedNonBidPmpe + validatorBefore.revShare.auctionEffectiveBidPmpe,
         beforeSamCommissionIncreasePmpe,
         maxSamStake: validatorBefore.maxStakeWanted,
-        samStakeShare: marinadeMndeTargetSol === 0 ? 1 : marinadeSamTargetSol / (marinadeMndeTargetSol + marinadeSamTargetSol),
+        samStakeShare:
+          marinadeMndeTargetSol === 0 ? 1 : marinadeSamTargetSol / (marinadeMndeTargetSol + marinadeSamTargetSol),
         lossPerStake: Math.max(0, expectedNonBidPmpe - actualNonBidPmpe) / 1000,
       })
     }
@@ -254,7 +271,7 @@ export class AnalyzeRevenuesCommand extends CommandRunner {
     return evaluation
   }
 
-  storeResults (path: string, revenueExpectationCollection: RevenueExpectationCollection) {
+  storeResults(path: string, revenueExpectationCollection: RevenueExpectationCollection) {
     const revenueExpectationsStr = JSON.stringify(revenueExpectationCollection, null, 2)
     fs.writeFileSync(path, revenueExpectationsStr)
   }
@@ -265,7 +282,7 @@ export class AnalyzeRevenuesCommand extends CommandRunner {
     required: true,
     description: 'SDK param `inputsCacheDirPath`',
   })
-  parseOptInputsCacheDirPath (val: string) {
+  parseOptInputsCacheDirPath(val: string) {
     return val
   }
   @Option({
@@ -274,7 +291,7 @@ export class AnalyzeRevenuesCommand extends CommandRunner {
     required: true,
     description: 'Output JSON from SAM run to check data integrity',
   })
-  parseOptSamResultsFixtureFilePath (val: string) {
+  parseOptSamResultsFixtureFilePath(val: string) {
     return val
   }
   @Option({
@@ -282,7 +299,7 @@ export class AnalyzeRevenuesCommand extends CommandRunner {
     name: 'resultsFilePath',
     description: 'Output JSON with a result to this file',
   })
-  parseOptResultsFilePath (val: string) {
+  parseOptResultsFilePath(val: string) {
     return val
   }
   @Option({
@@ -291,16 +308,17 @@ export class AnalyzeRevenuesCommand extends CommandRunner {
     required: true,
     description: 'Validators.json parsed from Solana snapshot',
   })
-  parseOptSnapshotValidatorsFilePath (val: string) {
+  parseOptSnapshotValidatorsFilePath(val: string) {
     return val
   }
   @Option({
     flags: '--snapshot-past-validators-file-path <string>',
     name: 'snapshotPastValidatorsFilePath',
     required: false,
-    description: 'Validators.json parsed from Solana snapshot from the previous epoch to --snapshot-validators-file-path',
+    description:
+      'Validators.json parsed from Solana snapshot from the previous epoch to --snapshot-validators-file-path',
   })
-  parseOptSnapshotPastValidatorsFilePath (val: string) {
+  parseOptSnapshotPastValidatorsFilePath(val: string) {
     return val
   }
 }

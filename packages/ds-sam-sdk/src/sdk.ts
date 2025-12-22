@@ -1,6 +1,17 @@
-import { DEFAULT_CONFIG, DsSamConfig, InputsSource } from './config'
+import Decimal from 'decimal.js'
+import semver from 'semver'
+
+import { Auction } from './auction'
+import { calcValidatorRevShare } from './calculations'
+import { DEFAULT_CONFIG, InputsSource } from './config'
+import { AuctionConstraints } from './constraints'
 import { DataProvider } from './data-provider/data-provider'
-import {
+import { Debug } from './debug'
+import { ineligibleValidatorAggDefaults, validatorAggDefaults } from './utils'
+
+import type { DsSamConfig } from './config'
+import type { SourceDataOverrides } from './data-provider/data-provider.dto'
+import type {
   AggregatedData,
   AuctionValidator,
   AuctionData,
@@ -8,14 +19,6 @@ import {
   AuctionResult,
   AuctionConstraintsConfig,
 } from './types'
-import semver from 'semver'
-import Decimal from 'decimal.js'
-import { Auction } from './auction'
-import { ineligibleValidatorAggDefaults, validatorAggDefaults } from './utils'
-import { calcValidatorRevShare } from './calculations'
-import { AuctionConstraints } from './constraints'
-import { Debug } from './debug'
-import { SourceDataOverrides } from './data-provider/data-provider.dto'
 
 export const defaultDataProviderBuilder = (config: DsSamConfig) => new DataProvider({ ...config }, config.inputsSource)
 
@@ -24,23 +27,27 @@ export class DsSamSDK {
   private readonly debug: Debug
   private readonly dataProvider: DataProvider
 
-  constructor (config: Partial<DsSamConfig> = {}, dataProviderBuilder = defaultDataProviderBuilder) {
+  constructor(config: Partial<DsSamConfig> = {}, dataProviderBuilder = defaultDataProviderBuilder) {
     this.config = { ...DEFAULT_CONFIG, ...config }
     DsSamSDK.validateConfig(this.config)
     this.dataProvider = dataProviderBuilder(this.config)
     this.debug = new Debug(new Set(this.config.debugVoteAccounts))
   }
 
-  private static validateConfig (config: DsSamConfig) {
+  private static validateConfig(config: DsSamConfig) {
     if (config.bondObligationSafetyMult < 1.0 || config.bondObligationSafetyMult > 2.0) {
-      throw new Error(`Invalid config: bondObligationSafetyMult must be in interval [1.0, 2.0], got ${config.bondObligationSafetyMult}`)
+      throw new Error(
+        `Invalid config: bondObligationSafetyMult must be in interval [1.0, 2.0], got ${config.bondObligationSafetyMult}`,
+      )
     }
     if (config.bidTooLowPenaltyPermittedDeviationPmpe < 0 || config.bidTooLowPenaltyPermittedDeviationPmpe > 1.0) {
-      throw new Error(`Invalid config: bidTooLowPenaltyPermittedDeviationPmpe must be in interval [0.0, 1.0], got ${config.bidTooLowPenaltyPermittedDeviationPmpe}`)
+      throw new Error(
+        `Invalid config: bidTooLowPenaltyPermittedDeviationPmpe must be in interval [0.0, 1.0], got ${config.bidTooLowPenaltyPermittedDeviationPmpe}`,
+      )
     }
   }
 
-  getAuctionConstraints ({ stakeAmounts }: AggregatedData, debug: Debug): AuctionConstraints {
+  getAuctionConstraints({ stakeAmounts }: AggregatedData, debug: Debug): AuctionConstraints {
     const { networkTotalSol, marinadeMndeTvlSol, marinadeSamTvlSol } = stakeAmounts
     const marinadeTotalTvlSol = marinadeMndeTvlSol + marinadeSamTvlSol
     const constraints: AuctionConstraintsConfig = {
@@ -66,19 +73,22 @@ export class DsSamSDK {
     return new AuctionConstraints(constraints, debug)
   }
 
-  transformValidators ({ validators, rewards, blacklist }: AggregatedData): AuctionValidator[] {
+  transformValidators({ validators, rewards, blacklist }: AggregatedData): AuctionValidator[] {
     let maxEpoch = 0
     const epochsTotals = validators.reduce((totals, { epochStats }) => {
       epochStats.forEach(({ epoch, totalActivatedStake, voteCredits }) => {
-        const currentTotal = totals.get(epoch) ?? { weightedCredits: new Decimal(0), weight: new Decimal(0) }
+        const currentTotal = totals.get(epoch) ?? {
+          weightedCredits: new Decimal(0),
+          weight: new Decimal(0),
+        }
         totals.set(epoch, {
           weightedCredits: currentTotal.weightedCredits.add(totalActivatedStake.mul(voteCredits)),
-          weight: currentTotal.weight.add(totalActivatedStake)
+          weight: currentTotal.weight.add(totalActivatedStake),
         })
         maxEpoch = Math.max(maxEpoch, epoch)
       })
       return totals
-    }, new Map<number, { weightedCredits: Decimal, weight: Decimal }>())
+    }, new Map<number, { weightedCredits: Decimal; weight: Decimal }>())
 
     const epochCreditsThresholds = new Map<number, number>()
     const minEpoch = maxEpoch - this.config.validatorsUptimeEpochsCount + 1
@@ -87,12 +97,21 @@ export class DsSamSDK {
       if (!epochTotals) {
         throw new Error(`Validator credits data for epoch ${epoch} not available`)
       }
-      const threshold = epochTotals.weightedCredits.div(epochTotals.weight).mul(this.config.validatorsUptimeThresholdDec).toNumber()
+      const threshold = epochTotals.weightedCredits
+        .div(epochTotals.weight)
+        .mul(this.config.validatorsUptimeThresholdDec)
+        .toNumber()
       epochCreditsThresholds.set(epoch, threshold)
     }
 
-    const minEffectiveRevSharePmpe = Math.max(0, rewards.inflationPmpe * (1 - this.config.validatorsMaxEffectiveCommissionDec))
-    const minSamRevSharePmpe = Math.max(0, rewards.inflationPmpe + rewards.mevPmpe + rewards.blockPmpe + (this.config.minEligibleFeePmpe ?? -Infinity))
+    const minEffectiveRevSharePmpe = Math.max(
+      0,
+      rewards.inflationPmpe * (1 - this.config.validatorsMaxEffectiveCommissionDec),
+    )
+    const minSamRevSharePmpe = Math.max(
+      0,
+      rewards.inflationPmpe + rewards.mevPmpe + rewards.blockPmpe + (this.config.minEligibleFeePmpe ?? -Infinity),
+    )
     console.log('min rev share PMPE', minEffectiveRevSharePmpe)
     console.log('rewards', rewards)
     console.log('uptime thresholds', epochCreditsThresholds)
@@ -108,31 +127,62 @@ export class DsSamSDK {
         marinadeSamTargetSol: 0,
       }
       if (blacklist.has(validator.voteAccount)) {
-        return { ...validator, revShare, auctionStake, ...ineligibleValidatorAggDefaults() }
+        return {
+          ...validator,
+          revShare,
+          auctionStake,
+          ...ineligibleValidatorAggDefaults(),
+        }
       }
       if (!semver.satisfies(validator.clientVersion, this.config.validatorsClientVersionSemverExpr)) {
-        return { ...validator, revShare, auctionStake, ...ineligibleValidatorAggDefaults() }
+        return {
+          ...validator,
+          revShare,
+          auctionStake,
+          ...ineligibleValidatorAggDefaults(),
+        }
       }
       for (let epoch = minEpoch; epoch <= maxEpoch; epoch++) {
         const es = validator.epochStats.find(es => es.epoch === epoch)
         const threshold = epochCreditsThresholds.get(epoch)
         if (!es || !threshold || es.voteCredits < threshold) {
-          return { ...validator, revShare, auctionStake, ...ineligibleValidatorAggDefaults() }
+          return {
+            ...validator,
+            revShare,
+            auctionStake,
+            ...ineligibleValidatorAggDefaults(),
+          }
         }
       }
       const zeroCommissionPmpe = Math.max(0, rewards.inflationPmpe + rewards.mevPmpe)
-      const backstopEligible = this.config.enableZeroCommissionBackstop && (revShare.inflationPmpe + revShare.mevPmpe + revShare.blockPmpe >= zeroCommissionPmpe)
+      const backstopEligible =
+        this.config.enableZeroCommissionBackstop &&
+        revShare.inflationPmpe + revShare.mevPmpe + revShare.blockPmpe >= zeroCommissionPmpe
       if (validator.bondBalanceSol === null) {
-        return { ...validator, revShare, auctionStake, ...ineligibleValidatorAggDefaults(), backstopEligible }
+        return {
+          ...validator,
+          revShare,
+          auctionStake,
+          ...ineligibleValidatorAggDefaults(),
+          backstopEligible,
+        }
       }
       const samEligible = revShare.totalPmpe >= Math.max(minEffectiveRevSharePmpe, minSamRevSharePmpe)
       const mndeEligible = revShare.inflationPmpe + revShare.mevPmpe + revShare.blockPmpe >= minEffectiveRevSharePmpe
 
-      return { ...validator, revShare, auctionStake, samEligible, mndeEligible, backstopEligible, ...validatorAggDefaults() }
+      return {
+        ...validator,
+        revShare,
+        auctionStake,
+        samEligible,
+        mndeEligible,
+        backstopEligible,
+        ...validatorAggDefaults(),
+      }
     })
   }
 
-  async auction (): Promise<Auction> {
+  async auction(): Promise<Auction> {
     const aggregatedData = await this.getAggregatedData()
     const constraints = this.getAuctionConstraints(aggregatedData, this.debug)
     const auctionData: AuctionData = {
@@ -142,22 +192,29 @@ export class DsSamSDK {
     return new Auction(auctionData, constraints, this.config, this.debug)
   }
 
-  async run (): Promise<AuctionResult> {
+  async run(): Promise<AuctionResult> {
     const auction = await this.auction()
     const result = auction.evaluate()
-    console.log(`==============================\n${this.debug.formatInfo()}\n${this.debug.formatEvents()}\n==============================`)
+    console.log(
+      `==============================\n${this.debug.formatInfo()}\n${this.debug.formatEvents()}\n==============================`,
+    )
     return result
   }
 
-  async runFinalOnly (): Promise<AuctionResult> {
+  async runFinalOnly(): Promise<AuctionResult> {
     const auction = await this.auction()
     const result = auction.evaluateFinal()
-    console.log(`==============================\n${this.debug.formatInfo()}\n${this.debug.formatEvents()}\n==============================`)
+    console.log(
+      `==============================\n${this.debug.formatInfo()}\n${this.debug.formatEvents()}\n==============================`,
+    )
     return result
   }
 
-  async getAggregatedData (dataOverrides: SourceDataOverrides | null = null): Promise<AggregatedData> {
-    const sourceData = this.config.inputsSource === InputsSource.FILES ? this.dataProvider.parseCachedSourceData() : await this.dataProvider.fetchSourceData()
+  async getAggregatedData(dataOverrides: SourceDataOverrides | null = null): Promise<AggregatedData> {
+    const sourceData =
+      this.config.inputsSource === InputsSource.FILES
+        ? this.dataProvider.parseCachedSourceData()
+        : await this.dataProvider.fetchSourceData()
     return this.dataProvider.aggregateData(sourceData, dataOverrides)
   }
 }
@@ -166,7 +223,7 @@ export class DsSamSDK {
  * An SDK utility class method to load the DS-SAM config from the default remote location.
  * This can be used from various 3rd party scripts/tools when a local config file is not available.
  */
-export async function loadSamConfig (): Promise<DsSamConfig> {
+export async function loadSamConfig(): Promise<DsSamConfig> {
   const url = 'https://thru.marinade.finance/marinade-finance/ds-sam-pipeline/main/auction-config.json'
   const response = await fetch(url)
   const dataJson = (await response.json()) as DsSamConfig
