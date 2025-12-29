@@ -2,6 +2,7 @@ import { BidTooLowPenalty, AuctionValidator, Rewards, RevShare, CommissionDetail
 import Decimal from 'decimal.js'
 import { assert } from './utils'
 import { Debug } from './debug'
+import { valid } from 'semver'
 
 export const calcValidatorRevShare = (
   validator: {
@@ -235,6 +236,21 @@ export const calcBidTooLowPenalty = ({
     tolCoef * commissions.inflationCommissionDec > (pastAuction?.commissions?.inflationCommissionDec ?? Infinity) ||
     tolCoef * commissions.mevCommissionDec > (pastAuction?.commissions?.mevCommissionDec ?? Infinity) ||
     tolCoef * commissions.blockRewardsCommissionDec > (pastAuction?.commissions?.blockRewardsCommissionDec ?? Infinity)
+  console.log(`${validator.voteAccount}: bid too low penalty calc`, {
+    voteAccount: validator.voteAccount,
+    revShareBidPmpe: revShare.bidPmpe,
+    pastAuctionBidPmpe: pastAuction?.bidPmpe,
+    inflationCommissionDec: commissions.inflationCommissionDec,
+    pastInflationCommissionDec: pastAuction?.commissions?.inflationCommissionDec,
+    mevCommissionDec: commissions.mevCommissionDec,
+    pastMevCommissionDec: pastAuction?.commissions?.mevCommissionDec,
+    blockRewardsCommissionDec: commissions.blockRewardsCommissionDec,
+    pastBlockRewardsCommissionDec: pastAuction?.commissions?.blockRewardsCommissionDec,
+    limit,
+    adjustedLimit,
+    penaltyCoef,
+    isNegativeBiddingChange,
+  })
   const bidTooLowPenaltyValue = {
     base: winningTotalPmpe + revShare.effParticipatingBidPmpe,
     // did validator lower its bid compared to last epoch; if so how much
