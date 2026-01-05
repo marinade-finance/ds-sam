@@ -224,7 +224,7 @@ export type BidTooLowPenaltyResult = {
 // Calculates the penalty for lowering the bid (considered whatever static, or dynamic commission)
 //  compared to the last epochs - i.e., penalizes validators who reduce their commitment
 // cf. https://www.notion.so/marinade/20250416-MRP-2-Stake-Auction-Marketplace-Bid-Penalty-1d7e465715a480cc80cecd86d63ce6af
-/* eslint-disable complexity */
+
 export const calcBidTooLowPenalty = ({
   historyEpochs,
   winningTotalPmpe,
@@ -239,11 +239,7 @@ export const calcBidTooLowPenalty = ({
   const tolCoef = 0.99999
   const scaleCoef = 1.5
   assert(permittedBidDeviation >= 0 && permittedBidDeviation <= 1, 'permittedBidDeviation has to be in [0, 1]')
-  const {
-    revShare,
-    auctions,
-    values: { commissions },
-  } = validator
+  const { revShare, auctions } = validator
   const historicalPmpe = auctions
     .slice(0, historyEpochs)
     .reduce((acc, { effParticipatingBidPmpe }) => Math.min(acc, effParticipatingBidPmpe ?? Infinity), Infinity)
@@ -254,11 +250,11 @@ export const calcBidTooLowPenalty = ({
       ? Math.min(1, Math.sqrt(scaleCoef * Math.max(0, (adjustedLimit - revShare.bondObligationPmpe) / adjustedLimit)))
       : 0
   const pastAuction = auctions[0]
-  const isNegativeBiddingChange =
-    revShare.bidPmpe < tolCoef * (pastAuction?.bidPmpe ?? 0) ||
-    tolCoef * commissions.inflationCommissionDec > (pastAuction?.commissions?.inflationCommissionDec ?? Infinity) ||
-    tolCoef * commissions.mevCommissionDec > (pastAuction?.commissions?.mevCommissionDec ?? Infinity) ||
-    tolCoef * commissions.blockRewardsCommissionDec > (pastAuction?.commissions?.blockRewardsCommissionDec ?? Infinity)
+  const isNegativeBiddingChange = revShare.bidPmpe < tolCoef * (pastAuction?.bidPmpe ?? 0)
+  // Disable commission-based penalty for now; commmissions = validator.values.commissions
+  // || tolCoef * commissions.inflationCommissionDec > (pastAuction?.commissions?.inflationCommissionDec ?? Infinity) ||
+  // tolCoef * commissions.mevCommissionDec > (pastAuction?.commissions?.mevCommissionDec ?? Infinity) ||
+  // tolCoef * commissions.blockRewardsCommissionDec > (pastAuction?.commissions?.blockRewardsCommissionDec ?? Infinity)
   const bidTooLowPenaltyValue = {
     base: winningTotalPmpe + revShare.effParticipatingBidPmpe,
     // did validator lower its bid compared to last epoch; if so how much
