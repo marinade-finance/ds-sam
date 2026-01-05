@@ -1,6 +1,5 @@
+import { Injectable, Logger } from '@nestjs/common'
 import * as dotenv from 'dotenv'
-import { Injectable } from '@nestjs/common'
-import { Logger } from '../logger'
 
 dotenv.config()
 
@@ -8,7 +7,7 @@ dotenv.config()
 export class ConfigService {
   private readonly logger = new Logger()
 
-  private getEnvVar (key: string, defaultVal?: string): string {
+  private getEnvVar(key: string, defaultVal?: string): string {
     const val = process.env[key] ?? defaultVal
     if (!val) {
       this.logger.error(`Missing environment variable: ${key}`)

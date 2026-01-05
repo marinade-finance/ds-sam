@@ -1,4 +1,4 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
 exports[`sam distribution distributes stake to validators with bonds 1`] = `
 "vote-acc--0000000001, inflation pmpe: 0.09849305623953511, mev pmpe: 0, bid pmpe: 0, block pmpe: 0, on-chain distributed pmpe: 0.09849305623953511 total pmpe: 0.09849305623953511, mnde_target_stake: 0, sam_target_stake: 153000, last constraint: MNDE (vote-acc--0000000001)

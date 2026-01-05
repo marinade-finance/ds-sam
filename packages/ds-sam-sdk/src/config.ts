@@ -51,7 +51,7 @@ export type DsSamConfig = {
   // Share of Marinade TVL stake controlled by MNDE votes
   mndeDirectedStakeShareDec: number
   // Total Marinade TVL stake cap multiplier factor
-  mndeStakeCapMultiplier: number,
+  mndeStakeCapMultiplier: number
   // Cap of Marinade stake share in a single country
   maxMarinadeStakeConcentrationPerCountryDec: number
   // Cap of Marinade stake share with a single ASO
@@ -153,7 +153,7 @@ export const DEFAULT_CONFIG: DsSamConfig = {
   // marinade proxy cache API, pointing to 'https://raw.githubusercontent.com/marinade-finance/ds-sam-pipeline/main/epochs'
   overridesApiBaseUrl: 'https://thru.marinade.finance/marinade-finance/ds-sam-pipeline/main/epochs',
   snapshotsApiBaseUrl: 'https://snapshots-api.marinade.finance',
-  scoringApiBaseUrl:  'https://scoring.marinade.finance',
+  scoringApiBaseUrl: 'https://scoring.marinade.finance',
 
   enableZeroCommissionBackstop: false,
   rewardsEpochsCount: 10,
@@ -198,4 +198,3 @@ export const DEFAULT_CONFIG: DsSamConfig = {
 
   debugVoteAccounts: [],
 }
-

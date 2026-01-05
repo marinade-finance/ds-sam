@@ -1,9 +1,10 @@
 import { CommandFactory } from 'nest-commander'
+
 import { CliModule } from './cli.module'
 import { Logger } from './logger'
 
-async function bootstrap () {
+async function bootstrap() {
   await CommandFactory.run(CliModule, new Logger())
 }
 
-bootstrap()
+void bootstrap()

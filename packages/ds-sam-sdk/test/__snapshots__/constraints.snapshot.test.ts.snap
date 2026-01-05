@@ -1,4 +1,4 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
 exports[`constraints applies Marinade stake concentration constraints 1`] = `
 "country-validator-0, inflation pmpe: 0.19999999999999998, mev pmpe: 0.16842105263157894, bid pmpe: 1, block pmpe: 0, on-chain distributed pmpe: 0.3684210526315789 total pmpe: 1.368421052631579, mnde_target_stake: 0, sam_target_stake: 150000, last constraint: MNDE (country-validator-0)
