@@ -3,6 +3,13 @@ export enum InputsSource {
   FILES = 'FILES',
 }
 
+export enum LogVerbosity {
+  DEBUG = 1,
+  INFO = 2,
+  WARN = 3,
+  ERROR = 4,
+}
+
 export type DsSamConfig = {
   // Fetch source data from APIs or from local files
   inputsSource: InputsSource
@@ -139,6 +146,9 @@ export type DsSamConfig = {
 
   // Validator vote accounts to collect debug info for
   debugVoteAccounts: string[]
+
+  // Whether to print logs during auction processing
+  logVerbosity: LogVerbosity
 }
 
 // NOTE: It’s not a good idea to make changes here because the tests rely on DEFAULT_CONFIG.
@@ -197,4 +207,5 @@ export const DEFAULT_CONFIG: DsSamConfig = {
   minimalCommission: -2.0,
 
   debugVoteAccounts: [],
+  logVerbosity: LogVerbosity.DEBUG,
 }

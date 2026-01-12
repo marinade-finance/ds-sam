@@ -88,5 +88,8 @@ SDK for Marinade's DS-SAM - max yield - auction evaluation tool.
 
   // Validator vote accounts to collect debug info for
   debugVoteAccounts: string[]
+
+  // Whether and how verbose to print logs during auction processing
+  logVerbosity: 'DEBUG' | 'INFO' | 'WARN' | 'ERROR
 }
 ```

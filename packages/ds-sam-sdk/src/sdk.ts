@@ -31,7 +31,7 @@ export class DsSamSDK {
     this.config = { ...DEFAULT_CONFIG, ...config }
     DsSamSDK.validateConfig(this.config)
     this.dataProvider = dataProviderBuilder(this.config)
-    this.debug = new Debug(new Set(this.config.debugVoteAccounts))
+    this.debug = new Debug(new Set(this.config.debugVoteAccounts), this.config.logVerbosity)
   }
 
   private static validateConfig(config: DsSamConfig) {
@@ -112,9 +112,9 @@ export class DsSamSDK {
       0,
       rewards.inflationPmpe + rewards.mevPmpe + rewards.blockPmpe + (this.config.minEligibleFeePmpe ?? -Infinity),
     )
-    console.log('min rev share PMPE', minEffectiveRevSharePmpe)
-    console.log('rewards', rewards)
-    console.log('uptime thresholds', epochCreditsThresholds)
+    this.debug.log('min rev share PMPE', minEffectiveRevSharePmpe)
+    this.debug.log('rewards', rewards)
+    this.debug.log('uptime thresholds', epochCreditsThresholds)
     this.debug.pushInfo('min effective rev share', minEffectiveRevSharePmpe.toString())
     this.debug.pushInfo('estimated rewards', JSON.stringify(rewards))
 
@@ -182,7 +182,7 @@ export class DsSamSDK {
     })
   }
 
-  async auction (dataOverrides: SourceDataOverrides | null = null): Promise<Auction> {
+  async auction(dataOverrides: SourceDataOverrides | null = null): Promise<Auction> {
     const aggregatedData = await this.getAggregatedData(dataOverrides)
     const constraints = this.getAuctionConstraints(aggregatedData, this.debug)
     const auctionData: AuctionData = {
@@ -192,21 +192,17 @@ export class DsSamSDK {
     return new Auction(auctionData, constraints, this.config, this.debug)
   }
 
-  async run (dataOverrides: SourceDataOverrides | null = null): Promise<AuctionResult> {
+  async run(dataOverrides: SourceDataOverrides | null = null): Promise<AuctionResult> {
     const auction = await this.auction(dataOverrides)
     const result = auction.evaluate()
-    console.log(
-      `==============================\n${this.debug.formatInfo()}\n${this.debug.formatEvents()}\n==============================`,
-    )
+    this.debug.printDebugContent()
     return result
   }
 
-  async runFinalOnly (dataOverrides: SourceDataOverrides | null = null): Promise<AuctionResult> {
+  async runFinalOnly(dataOverrides: SourceDataOverrides | null = null): Promise<AuctionResult> {
     const auction = await this.auction(dataOverrides)
     const result = auction.evaluateFinal()
-    console.log(
-      `==============================\n${this.debug.formatInfo()}\n${this.debug.formatEvents()}\n==============================`,
-    )
+    this.debug.printDebugContent()
     return result
   }
 
