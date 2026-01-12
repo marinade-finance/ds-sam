@@ -162,7 +162,7 @@ export class DataProvider {
       const inflationCommissionOverride = dataOverrides?.inflationCommissions?.get(validator.vote_account)
       const mevCommissionOverride = dataOverrides?.mevCommissions?.get(validator.vote_account)
       const blockRewardsCommissionOverride = dataOverrides?.blockRewardsCommissions?.get(validator.vote_account)
-      const bondCpmpeOverride = dataOverrides?.cpmpes?.get(validator.vote_account)
+      const bidCpmpeOverride = dataOverrides?.cpmpes?.get(validator.vote_account)
 
       const validatorMndeVotes = validatorsMndeVotes.get(validator.vote_account) ?? new Decimal(0)
       const validatorMndeStakeCapIncrease = mndeStakeCapIncreases.get(validator.vote_account) ?? new Decimal(0)
@@ -172,7 +172,7 @@ export class DataProvider {
       const mevCommissionOverrideDec = mevCommissionOverride !== undefined ? mevCommissionOverride / 10_000 : null
       const blockRewardsCommissionOverrideDec =
         blockRewardsCommissionOverride !== undefined ? blockRewardsCommissionOverride / 10_000 : null
-      const bidCpmpeOverrideDec = bondCpmpeOverride !== undefined ? bondCpmpeOverride / 1e9 : null
+      const bidCpmpeOverrideDec = bidCpmpeOverride !== undefined ? bidCpmpeOverride / 1e9 : null
 
       const inflationCommissionInBondDec =
         bond?.inflation_commission_bps != null ? Number(bond.inflation_commission_bps) / 10_000 : null
@@ -275,6 +275,7 @@ export class DataProvider {
             inflationCommissionOverrideDec: inflationCommissionOverrideDec ?? undefined,
             mevCommissionOverrideDec: mevCommissionOverrideDec ?? undefined,
             blockRewardsCommissionOverrideDec: blockRewardsCommissionOverrideDec ?? undefined,
+            bidCpmpeOverrideDec: bidCpmpeOverrideDec ?? undefined,
             minimalCommissionDec,
           },
         },
