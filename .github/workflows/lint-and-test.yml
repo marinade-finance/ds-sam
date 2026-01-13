@@ -37,9 +37,10 @@ jobs:
       - name: 🧨 Run test
         run: |
           set -o pipefail
-          pnpm test 2>&1 | tee test-output.log | awk 'NR % 1000000 == 0 {print "[" NR " lines...]"} END {print "Total: " NR " lines"}' || TEST_FAILED=1
-          echo "=== Last 100 lines ==="
-          tail -n 100 test-output.log
+          pnpm test 2>&1 | tee test-output.log | awk 'NR % 10000000 == 0 {print "[" NR " lines...]"} END {print "Total: " NR " lines"}' || TEST_FAILED=1
+          echo "..."
+          grep -E 'FAIL|ERROR' test-output.log || true
+          tail -n 50 test-output.log
           [ -z "$TEST_FAILED" ] || exit 1
 
       - name: 📁 Upload test logs
