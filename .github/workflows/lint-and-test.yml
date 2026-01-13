@@ -35,10 +35,17 @@ jobs:
         run: pnpm check
 
       - name: 🧨 Run test
-        run: pnpm test | tee test-output.log | awk 'NR % 10000 == 0 {printf "."; fflush()}'
+        run: |
+          pnpm test > test-output.log 2>&1 || TEST_FAILED=1
+          echo "Total: $(wc -l < test-output.log) lines"
+          echo "---"
+          grep -E 'FAIL|ERROR' test-output.log || echo "(no fails found)"
+          echo "---"
+          tail -n 50 test-output.log
+          [ -z "$TEST_FAILED" ] || exit 1
 
       - name: 📁 Upload test logs
         uses: actions/upload-artifact@v4
+        if: always()
         with:
-          name: test-logs
           path: test-output.log

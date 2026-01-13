@@ -81,6 +81,7 @@ export const getValidatorOverrides = (
   const inflationCommissions = new Map<string, number>()
   const mevCommissions = new Map<string, number | undefined>()
   const blockRewardsCommissions = new Map<string, number>()
+  const cpmpes = new Map<string, number | undefined>()
 
   for (const validatorMeta of snapshotValidatorsCollection.validator_metas) {
     inflationCommissions.set(validatorMeta.vote_account, validatorMeta.commission)
@@ -91,6 +92,7 @@ export const getValidatorOverrides = (
     inflationCommissions,
     mevCommissions,
     blockRewardsCommissions,
+    cpmpes,
   }
 }
 

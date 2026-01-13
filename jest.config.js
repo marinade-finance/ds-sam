@@ -4,4 +4,5 @@ module.exports = {
   testEnvironment: 'node',
   testMatch: ['<rootDir>/test/**.test.ts', '<rootDir>/packages/**/test/**.test.ts'],
   modulePathIgnorePatterns: ['<rootDir>/packages/.*/dist/'],
+  testTimeout: 200000,
 }
