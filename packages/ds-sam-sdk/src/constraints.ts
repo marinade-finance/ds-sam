@@ -42,7 +42,7 @@ export class AuctionConstraints {
     if (collectDebug) {
       this.debug.pushValidatorSetEvent(voteAccounts, event)
     }
-    console.log(event)
+    this.debug.log(event)
 
     return { cap: resultMinCap, constraint: min }
   }

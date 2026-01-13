@@ -112,6 +112,7 @@ export type CommissionDetails = {
   mevCommissionOverrideDec?: number
   blockRewardsCommissionInBondDec: number | null
   blockRewardsCommissionOverrideDec?: number
+  bidCpmpeOverrideDec?: number
   minimalCommissionDec?: number
 }
 
