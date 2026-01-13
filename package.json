@@ -5,7 +5,7 @@
   "license": "UNLICENSED",
   "scripts": {
     "build": "nest build",
-    "test": "jest -- \"$FILE\"",
+    "test": "pnpm jest -- \"$FILE\"",
     "cli": "nest start --entryFile ./src/cli",
     "lint:ts": "eslint .",
     "lint:ts-fix": "eslint . --fix",

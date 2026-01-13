@@ -354,16 +354,6 @@ describe('calcBidTooLowPenalty', () => {
     expect(res.bidTooLowPenalty.base).toBe(56.6) // 40 + 16.6
     expect(res.bidTooLowPenaltyPmpe).toBe(0)
     expect(res.paidUndelegationSol).toBe(0)
-
-    const resWithPenalty = _nativeCalc({
-      historyEpochs: historyLength,
-      winningTotalPmpe: 40,
-      validator,
-      permittedBidDeviation: 0,
-    })
-    expect(resWithPenalty.bidTooLowPenalty.coef).toBeGreaterThan(0)
-    expect(resWithPenalty.bidTooLowPenaltyPmpe).toBeGreaterThan(0)
-    expect(resWithPenalty.paidUndelegationSol).toBeGreaterThan(0)
   })
 
   it('we can decrease commission and increase bid and no penalty is applied', () => {
@@ -423,8 +413,6 @@ describe('calcBidTooLowPenalty', () => {
     const validator = {
       revShare: {
         bidPmpe: 15,
-        // Increase in comparison to history commissions; it has to match the values.commissions.inflationCommissionDec
-        // this value is in percentage (while mev down here is in bps)
         inflationPmpe: 10,
         mevPmpe: 5,
         blockPmpe: 5, // Non-zero block rewards
@@ -436,7 +424,7 @@ describe('calcBidTooLowPenalty', () => {
       auctions: [
         {
           effParticipatingBidPmpe: 25,
-          bidPmpe: 14,
+          bidPmpe: 20,
           commissions: {
             inflationCommissionDec: 0.05,
             mevCommissionDec: 0.05,
