@@ -30,11 +30,7 @@
  *    - When bondBalanceSol < 0.8*minBond → returns 0
  *    - When bondBalanceSol ≥ minBond → returns very large (Infinity)
  *
- * 4) reputationStakeCap()
- *    - If spendRobustReputationMult is null → returns Infinity
- *    - Else → max(adjMaxSpendRobustDelegation, marinadeActivatedStakeSol)
- *
- * 5) getMinCapForEvenDistribution()
+ * 4) getMinCapForEvenDistribution()
  *    - Builds concentration constraints (country, aso, etc.)
  *    - Takes a set of voteAccounts:
  *      • calculates totalLeftToCapSol & marinadeLeftToCapSol
@@ -42,7 +38,7 @@
  *    - Negative caps clamp to 0
  *    - Error if no constraints at all
  *
- * 6) findCapForValidator()
+ * 5) findCapForValidator()
  *    - Wrapper around getMinCapForEvenDistribution({single})
  *    - Also populates validator.lastCapConstraint if cap < EPSILON
  *
@@ -51,12 +47,11 @@
  *
  * Additional concentration‐constraint branches to cover:
  *
- * 7) ASO constraint as the binding one.
- * 8) WANT constraint (clipped maxStakeWanted) wins.
- * 9) REPUTATION constraint wins (adjMaxSpendRobustDelegation floor).
- * 10) Sam‐BOND constraint wins (buildSamBondConstraints).
- * 11) MNDE constraint wins in the Mnde pipeline (buildMndeVoteConstraints).
- * 12) Error path when no constraints exist (empty voteAccounts set).
+ * 6) ASO constraint as the binding one.
+ * 7) WANT constraint (clipped maxStakeWanted) wins.
+ * 8) Sam‐BOND constraint wins (buildSamBondConstraints).
+ * 9) MNDE constraint wins in the Mnde pipeline (buildMndeVoteConstraints).
+ * 10) Error path when no constraints exist (empty voteAccounts set).
  */
 import { AuctionConstraints } from '../src/constraints'
 import { Debug } from '../src/debug'
@@ -77,12 +72,10 @@ const BASE_CONSTRAINTS: AuctionConstraintsConfig = {
   marinadeCountryStakeCapSol: Infinity,
   marinadeAsoStakeCapSol: Infinity,
   marinadeValidatorStakeCapSol: Infinity,
-  spendRobustReputationMult: null,
   minBondBalanceSol: 0,
   minMaxStakeWanted: 0,
   minBondEpochs: 0,
   idealBondEpochs: 0,
-  spendRobustReputationBondBoostCoef: 0,
   unprotectedValidatorStakeCapSol: 0,
   minUnprotectedStakeToDelegateSol: 0,
   unprotectedFoundationStakeDec: 1,
@@ -117,11 +110,7 @@ function buildAuctionValidatorValues(overrides: Partial<AuctionValidatorValues> 
   return {
     bondBalanceSol: null,
     marinadeActivatedStakeSol: 0,
-    spendRobustReputation: 0,
-    adjMaxSpendRobustDelegation: 0,
-    adjSpendRobustReputation: 0,
     marinadeActivatedStakeSolUndelegation: 0,
-    adjSpendRobustReputationInflationFactor: 1,
     bondRiskFeeSol: 0,
     paidUndelegationSol: 0,
     samBlacklisted: false,
@@ -179,10 +168,6 @@ function makeValidator(overrides: Partial<AuctionValidator>): AuctionValidator {
     },
     values: {
       paidUndelegationSol: 0,
-      spendRobustReputation: 0,
-      adjSpendRobustReputation: 0,
-      adjMaxSpendRobustDelegation: 0,
-      adjSpendRobustReputationInflationFactor: 1,
       bondRiskFeeSol: 0,
       marinadeActivatedStakeSolUndelegation: 0,
     },

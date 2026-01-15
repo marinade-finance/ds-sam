@@ -56,13 +56,11 @@ export class DsSamSDK {
       marinadeCountryStakeCapSol: marinadeTotalTvlSol * this.config.maxMarinadeStakeConcentrationPerCountryDec,
       marinadeAsoStakeCapSol: marinadeTotalTvlSol * this.config.maxMarinadeStakeConcentrationPerAsoDec,
       marinadeValidatorStakeCapSol: marinadeTotalTvlSol * this.config.maxMarinadeTvlSharePerValidatorDec,
-      spendRobustReputationMult: this.config.spendRobustReputationMult,
       minBondBalanceSol: this.config.minBondBalanceSol,
       // if maxStakeWanted == null, disable the limit
       minMaxStakeWanted: this.config.minMaxStakeWanted ?? Infinity,
       minBondEpochs: this.config.minBondEpochs,
       idealBondEpochs: this.config.idealBondEpochs,
-      spendRobustReputationBondBoostCoef: this.config.spendRobustReputationBondBoostCoef,
       unprotectedValidatorStakeCapSol: marinadeTotalTvlSol * this.config.maxUnprotectedStakePerValidatorDec,
       minUnprotectedStakeToDelegateSol: this.config.minUnprotectedStakeToDelegateSol,
       unprotectedFoundationStakeDec: this.config.unprotectedFoundationStakeDec,
@@ -199,11 +197,11 @@ export class DsSamSDK {
     return result
   }
 
+  /**
+   * @deprecated Use `run` method instead. Was removed when reputation was taken out of the flow.
+   */
   async runFinalOnly(dataOverrides: SourceDataOverrides | null = null): Promise<AuctionResult> {
-    const auction = await this.auction(dataOverrides)
-    const result = auction.evaluateFinal()
-    this.debug.printDebugContent()
-    return result
+    return this.run(dataOverrides)
   }
 
   async getAggregatedData(dataOverrides: SourceDataOverrides | null = null): Promise<AggregatedData> {

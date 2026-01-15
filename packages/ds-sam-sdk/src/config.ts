@@ -74,27 +74,8 @@ export type DsSamConfig = {
   // The minimum amount of unprotected stake we are willing to delegate to a validator
   minUnprotectedStakeToDelegateSol: number
 
-  // Multiplier to get from reputation to reputation limit; if null no limit is imposed
-  spendRobustReputationMult: number | null
-  // The reputation decays every epoch by 1 - 1 / spendRobustReputationDecayEpochs
-  spendRobustReputationDecayEpochs: number
-  // A validator can never get lower reputation than minSpendRobustReputation
-  minSpendRobustReputation: number
-  // A validator can never get higher reputation than maxSpendRobustReputation
-  maxSpendRobustReputation: number
-  // We start scaling with reputations higher than initialScaledSpendRobustReputation
-  initialScaledSpendRobustReputation: number
-  // Only reputations higher than minScaledSpendRobustReputation are considered
-  // for TVL scaling
-  minScaledSpendRobustReputation: number
-  // Every new vote account that joins the auction gets initialSpendRobustReputation at the start
-  initialSpendRobustReputation: number
-
   // The minimal bond balanace to have to get and retain any stake
   minBondBalanceSol: number
-
-  // Unused at the moment
-  spendRobustReputationBondBoostCoef: number
 
   // The minimum number of epochs payments for which the bond has to cover on top
   // of the downtime and rugging risk
@@ -151,6 +132,8 @@ export type DsSamConfig = {
   logVerbosity: LogVerbosity
 }
 
+// TODO: Fix configuration in ds-sam-pipeline
+
 // NOTE: It’s not a good idea to make changes here because the tests rely on DEFAULT_CONFIG.
 export const DEFAULT_CONFIG: DsSamConfig = {
   inputsSource: InputsSource.APIS,
@@ -184,15 +167,7 @@ export const DEFAULT_CONFIG: DsSamConfig = {
   maxNetworkStakeConcentrationPerAsoDec: 0.3,
   maxMarinadeTvlSharePerValidatorDec: 0.04,
   maxUnprotectedStakePerValidatorDec: 0,
-  spendRobustReputationMult: null,
-  spendRobustReputationDecayEpochs: 50,
-  minSpendRobustReputation: -20,
-  initialScaledSpendRobustReputation: 100,
-  minScaledSpendRobustReputation: 5,
-  maxSpendRobustReputation: 1000,
-  initialSpendRobustReputation: 1,
   minBondBalanceSol: 0,
-  spendRobustReputationBondBoostCoef: 0,
   minBondEpochs: 1,
   idealBondEpochs: 1,
   bondRiskFeeMult: 0,
