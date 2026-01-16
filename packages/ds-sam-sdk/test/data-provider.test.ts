@@ -182,6 +182,7 @@ describe('Data Provider Testing Setup', () => {
         mevCommissionInBondDec: 0.4,
         blockRewardsCommissionInBondDec: -0.3,
         minimalCommissionDec: -0.2,
+        bidCpmpeInBondDec: 0,
       })
     })
 
@@ -226,6 +227,7 @@ describe('Data Provider Testing Setup', () => {
         blockRewardsCommissionOverrideDec: 0.01,
         mevCommissionOverrideDec: 0.009,
         bidCpmpeOverrideDec: 50,
+        bidCpmpeInBondDec: 0,
       })
     })
 

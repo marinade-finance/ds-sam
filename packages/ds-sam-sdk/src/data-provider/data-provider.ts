@@ -195,7 +195,8 @@ export class DataProvider {
           : mevCommissionOnchainDec)
       let blockRewardsCommissionDec = blockRewardsCommissionOverrideDec ?? blockRewardsCommissionInBondDec
 
-      const bidCpmpeDec = bidCpmpeOverrideDec ?? (bond ? new Decimal(bond.cpmpe).div(1e9).toNumber() : null)
+      const bidCpmpeInBondDec = bond?.cpmpe != null ? new Decimal(bond.cpmpe).div(1e9).toNumber() : null
+      const bidCpmpeDec = bidCpmpeOverrideDec ?? bidCpmpeInBondDec
 
       // safeguard against validator accidentally overly low commission to pay overly more than 100% of rewards
       let minimalCommissionDec: number | undefined = undefined
@@ -275,6 +276,7 @@ export class DataProvider {
             inflationCommissionOverrideDec: inflationCommissionOverrideDec ?? undefined,
             mevCommissionOverrideDec: mevCommissionOverrideDec ?? undefined,
             blockRewardsCommissionOverrideDec: blockRewardsCommissionOverrideDec ?? undefined,
+            bidCpmpeInBondDec,
             bidCpmpeOverrideDec: bidCpmpeOverrideDec ?? undefined,
             minimalCommissionDec,
           },
