@@ -303,7 +303,7 @@ describe('sam', () => {
         })
     })
 
-    it('runFinalOnly() assigns effective participating bids', async () => {
+    it('run() (final only) assigns effective participating bids', async () => {
       const voteAccounts = generateVoteAccounts()
       const identities = generateIdentities()
       const validators = [
@@ -321,7 +321,7 @@ describe('sam', () => {
         ),
       ]
       const dsSam = new DsSamSDK({}, defaultStaticDataProviderBuilder(validators))
-      const result = await dsSam.runFinalOnly()
+      const result = await dsSam.run()
 
       result.auctionData.validators.forEach(({ revShare }) =>
         expect(isFinite(revShare.effParticipatingBidPmpe)).toBe(true),

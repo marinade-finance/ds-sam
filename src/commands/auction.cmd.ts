@@ -17,7 +17,6 @@ type AuctionCommandOptions = Partial<
   DsSamConfig & {
     configFilePath: string
     outputDirPath: string
-    runFinalOnly: boolean
   }
 >
 
@@ -44,7 +43,7 @@ export class AuctionCommand extends CommandRunner {
 
     this.logger.log(`Running "${COMMAND_NAME}" command...`, { ...config })
     const dsSam = new DsSamSDK({ ...config })
-    const result = options.runFinalOnly ? await dsSam.runFinalOnly() : await dsSam.run()
+    const result = await dsSam.run()
     this.logger.log(`Finished "${COMMAND_NAME}" command`, { ...config })
 
     for (const validator of result.auctionData.validators) {
@@ -289,14 +288,5 @@ export class AuctionCommand extends CommandRunner {
   parseOptDebugVoteAccounts(option: string, optionsAccumulator: string[] = []): string[] {
     optionsAccumulator.push(option)
     return optionsAccumulator
-  }
-
-  @Option({
-    flags: '--run-final-only',
-    name: 'runFinalOnly',
-    description: 'Run the final auction only. Do not update reputations and limits',
-  })
-  parseOptRunFinalOnly(_: string): boolean {
-    return true
   }
 }

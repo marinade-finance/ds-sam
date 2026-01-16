@@ -87,11 +87,7 @@ export type AggregatedValidator = {
 export type AuctionValidatorValues = {
   bondBalanceSol: number | null
   marinadeActivatedStakeSol: number
-  spendRobustReputation: number
-  adjMaxSpendRobustDelegation: number
-  adjSpendRobustReputation: number
   marinadeActivatedStakeSolUndelegation: number
-  adjSpendRobustReputationInflationFactor: number
   bondRiskFeeSol: number
   paidUndelegationSol: number
   samBlacklisted: boolean
@@ -162,12 +158,10 @@ export type AuctionConstraintsConfig = {
   marinadeAsoStakeCapSol: number
   marinadeValidatorStakeCapSol: number
   unprotectedValidatorStakeCapSol: number
-  spendRobustReputationMult: number | null
   minBondBalanceSol: number
   minMaxStakeWanted: number
   minBondEpochs: number
   idealBondEpochs: number
-  spendRobustReputationBondBoostCoef: number
   minUnprotectedStakeToDelegateSol: number
   unprotectedDelegatedStakeDec: number
   unprotectedFoundationStakeDec: number
@@ -180,7 +174,6 @@ export enum AuctionConstraintType {
   VALIDATOR = 'VALIDATOR',
   BOND = 'BOND',
   MNDE = 'MNDE',
-  REPUTATION = 'REPUTATION',
   WANT = 'WANT',
   RISK = 'RISK',
 }

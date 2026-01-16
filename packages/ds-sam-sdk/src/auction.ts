@@ -13,24 +13,6 @@ const LOG_TO_EVERY_VALIDATOR = 'to every validator in the group'
 const LOG_CAP_REACHED = 'from the group because the cap has been reached'
 const LOG_NO_STAKE_REMAINING = 'No stake remaining to distribute'
 
-export type ReputationValues = {
-  spendRobustReputation: number
-  adjSpendRobustReputation: number
-  adjMaxSpendRobustDelegation: number
-}
-
-export const setReputation = (validator: AuctionValidator, values: ReputationValues): ReputationValues => {
-  const oldValues = {
-    spendRobustReputation: validator.values.spendRobustReputation,
-    adjSpendRobustReputation: validator.values.adjSpendRobustReputation,
-    adjMaxSpendRobustDelegation: validator.values.adjMaxSpendRobustDelegation,
-  }
-  validator.values.spendRobustReputation = values.spendRobustReputation
-  validator.values.adjSpendRobustReputation = values.adjSpendRobustReputation
-  validator.values.adjMaxSpendRobustDelegation = values.adjMaxSpendRobustDelegation
-  return oldValues
-}
-
 export class Auction {
   constructor(
     private data: AuctionData,
@@ -402,56 +384,6 @@ export class Auction {
     })
   }
 
-  updateSpendRobustReputations(winningTotalPmpe: number, totalMarinadeSpend: number) {
-    for (const validator of this.data.validators) {
-      const { values } = validator
-
-      if (
-        validator.revShare.totalPmpe >= winningTotalPmpe &&
-        (validator.bondBalanceSol ?? 0) >= this.config.minBondBalanceSol
-      ) {
-        // counterfactual auction - the validator is not part of the auction
-        this.reset()
-        this.debug.log(`EVALUATING counterfactual auction for ${validator.voteAccount}`)
-        validator.samBlocked = true
-        const counterfactualResult = this.evaluateOne()
-
-        // baseline auction - the validator is not bounded by its reputation
-        this.reset()
-        this.debug.log(`EVALUATING baseline auction for ${validator.voteAccount}`)
-        const origReputation = setReputation(validator, {
-          spendRobustReputation: Infinity,
-          adjSpendRobustReputation: Infinity,
-          adjMaxSpendRobustDelegation: Infinity,
-        })
-        const unboundedResult = this.evaluateOne()
-        setReputation(validator, origReputation)
-
-        // the reputation is the gain the validator's participation brings
-        const marginalPmpeGain = Math.max(
-          0,
-          unboundedResult.winningTotalPmpe / counterfactualResult.winningTotalPmpe - 1,
-        )
-        values.spendRobustReputation += marginalPmpeGain * totalMarinadeSpend
-      }
-      const coef = 1 / validator.values.adjSpendRobustReputationInflationFactor
-      values.marinadeActivatedStakeSolUndelegation = -Math.min(
-        0,
-        validator.lastMarinadeActivatedStakeSol
-          ? validator.marinadeActivatedStakeSol - validator.lastMarinadeActivatedStakeSol
-          : 0,
-      )
-      values.spendRobustReputation -= (coef * values.marinadeActivatedStakeSolUndelegation * winningTotalPmpe) / 1000
-      values.spendRobustReputation = Math.max(
-        this.config.minSpendRobustReputation,
-        Math.min(this.config.maxSpendRobustReputation, values.spendRobustReputation),
-      )
-      if (values.spendRobustReputation > Math.max(0, this.config.minSpendRobustReputation)) {
-        values.spendRobustReputation *= 1 - 1 / this.config.spendRobustReputationDecayEpochs
-      }
-    }
-  }
-
   setMaxBondDelegations() {
     const marinadeTvlSol = this.data.stakeAmounts.marinadeSamTvlSol + this.data.stakeAmounts.marinadeMndeTvlSol
     for (const validator of this.data.validators) {
@@ -464,127 +396,6 @@ export class Auction {
         validator.maxBondDelegation = 0
       }
     }
-  }
-
-  setMaxSpendRobustDelegations() {
-    for (const validator of this.data.validators) {
-      this.setMaxSpendRobustDelegationsForValidator(validator)
-    }
-  }
-
-  setMaxSpendRobustDelegationsForValidator(validator: AuctionValidator) {
-    const values = validator.values
-    values.adjSpendRobustReputation = values.spendRobustReputation * values.adjSpendRobustReputationInflationFactor
-    if (!isFinite(values.adjSpendRobustReputation)) {
-      throw new Error('adjSpendRobustReputation has to be finite')
-    }
-    if (validator.revShare.totalPmpe > 0) {
-      values.adjMaxSpendRobustDelegation = Math.max(
-        0,
-        values.adjSpendRobustReputation / (validator.revShare.totalPmpe / 1000),
-      )
-    } else {
-      values.adjMaxSpendRobustDelegation = 0
-    }
-  }
-
-  /**
-   * scaleReputationToFitTvl
-   *
-   * Adjusts each validator's reputation scaling factor so that the total stake
-   * can be distributed without exceeding a floor PMPE.
-   *
-   * It works by:
-   *
-   * 1. Starting with every validator's raw reputation and a PMPE cap.
-   * 2. Repeatedly scaling up high-reputation and high-bid validators' effective
-   *    reputation until the sum of all capacity over a PMPE limit exceeds TVL
-   *    or no further scaling is possible due to other limits outside of reputation.
-   * 3. If no feasible scaling is found, it gradually lowers the bid cap and reputation
-   *    threshold to force a solution.
-   *
-   * This ensures that the winning PMPE stays above a reasonable threshold
-   * and that high-bid validators with low reputation can not easily game the scaling.
-   */
-  scaleReputationToFitTvl() {
-    const { inflationPmpe, mevPmpe, blockPmpe } = this.data.rewards
-    const initialTotalPmpeLimit = inflationPmpe + mevPmpe + blockPmpe + this.config.expectedFeePmpe
-    this.debug.log(`SCALING reputation to fit tvl with pmpe above: ${initialTotalPmpeLimit}`)
-    for (const entry of this.data.validators) {
-      const values = entry.values
-      values.adjSpendRobustReputation = values.spendRobustReputation
-      values.adjSpendRobustReputationInflationFactor = 1
-    }
-    let factor = 1
-    let totalFactor = factor
-    let totalPmpeLimit = initialTotalPmpeLimit
-    let minScaledReputation = this.config.initialScaledSpendRobustReputation
-    this.debug.log(`SCALING limit bid: ${totalPmpeLimit}`)
-    for (let i = 0; i < 200; i++) {
-      totalFactor *= factor
-      let leftToScale = this.data.stakeAmounts.marinadeSamTvlSol
-      let leftTvl = this.data.stakeAmounts.marinadeSamTvlSol
-      let totalScalable = 0
-      for (const entry of this.data.validators) {
-        const { values, revShare } = entry
-        values.adjSpendRobustReputationInflationFactor *= factor
-        this.setMaxSpendRobustDelegationsForValidator(entry)
-        if (revShare.totalPmpe >= initialTotalPmpeLimit) {
-          // if we can accommodate whole TVL on validators above totalPmpeLimit, we're done
-          leftTvl -= Math.min(values.adjMaxSpendRobustDelegation, entry.maxBondDelegation)
-        }
-        if (revShare.totalPmpe >= totalPmpeLimit) {
-          if (values.adjMaxSpendRobustDelegation < entry.maxBondDelegation) {
-            // scale the validators with large reputation first so as to make
-            // gaming the system by bidding high impossible
-            if (values.spendRobustReputation >= minScaledReputation) {
-              totalScalable += values.adjMaxSpendRobustDelegation
-            }
-          } else {
-            leftToScale -= entry.maxBondDelegation
-          }
-        }
-      }
-      // if totalScalable = 0, we'll get Infinity or NaN which is caught below resulting in
-      // either moving the totalPmpeLimit down or a break, us being done
-      factor = Math.max(0, leftToScale) / totalScalable
-      this.debug.log(
-        `SCALING round ${i} # ${JSON.stringify({ factor, leftToScale, leftTvl, totalScalable, totalPmpeLimit })}`,
-      )
-      if (totalScalable === 0 && leftToScale > 0) {
-        if (totalPmpeLimit > inflationPmpe + mevPmpe + blockPmpe) {
-          totalPmpeLimit *= 0.99
-          this.debug.log(`SCALING decreasing limit bid to: ${totalPmpeLimit}`)
-          factor = 1
-          continue
-        } else if (minScaledReputation > this.config.minScaledSpendRobustReputation) {
-          minScaledReputation *= 0.8
-          totalPmpeLimit = initialTotalPmpeLimit
-          this.debug.log(`SCALING reset limit bid to: ${totalPmpeLimit}`)
-          this.debug.log(`SCALING decreasing minScaledReputation to: ${minScaledReputation}`)
-          factor = 1
-          continue
-        } else {
-          this.debug.log('SCALING to infinity')
-          factor = 1.1
-        }
-      }
-      if (!isFinite(factor) || factor <= 1 || leftTvl <= 0) {
-        break
-      }
-    }
-    const mult = this.config.spendRobustReputationMult ?? 1
-    for (const entry of this.data.validators) {
-      entry.values.adjSpendRobustReputationInflationFactor *= mult
-      if (!isFinite(entry.values.adjSpendRobustReputationInflationFactor)) {
-        throw new Error('adjSpendRobustReputationInflationFactor has to be finite')
-      }
-      if (entry.values.adjSpendRobustReputationInflationFactor < 0) {
-        throw new Error('adjSpendRobustReputationInflationFactor can not be negative')
-      }
-      this.setMaxSpendRobustDelegationsForValidator(entry)
-    }
-    this.debug.log(`SCALING factor found: ${mult * totalFactor}`)
   }
 
   evaluateOne(): AuctionResult {
@@ -668,8 +479,7 @@ export class Auction {
     }
   }
 
-  evaluateFinal(): AuctionResult {
-    this.setMaxSpendRobustDelegations()
+  evaluate(): AuctionResult {
     this.updateExpectedMaxEffBidPmpe()
     this.updatePaidUndelegation()
     const result = this.evaluateOne()
@@ -681,23 +491,6 @@ export class Auction {
     this.setMaxBondDelegations()
     this.setBlacklistPenalties(result.winningTotalPmpe)
     return result
-  }
-
-  evaluate(): AuctionResult {
-    this.setMaxSpendRobustDelegations()
-    this.updateExpectedMaxEffBidPmpe()
-    const result = this.evaluateOne()
-    this.setAuctionEffectiveBids(result.winningTotalPmpe)
-    const totalMarinadeSpend = result.auctionData.validators.reduce(
-      (acc, entry) => acc + (entry.revShare.auctionEffectiveBidPmpe * entry.marinadeActivatedStakeSol) / 1000,
-      0,
-    )
-    this.setMaxBondDelegations()
-    this.updateSpendRobustReputations(result.winningTotalPmpe, totalMarinadeSpend)
-    this.reset()
-    this.scaleReputationToFitTvl()
-    this.debug.log('EVALUATING final auction')
-    return this.evaluateFinal()
   }
 
   findNextPmpeGroup(totalPmpe: number): { totalPmpe: number; validators: AuctionValidator[] } | null {

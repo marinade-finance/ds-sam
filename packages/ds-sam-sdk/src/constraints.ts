@@ -70,7 +70,6 @@ export class AuctionConstraints {
       ...this.buildAsoConcentrationConstraints(auctionData),
       ...this.buildSamBondConstraints(auctionData),
       ...this.buildValidatorConcentrationConstraints(auctionData),
-      ...this.buildReputationConstraints(auctionData),
       ...this.buildSamWantConstraints(auctionData),
     ]
     this.updateConstraintsPerValidator()
@@ -175,18 +174,6 @@ export class AuctionConstraints {
     return [...asos.values()]
   }
 
-  private buildReputationConstraints({ validators }: AuctionData) {
-    return validators.map(validator => ({
-      constraintType: AuctionConstraintType.REPUTATION,
-      constraintName: validator.voteAccount,
-      totalStakeSol: validatorTotalAuctionStakeSol(validator),
-      totalLeftToCapSol: Infinity,
-      marinadeStakeSol: validator.auctionStake.marinadeMndeTargetSol + validator.auctionStake.marinadeSamTargetSol,
-      marinadeLeftToCapSol: this.reputationStakeCap(validator) - validator.auctionStake.marinadeSamTargetSol,
-      validators: [validator],
-    }))
-  }
-
   private buildSamBondConstraints({ validators }: AuctionData) {
     return validators.map(validator => ({
       constraintType: AuctionConstraintType.BOND,
@@ -271,14 +258,6 @@ export class AuctionConstraints {
     }))
   }
 
-  reputationStakeCap(validator: AuctionValidator): number {
-    if (this.config.spendRobustReputationMult != null) {
-      return Math.max(validator.values.adjMaxSpendRobustDelegation, validator.marinadeActivatedStakeSol)
-    } else {
-      return Infinity
-    }
-  }
-
   /* eslint-disable no-param-reassign */
   bondStakeCapSam(validator: AuctionValidator): number {
     const { revShare } = validator
@@ -287,9 +266,7 @@ export class AuctionConstraints {
     const idealBidReservePmpe = this.config.idealBondEpochs * revShare.expectedMaxEffBidPmpe
     const minBondPmpe = revShare.onchainDistributedPmpe + revShare.expectedMaxEffBidPmpe + minBidReservePmpe
     const idealBondPmpe = revShare.onchainDistributedPmpe + revShare.expectedMaxEffBidPmpe + idealBidReservePmpe
-    const effBondBalanceSol =
-      (validator.bondBalanceSol ?? 0) *
-      (1 + Math.min(this.config.spendRobustReputationBondBoostCoef * validator.values.spendRobustReputation, 1))
+    const effBondBalanceSol = validator.bondBalanceSol ?? 0
     const bondBalanceSol = Math.max(effBondBalanceSol - this.bondBalanceUsedForMnde(validator), 0)
     // how much does the validator need to keep to pay for the unprotected stake
     const maxUnprotectedStakeSol = bondBalanceSol > 0 ? bondBalanceSol / (idealBidReservePmpe / 1000) : 0
