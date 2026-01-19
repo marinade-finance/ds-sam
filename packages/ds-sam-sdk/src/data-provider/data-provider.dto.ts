@@ -17,8 +17,6 @@ export type RawScoredValidatorDto = {
   values?: {
     bondBalanceSol?: number
     marinadeActivatedStakeSol?: number
-    spendRobustReputation?: number
-    adjSpendRobustReputationInflationFactor?: number
     projectedUndelegation?: number
     paidUndelegationSol?: number
     samBlacklisted?: boolean

@@ -58,20 +58,6 @@ SDK for Marinade's DS-SAM - max yield - auction evaluation tool.
   // Cap of Marinade stake share on a single validator
   maxMarinadeTvlSharePerValidatorDec: number
 
-  // Multiplier to get from reputation to reputation limit; if null no limit is imposed
-  spendRobustReputationMult: number | null
-  // The reputation decays every epoch by 1 - 1 / spendRobustReputationDecayEpochs
-  spendRobustReputationDecayEpochs: number
-  // A validator can never get lower reputation than minSpendRobustReputation
-  minSpendRobustReputation: number
-  // A validator can never get higher reputation than maxSpendRobustReputation
-  maxSpendRobustReputation: number
-  // Only reputations higher than minScaledSpendRobustReputation are considered
-  // for TVL scaling
-  minScaledSpendRobustReputation: number
-  // Every new vote account that joins the auction gets initialSpendRobustReputation at the start
-  initialSpendRobustReputation: number
-
   // The minimal bond balance to have to get and retain any stake
   minBondBalanceSol: number
 
