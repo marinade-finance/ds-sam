@@ -43,16 +43,6 @@ export type AuctionHistoryStats = {
   marinadeActivatedStakeSol?: number
 }
 
-export type RawMndeVoteDto = {
-  amount: string | null
-  tokenOwner: string
-  validatorVoteAccount: string
-}
-export type RawMndeVotesResponseDto = {
-  voteRecordsCreatedAt: string
-  records: RawMndeVoteDto[]
-}
-
 export type RawBlacklistResponseDto = string // csv
 
 export type RawTvlResponseDto = {
@@ -137,7 +127,6 @@ export type RawSourceData = {
   bonds: RawBondsResponseDto
   tvlInfo: RawTvlResponseDto
   blacklist: RawBlacklistResponseDto
-  mndeVotes: RawMndeVotesResponseDto
   rewards: RawRewardsResponseDto
   auctions: RawScoredValidatorDto[]
   overrides?: RawOverrideDataDto

@@ -1,10 +1,7 @@
 import type { AuctionValidator, AuctionConstraint, AuctionConstraintType } from './types'
 
-export const MNDE_VOTE_DELEGATION_STRATEGY = 'MarinadeA1gorithmicDe1egationStrategy111111'
-
 export const ineligibleValidatorAggDefaults = () => ({
   samEligible: false,
-  mndeEligible: false,
   backstopEligible: false,
   ...validatorAggDefaults(),
 })
@@ -30,9 +27,7 @@ export const validatorAggDefaults = () => ({
 })
 
 export const validatorTotalAuctionStakeSol = (validator: AuctionValidator): number =>
-  validator.auctionStake.externalActivatedSol +
-  validator.auctionStake.marinadeMndeTargetSol +
-  validator.auctionStake.marinadeSamTargetSol
+  validator.auctionStake.externalActivatedSol + validator.auctionStake.marinadeSamTargetSol
 
 export const zeroStakeConcentration = (
   type: AuctionConstraintType,

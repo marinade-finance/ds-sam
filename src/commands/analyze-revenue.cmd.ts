@@ -219,9 +219,6 @@ export class AnalyzeRevenuesCommand extends CommandRunner {
       const expectedNonBidPmpe = validatorBefore.revShare.inflationPmpe
       const actualNonBidPmpe = validatorAfter.revShare.inflationPmpe
 
-      const marinadeMndeTargetSol = validatorBefore.auctionStake.marinadeMndeTargetSol
-      const marinadeSamTargetSol = validatorBefore.auctionStake.marinadeSamTargetSol
-
       // verification of commission increase (rug) at time before SAM was run in this epoch
       // validatorBefore is data when SAM was run, validatorAfter is data after SAM was run
       // this case manages the situation when validator increased commission in time-frame from start of epoch and running the SAM
@@ -264,8 +261,7 @@ export class AnalyzeRevenuesCommand extends CommandRunner {
         expectedSamPmpe: expectedNonBidPmpe + validatorBefore.revShare.auctionEffectiveBidPmpe,
         beforeSamCommissionIncreasePmpe,
         maxSamStake: validatorBefore.maxStakeWanted,
-        samStakeShare:
-          marinadeMndeTargetSol === 0 ? 1 : marinadeSamTargetSol / (marinadeMndeTargetSol + marinadeSamTargetSol),
+        samStakeShare: 1,
         lossPerStake: Math.max(0, expectedNonBidPmpe - actualNonBidPmpe) / 1000,
       })
     }

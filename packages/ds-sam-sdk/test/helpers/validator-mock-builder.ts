@@ -1,6 +1,6 @@
 import Decimal from 'decimal.js'
 
-import type { RawBondDto, RawMndeVoteDto, RawValidatorDto, RawValidatorMevInfoDto } from '../../src'
+import type { RawBondDto, RawValidatorDto, RawValidatorMevInfoDto } from '../../src'
 
 const infiniteGenerator = function* (prefix: string, padding: number) {
   for (let i = 0; ; i++) {
@@ -23,7 +23,6 @@ export class ValidatorMockBuilder {
   private inflationCommission = 0
   private mevCommission: number | null = null
   private isBlacklisted = false
-  private mndeVotes: number | null = null
   private credits: number[] = []
   private nativeStake = 0
   private liquidStake = 0
@@ -42,7 +41,6 @@ export class ValidatorMockBuilder {
     this.inflationCommission = 5
     this.mevCommission = 80
     this.isBlacklisted = false
-    this.mndeVotes = 100
     this.credits = Array.from({ length: 10 }, () => 432_000 - Math.round(Math.random() * 10_000))
     this.nativeStake = 50_000
     this.liquidStake = 100_000
@@ -75,11 +73,6 @@ export class ValidatorMockBuilder {
 
   withMevCommission(commission: number): this {
     this.mevCommission = commission
-    return this
-  }
-
-  withMndeVotes(votes: number): this {
-    this.mndeVotes = votes
     return this
   }
 
@@ -153,17 +146,6 @@ export class ValidatorMockBuilder {
 
   toRawBlacklistResponseDtoRow(): string | null {
     return this.isBlacklisted ? `${this.voteAccount},DUMMY_REASON` : null
-  }
-
-  toRawMndeVoteDto(): RawMndeVoteDto | null {
-    const { mndeVotes } = this
-    return mndeVotes === null
-      ? null
-      : {
-          amount: mndeVotes.toString(),
-          tokenOwner: 'some voter',
-          validatorVoteAccount: this.voteAccount,
-        }
   }
 
   toRawValidatorMevInfoDto(): RawValidatorMevInfoDto | null {

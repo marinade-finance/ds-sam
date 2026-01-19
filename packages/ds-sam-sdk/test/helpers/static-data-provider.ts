@@ -9,7 +9,6 @@ import type {
   RawBlacklistResponseDto,
   RawBondsResponseDto,
   RawMevInfoResponseDto,
-  RawMndeVotesResponseDto,
   RawRewardsRecordDto,
   RawRewardsResponseDto,
   RawTvlResponseDto,
@@ -76,13 +75,6 @@ export class StaticDataProvider extends DataProvider {
       .filter(isNotNull)
       .join('\n')
     return Promise.resolve(`vote_account,code\n${rows}`)
-  }
-
-  override fetchMndeVotes(): Promise<RawMndeVotesResponseDto> {
-    return Promise.resolve({
-      voteRecordsCreatedAt: '2222-02-02T00:00:00Z',
-      records: this.validatorMockBuilders.map(v => v.toRawMndeVoteDto()).filter(isNotNull),
-    })
   }
 
   override fetchRewards(): Promise<RawRewardsResponseDto> {

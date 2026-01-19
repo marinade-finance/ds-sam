@@ -26,8 +26,6 @@ export type DsSamConfig = {
   tvlInfoApiBaseUrl: string
   // Base URL of the API to get blacklist from
   blacklistApiBaseUrl: string
-  // Base URL of the API to get snapshots from
-  snapshotsApiBaseUrl: string
   // Base URL of the scoring API
   scoringApiBaseUrl: string
   // The base URL for the location of the overrides json
@@ -55,10 +53,6 @@ export type DsSamConfig = {
   // the BidTooLowPenalty
   bidTooLowPenaltyHistoryEpochs: number
 
-  // Share of Marinade TVL stake controlled by MNDE votes
-  mndeDirectedStakeShareDec: number
-  // Total Marinade TVL stake cap multiplier factor
-  mndeStakeCapMultiplier: number
   // Cap of Marinade stake share in a single country
   maxMarinadeStakeConcentrationPerCountryDec: number
   // Cap of Marinade stake share with a single ASO
@@ -132,8 +126,6 @@ export type DsSamConfig = {
   logVerbosity: LogVerbosity
 }
 
-// TODO: Fix configuration in ds-sam-pipeline
-
 // NOTE: It’s not a good idea to make changes here because the tests rely on DEFAULT_CONFIG.
 export const DEFAULT_CONFIG: DsSamConfig = {
   inputsSource: InputsSource.APIS,
@@ -145,7 +137,6 @@ export const DEFAULT_CONFIG: DsSamConfig = {
   blacklistApiBaseUrl: 'https://thru.marinade.finance/marinade-finance/delegation-strategy-2/master',
   // marinade proxy cache API, pointing to 'https://raw.githubusercontent.com/marinade-finance/ds-sam-pipeline/main/epochs'
   overridesApiBaseUrl: 'https://thru.marinade.finance/marinade-finance/ds-sam-pipeline/main/epochs',
-  snapshotsApiBaseUrl: 'https://snapshots-api.marinade.finance',
   scoringApiBaseUrl: 'https://scoring.marinade.finance',
 
   enableZeroCommissionBackstop: false,
@@ -159,8 +150,6 @@ export const DEFAULT_CONFIG: DsSamConfig = {
   minUnprotectedStakeToDelegateSol: 0,
   bidTooLowPenaltyHistoryEpochs: 3,
 
-  mndeDirectedStakeShareDec: 0,
-  mndeStakeCapMultiplier: 0.1,
   maxMarinadeStakeConcentrationPerCountryDec: 1,
   maxMarinadeStakeConcentrationPerAsoDec: 1,
   maxNetworkStakeConcentrationPerCountryDec: 0.3,

@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(*pnpm test:*)",
+      "Bash(*pnpm jest:*)",
+      "Bash(./scripts/*:*)",
+      "Bash(FILE='test/revenue-analysis.test.ts' pnpm test:*)",
+      "Bash(pnpm jest:*)",
+      "Bash(git grep:*)"
+    ]
+  }
+}

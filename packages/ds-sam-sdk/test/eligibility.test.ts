@@ -25,12 +25,6 @@ describe('eligibility', () => {
       .withMevCommission(100)
       .withInflationCommission(8)
 
-    const mndeIneligibleSamEligibleVal = new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
-      .withEligibleDefaults()
-      .withMevCommission(100)
-      .withInflationCommission(8)
-      .withBond({ stakeWanted: 150_000, cpmpe: 1, balance: 10 })
-
     const eligibleValidator = new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
       .withEligibleDefaults()
       .withBond({ stakeWanted: 0, cpmpe: 1, balance: 10 })
@@ -41,7 +35,6 @@ describe('eligibility', () => {
       badUptimeVal,
       noBondVal,
       commissionTooHighVal,
-      mndeIneligibleSamEligibleVal,
       eligibleValidator,
     ]
     const dsSam = new DsSamSDK(
@@ -56,11 +49,7 @@ describe('eligibility', () => {
     assertValidatorIneligible(findValidatorInResult(noBondVal.voteAccount, result))
     assertValidatorIneligible(findValidatorInResult(commissionTooHighVal.voteAccount, result))
 
-    const mndeIneligibleSamEligible = findValidatorInResult(mndeIneligibleSamEligibleVal.voteAccount, result)
-    expect(mndeIneligibleSamEligible?.mndeEligible).toStrictEqual(false)
-    expect(mndeIneligibleSamEligible?.samEligible).toStrictEqual(true)
-    expect(mndeIneligibleSamEligible?.auctionStake.marinadeMndeTargetSol).toStrictEqual(0)
-    expect(mndeIneligibleSamEligible?.auctionStake.marinadeSamTargetSol).toBeGreaterThan(0)
+    expect(findValidatorInResult(eligibleValidator.voteAccount, result)?.samEligible).toStrictEqual(true)
   })
 
   it('considers also FD versions eligible', async () => {
@@ -176,7 +165,6 @@ describe('eligibility', () => {
     validators.forEach(([validator, eligibility]) => {
       const v = findValidatorInResult(validator.voteAccount, result)
       expect(v).toBeDefined()
-      expect(v?.mndeEligible).toStrictEqual(eligibility)
       expect(v?.samEligible).toStrictEqual(eligibility)
     })
   })

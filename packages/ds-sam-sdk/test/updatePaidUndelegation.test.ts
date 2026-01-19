@@ -32,9 +32,7 @@ describe('Auction.updatePaidUndelegation (simplified)', () => {
       ] as any[],
       stakeAmounts: {
         networkTotalSol: NaN,
-        marinadeMndeTvlSol: NaN,
         marinadeSamTvlSol: NaN,
-        marinadeRemainingMndeSol: NaN,
         marinadeRemainingSamSol: NaN,
       },
       rewards: { inflationPmpe: NaN, mevPmpe: NaN, blockPmpe: NaN },
@@ -83,9 +81,7 @@ describe('Auction.updatePaidUndelegation (simplified)', () => {
       ] as any[],
       stakeAmounts: {
         networkTotalSol: NaN,
-        marinadeMndeTvlSol: NaN,
         marinadeSamTvlSol: NaN,
-        marinadeRemainingMndeSol: NaN,
         marinadeRemainingSamSol: NaN,
       },
       rewards: { inflationPmpe: NaN, mevPmpe: NaN, blockPmpe: NaN },

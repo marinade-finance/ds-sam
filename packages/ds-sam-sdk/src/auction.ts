@@ -21,48 +21,6 @@ export class Auction {
     private debug: Debug,
   ) {}
 
-  distributeMndeStake() {
-    this.constraints.updateStateForMnde(this.data)
-    this.debug.getVoteAccounts().forEach(voteAccount => {
-      const constraints = this.constraints.getValidatorConstraints(voteAccount)
-      this.debug.pushValidatorEvent(
-        voteAccount,
-        `MNDE start constraints: ${constraints ? `${JSON.stringify(constraints.map(constraint => ({ ...constraint, validators: constraint.validators.length })))}` : 'NULL'}`,
-      )
-    })
-
-    let remEligibleValidators = this.data.validators.filter(validator => validator.mndeEligible)
-
-    while (remEligibleValidators.length > 0) {
-      const eligibleValidators = new Map(remEligibleValidators.map(validator => [validator.voteAccount, validator]))
-      const eligibleVoteAccounts = new Set(eligibleValidators.keys())
-      const { cap: evenDistributionCap } = this.constraints.getMinCapForEvenDistribution(eligibleVoteAccounts)
-      this.debug.log('MNDE distributing', evenDistributionCap, LOG_TO_EVERY_VALIDATOR, eligibleValidators.size)
-
-      for (const validator of eligibleValidators.values()) {
-        validator.auctionStake.marinadeMndeTargetSol += evenDistributionCap
-        this.data.stakeAmounts.marinadeRemainingMndeSol -= evenDistributionCap
-      }
-
-      this.constraints.updateStateForMnde(this.data)
-      remEligibleValidators = remEligibleValidators.filter(validator => {
-        const validatorCap = this.constraints.findCapForValidator(validator)
-        if (validatorCap < EPSILON) {
-          this.debug.log('MNDE removing validator', validator.voteAccount, LOG_CAP_REACHED)
-          return false
-        }
-        return true
-      })
-
-      if (this.data.stakeAmounts.marinadeRemainingMndeSol < EPSILON) {
-        this.debug.log('MNDE No stake remaining to distribute')
-        break
-      } else {
-        this.debug.log('MNDE Stake remaining', this.data.stakeAmounts.marinadeRemainingMndeSol)
-      }
-    }
-  }
-
   distributeSamStake() {
     this.constraints.updateStateForSam(this.data)
     this.debug.getVoteAccounts().forEach(voteAccount => {
@@ -228,9 +186,7 @@ export class Auction {
       }
     })
 
-    this.data.validators
-      .filter(({ mndeEligible, samEligible }) => !mndeEligible && !samEligible)
-      .forEach(validator => (validator.unstakePriority = 0))
+    this.data.validators.filter(({ samEligible }) => !samEligible).forEach(validator => (validator.unstakePriority = 0))
 
     let bondsMaxIndex = 0
     this.data.validators
@@ -252,9 +208,7 @@ export class Auction {
         stakeDiff:
           validator.marinadeActivatedStakeSol <= 0
             ? 1
-            : (validator.auctionStake.marinadeMndeTargetSol +
-                validator.auctionStake.marinadeSamTargetSol -
-                validator.marinadeActivatedStakeSol) /
+            : (validator.auctionStake.marinadeSamTargetSol - validator.marinadeActivatedStakeSol) /
               validator.marinadeActivatedStakeSol,
       }))
       .sort((a, b) => a.stakeDiff - b.stakeDiff)
@@ -368,10 +322,8 @@ export class Auction {
 
   reset() {
     this.debug.log('----------------------------- resetting auction')
-    this.data.stakeAmounts.marinadeRemainingMndeSol = this.data.stakeAmounts.marinadeMndeTvlSol
     this.data.stakeAmounts.marinadeRemainingSamSol = this.data.stakeAmounts.marinadeSamTvlSol
     this.data.validators.forEach(validator => {
-      validator.auctionStake.marinadeMndeTargetSol = 0
       validator.auctionStake.marinadeSamTargetSol = 0
       validator.lastCapConstraint = null
       validator.stakePriority = NaN
@@ -385,7 +337,7 @@ export class Auction {
   }
 
   setMaxBondDelegations() {
-    const marinadeTvlSol = this.data.stakeAmounts.marinadeSamTvlSol + this.data.stakeAmounts.marinadeMndeTvlSol
+    const marinadeTvlSol = this.data.stakeAmounts.marinadeSamTvlSol
     for (const validator of this.data.validators) {
       if (validator.revShare.totalPmpe > 0) {
         validator.maxBondDelegation = Math.min(
@@ -401,20 +353,6 @@ export class Auction {
   evaluateOne(): AuctionResult {
     this.debug.log('EVALUATING new auction ----------------------------------------')
     this.debug.pushInfo('start amounts', JSON.stringify(this.data.stakeAmounts))
-    this.debug.pushEvent('DISTRIBUTING MNDE STAKE')
-    this.distributeMndeStake()
-
-    this.debug.pushInfo('post MNDE amounts', JSON.stringify(this.data.stakeAmounts))
-    this.debug.log(`MNDE overflow: ${this.data.stakeAmounts.marinadeRemainingMndeSol}`)
-    if (this.data.stakeAmounts.marinadeRemainingMndeSol > EPSILON) {
-      this.debug.pushEvent(
-        `MNDE overflow ${this.data.stakeAmounts.marinadeRemainingMndeSol} SOL will be distributed in SAM`,
-      )
-      this.data.stakeAmounts.marinadeSamTvlSol += this.data.stakeAmounts.marinadeRemainingMndeSol
-      this.data.stakeAmounts.marinadeRemainingSamSol += this.data.stakeAmounts.marinadeRemainingMndeSol
-      this.data.stakeAmounts.marinadeMndeTvlSol -= this.data.stakeAmounts.marinadeRemainingMndeSol
-      this.data.stakeAmounts.marinadeRemainingMndeSol = 0
-    }
 
     this.debug.pushInfo('pre SAM amounts', JSON.stringify(this.data.stakeAmounts))
     this.debug.pushEvent('DISTRIBUTING SAM STAKE')

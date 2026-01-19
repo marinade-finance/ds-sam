@@ -11,16 +11,16 @@ describe('constraints', () => {
     const validators = [
       new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
         .withEligibleDefaults()
-        .withMndeVotes(0)
+
         .withBond({ stakeWanted: 15_000, cpmpe: 0, balance: 1_000 }),
       new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
         .withEligibleDefaults()
-        .withMndeVotes(0)
+
         .withBond({ stakeWanted: 20_000, cpmpe: 0, balance: 10 }),
       ...Array.from({ length: 18 }, () =>
         new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
           .withEligibleDefaults()
-          .withMndeVotes(0)
+
           .withBond({ stakeWanted: 10_000_000, cpmpe: 0, balance: 1_000 }),
       ),
     ]
@@ -37,24 +37,24 @@ describe('constraints', () => {
     const validators = [
       new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
         .withEligibleDefaults()
-        .withMndeVotes(0)
+
         .withBond({ stakeWanted: 15_000, cpmpe: 0, balance: 1_000 }),
       new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
         .withEligibleDefaults()
-        .withMndeVotes(0)
+
         .withNativeStake(300)
         .withLiquidStake(400)
         .withBond({ stakeWanted: 20_000, cpmpe: 0, balance: 9.9 }),
       new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
         .withEligibleDefaults()
-        .withMndeVotes(0)
+
         .withNativeStake(0)
         .withLiquidStake(0)
         .withBond({ stakeWanted: 20_000, cpmpe: 0, balance: 7 }),
       ...Array.from({ length: 18 }, () =>
         new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
           .withEligibleDefaults()
-          .withMndeVotes(0)
+
           .withBond({ stakeWanted: 10_000_000, cpmpe: 0, balance: 1_000 }),
       ),
     ]
@@ -64,44 +64,18 @@ describe('constraints', () => {
     expect(prettyPrintAuctionResult(result)).toMatchSnapshot()
   })
 
-  it('applies bond constraints and ignores max stake wanted for MNDE stake', async () => {
+  it('applies bond constraints to enforce for SAM', async () => {
     const voteAccounts = generateVoteAccounts()
     const identities = generateIdentities()
 
     const validators = [
       new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
         .withEligibleDefaults()
-        .withMndeVotes(2000)
+
         .withBond({ stakeWanted: 11_000, cpmpe: 0, balance: 20 }),
       new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
         .withEligibleDefaults()
-        .withMndeVotes(3000)
-        .withBond({ stakeWanted: 11_000, cpmpe: 0, balance: 0.1 }),
-      ...Array.from({ length: 18 }, () =>
-        new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
-          .withEligibleDefaults()
-          .withMndeVotes(1000)
-          .withBond({ stakeWanted: 11_000, cpmpe: 0, balance: 1_000 }),
-      ),
-    ]
-    const dsSam = new DsSamSDK({}, defaultStaticDataProviderBuilder(validators))
-    const result = await dsSam.run()
 
-    expect(prettyPrintAuctionResult(result)).toMatchSnapshot()
-  })
-
-  it('applies bond constraints and ignores max stake wanted for MNDE stake but enforces for SAM', async () => {
-    const voteAccounts = generateVoteAccounts()
-    const identities = generateIdentities()
-
-    const validators = [
-      new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
-        .withEligibleDefaults()
-        .withMndeVotes(2000)
-        .withBond({ stakeWanted: 11_000, cpmpe: 0, balance: 20 }),
-      new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
-        .withEligibleDefaults()
-        .withMndeVotes(3000)
         .withBond({ stakeWanted: 11_000, cpmpe: 0, balance: 0.1 }),
       // max stake wanted is clipped to a minimum value
       new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
@@ -122,7 +96,7 @@ describe('constraints', () => {
       ...Array.from({ length: 18 }, () =>
         new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
           .withEligibleDefaults()
-          .withMndeVotes(1000)
+
           .withBond({ stakeWanted: 11_000, cpmpe: 0, balance: 1_000 }),
       ),
     ]
@@ -164,7 +138,7 @@ describe('constraints', () => {
       ...Array.from({ length: 20 }, () =>
         new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
           .withEligibleDefaults()
-          .withMndeVotes(0)
+
           .withBond({ stakeWanted: 1_000_000, cpmpe: 1, balance: 10_000 })
           .withExternalStake(10_000_000),
       ),
@@ -181,17 +155,11 @@ describe('constraints', () => {
       0,
     )
     const countryMarinadeStake = result.auctionData.validators.reduce(
-      (sum, validator) =>
-        validator.country === country
-          ? sum + validator.auctionStake.marinadeSamTargetSol + validator.auctionStake.marinadeMndeTargetSol
-          : sum,
+      (sum, validator) => (validator.country === country ? sum + validator.auctionStake.marinadeSamTargetSol : sum),
       0,
     )
     const asoMarinadeStake = result.auctionData.validators.reduce(
-      (sum, validator) =>
-        validator.aso === aso
-          ? sum + validator.auctionStake.marinadeSamTargetSol + validator.auctionStake.marinadeMndeTargetSol
-          : sum,
+      (sum, validator) => (validator.aso === aso ? sum + validator.auctionStake.marinadeSamTargetSol : sum),
       0,
     )
 
@@ -200,12 +168,8 @@ describe('constraints', () => {
     )
     expect(asoMarinadeStake + asoExternalStake).toBeLessThan(result.auctionData.stakeAmounts.networkTotalSol * 0.3)
     // Currently Mariande stake country and aso constraints are disabled
-    expect(countryMarinadeStake).toBeLessThanOrEqual(
-      (result.auctionData.stakeAmounts.marinadeMndeTvlSol + result.auctionData.stakeAmounts.marinadeSamTvlSol) * 1,
-    )
-    expect(asoMarinadeStake).toBeLessThanOrEqual(
-      (result.auctionData.stakeAmounts.marinadeMndeTvlSol + result.auctionData.stakeAmounts.marinadeSamTvlSol) * 1,
-    )
+    expect(countryMarinadeStake).toBeLessThanOrEqual(result.auctionData.stakeAmounts.marinadeSamTvlSol * 1)
+    expect(asoMarinadeStake).toBeLessThanOrEqual(result.auctionData.stakeAmounts.marinadeSamTvlSol * 1)
     expect(prettyPrintAuctionResult(result)).toMatchSnapshot()
   })
 
@@ -219,7 +183,7 @@ describe('constraints', () => {
       ...Array.from({ length: 20 }, (_, idx) =>
         new ValidatorMockBuilder(`country-validator-${idx}`, identities.next().value)
           .withEligibleDefaults()
-          .withMndeVotes(0)
+
           .withCountry(country)
           .withNativeStake(0)
           .withLiquidStake(0)
@@ -229,7 +193,7 @@ describe('constraints', () => {
       ...Array.from({ length: 20 }, (_, idx) =>
         new ValidatorMockBuilder(`country-aso-validator-${idx}`, identities.next().value)
           .withEligibleDefaults()
-          .withMndeVotes(0)
+
           .withCountry(country)
           .withAso(aso)
           .withNativeStake(0)
@@ -240,7 +204,7 @@ describe('constraints', () => {
       ...Array.from({ length: 20 }, (_, idx) =>
         new ValidatorMockBuilder(`aso-validator-${idx}`, identities.next().value)
           .withEligibleDefaults()
-          .withMndeVotes(0)
+
           .withAso(aso)
           .withNativeStake(0)
           .withLiquidStake(0)
@@ -250,7 +214,7 @@ describe('constraints', () => {
       ...Array.from({ length: 20 }, () =>
         new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
           .withEligibleDefaults()
-          .withMndeVotes(0)
+
           .withNativeStake(0)
           .withLiquidStake(3_000_000)
           .withExternalStake(5_520_000),
@@ -323,9 +287,8 @@ describe('constraints', () => {
     const { auctionStake } = validator ?? {}
     assert(auctionStake !== undefined, 'Validator not found in auction result')
 
-    // 100_000 * 0.04 -> TVL * Default cap per validator
-    // (0.1 * 100 / 2000) * 100_000 -> (mndeStakeCapMultiplier * validator MNDE votes / total MNDE votes) * TVL
-    expect(auctionStake.marinadeSamTargetSol).toStrictEqual(100_000 * 0.04 + ((0.1 * 100) / 2000) * 100_000)
+    // 100_000 * 0.04 -> TVL * Default cap per validator (maxMarinadeTvlSharePerValidatorDec)
+    expect(auctionStake.marinadeSamTargetSol).toStrictEqual(100_000 * 0.04)
     expect(prettyPrintAuctionResult(result)).toMatchSnapshot()
   })
 
@@ -336,19 +299,19 @@ describe('constraints', () => {
     const validators = [
       new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
         .withEligibleDefaults()
-        .withMndeVotes(0)
+
         .withBond({ stakeWanted: 0, cpmpe: 100, balance: 100 }),
       new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
         .withEligibleDefaults()
-        .withMndeVotes(0)
+
         .withBond({ stakeWanted: 0, cpmpe: 3, balance: 100 }),
       new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
         .withEligibleDefaults()
-        .withMndeVotes(0)
+
         .withBond({ stakeWanted: 0, cpmpe: 2, balance: 100 }),
       new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
         .withEligibleDefaults()
-        .withMndeVotes(0)
+
         .withBond({ stakeWanted: 0, cpmpe: 1, balance: 100 }),
       ...Array.from({ length: 18 }, () =>
         new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
@@ -372,23 +335,23 @@ describe('constraints', () => {
     const validators = [
       new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
         .withEligibleDefaults()
-        .withMndeVotes(0)
+
         .withBond({ stakeWanted: 0, cpmpe: 100, balance: 50 }),
       new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
         .withEligibleDefaults()
-        .withMndeVotes(0)
+
         .withBond({ stakeWanted: 0, cpmpe: 1, balance: 50 }),
       new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
         .withEligibleDefaults()
-        .withMndeVotes(0)
+
         .withBond({ stakeWanted: 0, cpmpe: 0.5, balance: 50 }),
       new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
         .withEligibleDefaults()
-        .withMndeVotes(0)
+
         .withBond({ stakeWanted: 0, cpmpe: 0.2, balance: 50 }),
       new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
         .withEligibleDefaults()
-        .withMndeVotes(0)
+
         .withBond({ stakeWanted: 0, cpmpe: 0.1, balance: 50 }),
       ...Array.from({ length: 18 }, () =>
         new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)

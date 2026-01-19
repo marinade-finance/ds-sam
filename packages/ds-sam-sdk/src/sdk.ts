@@ -48,8 +48,8 @@ export class DsSamSDK {
   }
 
   getAuctionConstraints({ stakeAmounts }: AggregatedData, debug: Debug): AuctionConstraints {
-    const { networkTotalSol, marinadeMndeTvlSol, marinadeSamTvlSol } = stakeAmounts
-    const marinadeTotalTvlSol = marinadeMndeTvlSol + marinadeSamTvlSol
+    const { networkTotalSol, marinadeSamTvlSol } = stakeAmounts
+    const marinadeTotalTvlSol = marinadeSamTvlSol
     const constraints: AuctionConstraintsConfig = {
       totalCountryStakeCapSol: networkTotalSol * this.config.maxNetworkStakeConcentrationPerCountryDec,
       totalAsoStakeCapSol: networkTotalSol * this.config.maxNetworkStakeConcentrationPerAsoDec,
@@ -121,7 +121,6 @@ export class DsSamSDK {
       this.debug.pushValidatorInfo(validator.voteAccount, 'revenue share', JSON.stringify(revShare))
       const auctionStake: ValidatorAuctionStake = {
         externalActivatedSol: validator.totalActivatedStakeSol - validator.marinadeActivatedStakeSol,
-        marinadeMndeTargetSol: 0,
         marinadeSamTargetSol: 0,
       }
       if (blacklist.has(validator.voteAccount)) {
@@ -166,14 +165,12 @@ export class DsSamSDK {
         }
       }
       const samEligible = revShare.totalPmpe >= Math.max(minEffectiveRevSharePmpe, minSamRevSharePmpe)
-      const mndeEligible = revShare.inflationPmpe + revShare.mevPmpe + revShare.blockPmpe >= minEffectiveRevSharePmpe
 
       return {
         ...validator,
         revShare,
         auctionStake,
         samEligible,
-        mndeEligible,
         backstopEligible,
         ...validatorAggDefaults(),
       }
