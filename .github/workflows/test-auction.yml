@@ -42,12 +42,6 @@ jobs:
           node-version: 20
           cache: 'pnpm'
 
-      - name: 🏋️ Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: 🏗️ Build project
-        run: pnpm -r build
-
       - name: 📥 Get latest data repo commit hash
         id: data-hash
         run: |
@@ -78,247 +72,32 @@ jobs:
           echo "✅ Fetched auction data"
           ls -la "${{ env.AUCTIONS_PATH }}/" | head -10
 
-      - name: 🔍 Determine epochs to process
-        id: epochs
+      - name: 🚀 Run auction test script
+        id: run-test
         run: |
-          AUCTIONS_DIR="data-repo/auctions"
+          chmod +x scripts/run-auction-test.sh
 
-          get_epoch_folders() {
-            ls -1 "$AUCTIONS_DIR" | grep -E '^[0-9]+\.' | sort -t. -k1,1n
-          }
-
-          get_epoch_num() {
-            echo "$1" | cut -d. -f1
-          }
-
-          EPOCH_START="${{ github.event.inputs.epoch_start }}"
-          EPOCH_END="${{ github.event.inputs.epoch_end }}"
-
-          if [ -z "$EPOCH_START" ] && [ -z "$EPOCH_END" ]; then
-            LATEST_FOLDER=$(get_epoch_folders | tail -1)
-            echo "folders=${LATEST_FOLDER}" >> $GITHUB_OUTPUT
-            echo "📌 Running on latest epoch: ${LATEST_FOLDER}"
-          else
-            FOLDERS=""
-            for folder in $(get_epoch_folders); do
-              epoch_num=$(get_epoch_num "$folder")
-              if [ -n "$EPOCH_START" ] && [ "$epoch_num" -lt "$EPOCH_START" ]; then
-                continue
-              fi
-              if [ -n "$EPOCH_END" ] && [ "$epoch_num" -gt "$EPOCH_END" ]; then
-                continue
-              fi
-              if [ -z "$FOLDERS" ]; then
-                FOLDERS="$folder"
-              else
-                FOLDERS="${FOLDERS} ${folder}"
-              fi
-            done
-            echo "folders=${FOLDERS}" >> $GITHUB_OUTPUT
-            echo "📌 Running on epochs: ${FOLDERS}"
+          # Build arguments based on inputs
+          ARGS="-d data-repo/auctions -o auction-test-output"
+          if [ -n "${{ github.event.inputs.epoch_start }}" ]; then
+            ARGS="$ARGS --epoch-start ${{ github.event.inputs.epoch_start }}"
+          fi
+          if [ -n "${{ github.event.inputs.epoch_end }}" ]; then
+            ARGS="$ARGS --epoch-end ${{ github.event.inputs.epoch_end }}"
+          fi
+          if [ -z "${{ github.event.inputs.epoch_start }}" ] && [ -z "${{ github.event.inputs.epoch_end }}" ]; then
+            ARGS="$ARGS --latest"
           fi
 
-      - name: 🚀 Run auction CLI
-        id: run-cli
-        run: |
-          AUCTIONS_DIR="data-repo/auctions"
-          OUTPUTS_BASE="outputs"
-          mkdir -p "$OUTPUTS_BASE"
-
-          FOLDERS="${{ steps.epochs.outputs.folders }}"
-          FAILED=0
-          PROCESSED=0
-          PROCESSED_FOLDERS=""
-
-          for folder in $FOLDERS; do
-            inputs_dir="${AUCTIONS_DIR}/${folder}/inputs"
-            outputs_dir="${OUTPUTS_BASE}/out/${folder}"
-            log_file="${OUTPUTS_BASE}/${folder}.log"
-            
-            echo "=============================================="
-            echo "📂 Processing: $folder"
-            echo "   Inputs:  $inputs_dir"
-            echo "   Outputs: $outputs_dir"
-            echo "=============================================="
-            
-            if [ ! -d "$inputs_dir" ]; then
-              echo "⚠️  Inputs directory not found, skipping"
-              continue
-            fi
-            
-            mkdir -p "$outputs_dir"
-            
-            if pnpm run cli -- auction \
-              --inputs-source FILES \
-              --cache-dir-path "$inputs_dir" \
-              -c "${inputs_dir}/config.json" \
-              -o "$outputs_dir" > "$log_file" 2>&1; then
-              echo "✅ Success: $folder"
-              PROCESSED=$((PROCESSED + 1))
-              # Track successfully processed folders for diffing
-              if [ -z "$PROCESSED_FOLDERS" ]; then
-                PROCESSED_FOLDERS="$folder"
-              else
-                PROCESSED_FOLDERS="${PROCESSED_FOLDERS} ${folder}"
-              fi
-            else
-              echo "❌ Failed: $folder"
-              FAILED=$((FAILED + 1))
-            fi
-          done
-
-          echo "processed=${PROCESSED}" >> $GITHUB_OUTPUT
-          echo "failed=${FAILED}" >> $GITHUB_OUTPUT
-          echo "processed_folders=${PROCESSED_FOLDERS}" >> $GITHUB_OUTPUT
-
-          echo "=============================================="
-          echo "📊 Summary: Processed=$PROCESSED, Failed=$FAILED"
-          echo "=============================================="
-
-          if [ "$FAILED" -gt 0 ]; then
-            exit 42
-          fi
-
-      - name: 🔬 Run diffs against original outputs
-        if: steps.run-cli.outputs.processed != '0'
-        run: |
-          AUCTIONS_DIR="data-repo/auctions"
-          OUTPUTS_BASE="outputs/out"
-          DIFFS_DIR="diffs"
-          mkdir -p "$DIFFS_DIR"
-
-          PROCESSED_FOLDERS="${{ steps.run-cli.outputs.processed_folders }}"
-
-          # Function to extract stake data
-          extract_stakes() {
-            local input="$1"
-            local output="$2"
-            jq -r '[.auctionData.validators[] | select(.auctionStake.marinadeSamTargetSol > 0)] |
-              sort_by(.voteAccount) | .[] |
-              "\(.voteAccount): \(.auctionStake.marinadeSamTargetSol)"' "$input" > "$output"
-          }
-
-          # Function to extract bidTooLow penalties
-          extract_bid_too_low() {
-            local input="$1"
-            local output="$2"
-            jq -r '.auctionData.validators[] |
-              select(.revShare.bidTooLowPenaltyPmpe > 0) |
-              "\(.voteAccount): \(.revShare.bidTooLowPenaltyPmpe)"' "$input" | sort > "$output"
-          }
-
-          for folder in $PROCESSED_FOLDERS; do
-            echo "=============================================="
-            echo "🔬 Diffing: $folder"
-            echo "=============================================="
-
-            new_dir="${OUTPUTS_BASE}/${folder}"
-            orig_dir="${AUCTIONS_DIR}/${folder}/outputs"
-            diff_out="${DIFFS_DIR}/${folder}"
-            mkdir -p "$diff_out"
-
-            # Initialize diff report
-            report="${diff_out}/diff-report.md"
-            echo "# Diff Report for Epoch ${folder}" > "$report"
-            echo "" >> "$report"
-            echo "Generated: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> "$report"
-            echo "" >> "$report"
-
-            # --- summary.md diff ---
-            echo "## summary.md" >> "$report"
-            if [ -f "$new_dir/summary.md" ] && [ -f "$orig_dir/summary.md" ]; then
-              if diff -u "$orig_dir/summary.md" "$new_dir/summary.md" > "$diff_out/summary.diff" 2>&1; then
-                echo "✅ summary.md: identical"
-                echo "✅ No differences" >> "$report"
-              else
-                echo "⚠️  summary.md: differences found"
-                echo '```diff' >> "$report"
-                head -100 "$diff_out/summary.diff" >> "$report"
-                echo '```' >> "$report"
-              fi
-            else
-              echo "⚠️  summary.md: missing file(s)"
-              echo "⚠️ Missing file(s)" >> "$report"
-            fi
-            echo "" >> "$report"
-
-            # --- results.json diff ---
-            echo "## results.json" >> "$report"
-            if [ -f "$new_dir/results.json" ] && [ -f "$orig_dir/results.json" ]; then
-              if diff -u "$orig_dir/results.json" "$new_dir/results.json" > "$diff_out/results.diff" 2>&1; then
-                echo "✅ results.json: identical"
-                echo "✅ No differences" >> "$report"
-              else
-                DIFF_LINES=$(wc -l < "$diff_out/results.diff")
-                echo "⚠️  results.json: ${DIFF_LINES} diff lines"
-                echo "⚠️ ${DIFF_LINES} diff lines (see results.diff)" >> "$report"
-              fi
-            else
-              echo "⚠️  results.json: missing file(s)"
-              echo "⚠️ Missing file(s)" >> "$report"
-            fi
-            echo "" >> "$report"
-
-            # --- Stake comparison ---
-            echo "## Stake Allocation" >> "$report"
-            if [ -f "$new_dir/results.json" ] && [ -f "$orig_dir/results.json" ]; then
-              extract_stakes "$new_dir/results.json" "$diff_out/new-stakes.txt"
-              extract_stakes "$orig_dir/results.json" "$diff_out/orig-stakes.txt"
-
-              new_total=$(cut -d':' -f2 "$diff_out/new-stakes.txt" | paste -sd+ | bc 2>/dev/null || echo "0")
-              orig_total=$(cut -d':' -f2 "$diff_out/orig-stakes.txt" | paste -sd+ | bc 2>/dev/null || echo "0")
-
-              echo "| Source | Total Stake |" >> "$report"
-              echo "|--------|-------------|" >> "$report"
-              echo "| Original | ${orig_total} |" >> "$report"
-              echo "| New | ${new_total} |" >> "$report"
-              echo "" >> "$report"
-
-              echo "   Original total stake: $orig_total"
-              echo "   New total stake:      $new_total"
-
-              if diff -u "$diff_out/orig-stakes.txt" "$diff_out/new-stakes.txt" > "$diff_out/stakes.diff" 2>&1; then
-                echo "✅ Stakes: identical"
-                echo "✅ Stake allocations identical" >> "$report"
-              else
-                STAKE_CHANGES=$(grep -c '^[-+]' "$diff_out/stakes.diff" || echo "0")
-                echo "⚠️  Stakes: ${STAKE_CHANGES} changes"
-                echo "⚠️ ${STAKE_CHANGES} stake changes (see stakes.diff)" >> "$report"
-              fi
-            fi
-            echo "" >> "$report"
-
-            # --- bidTooLow penalties ---
-            echo "## Bid Too Low Penalties" >> "$report"
-            if [ -f "$new_dir/results.json" ] && [ -f "$orig_dir/results.json" ]; then
-              extract_bid_too_low "$new_dir/results.json" "$diff_out/new-bidTooLow.txt"
-              extract_bid_too_low "$orig_dir/results.json" "$diff_out/orig-bidTooLow.txt"
-
-              if diff -u "$diff_out/orig-bidTooLow.txt" "$diff_out/new-bidTooLow.txt" > "$diff_out/bidTooLow.diff" 2>&1; then
-                echo "✅ bidTooLow: identical"
-                echo "✅ No differences" >> "$report"
-              else
-                echo "⚠️  bidTooLow: differences found"
-                echo '```diff' >> "$report"
-                cat "$diff_out/bidTooLow.diff" >> "$report"
-                echo '```' >> "$report"
-              fi
-            fi
-
-            echo ""
-            echo "📄 Report saved: $report"
-          done
-
-          echo "=============================================="
-          echo "✅ All diffs completed"
-          echo "=============================================="
+          # Run the script
+          ./scripts/run-auction-test.sh $ARGS --verbose
 
       - name: 📁📎 Upload results
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: auction-results-${{ github.run_id }}
-          path: outputs/out/
+          path: auction-test-output/outputs/out/
           if-no-files-found: warn
           retention-days: 15
 
@@ -327,7 +106,7 @@ jobs:
         if: always()
         with:
           name: auction-logs-${{ github.run_id }}
-          path: outputs/*.log
+          path: auction-test-output/outputs/*.log
           if-no-files-found: warn
           retention-days: 3
 
@@ -336,6 +115,6 @@ jobs:
         if: always()
         with:
           name: auction-diffs-${{ github.run_id }}
-          path: diffs/
+          path: auction-test-output/diffs/
           if-no-files-found: warn
           retention-days: 15
