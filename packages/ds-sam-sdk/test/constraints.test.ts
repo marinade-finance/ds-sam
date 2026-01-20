@@ -131,7 +131,6 @@ function makeValidator(overrides: Partial<AuctionValidator>): AuctionValidator {
     values: {
       paidUndelegationSol: 0,
       bondRiskFeeSol: 0,
-      marinadeActivatedStakeSolUndelegation: 0,
     },
     mndeVotesSolValue: 0,
     mndeStakeCapIncrease: 0,

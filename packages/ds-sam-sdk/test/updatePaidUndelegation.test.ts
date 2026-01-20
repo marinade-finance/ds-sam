@@ -25,7 +25,6 @@ describe('Auction.updatePaidUndelegation (simplified)', () => {
           lastMarinadeActivatedStakeSol: last,
           values: {
             paidUndelegationSol: priorPaid,
-            marinadeActivatedStakeSolUndelegation: 0,
             ...aggDefaults.bidTooLowPenalty,
           } as any,
           ...aggDefaults,
@@ -77,7 +76,6 @@ describe('Auction.updatePaidUndelegation (simplified)', () => {
           marinadeActivatedStakeSol: 25,
           values: {
             paidUndelegationSol: 0,
-            marinadeActivatedStakeSolUndelegation: NaN,
             ...aggDefaults.bidTooLowPenalty,
           } as any,
           ...aggDefaults,
