@@ -221,3 +221,12 @@ Here's what matters for validators joining or participating in the auction:
 **Where to track**: Watch the auction results at [psr.marinade.finance](https://psr.marinade.finance) and bond charging events in the Marinade Discord #psr-feed channel.
 
 The choice between static and dynamic bidding depends on your strategy. There's no single right answer - it's about what fits your validator operation and risk tolerance.
+
+---
+
+## Have Feedback?
+
+We're continuously working to improve the DS SAM auction experience for validators. Whether you've run into issues, have suggestions
+or better tooling, or want to share how the dynamic commission feature is working for your operation - we'd love to hear from you.
+
+**[Share your feedback here](https://docs.google.com/forms/d/e/1FAIpQLScnBKcKJsb4-wNSAzgrwrY5boAqG4Y_xsjo4YhND0TfdpUSfw/viewform)**
