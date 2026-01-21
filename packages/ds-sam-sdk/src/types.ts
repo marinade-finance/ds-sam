@@ -87,7 +87,6 @@ export type AggregatedValidator = {
 export type AuctionValidatorValues = {
   bondBalanceSol: number | null
   marinadeActivatedStakeSol: number
-  marinadeActivatedStakeSolUndelegation: number
   bondRiskFeeSol: number
   paidUndelegationSol: number
   samBlacklisted: boolean

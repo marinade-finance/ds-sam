@@ -250,7 +250,6 @@ export class DataProvider {
         values: {
           bondBalanceSol,
           marinadeActivatedStakeSol,
-          marinadeActivatedStakeSolUndelegation: 0,
           paidUndelegationSol: lastAuctionHistory?.values?.paidUndelegationSol ?? 0,
           bondRiskFeeSol: 0,
           samBlacklisted: blacklist.has(validator.vote_account),
