@@ -3,7 +3,6 @@ import fs from 'fs'
 import axios from 'axios'
 import Decimal from 'decimal.js'
 
-// TODO: what was delStratVotes for?
 import { calcEffParticipatingBidPmpe } from '../calculations'
 import { InputsSource } from '../config'
 
