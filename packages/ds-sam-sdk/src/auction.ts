@@ -211,7 +211,12 @@ export class Auction {
             : (validator.auctionStake.marinadeSamTargetSol - validator.marinadeActivatedStakeSol) /
               validator.marinadeActivatedStakeSol,
       }))
-      .sort((a, b) => a.stakeDiff - b.stakeDiff)
+      .sort((a, b) => {
+        const diffCmp = a.stakeDiff - b.stakeDiff // primary: stakeDiff ascending
+        if (diffCmp !== 0) return diffCmp
+        // secondary: lower APY first (APY ascending)
+        return a.validator.revShare.totalPmpe - b.validator.revShare.totalPmpe
+      })
       .forEach(({ validator }, index) => (validator.unstakePriority = bondsMaxIndex + index + 1))
   }
 

@@ -292,6 +292,22 @@ extract_bid_too_low() {
     "\(.voteAccount): \(.revShare.bidTooLowPenaltyPmpe)"' "$input" | sort > "$output"
 }
 
+extract_stake_priorities() {
+  local input="$1"
+  local output="$2"
+  jq -r '.auctionData.validators |
+    sort_by(.stakePriority) | .[] |
+    "\(.voteAccount),\(.stakePriority)"' "$input" > "$output"
+}
+
+extract_unstake_priorities() {
+  local input="$1"
+  local output="$2"
+  jq -r '.auctionData.validators |
+    sort_by(.unstakePriority) | .[] |
+    "\(.voteAccount),\(.unstakePriority)"' "$input" > "$output"
+}
+
 run_diffs() {
   local processed_folders="$1"
   local outputs_base="${OUTPUT_DIR}/out"
@@ -405,6 +421,42 @@ run_diffs() {
           cat "$diff_out/bidTooLow.diff"
           echo '```'
         } >> "$report"
+      fi
+    fi
+    echo "" >> "$report"
+
+    # --- Stake Priorities ---
+    echo "## Stake Priorities" >> "$report"
+    if [[ -f "$new_dir/results.json" && -f "$orig_dir/results.json" ]]; then
+      extract_stake_priorities "$new_dir/results.json" "$diff_out/new-stake-priorities.csv"
+      extract_stake_priorities "$orig_dir/results.json" "$diff_out/orig-stake-priorities.csv"
+
+      if diff -u "$diff_out/orig-stake-priorities.csv" "$diff_out/new-stake-priorities.csv" > "$diff_out/stake-priorities.diff" 2>&1; then
+        log "✅ stakePriority: identical"
+        echo "✅ No differences" >> "$report"
+      else
+        local priority_changes
+        priority_changes=$(grep -c '^[-+]' "$diff_out/stake-priorities.diff" || echo "0")
+        log "⚠️  stakePriority: ${priority_changes} changes (diff $diff_out/orig-stake-priorities.csv $diff_out/new-stake-priorities.csv)"
+        echo "⚠️ ${priority_changes} stake priority changes (see stake-priorities.diff)" >> "$report"
+      fi
+    fi
+    echo "" >> "$report"
+
+    # --- Unstake Priorities ---
+    echo "## Unstake Priorities" >> "$report"
+    if [[ -f "$new_dir/results.json" && -f "$orig_dir/results.json" ]]; then
+      extract_unstake_priorities "$new_dir/results.json" "$diff_out/new-unstake-priorities.csv"
+      extract_unstake_priorities "$orig_dir/results.json" "$diff_out/orig-unstake-priorities.csv"
+
+      if diff -u "$diff_out/orig-unstake-priorities.csv" "$diff_out/new-unstake-priorities.csv" > "$diff_out/unstake-priorities.diff" 2>&1; then
+        log "✅ unstakePriority: identical"
+        echo "✅ No differences" >> "$report"
+      else
+        local priority_changes
+        priority_changes=$(grep -c '^[-+]' "$diff_out/unstake-priorities.diff" || echo "0")
+        log "⚠️  unstakePriority: ${priority_changes} changes (diff $diff_out/orig-unstake-priorities.csv $diff_out/new-unstake-priorities.csv)"
+        echo "⚠️ ${priority_changes} unstake priority changes (see unstake-priorities.diff)" >> "$report"
       fi
     fi
 
