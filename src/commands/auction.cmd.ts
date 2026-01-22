@@ -48,7 +48,7 @@ export class AuctionCommand extends CommandRunner {
 
     for (const validator of result.auctionData.validators) {
       console.log(
-        `${validator.voteAccount}  \t${validator.auctionStake.marinadeMndeTargetSol}\t${validator.auctionStake.marinadeSamTargetSol}\t${validator.revShare.totalPmpe}\t${formatLastCapConstraint(validator.lastCapConstraint)}`,
+        `${validator.voteAccount}  \t${validator.auctionStake.marinadeSamTargetSol}\t${validator.revShare.totalPmpe}\t${formatLastCapConstraint(validator.lastCapConstraint)}`,
       )
     }
 
@@ -84,19 +84,17 @@ export class AuctionCommand extends CommandRunner {
   formatResultSummary(result: AuctionResult): string {
     const {
       validators,
-      stakeAmounts: { networkTotalSol, marinadeMndeTvlSol, marinadeSamTvlSol },
+      stakeAmounts: { networkTotalSol, marinadeSamTvlSol },
     } = result.auctionData
-    const eligibleValidators = validators.filter(({ mndeEligible, samEligible }) => mndeEligible || samEligible).length
+    const eligibleValidators = validators.filter(({ samEligible }) => samEligible).length
     const stakedValidators = validators.filter(
-      ({ auctionStake: { marinadeMndeTargetSol, marinadeSamTargetSol } }) =>
-        marinadeMndeTargetSol + marinadeSamTargetSol > 0,
+      ({ auctionStake: { marinadeSamTargetSol } }) => marinadeSamTargetSol > 0,
     ).length
     return [
       '## Auction summary',
       '\n### Stake amounts',
       `- Total network stake = \`${networkTotalSol.toLocaleString()}\` SOL`,
-      `- Total Marinade stake = \`${(marinadeMndeTvlSol + marinadeSamTvlSol).toLocaleString()}\` SOL`,
-      `  - MNDE stake = \`${marinadeMndeTvlSol.toLocaleString()}\` SOL`,
+      `- Total Marinade stake = \`${marinadeSamTvlSol.toLocaleString()}\` SOL`,
       `  - SAM stake = \`${marinadeSamTvlSol.toLocaleString()}\` SOL`,
       '\n### Results stats',
       `- Auction winning rev share = \`${result.winningTotalPmpe}\` PMPE`,
@@ -231,14 +229,6 @@ export class AuctionCommand extends CommandRunner {
     return this.nestCliUtilSvc.parseFloat(val)
   }
 
-  @Option({
-    flags: '--mnde-tvl-share <number>',
-    name: 'mndeDirectedStakeShareDec',
-    description: 'SDK param `mndeDirectedStakeShareDec`',
-  })
-  parseOptMndeDirectedStakeShareDec(val: string) {
-    return this.nestCliUtilSvc.parseFloat(val)
-  }
   @Option({
     flags: '--marinade-country-cap <number>',
     name: 'maxMarinadeStakeConcentrationPerCountryDec',

@@ -43,10 +43,6 @@ SDK for Marinade's DS-SAM - max yield - auction evaluation tool.
   // the BidTooLowPenalty
   bidTooLowPenaltyHistoryEpochs: number
 
-  // Share of Marinade TVL stake controlled by MNDE votes
-  mndeDirectedStakeShareDec: number
-  // Total Marinade TVL stake cap multiplier factor
-  mndeStakeCapMultiplier: number,
   // Cap of Marinade stake share in a single country
   maxMarinadeStakeConcentrationPerCountryDec: number
   // Cap of Marinade stake share with a single ASO

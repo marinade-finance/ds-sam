@@ -25,12 +25,7 @@
  *    - raw limits = bondBalanceSol / (coef/1000)
  *    - final limit = min(minLimit, max(idealLimit, marinadeActivatedStakeSol))
  *
- * 3) bondStakeCapMnde()
- *    - downtimeProtectionPerStake = 0 → raw limit = Infinity
- *    - When bondBalanceSol < 0.8*minBond → returns 0
- *    - When bondBalanceSol ≥ minBond → returns very large (Infinity)
- *
- * 4) getMinCapForEvenDistribution()
+ * 3) getMinCapForEvenDistribution()
  *    - Builds concentration constraints (country, aso, etc.)
  *    - Takes a set of voteAccounts:
  *      • calculates totalLeftToCapSol & marinadeLeftToCapSol
@@ -38,7 +33,7 @@
  *    - Negative caps clamp to 0
  *    - Error if no constraints at all
  *
- * 5) findCapForValidator()
+ * 4) findCapForValidator()
  *    - Wrapper around getMinCapForEvenDistribution({single})
  *    - Also populates validator.lastCapConstraint if cap < EPSILON
  *
@@ -50,8 +45,7 @@
  * 6) ASO constraint as the binding one.
  * 7) WANT constraint (clipped maxStakeWanted) wins.
  * 8) Sam‐BOND constraint wins (buildSamBondConstraints).
- * 9) MNDE constraint wins in the Mnde pipeline (buildMndeVoteConstraints).
- * 10) Error path when no constraints exist (empty voteAccounts set).
+ * 9) Error path when no constraints exist (empty voteAccounts set).
  */
 import { AuctionConstraints } from '../src/constraints'
 import { Debug } from '../src/debug'
@@ -112,7 +106,6 @@ function makeValidator(overrides: Partial<AuctionValidator>): AuctionValidator {
     totalActivatedStakeSol: 0,
     auctionStake: {
       externalActivatedSol: 0,
-      marinadeMndeTargetSol: 0,
       marinadeSamTargetSol: 0,
     },
     marinadeActivatedStakeSol: 0,
@@ -132,10 +125,7 @@ function makeValidator(overrides: Partial<AuctionValidator>): AuctionValidator {
       paidUndelegationSol: 0,
       bondRiskFeeSol: 0,
     },
-    mndeVotesSolValue: 0,
-    mndeStakeCapIncrease: 0,
     samEligible: true,
-    mndeEligible: true,
     samBlocked: false,
     stakePriority: NaN,
     unstakePriority: NaN,
@@ -154,9 +144,7 @@ function makeAuction(overrides: Partial<AuctionData> = {}): AuctionData {
     validators: [],
     stakeAmounts: {
       networkTotalSol: 0,
-      marinadeMndeTvlSol: 0,
       marinadeSamTvlSol: 0,
-      marinadeRemainingMndeSol: 0,
       marinadeRemainingSamSol: 0,
     },
     rewards: {
@@ -257,27 +245,6 @@ describe('bondStakeCapSam()', () => {
   })
 })
 
-describe('bondStakeCapMnde()', () => {
-  const c = makeConstraints({ minBondBalanceSol: 1 })
-
-  it('returns 0 when balance < 0.8*minBond', () => {
-    const v = makeValidator({
-      bondBalanceSol: 0.5,
-      marinadeActivatedStakeSol: 10,
-    })
-    expect(c.bondStakeCapMnde(v)).toBe(0)
-  })
-
-  it('otherwise returns a very large number (raw Infinity)', () => {
-    const v = makeValidator({
-      bondBalanceSol: 2,
-      marinadeActivatedStakeSol: 10,
-    })
-    const cap = c.bondStakeCapMnde(v)
-    expect(cap).toBe(Infinity)
-  })
-})
-
 describe('unprotectedStakeCap()', () => {
   // override the defaults so we can test all branches
   const c = makeConstraints({
@@ -353,7 +320,6 @@ describe('getMinCapForEvenDistribution() & findCapForValidator()', () => {
     aso: 'A',
     auctionStake: {
       externalActivatedSol: 60,
-      marinadeMndeTargetSol: 5,
       marinadeSamTargetSol: 5,
     },
   })
@@ -363,7 +329,6 @@ describe('getMinCapForEvenDistribution() & findCapForValidator()', () => {
     aso: 'A',
     auctionStake: {
       externalActivatedSol: 60,
-      marinadeMndeTargetSol: 5,
       marinadeSamTargetSol: 5,
     },
   })
@@ -398,8 +363,7 @@ describe('getMinCapForEvenDistribution positive scenarios', () => {
     aso: 'A1',
     auctionStake: {
       externalActivatedSol: 50,
-      marinadeMndeTargetSol: 5,
-      marinadeSamTargetSol: 5,
+      marinadeSamTargetSol: 10,
     },
   })
   const x2 = makeValidator({
@@ -408,8 +372,7 @@ describe('getMinCapForEvenDistribution positive scenarios', () => {
     aso: 'A1',
     auctionStake: {
       externalActivatedSol: 30,
-      marinadeMndeTargetSol: 5,
-      marinadeSamTargetSol: 5,
+      marinadeSamTargetSol: 10,
     },
   })
   it('returns positive cap = min(totalLeft,marinadeLeft)/2', () => {
@@ -432,8 +395,7 @@ describe('getMinCapForEvenDistribution positive scenarios', () => {
       aso: 'B1',
       auctionStake: {
         externalActivatedSol: 20,
-        marinadeMndeTargetSol: 5,
-        marinadeSamTargetSol: 5,
+        marinadeSamTargetSol: 10,
       },
     })
     const data2 = makeAuction({ validators: [y1] })
@@ -458,7 +420,6 @@ describe('findCapForValidator when cap > EPSILON', () => {
     aso: 'A',
     auctionStake: {
       externalActivatedSol: 1,
-      marinadeMndeTargetSol: 0,
       marinadeSamTargetSol: 0,
     },
   })
@@ -484,7 +445,6 @@ describe('getMinCapForEvenDistribution – ASO wins', () => {
     aso: 'Z',
     auctionStake: {
       externalActivatedSol: 3,
-      marinadeMndeTargetSol: 0,
       marinadeSamTargetSol: 1,
     },
   })
@@ -494,7 +454,6 @@ describe('getMinCapForEvenDistribution – ASO wins', () => {
     aso: 'Z',
     auctionStake: {
       externalActivatedSol: 3,
-      marinadeMndeTargetSol: 0,
       marinadeSamTargetSol: 1,
     },
   })
@@ -522,7 +481,6 @@ describe('getMinCapForEvenDistribution – WANT wins', () => {
     maxStakeWanted: 5,
     auctionStake: {
       externalActivatedSol: 100,
-      marinadeMndeTargetSol: 0,
       marinadeSamTargetSol: 0,
     },
   })
@@ -571,30 +529,6 @@ describe('getMinCapForEvenDistribution – Sam‐BOND wins', () => {
     const { cap, constraint } = c.getMinCapForEvenDistribution(new Set(['v']))
     expect(cap).toBeCloseTo(1000, 6)
     expect(constraint.constraintType).toBe('BOND')
-  })
-})
-
-describe('getMinCapForEvenDistribution – MNDE wins (Mnde pipeline)', () => {
-  const c = makeConstraints({
-    minBondBalanceSol: 0,
-  })
-
-  const v = makeValidator({
-    voteAccount: 'v',
-    mndeVotesSolValue: 3,
-    auctionStake: {
-      externalActivatedSol: 0,
-      marinadeMndeTargetSol: 0,
-      marinadeSamTargetSol: 0,
-    },
-  })
-
-  it('picks MNDE when mndeVotesSolValue is the tightest', () => {
-    const data = makeAuction({ validators: [v] })
-    c.updateStateForMnde(data)
-    const { cap, constraint } = c.getMinCapForEvenDistribution(new Set(['v']))
-    expect(cap).toBe(3)
-    expect(constraint.constraintType).toBe('MNDE')
   })
 })
 

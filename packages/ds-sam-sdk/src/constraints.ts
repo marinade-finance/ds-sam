@@ -86,16 +86,6 @@ export class AuctionConstraints {
     this.updateConstraintsPerValidator()
   }
 
-  updateStateForMnde(auctionData: AuctionData) {
-    this.constraints = [
-      ...this.buildCountryConcentrationConstraints(auctionData),
-      ...this.buildAsoConcentrationConstraints(auctionData),
-      ...this.buildMndeBondConstraints(auctionData),
-      ...this.buildMndeVoteConstraints(auctionData),
-    ]
-    this.updateConstraintsPerValidator()
-  }
-
   private updateConstraintsPerValidator() {
     this.constraintsPerValidator = new Map()
     for (const constraint of this.constraints) {
@@ -128,14 +118,8 @@ export class AuctionConstraints {
         constraintName: validator.country,
         totalStakeSol: countryStakeCon.totalStakeSol + stake,
         totalLeftToCapSol: countryStakeCon.totalLeftToCapSol - stake,
-        marinadeStakeSol:
-          countryStakeCon.marinadeStakeSol +
-          validator.auctionStake.marinadeMndeTargetSol +
-          validator.auctionStake.marinadeSamTargetSol,
-        marinadeLeftToCapSol:
-          countryStakeCon.marinadeLeftToCapSol -
-          validator.auctionStake.marinadeMndeTargetSol -
-          validator.auctionStake.marinadeSamTargetSol,
+        marinadeStakeSol: countryStakeCon.marinadeStakeSol + validator.auctionStake.marinadeSamTargetSol,
+        marinadeLeftToCapSol: countryStakeCon.marinadeLeftToCapSol - validator.auctionStake.marinadeSamTargetSol,
         validators: countryStakeCon.validators,
       })
     })
@@ -160,14 +144,8 @@ export class AuctionConstraints {
         constraintName: validator.aso,
         totalStakeSol: asoStakeCon.totalStakeSol + stake,
         totalLeftToCapSol: asoStakeCon.totalLeftToCapSol - stake,
-        marinadeStakeSol:
-          asoStakeCon.marinadeStakeSol +
-          validator.auctionStake.marinadeMndeTargetSol +
-          validator.auctionStake.marinadeSamTargetSol,
-        marinadeLeftToCapSol:
-          asoStakeCon.marinadeLeftToCapSol -
-          validator.auctionStake.marinadeMndeTargetSol -
-          validator.auctionStake.marinadeSamTargetSol,
+        marinadeStakeSol: asoStakeCon.marinadeStakeSol + validator.auctionStake.marinadeSamTargetSol,
+        marinadeLeftToCapSol: asoStakeCon.marinadeLeftToCapSol - validator.auctionStake.marinadeSamTargetSol,
         validators: asoStakeCon.validators,
       })
     })
@@ -180,7 +158,7 @@ export class AuctionConstraints {
       constraintName: validator.voteAccount,
       totalStakeSol: validatorTotalAuctionStakeSol(validator),
       totalLeftToCapSol: Infinity,
-      marinadeStakeSol: validator.auctionStake.marinadeMndeTargetSol + validator.auctionStake.marinadeSamTargetSol,
+      marinadeStakeSol: validator.auctionStake.marinadeSamTargetSol,
       marinadeLeftToCapSol: this.bondStakeCapSam(validator) - validator.auctionStake.marinadeSamTargetSol,
       validators: [validator],
     }))
@@ -192,7 +170,7 @@ export class AuctionConstraints {
       constraintName: validator.voteAccount,
       totalStakeSol: validatorTotalAuctionStakeSol(validator),
       totalLeftToCapSol: Infinity,
-      marinadeStakeSol: validator.auctionStake.marinadeMndeTargetSol + validator.auctionStake.marinadeSamTargetSol,
+      marinadeStakeSol: validator.auctionStake.marinadeSamTargetSol,
       marinadeLeftToCapSol: this.unprotectedStakeCap(validator) - validator.auctionStake.marinadeSamTargetSol,
       validators: [validator],
     }))
@@ -211,23 +189,11 @@ export class AuctionConstraints {
         constraintName: validator.voteAccount,
         totalStakeSol: validatorTotalAuctionStakeSol(validator),
         totalLeftToCapSol: Infinity,
-        marinadeStakeSol: validator.auctionStake.marinadeMndeTargetSol + validator.auctionStake.marinadeSamTargetSol,
+        marinadeStakeSol: validator.auctionStake.marinadeSamTargetSol,
         marinadeLeftToCapSol: clippedMaxStakeWanted - validator.auctionStake.marinadeSamTargetSol,
         validators: [validator],
       }
     })
-  }
-
-  private buildMndeBondConstraints({ validators }: AuctionData) {
-    return validators.map(validator => ({
-      constraintType: AuctionConstraintType.BOND,
-      constraintName: validator.voteAccount,
-      totalStakeSol: validatorTotalAuctionStakeSol(validator),
-      totalLeftToCapSol: Infinity,
-      marinadeStakeSol: validator.auctionStake.marinadeMndeTargetSol + validator.auctionStake.marinadeSamTargetSol,
-      marinadeLeftToCapSol: this.bondStakeCapMnde(validator) - validator.auctionStake.marinadeMndeTargetSol,
-      validators: [validator],
-    }))
   }
 
   private buildValidatorConcentrationConstraints({ validators }: AuctionData) {
@@ -236,24 +202,8 @@ export class AuctionConstraints {
       constraintName: validator.voteAccount,
       totalStakeSol: validatorTotalAuctionStakeSol(validator),
       totalLeftToCapSol: Infinity,
-      marinadeStakeSol: validator.auctionStake.marinadeMndeTargetSol + validator.auctionStake.marinadeSamTargetSol,
-      marinadeLeftToCapSol:
-        this.config.marinadeValidatorStakeCapSol +
-        validator.mndeStakeCapIncrease -
-        validator.auctionStake.marinadeMndeTargetSol -
-        validator.auctionStake.marinadeSamTargetSol,
-      validators: [validator],
-    }))
-  }
-
-  private buildMndeVoteConstraints({ validators }: AuctionData) {
-    return validators.map(validator => ({
-      constraintType: AuctionConstraintType.MNDE,
-      constraintName: validator.voteAccount,
-      totalStakeSol: validatorTotalAuctionStakeSol(validator),
-      totalLeftToCapSol: Infinity,
-      marinadeStakeSol: validator.auctionStake.marinadeMndeTargetSol,
-      marinadeLeftToCapSol: validator.mndeVotesSolValue - validator.auctionStake.marinadeMndeTargetSol,
+      marinadeStakeSol: validator.auctionStake.marinadeSamTargetSol,
+      marinadeLeftToCapSol: this.config.marinadeValidatorStakeCapSol - validator.auctionStake.marinadeSamTargetSol,
       validators: [validator],
     }))
   }
@@ -267,7 +217,7 @@ export class AuctionConstraints {
     const minBondPmpe = revShare.onchainDistributedPmpe + revShare.expectedMaxEffBidPmpe + minBidReservePmpe
     const idealBondPmpe = revShare.onchainDistributedPmpe + revShare.expectedMaxEffBidPmpe + idealBidReservePmpe
     const effBondBalanceSol = validator.bondBalanceSol ?? 0
-    const bondBalanceSol = Math.max(effBondBalanceSol - this.bondBalanceUsedForMnde(validator), 0)
+    const bondBalanceSol = Math.max(effBondBalanceSol, 0)
     // how much does the validator need to keep to pay for the unprotected stake
     const maxUnprotectedStakeSol = bondBalanceSol > 0 ? bondBalanceSol / (idealBidReservePmpe / 1000) : 0
     const unprotectedStakeSol = Math.min(this.unprotectedStakeCap(validator), maxUnprotectedStakeSol)
@@ -302,13 +252,6 @@ export class AuctionConstraints {
     return cap
   }
 
-  bondStakeCapMnde(validator: AuctionValidator): number {
-    const downtimeProtectionPerStake = 0
-    const bondBalanceSol = validator.bondBalanceSol ?? 0
-    const limit = bondBalanceSol / downtimeProtectionPerStake
-    return this.clipBondStakeCap(validator, limit)
-  }
-
   clipBondStakeCap(validator: AuctionValidator, limit: number): number {
     const bondBalanceSol = validator.bondBalanceSol ?? 0
     // provide hysteresis so that the system does not flap
@@ -331,11 +274,6 @@ export class AuctionConstraints {
     const downtimeProtectionPerStake = 0
     const refundableDepositPerStake = validator.revShare.totalPmpe / 1000
     return stakeSol * (bidPerStake + downtimeProtectionPerStake + refundableDepositPerStake)
-  }
-
-  private bondBalanceUsedForMnde(validator: AuctionValidator): number {
-    const downtimeProtectionPerStake = 0
-    return validator.auctionStake.marinadeMndeTargetSol * downtimeProtectionPerStake
   }
 }
 

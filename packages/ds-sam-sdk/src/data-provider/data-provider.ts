@@ -5,14 +5,12 @@ import Decimal from 'decimal.js'
 
 import { calcEffParticipatingBidPmpe } from '../calculations'
 import { InputsSource } from '../config'
-import { MNDE_VOTE_DELEGATION_STRATEGY } from '../utils'
 
 import type { AggregatedData, AggregatedValidator } from '../types'
 import type {
   RawBlacklistResponseDto,
   RawBondsResponseDto,
   RawMevInfoResponseDto,
-  RawMndeVotesResponseDto,
   RawRewardsRecordDto,
   RawRewardsResponseDto,
   RawSourceData,
@@ -147,9 +145,6 @@ export class DataProvider {
   /* eslint-disable complexity */
   private aggregateValidators(
     data: RawSourceData,
-    validatorsMndeVotes: Map<string, Decimal>,
-    solPerMnde: number,
-    mndeStakeCapIncreases: Map<string, Decimal>,
     blacklist: Set<string>,
     dataOverrides: SourceDataOverrides | null = null,
   ): AggregatedValidator[] {
@@ -163,9 +158,6 @@ export class DataProvider {
       const mevCommissionOverride = dataOverrides?.mevCommissions?.get(validator.vote_account)
       const blockRewardsCommissionOverride = dataOverrides?.blockRewardsCommissions?.get(validator.vote_account)
       const bidCpmpeOverride = dataOverrides?.cpmpes?.get(validator.vote_account)
-
-      const validatorMndeVotes = validatorsMndeVotes.get(validator.vote_account) ?? new Decimal(0)
-      const validatorMndeStakeCapIncrease = mndeStakeCapIncreases.get(validator.vote_account) ?? new Decimal(0)
 
       const inflationCommissionOverrideDec =
         inflationCommissionOverride !== undefined ? inflationCommissionOverride / 100 : null
@@ -270,8 +262,6 @@ export class DataProvider {
             minimalCommissionDec,
           },
         },
-        mndeVotesSolValue: validatorMndeVotes.mul(solPerMnde).toNumber(),
-        mndeStakeCapIncrease: validatorMndeStakeCapIncrease.toNumber(),
         foundationStakeSol: new Decimal(validator.foundation_stake).div(1e9).toNumber(),
         selfStakeSol: new Decimal(validator.self_stake).div(1e9).toNumber(),
         epochStats: validator.epoch_stats
@@ -298,36 +288,7 @@ export class DataProvider {
       externalStakeTotal = externalStakeTotal.add(activated_stake).sub(marinade_stake).sub(marinade_native_stake)
     })
 
-    let totalMndeVotes = new Decimal(0)
-    let delStratVotes = new Decimal(0)
-    const validatorsMndeVotes = data.mndeVotes.records.reduce((agg, { validatorVoteAccount, amount }) => {
-      const mndeAmount = amount ?? '0'
-      const votes = agg.get(validatorVoteAccount) ?? new Decimal(0)
-      agg.set(validatorVoteAccount, votes.add(mndeAmount))
-      totalMndeVotes = totalMndeVotes.add(mndeAmount)
-      if (validatorVoteAccount === MNDE_VOTE_DELEGATION_STRATEGY) {
-        delStratVotes = delStratVotes.add(mndeAmount)
-      }
-      return agg
-    }, new Map<string, Decimal>())
-
     const tvlSol = data.tvlInfo.total_virtual_staked_sol + data.tvlInfo.marinade_native_stake_sol
-    const delStratVotesShare = totalMndeVotes.gt(0) ? delStratVotes.div(totalMndeVotes).toNumber() : 0
-    const effectiveMndeTvlShareSol = totalMndeVotes.gt(0)
-      ? (1 - delStratVotesShare) * this.config.mndeDirectedStakeShareDec * tvlSol
-      : 0
-
-    const effectiveMndeStakeCapIncrease = totalMndeVotes.gt(0)
-      ? (1 - delStratVotesShare) * this.config.mndeStakeCapMultiplier
-      : 0
-
-    const validatorsMndeStakeCapIncreases = new Map<string, Decimal>()
-    for (const [validatorVoteAccount, amount] of validatorsMndeVotes) {
-      validatorsMndeStakeCapIncreases.set(
-        validatorVoteAccount,
-        amount.mul(effectiveMndeStakeCapIncrease).mul(tvlSol).div(totalMndeVotes),
-      )
-    }
 
     const blacklist = new Set(
       data.blacklist
@@ -339,22 +300,10 @@ export class DataProvider {
 
     const epoch = data.rewards.rewards_inflation_est.reduce((epoch, entry) => Math.max(epoch, entry[0]), 0) + 1
 
-    const solPerMnde = totalMndeVotes.gt(0)
-      ? new Decimal(effectiveMndeTvlShareSol).div(totalMndeVotes.sub(delStratVotes)).toNumber()
-      : 0
-    console.log('total mnde votes', totalMndeVotes)
-    console.log('SOL per MNDE', solPerMnde)
     console.log('tvl', tvlSol)
     return {
       epoch,
-      validators: this.aggregateValidators(
-        data,
-        validatorsMndeVotes,
-        solPerMnde,
-        validatorsMndeStakeCapIncreases,
-        blacklist,
-        dataOverrides,
-      ),
+      validators: this.aggregateValidators(data, blacklist, dataOverrides),
       rewards: {
         inflationPmpe: this.aggregateRewardsRecords(activatedStakePerEpochs, data.rewards.rewards_inflation_est),
         mevPmpe: this.aggregateRewardsRecords(activatedStakePerEpochs, data.rewards.rewards_mev),
@@ -364,10 +313,8 @@ export class DataProvider {
       },
       stakeAmounts: {
         networkTotalSol: externalStakeTotal.div(1e9).add(tvlSol).toNumber(),
-        marinadeMndeTvlSol: effectiveMndeTvlShareSol,
-        marinadeSamTvlSol: tvlSol - effectiveMndeTvlShareSol,
-        marinadeRemainingMndeSol: effectiveMndeTvlShareSol,
-        marinadeRemainingSamSol: tvlSol - effectiveMndeTvlShareSol,
+        marinadeSamTvlSol: tvlSol,
+        marinadeRemainingSamSol: tvlSol,
       },
       blacklist,
     }
@@ -382,7 +329,6 @@ export class DataProvider {
     fs.writeFileSync(`${this.config.inputsCacheDirPath}/bonds.json`, JSON.stringify(data.bonds, null, 2))
     fs.writeFileSync(`${this.config.inputsCacheDirPath}/tvl-info.json`, JSON.stringify(data.tvlInfo, null, 2))
     fs.writeFileSync(`${this.config.inputsCacheDirPath}/blacklist.csv`, data.blacklist)
-    fs.writeFileSync(`${this.config.inputsCacheDirPath}/mnde-votes.json`, JSON.stringify(data.mndeVotes, null, 2))
     fs.writeFileSync(`${this.config.inputsCacheDirPath}/rewards.json`, JSON.stringify(data.rewards, null, 2))
     fs.writeFileSync(`${this.config.inputsCacheDirPath}/auctions.json`, JSON.stringify(data.auctions, null, 2))
     if (data.overrides) {
@@ -409,9 +355,6 @@ export class DataProvider {
     const blacklist: RawBlacklistResponseDto = fs
       .readFileSync(`${this.config.inputsCacheDirPath}/blacklist.csv`)
       .toString()
-    const mndeVotes: RawMndeVotesResponseDto = JSON.parse(
-      fs.readFileSync(`${this.config.inputsCacheDirPath}/mnde-votes.json`).toString(),
-    ) as RawMndeVotesResponseDto
     const rewards: RawRewardsResponseDto = JSON.parse(
       fs.readFileSync(`${this.config.inputsCacheDirPath}/rewards.json`).toString(),
     ) as RawRewardsResponseDto
@@ -432,7 +375,6 @@ export class DataProvider {
       mevInfo,
       bonds,
       tvlInfo,
-      mndeVotes,
       rewards,
       blacklist,
       auctions,
@@ -441,13 +383,12 @@ export class DataProvider {
   }
 
   async fetchSourceData(): Promise<RawSourceData> {
-    const [validators, mevInfo, bonds, tvlInfo, blacklist, mndeVotes, rewards, auctions] = await Promise.all([
+    const [validators, mevInfo, bonds, tvlInfo, blacklist, rewards, auctions] = await Promise.all([
       this.fetchValidators(),
       this.fetchMevInfo(),
       this.fetchBonds(),
       this.fetchTvlInfo(),
       this.fetchBlacklist(),
-      this.fetchMndeVotes(),
       this.fetchRewards(),
       this.fetchAuctions(this.config.bidTooLowPenaltyHistoryEpochs),
     ])
@@ -461,7 +402,6 @@ export class DataProvider {
       bonds,
       tvlInfo,
       blacklist,
-      mndeVotes,
       rewards,
       auctions,
       overrides: overrides ?? undefined,
@@ -511,12 +451,6 @@ export class DataProvider {
   async fetchBlacklist(): Promise<RawBlacklistResponseDto> {
     const url = `${this.config.blacklistApiBaseUrl}/blacklist.csv`
     const response = await axios.get<RawBlacklistResponseDto>(url)
-    return response.data
-  }
-
-  async fetchMndeVotes(): Promise<RawMndeVotesResponseDto> {
-    const url = `${this.config.snapshotsApiBaseUrl}/v1/votes/vemnde/latest`
-    const response = await axios.get<RawMndeVotesResponseDto>(url)
     return response.data
   }
 

@@ -26,7 +26,6 @@ blacklist.csv
 bonds.json
 config.json
 mev-info.json
-mnde-votes.json
 rewards.json
 tvl-info.json
 validators.json

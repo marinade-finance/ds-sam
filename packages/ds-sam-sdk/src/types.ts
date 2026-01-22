@@ -12,9 +12,7 @@ export type AuctionData = Omit<AggregatedData, 'validators'> & {
 
 export type StakeAmounts = {
   networkTotalSol: number
-  marinadeMndeTvlSol: number
   marinadeSamTvlSol: number
-  marinadeRemainingMndeSol: number
   marinadeRemainingSamSol: number
 }
 
@@ -35,7 +33,6 @@ export type EpochStats = {
 
 export type ValidatorAuctionStake = {
   externalActivatedSol: number
-  marinadeMndeTargetSol: number
   marinadeSamTargetSol: number
 }
 
@@ -43,7 +40,6 @@ export type AuctionValidator = AggregatedValidator & {
   revShare: RevShare
   bidTooLowPenalty: BidTooLowPenalty
   bondForcedUndelegation: BondForcedUndelegation
-  mndeEligible: boolean
   samEligible: boolean
   backstopEligible: boolean
   samBlocked: boolean
@@ -75,8 +71,6 @@ export type AggregatedValidator = {
   blockRewardsCommissionDec: number | null
   bidCpmpe: number | null
   maxStakeWanted: number | null
-  mndeStakeCapIncrease: number
-  mndeVotesSolValue: number
   foundationStakeSol: number
   selfStakeSol: number
   epochStats: EpochStats[]
@@ -172,7 +166,6 @@ export enum AuctionConstraintType {
   ASO = 'ASO',
   VALIDATOR = 'VALIDATOR',
   BOND = 'BOND',
-  MNDE = 'MNDE',
   WANT = 'WANT',
   RISK = 'RISK',
 }
