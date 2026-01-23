@@ -1,6 +1,6 @@
 {
   "name": "@marinade.finance/ds-sam-sdk",
-  "version": "0.0.42",
+  "version": "0.0.43",
   "author": "Marinade Finance",
   "license": "ISC",
   "main": "dist/src/index.js",
