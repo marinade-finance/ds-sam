@@ -194,9 +194,11 @@ export class Auction {
       .map(validator => ({
         validator,
         bondBalanceDiff:
+        
           ((validator.bondBalanceSol ?? 0) - this.constraints.bondBalanceRequiredForCurrentStake(validator)) /
           validator.marinadeActivatedStakeSol,
       }))
+      .filter(({ validator }) => validator.auctionStake.marinadeSamTargetSol < validator.marinadeActivatedStakeSol)
       .filter(({ bondBalanceDiff }) => bondBalanceDiff < 0) // Infinity and NaN filtered out too
       .sort((a, b) => a.bondBalanceDiff - b.bondBalanceDiff)
       .forEach(({ validator }, index) => (bondsMaxIndex = validator.unstakePriority = index + 1))
@@ -212,10 +214,10 @@ export class Auction {
               validator.marinadeActivatedStakeSol,
       }))
       .sort((a, b) => {
-        const diffCmp = a.stakeDiff - b.stakeDiff // primary: stakeDiff ascending
-        if (diffCmp !== 0) return diffCmp
-        // secondary: lower APY first (APY ascending)
-        return a.validator.revShare.totalPmpe - b.validator.revShare.totalPmpe
+        // primary: lower APY first (APY ascending)
+        const apyCmp = a.validator.revShare.totalPmpe - b.validator.revShare.totalPmpe
+        if (apyCmp !== 0) return apyCmp
+        return a.stakeDiff - b.stakeDiff // secondary: stakeDiff ascending
       })
       .forEach(({ validator }, index) => (validator.unstakePriority = bondsMaxIndex + index + 1))
   }
@@ -226,7 +228,6 @@ export class Auction {
       if (revShare.totalPmpe < winningTotalPmpe) {
         // The validator’s total PMPE (total amount expected to be shared with stakers) is lower
         // than the total PMPE of the last validator group (i.e., winningTotalPmpe) which is still in the auction
-        // we expect nothing to be charged from the bond for this validator as its total PMPE is lower
         revShare.auctionEffectiveBidPmpe = revShare.bondObligationPmpe
       } else {
         // The validator is in the winning group, we calculate what is the assumed PMPE distributed from bond
