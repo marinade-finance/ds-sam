@@ -40,15 +40,19 @@ export class Logger implements LoggerService {
   private readonly logger = InternalLoggerFactory()
 
   log(...args: any[]) {
-    this.logger.log('INFO', ...args)
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+w    this.logger.log('INFO', ...args)
   }
   error(...args: any[]) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     this.logger.log('ERROR', ...args)
   }
   warn(...args: any[]) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     this.logger.log('WARN', ...args)
   }
   debug(...args: any[]) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
     this.logger.log('DEBUG', ...args)
   }
 }
