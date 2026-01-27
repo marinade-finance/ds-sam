@@ -538,24 +538,3 @@ describe('getMinCapForEvenDistribution – no constraints', () => {
     expect(() => c.getMinCapForEvenDistribution(new Set())).toThrow(/Failed to find/)
   })
 })
-
-describe('bondObligationSafetyMult effect on bond caps', () => {
-  it('applies safety multiplier to bond obligation calculation', () => {
-    const c = makeConstraints({
-      bondObligationSafetyMult: 1.35,
-    })
-
-    const v = makeValidator({
-      bondBalanceSol: 1000,
-      marinadeActivatedStakeSol: 50,
-      revShare: buildRevShare({
-        totalPmpe: 0.2,
-        bondObligationPmpe: 0.1,
-      }),
-    })
-
-    const bondBalanceC = c.bondBalanceRequiredForCurrentStake(v)
-    // ( refundable deposit (total Pmpe) + bondObligationPerStake (what from bond) + downtime (= 0) ) * stake
-    expect(bondBalanceC).toBeCloseTo(((0.1 / 1000) * 1.35 + 0.2 / 1000 + 0) * 50, 6)
-  })
-})

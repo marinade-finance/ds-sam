@@ -193,14 +193,12 @@ export class Auction {
       .filter(({ unstakePriority }) => Number.isNaN(unstakePriority))
       .map(validator => ({
         validator,
-        bondBalanceDiff:
-        
-          ((validator.bondBalanceSol ?? 0) - this.constraints.bondBalanceRequiredForCurrentStake(validator)) /
+        stakeCapDeficit:
+          (this.constraints.bondStakeCapSam(validator) - validator.marinadeActivatedStakeSol) /
           validator.marinadeActivatedStakeSol,
       }))
-      .filter(({ validator }) => validator.auctionStake.marinadeSamTargetSol < validator.marinadeActivatedStakeSol)
-      .filter(({ bondBalanceDiff }) => bondBalanceDiff < 0) // Infinity and NaN filtered out too
-      .sort((a, b) => a.bondBalanceDiff - b.bondBalanceDiff)
+      .filter(({ stakeCapDeficit }) => stakeCapDeficit < 0) // Infinity and NaN filtered out too
+      .sort((a, b) => a.stakeCapDeficit - b.stakeCapDeficit)
       .forEach(({ validator }, index) => (bondsMaxIndex = validator.unstakePriority = index + 1))
 
     this.data.validators
@@ -217,7 +215,8 @@ export class Auction {
         // primary: lower APY first (APY ascending)
         const apyCmp = a.validator.revShare.totalPmpe - b.validator.revShare.totalPmpe
         if (apyCmp !== 0) return apyCmp
-        return a.stakeDiff - b.stakeDiff // secondary: stakeDiff ascending
+        // secondary: stakeDiff ascending
+        return a.stakeDiff - b.stakeDiff 
       })
       .forEach(({ validator }, index) => (validator.unstakePriority = bondsMaxIndex + index + 1))
   }
