@@ -41,7 +41,7 @@ export class Logger implements LoggerService {
 
   log(...args: any[]) {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
-w    this.logger.log('INFO', ...args)
+    this.logger.log('INFO', ...args)
   }
   error(...args: any[]) {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
