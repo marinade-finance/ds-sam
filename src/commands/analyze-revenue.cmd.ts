@@ -1,9 +1,6 @@
 import assert from 'assert'
 import fs from 'fs'
 
-import { Logger } from '@nestjs/common'
-import { Command, CommandRunner, Option } from 'nest-commander'
-
 import {
   AuctionResult,
   AuctionValidator,
@@ -13,6 +10,8 @@ import {
   Rewards,
   SourceDataOverrides,
 } from '@marinade.finance/ds-sam-sdk'
+import { Logger } from '@nestjs/common'
+import { Command, CommandRunner, Option } from 'nest-commander'
 
 const COMMAND_NAME = 'analyze-revenues'
 

@@ -216,7 +216,7 @@ export class Auction {
         const apyCmp = a.validator.revShare.totalPmpe - b.validator.revShare.totalPmpe
         if (apyCmp !== 0) return apyCmp
         // secondary: stakeDiff ascending
-        return a.stakeDiff - b.stakeDiff 
+        return a.stakeDiff - b.stakeDiff
       })
       .forEach(({ validator }, index) => (validator.unstakePriority = bondsMaxIndex + index + 1))
   }
