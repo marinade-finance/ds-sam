@@ -21,7 +21,6 @@ import type {
   AuctionHistory,
   AuctionHistoryStats,
   RawValidatorDto,
-  RawOverrideDataDto,
 } from './data-provider.dto'
 import type { DsSamConfig } from '../config'
 
@@ -152,7 +151,6 @@ export class DataProvider {
     return data.validators.validators.map((validator): AggregatedValidator => {
       const bond = data.bonds.bonds.find(({ vote_account }) => validator.vote_account === vote_account)
       const mev = data.mevInfo.validators.find(({ vote_account }) => validator.vote_account === vote_account)
-      const override = data.overrides?.validators.find(({ voteAccount }) => validator.vote_account === voteAccount)
 
       const inflationCommissionOverride = dataOverrides?.inflationCommissions?.get(validator.vote_account)
       const mevCommissionOverride = dataOverrides?.mevCommissions?.get(validator.vote_account)
@@ -230,7 +228,7 @@ export class DataProvider {
         claimableBondBalanceSol,
         lastBondBalanceSol: lastAuctionHistory?.values?.bondBalanceSol ?? null,
         lastMarinadeActivatedStakeSol: lastAuctionHistory?.values?.marinadeActivatedStakeSol ?? null,
-        lastSamBlacklisted: override?.lastSamBlacklisted ?? lastAuctionHistory?.values?.samBlacklisted ?? null,
+        lastSamBlacklisted: lastAuctionHistory?.values?.samBlacklisted ?? null,
         totalActivatedStakeSol: new Decimal(validator.activated_stake).div(1e9).toNumber(),
         marinadeActivatedStakeSol,
         inflationCommissionDec,
@@ -331,9 +329,6 @@ export class DataProvider {
     fs.writeFileSync(`${this.config.inputsCacheDirPath}/blacklist.csv`, data.blacklist)
     fs.writeFileSync(`${this.config.inputsCacheDirPath}/rewards.json`, JSON.stringify(data.rewards, null, 2))
     fs.writeFileSync(`${this.config.inputsCacheDirPath}/auctions.json`, JSON.stringify(data.auctions, null, 2))
-    if (data.overrides) {
-      fs.writeFileSync(`${this.config.inputsCacheDirPath}/overrides.json`, JSON.stringify(data.overrides, null, 2))
-    }
   }
 
   parseCachedSourceData(): RawSourceData {
@@ -365,11 +360,6 @@ export class DataProvider {
       : []
     this.fixRawScoredValidatorsDto(auctions)
 
-    const overridesFile = `${this.config.inputsCacheDirPath}/overrides.json`
-    const overrides: RawOverrideDataDto | undefined = fs.existsSync(overridesFile)
-      ? (JSON.parse(fs.readFileSync(overridesFile).toString()) as RawOverrideDataDto)
-      : undefined
-
     return {
       validators,
       mevInfo,
@@ -378,7 +368,6 @@ export class DataProvider {
       rewards,
       blacklist,
       auctions,
-      overrides,
     }
   }
 
@@ -393,9 +382,6 @@ export class DataProvider {
       this.fetchAuctions(this.config.bidTooLowPenaltyHistoryEpochs),
     ])
 
-    const epoch = rewards.rewards_inflation_est.reduce((epoch, entry) => Math.max(epoch, entry[0]), 0) + 1
-    const overrides = await this.fetchOverrides(epoch)
-
     const data = {
       validators,
       mevInfo,
@@ -404,7 +390,6 @@ export class DataProvider {
       blacklist,
       rewards,
       auctions,
-      overrides: overrides ?? undefined,
     }
     if (this.config.cacheInputs) {
       this.cacheSourceData(data)
@@ -471,18 +456,5 @@ export class DataProvider {
     const response = await axios.get<RawScoredValidatorDto[]>(url)
     this.fixRawScoredValidatorsDto(response.data)
     return response.data
-  }
-
-  async fetchOverrides(epoch: number): Promise<RawOverrideDataDto | null> {
-    const url = `${this.config.overridesApiBaseUrl}/${epoch}/overrides.json`
-    try {
-      const response = await axios.get<RawOverrideDataDto>(url)
-      return response.data
-    } catch (error: unknown) {
-      if (axios.isAxiosError(error) && error.response?.status === 404) {
-        return null
-      }
-      throw error
-    }
   }
 }
