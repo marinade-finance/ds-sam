@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# parse arguments
+config="../ds-sam-pipeline/auction-config.json"
+baseline=false
+tag=""
+
+# manual argument parsing to allow flags after positional args
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -c|--config-file-path)
+      config="$2"
+      shift 2
+      ;;
+    -b|--baseline)
+      baseline=true
+      shift
+      ;;
+    -*)
+      echo "unknown option: $1" >&2
+      echo "usage: evaluate-auction <tag> [-c config] [-b|--baseline]" >&2
+      exit 1
+      ;;
+    *)
+      if [[ -z "$tag" ]]; then
+        tag="$1"
+      else
+        echo "unexpected argument: $1" >&2
+        echo "usage: evaluate-auction <tag> [-c config] [-b|--baseline]" >&2
+        exit 1
+      fi
+      shift
+      ;;
+  esac
+done
+
+# validate tag is provided
+if [[ -z "$tag" ]]; then
+  echo "usage: evaluate-auction <tag> [-c config] [-b|--baseline]" >&2
+  exit 1
+fi
+
+# validate config exists
+if [[ ! -f "$config" ]]; then
+  echo "config file not found: $config" >&2
+  exit 1
+fi
+
+# setup paths
+output_dir="report/$tag"
+parent="${tag%/*}"
+
+if [[ "$baseline" == true ]]; then
+  cache_dir="$output_dir/inputs"
+  inputs_source="APIS"
+  cache_flag="--cache-inputs"
+else
+  cache_dir="report/$parent/main/inputs"
+  inputs_source="FILES"
+  cache_flag=""
+
+  # validate baseline inputs exist
+  if [[ ! -d "$cache_dir" ]]; then
+    echo "baseline inputs not found at $cache_dir. run with -b first." >&2
+    exit 1
+  fi
+fi
+
+# create output directory
+mkdir -p "$output_dir"
+
+# run auction
+pnpm run cli -- auction \
+  -c "$config" \
+  -o "$output_dir" \
+  -i "$inputs_source" \
+  --cache-dir-path "$cache_dir" \
+  $cache_flag
+
+# display summary
+echo
+echo "# $tag"
+cat "$output_dir/summary.md"
