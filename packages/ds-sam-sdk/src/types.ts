@@ -52,6 +52,7 @@ export type AuctionValidator = AggregatedValidator & {
   unprotectedStakeCapSol: number
   unprotectedStakeSol: number
   bondGoodForNEpochs: number
+  bondSamStakeHealth: number
 }
 
 export type AggregatedValidator = {

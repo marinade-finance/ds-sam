@@ -191,34 +191,20 @@ export class Auction {
     let bondsMaxIndex = 0
     this.data.validators
       .filter(({ unstakePriority }) => Number.isNaN(unstakePriority))
-      .map(validator => ({
-        validator,
-        stakeCapDeficit:
-          (this.constraints.bondStakeCapSam(validator) - validator.marinadeActivatedStakeSol) /
-          validator.marinadeActivatedStakeSol,
-      }))
-      .filter(({ stakeCapDeficit }) => stakeCapDeficit < 0) // Infinity and NaN filtered out too
-      .sort((a, b) => a.stakeCapDeficit - b.stakeCapDeficit)
-      .forEach(({ validator }, index) => (bondsMaxIndex = validator.unstakePriority = index + 1))
+      .filter(({ bondSamStakeHealth }) => bondSamStakeHealth < 1) // Infinity and NaN filtered out too
+      .sort((a, b) => a.bondSamStakeHealth - b.bondSamStakeHealth)
+      .forEach((validator, index) => (bondsMaxIndex = validator.unstakePriority = index + 1))
 
     this.data.validators
       .filter(({ unstakePriority }) => Number.isNaN(unstakePriority))
-      .map(validator => ({
-        validator,
-        stakeDiff:
-          validator.marinadeActivatedStakeSol <= 0
-            ? 1
-            : (validator.auctionStake.marinadeSamTargetSol - validator.marinadeActivatedStakeSol) /
-              validator.marinadeActivatedStakeSol,
-      }))
       .sort((a, b) => {
-        // primary: lower APY first (APY ascending)
-        const apyCmp = a.validator.revShare.totalPmpe - b.validator.revShare.totalPmpe
+        // primary: lower APY first
+        const apyCmp = a.revShare.totalPmpe - b.revShare.totalPmpe
         if (apyCmp !== 0) return apyCmp
-        // secondary: stakeDiff ascending
-        return a.stakeDiff - b.stakeDiff
+        // secondary: relatively less capitalized first
+        return a.bondSamStakeHealth - b.bondSamStakeHealth
       })
-      .forEach(({ validator }, index) => (validator.unstakePriority = bondsMaxIndex + index + 1))
+      .forEach((validator, index) => (validator.unstakePriority = bondsMaxIndex + index + 1))
   }
 
   setAuctionEffectiveBids(winningTotalPmpe: number) {
