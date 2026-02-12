@@ -234,6 +234,10 @@ export class AuctionConstraints {
     const cap = this.clipBondStakeCap(validator, limit + unprotectedStakeSol)
     validator.unprotectedStakeSol = unprotectedStakeSol
     validator.bondSamStakeCapSol = cap
+    // export this for the PSR dashboard and other tools to see how many epochs the bond can last
+    validator.bondGoodForNEpochs =
+      (bondBalanceSol - revShare.onchainDistributedPmpe * validator.marinadeActivatedStakeSol) /
+      revShare.expectedMaxEffBidPmpe
     return cap
   }
 

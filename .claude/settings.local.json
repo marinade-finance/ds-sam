@@ -6,7 +6,8 @@
       "Bash(./scripts/*:*)",
       "Bash(FILE='test/revenue-analysis.test.ts' pnpm test:*)",
       "Bash(pnpm jest:*)",
-      "Bash(git grep:*)"
+      "Bash(git grep:*)",
+      "Bash(pnpm run lint:*)"
     ]
   }
 }
