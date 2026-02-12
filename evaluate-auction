@@ -56,6 +56,11 @@ if [[ "$baseline" == true ]]; then
   inputs_source="APIS"
   cache_flag="--cache-inputs"
 else
+  # handle case where tag has no slash
+  if [[ "$parent" == "$tag" ]]; then
+    echo "tag must contain slash for comparison mode (e.g., parent/variant)" >&2
+    exit 1
+  fi
   cache_dir="report/$parent/main/inputs"
   inputs_source="FILES"
   cache_flag=""
@@ -70,13 +75,13 @@ fi
 # create output directory
 mkdir -p "$output_dir"
 
-# run auction
-pnpm run cli -- auction \
+# build and run auction
+((cd packages/ds-sam-sdk/; pnpm build); pnpm run cli -- auction \
   -c "$config" \
   -o "$output_dir" \
   -i "$inputs_source" \
   --cache-dir-path "$cache_dir" \
-  $cache_flag
+  ${cache_flag:+"$cache_flag"})
 
 # display summary
 echo
