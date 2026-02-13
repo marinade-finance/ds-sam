@@ -248,11 +248,10 @@ export class AuctionConstraints {
     // do not consider the flapping histeresis for unstake priorities and risk measures
     //
     // allow for some unprotected slack before we introduce the bond risk system doing this optimally
-    //
-    // regularize marinadeActivatedStakeSol so that if the validator has less
-    // than 1 SOL active, he will be unstaked based on APY rather than his bond
-    // coverage
-    validator.bondSamHealth = (1.1 * (1 + minLimit + unprotectedStakeSol)) / (1 + validator.marinadeActivatedStakeSol)
+    let regularMinMaxStakeWanted = Math.max(10000, this.config.minMaxStakeWanted)
+    let correction = regularMinMaxStakeWanted / (1 + regularMinMaxStakeWanted)
+    validator.bondSamHealth =
+      (1.1 * (minLimit + unprotectedStakeSol)) / (1 + validator.marinadeActivatedStakeSol) / correction
     return cap
   }
 
