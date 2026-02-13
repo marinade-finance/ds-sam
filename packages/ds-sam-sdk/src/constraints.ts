@@ -236,10 +236,12 @@ export class AuctionConstraints {
     validator.bondSamStakeCapSol = cap
     // represents for how many epochs is this validator protected
     const protectedStakeSol = Math.max(0, validator.marinadeActivatedStakeSol - unprotectedStakeSol)
-    const bondBalanceForBids = Math.max(0, bondBalanceSol - (revShare.onchainDistributedPmpe / 1000) * protectedStakeSol)
+    const bondBalanceForBids = Math.max(
+      0,
+      bondBalanceSol - (revShare.onchainDistributedPmpe / 1000) * protectedStakeSol,
+    )
     validator.bondGoodForNEpochs =
-      bondBalanceForBids /
-      ((revShare.expectedMaxEffBidPmpe / 1000) * validator.marinadeActivatedStakeSol)
+      bondBalanceForBids / ((revShare.expectedMaxEffBidPmpe / 1000) * validator.marinadeActivatedStakeSol)
     // represents how much of the stake this validator has is protected sufficiently enough
     //
     // do not consider the flapping histeresis for unstake priorities and risk measures
