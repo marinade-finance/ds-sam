@@ -238,7 +238,7 @@ export class AuctionConstraints {
     const protectedStakeSol = Math.max(0, validator.marinadeActivatedStakeSol - unprotectedStakeSol)
     validator.bondGoodForNEpochs =
       Math.max(0, bondBalanceSol - (revShare.onchainDistributedPmpe / 1000) * protectedStakeSol) /
-      ((revShare.expectedMaxEffBidPmpe / 1000) * protectedStakeSol)
+      ((revShare.expectedMaxEffBidPmpe / 1000) * validator.marinadeActivatedStakeSol)
     // represents how much of the stake this validator has is protected sufficiently enough
     //
     // do not consider the flapping histeresis for unstake priorities and risk measures
