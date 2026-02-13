@@ -9,6 +9,36 @@ tag=""
 # manual argument parsing to allow flags after positional args
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    -h|--help)
+      cat <<'EOF'
+usage: evaluate-auction <tag> [-c config] [-b|--baseline]
+
+run auction simulations with tag-based organization
+
+arguments:
+  <tag>              path like "experiment/variant" (required)
+
+options:
+  -c, --config       config file path (default: ../ds-sam-pipeline/auction-config.json)
+  -b, --baseline     baseline mode: fetch fresh inputs and save them
+  -h, --help         show this help
+
+modes:
+  baseline (-b):     fetches fresh API data, saves to report/<tag>/inputs/
+  comparison:        uses existing inputs from report/<parent>/main/inputs/
+
+examples:
+  # create baseline with fresh data
+  ./evaluate-auction 20260213_test/main -b
+
+  # run variant using baseline inputs
+  ./evaluate-auction 20260213_test/variant1 -c custom.json
+
+  # variant with different parent
+  ./evaluate-auction 20260213_test/variant2
+EOF
+      exit 0
+      ;;
     -c|--config-file-path)
       config="$2"
       shift 2
