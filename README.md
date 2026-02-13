@@ -1,80 +1,100 @@
 # ds-sam
 
+Marinade's Stake Auction Marketplace for Solana validators.
+
 <a href="https://www.npmjs.com/package/@marinade.finance/ds-sam-sdk">
   <img src="https://img.shields.io/npm/v/%40marinade.finance%2Fds-sam-sdk?logo=npm&color=377CC0" />
 </a>
 
-## Running the CLI
-Get info about available CLI options
-```bash
-pnpm run cli -- auction --help
-```
+Validators bid PMPE (price per mSOL epoch) to receive Marinade stake. Top bids win allocation subject to constraints: validator caps, country/ASO concentration limits, bond requirements, and uptime thresholds.
 
-Evaluate the auction
-```bash
-pnpm run cli -- auction [--options...]
-```
+## Key Concepts
 
-### Example from ds-sam-pipeline
+**PMPE**: Price per mSOL epoch. Revenue share validators offer to mSOL holders, expressed per 1000 SOL staked per epoch. Includes inflation rewards, MEV, bid amount, and block production rewards.
 
-```bash
-cache_dir="/tmp/cache"
-rm -rf "$cache_dir" && \
-  mkdir -p "${cache_dir}/inputs" "${cache_dir}/outputs" && \
-  inputs_dir="${cache_dir}/inputs" && \
-  outputs_dir="${cache_dir}/outputs"  && \
-  curl 'https://raw.githubusercontent.com/marinade-finance/ds-sam-pipeline/refs/heads/main/auction-config.json' \
-    > "${inputs_dir}/config.json"
+**Bond protection**: Validators post bonds to cover PMPE obligations. Bond must cover on-chain commission + PMPE bid + reserve for N epochs. Insufficient bond caps stake allocation.
 
-pnpm run cli -- auction --inputs-source APIS --cache-inputs --cache-dir-path "$inputs_dir" \
-  -c "${inputs_dir}/config.json"  -o "$outputs_dir" > /dev/null
-```
+**Unprotected stake**: Matching stake for validator's existing foundation/delegated stake. No bond protection required. Per-validator cap based on existing delegation.
 
-# Example to re-run with cached files
+**Winning PMPE**: Highest PMPE group that received stake. All validators in that group get equal allocation until constraints hit.
+
+## Installation
 
 ```bash
-cache_dir="/tmp/cache"
-inputs_dir="${cache_dir}/inputs"
-outputs_dir="${cache_dir}/outputs-2"
-mkdir -p "$outputs_dir"
-
-pnpm run cli -- auction --inputs-source FILES --cache-dir-path "$inputs_dir" \
-  -c "${inputs_dir}/config.json"  -o "$outputs_dir" > /dev/null
-```
-
-## CLI config
-Configured using CLI options or a config file passed in via the `-c` (`--config-file-path`) option
-
-The CLI options take precedence over the config file values
-
-## SDK config
-
-Config [defaults](./packages/ds-sam-sdk/src/config.ts#L35)
-
-Configuration used in the auction evaluation pipeline can be found at
-https://github.com/marinade-finance/ds-sam-pipeline/blob/main/auction-config.json
-
-
-## Development
-
-To build
-
-```sh
+pnpm install
 pnpm -r build
 ```
 
-To run tests
+## Running Simulations
 
-```sh
-pnpm test
+Evaluate auction with current on-chain data:
 
-# single test file
-FILE='testfile.test.ts' pnpm test
+```bash
+pnpm run cli -- auction --inputs-source APIS --cache-inputs \
+  --cache-dir-path ./cache -c config.json -o ./output
 ```
 
-### Publishing SDK package
+Re-run with cached data:
 
-```sh
+```bash
+pnpm run cli -- auction --inputs-source FILES \
+  --cache-dir-path ./cache -c config.json -o ./output
+```
+
+Compare scenarios:
+
+```bash
+# Baseline run
+pnpm run cli -- auction --inputs-source FILES \
+  --cache-dir-path ./cache -c baseline.json -o ./baseline
+
+# Modified run (e.g., 8% validator cap)
+pnpm run cli -- auction --inputs-source FILES \
+  --cache-dir-path ./cache -c modified.json -o ./modified
+
+# Compare results
+diff ./baseline/summary.md ./modified/summary.md
+```
+
+## Configuration
+
+Pass config via `-c config.json` file. CLI options override file values.
+
+Key parameters:
+
+- `maxMarinadeTvlSharePerValidatorDec`: Per-validator stake cap (e.g., 0.04 = 4% of Marinade TVL)
+- `maxUnprotectedStakePerValidatorDec`: Unprotected stake cap as fraction of delegated stake
+- `minBondBalanceSol`: Minimum bond balance to receive any stake
+- `minBondEpochs`/`idealBondEpochs`: Reserve requirements (1 min, 12 ideal)
+- `maxNetworkStakeConcentrationPerCountryDec`: Country stake cap (default 0.3 = 30%)
+- `maxNetworkStakeConcentrationPerAsoDec`: ASO stake cap (default 0.3)
+- `validatorsUptimeThresholdDec`: Minimum uptime for eligibility (default 0.8)
+
+See [config.ts](./packages/ds-sam-sdk/src/config.ts) for defaults and [ds-sam-pipeline config](https://github.com/marinade-finance/ds-sam-pipeline/blob/main/auction-config.json) for production values.
+
+## Example Results
+
+4% → 8% validator cap impact (Feb 2026 analysis):
+- Deploys 383K more SOL (6% unallocated → 0.12%)
+- PMPE unchanged (0.3758) because cap bound inframarginal validators
+- Bond coverage ~17 epochs at current bids
+- 70 validators receive stake (unchanged)
+
+## Development
+
+```bash
+pnpm -r build          # Build all packages
+pnpm test              # Run tests
+FILE='*.test.ts' pnpm test  # Single test file
+pnpm lint              # Lint
+pnpm fix               # Fix lint and format
+```
+
+## Publishing SDK
+
+```bash
 cd packages/ds-sam-sdk
 npm publish
 ```
+
+See ARCHITECTURE.md for technical details.
