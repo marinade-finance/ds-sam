@@ -236,6 +236,7 @@ export class AuctionConstraints {
     validator.bondSamStakeCapSol = cap
     // represents for how many epochs is this validator protected
     const protectedStakeSol = Math.max(0, validator.marinadeActivatedStakeSol - unprotectedStakeSol)
+    const bondBalanceForBids = Math.max(0, bondBalanceSol - (revShare.onchainDistributedPmpe / 1000) * protectedStakeSol)
     validator.bondGoodForNEpochs =
       Math.max(0, bondBalanceSol - (revShare.onchainDistributedPmpe / 1000) * protectedStakeSol) /
       ((revShare.expectedMaxEffBidPmpe / 1000) * validator.marinadeActivatedStakeSol)
