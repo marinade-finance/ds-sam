@@ -191,8 +191,8 @@ export class Auction {
     let bondsMaxIndex = 0
     this.data.validators
       .filter(({ unstakePriority }) => Number.isNaN(unstakePriority))
-      .filter(({ bondSamStakeHealth }) => bondSamStakeHealth < 1) // Infinity and NaN filtered out too
-      .sort((a, b) => a.bondSamStakeHealth - b.bondSamStakeHealth)
+      .filter(({ bondSamHealth }) => bondSamHealth < 1) // Infinity and NaN filtered out too
+      .sort((a, b) => a.bondSamHealth - b.bondSamHealth)
       .forEach((validator, index) => (bondsMaxIndex = validator.unstakePriority = index + 1))
 
     this.data.validators
@@ -202,7 +202,7 @@ export class Auction {
         const apyCmp = a.revShare.totalPmpe - b.revShare.totalPmpe
         if (apyCmp !== 0) return apyCmp
         // secondary: relatively less capitalized first
-        return a.bondSamStakeHealth - b.bondSamStakeHealth
+        return a.bondSamHealth - b.bondSamHealth
       })
       .forEach((validator, index) => (validator.unstakePriority = bondsMaxIndex + index + 1))
   }

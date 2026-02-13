@@ -243,7 +243,8 @@ export class AuctionConstraints {
       ) / revShare.expectedMaxEffBidPmpe
     // represents how much of the stake this validator has is protected sufficiently enough
     // do not consider the flapping histeresis for unstake priorities and risk measures
-    validator.bondSamStakeHealth = (minLimit + unprotectedStakeSol) / validator.marinadeActivatedStakeSol
+    // allow for some unprotected slack before we introduce the bond risk system doing this optimally
+    validator.bondSamHealth = (1.1 * (minLimit + unprotectedStakeSol)) / validator.marinadeActivatedStakeSol
     return cap
   }
 
