@@ -27,34 +27,34 @@ pnpm -r build
 
 ## Running Simulations
 
-Evaluate auction with current on-chain data:
+Use the `evaluate-auction` script for organized baseline/comparison workflows:
 
 ```bash
-pnpm run cli -- auction --inputs-source APIS --cache-inputs \
+# Create baseline with fresh API data
+./evaluate-auction 20260213_experiment/main -b
+
+# Run variant using baseline inputs
+./evaluate-auction 20260213_experiment/maxcap8 -c config-8pct.json
+
+# Results in report/20260213_experiment/{main,maxcap8}/
+```
+
+Or use the CLI directly:
+
+```bash
+# Fresh data
+pnpm run cli -- auction -i APIS --cache-inputs \
+  --cache-dir-path ./cache -c config.json -o ./output
+
+# Cached data
+pnpm run cli -- auction -i FILES \
   --cache-dir-path ./cache -c config.json -o ./output
 ```
 
-Re-run with cached data:
-
-```bash
-pnpm run cli -- auction --inputs-source FILES \
-  --cache-dir-path ./cache -c config.json -o ./output
-```
-
-Compare scenarios:
-
-```bash
-# Baseline run
-pnpm run cli -- auction --inputs-source FILES \
-  --cache-dir-path ./cache -c baseline.json -o ./baseline
-
-# Modified run (e.g., 8% validator cap)
-pnpm run cli -- auction --inputs-source FILES \
-  --cache-dir-path ./cache -c modified.json -o ./modified
-
-# Compare results
-diff ./baseline/summary.md ./modified/summary.md
-```
+**Other scripts:**
+- `evaluate-blacklist`: Compare main vs blacklist scenarios
+- `simulate-auction`: Historical analysis from GCP snapshots
+- `evaluate-revenue-changes.bash`: Revenue impact analysis
 
 ## Configuration
 
