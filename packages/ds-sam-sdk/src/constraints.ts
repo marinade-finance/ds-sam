@@ -234,6 +234,24 @@ export class AuctionConstraints {
     const cap = this.clipBondStakeCap(validator, limit + unprotectedStakeSol)
     validator.unprotectedStakeSol = unprotectedStakeSol
     validator.bondSamStakeCapSol = cap
+    // represents for how many epoch is this validator protected
+    validator.bondGoodForNEpochs =
+      Math.max(
+        0,
+        bondBalanceSol -
+          (revShare.onchainDistributedPmpe / 1000) *
+            Math.max(0, validator.marinadeActivatedStakeSol - unprotectedStakeSol),
+      ) /
+      (revShare.expectedMaxEffBidPmpe / 1000)
+    // represents how much of the stake this validator has is protected sufficiently enough
+    //
+    // do not consider the flapping histeresis for unstake priorities and risk measures
+    //
+    // allow for some unprotected slack before we introduce the bond risk system doing this optimally
+    let regularMinMaxStakeWanted = Math.max(10000, this.config.minMaxStakeWanted)
+    let correction = regularMinMaxStakeWanted / (1 + regularMinMaxStakeWanted)
+    validator.bondSamHealth =
+      (1.1 * (minLimit + unprotectedStakeSol)) / (1 + validator.marinadeActivatedStakeSol) / correction
     return cap
   }
 
@@ -263,35 +281,4 @@ export class AuctionConstraints {
       return limit
     }
   }
-
-  bondBalanceRequiredForCurrentStake(validator: AuctionValidator): number {
-    return this.bondBalanceRequiredForStakeAmount(validator.marinadeActivatedStakeSol, validator)
-  }
-
-  private bondBalanceRequiredForStakeAmount(stakeSol: number, validator: AuctionValidator): number {
-    // refundableDepositPerStake * stake + downtimeProtectionPerStake * stake + bidPerStake * stake = bondBalanceSol
-    const bidPerStake = (validator.revShare.bondObligationPmpe / 1000) * this.config.bondObligationSafetyMult
-    const downtimeProtectionPerStake = 0
-    const refundableDepositPerStake = validator.revShare.totalPmpe / 1000
-    return stakeSol * (bidPerStake + downtimeProtectionPerStake + refundableDepositPerStake)
-  }
-}
-
-export const bondBalanceRequiredForXEpochs = (
-  stakeSol: number,
-  validator: AuctionValidator,
-  epochs: number,
-  bondObligationSafetyMult?: number,
-): number => {
-  // refundableDepositPerStake * stake + downtimeProtectionPerStake * stake + bidPerStake * stake * epochs = bondBalanceSol
-  const bondsObligationMultiplier = bondObligationSafetyMult ?? 1
-  if (bondsObligationMultiplier < 1.0 || bondsObligationMultiplier > 2.0) {
-    throw new Error(
-      `Invalid bondObligationSafetyMult: must be in interval [1.0, 2.0], got ${bondsObligationMultiplier}`,
-    )
-  }
-  const bidPerStake = (validator.revShare.bondObligationPmpe / 1000) * bondsObligationMultiplier
-  const downtimeProtectionPerStake = 0
-  const refundableDepositPerStake = validator.revShare.totalPmpe / 1000
-  return stakeSol * (bidPerStake * epochs + downtimeProtectionPerStake + refundableDepositPerStake)
 }
