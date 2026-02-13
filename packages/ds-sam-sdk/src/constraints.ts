@@ -14,6 +14,10 @@ export class AuctionConstraints {
     private debug: Debug,
   ) {}
 
+  getConfig(): AuctionConstraintsConfig {
+    return this.config
+  }
+
   getMinCapForEvenDistribution(
     voteAccounts: Set<string>,
     collectDebug = true,

@@ -8,6 +8,7 @@ export const ineligibleValidatorAggDefaults = () => ({
 
 export const validatorAggDefaults = () => ({
   lastCapConstraint: null,
+  constraintDiagnostics: [],
   stakePriority: NaN,
   unstakePriority: NaN,
   bidTooLowPenalty: {

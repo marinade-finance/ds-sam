@@ -133,7 +133,7 @@ function makeValidator(overrides: Partial<AuctionValidator>): AuctionValidator {
     lastMarinadeActivatedStakeSol: null,
     selfStakeSol: 0,
     foundationStakeSol: 0,
-  } as AuctionValidator
+  } as unknown as AuctionValidator
 
   return { ...base, ...overrides }
 }

@@ -45,6 +45,7 @@ export type AuctionValidator = AggregatedValidator & {
   samBlocked: boolean
   auctionStake: ValidatorAuctionStake
   lastCapConstraint: AuctionConstraint | null
+  constraintDiagnostics: ConstraintDiagnostic[]
   stakePriority: number
   unstakePriority: number
   maxBondDelegation: number
@@ -178,4 +179,19 @@ export type AuctionConstraint = {
   marinadeStakeSol: number
   marinadeLeftToCapSol: number
   validators: AuctionValidator[]
+}
+
+export type ConstraintDiagnostic = {
+  constraintType: AuctionConstraintType
+  constraintName: string
+  isBinding: boolean
+  marinadeCapSol: number
+  marinadeUsedSol: number
+  marinadeRemainingCapSol: number
+  totalCapSol: number
+  totalUsedSol: number
+  totalRemainingCapSol: number
+  validatorsInGroup: number
+  headroomSol: number
+  advice: string | null
 }

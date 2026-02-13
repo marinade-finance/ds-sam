@@ -1,6 +1,7 @@
 /* eslint-disable no-param-reassign */
 
 import { calcBondRiskFee, calcEffParticipatingBidPmpe, calcBidTooLowPenalty } from './calculations'
+import { computeConstraintDiagnostics } from './diagnostics'
 
 import type { DsSamConfig } from './config'
 import type { AuctionConstraints } from './constraints'
@@ -331,6 +332,7 @@ export class Auction {
     this.data.validators.forEach(validator => {
       validator.auctionStake.marinadeSamTargetSol = 0
       validator.lastCapConstraint = null
+      validator.constraintDiagnostics = []
       validator.stakePriority = NaN
       validator.unstakePriority = NaN
       validator.samBlocked = false
@@ -411,6 +413,13 @@ export class Auction {
     this.setExpectedMaxEffBidPmpes(rewardsBase + shift)
   }
 
+  setConstraintDiagnostics() {
+    this.constraints.updateStateForSam(this.data)
+    for (const validator of this.data.validators) {
+      validator.constraintDiagnostics = computeConstraintDiagnostics(validator, this.constraints)
+    }
+  }
+
   setBlacklistPenalties(winningTotalPmpe: number) {
     for (const validator of this.data.validators) {
       if (validator.values.samBlacklisted && validator.lastSamBlacklisted === false) {
@@ -433,6 +442,7 @@ export class Auction {
     this.setBidTooLowPenalties(result.winningTotalPmpe)
     this.setMaxBondDelegations()
     this.setBlacklistPenalties(result.winningTotalPmpe)
+    this.setConstraintDiagnostics()
     return result
   }
 
