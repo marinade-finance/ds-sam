@@ -9,7 +9,9 @@ import {
   AuctionValidator,
   DsSamConfig,
   DsSamSDK,
+  effectiveCommissions,
   InputsSource,
+  RawBondsResponseDto,
   Rewards,
   SourceDataOverrides,
 } from '@marinade.finance/ds-sam-sdk'
@@ -77,22 +79,35 @@ export const loadSnapshotValidatorsCollection = (path: string): SnapshotValidato
 
 export const getValidatorOverrides = (
   snapshotValidatorsCollection: SnapshotValidatorsCollection,
+  bonds: RawBondsResponseDto,
 ): SourceDataOverrides => {
-  const inflationCommissions = new Map<string, number>()
-  const mevCommissions = new Map<string, number | undefined>()
-  const blockRewardsCommissions = new Map<string, number>()
-  const cpmpes = new Map<string, number | undefined>()
+  const inflationCommissionsDec = new Map<string, number>()
+  const mevCommissionsDec = new Map<string, number | undefined>()
+  const blockRewardsCommissionsDec = new Map<string, number>()
+  const cpmpesDec = new Map<string, number | undefined>()
+
+  const bondsByVoteAccount = new Map(bonds.bonds.map(b => [b.vote_account, b]))
 
   for (const validatorMeta of snapshotValidatorsCollection.validator_metas) {
-    inflationCommissions.set(validatorMeta.vote_account, validatorMeta.commission)
-    mevCommissions.set(validatorMeta.vote_account, validatorMeta.mev_commission)
+    const bond = bondsByVoteAccount.get(validatorMeta.vote_account)
+
+    const inflationOnchainDec = validatorMeta.commission / 100
+    const inflationBondDec =
+      bond?.inflation_commission_bps != null ? Number(bond.inflation_commission_bps) / 10_000 : null
+    const mevOnchainDec = validatorMeta.mev_commission != null ? validatorMeta.mev_commission / 10_000 : null
+    const mevBondDec = bond?.mev_commission_bps != null ? Number(bond.mev_commission_bps) / 10_000 : null
+
+    const effective = effectiveCommissions(inflationOnchainDec, inflationBondDec, mevOnchainDec, mevBondDec)
+
+    inflationCommissionsDec.set(validatorMeta.vote_account, effective.inflationDec)
+    mevCommissionsDec.set(validatorMeta.vote_account, effective.mevDec ?? undefined)
   }
 
   return {
-    inflationCommissions,
-    mevCommissions,
-    blockRewardsCommissions,
-    cpmpes,
+    inflationCommissionsDec,
+    mevCommissionsDec,
+    blockRewardsCommissionsDec,
+    cpmpesDec,
   }
 }
 
@@ -142,7 +157,10 @@ export class AnalyzeRevenuesCommand extends CommandRunner {
       )
     }
 
-    const sourceDataOverrides = getValidatorOverrides(snapshotValidatorsCollection)
+    const bonds: RawBondsResponseDto = JSON.parse(
+      fs.readFileSync(`${options.inputsCacheDirPath}/bonds.json`).toString(),
+    ) as RawBondsResponseDto
+    const sourceDataOverrides = getValidatorOverrides(snapshotValidatorsCollection, bonds)
     const pastValidatorChangeCommissions = this.getPastValidatorCommissions(pastSnapshotValidatorsCollection)
 
     const dsSam = new DsSamSDK({ ...config })

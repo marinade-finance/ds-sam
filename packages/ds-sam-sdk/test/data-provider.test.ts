@@ -206,10 +206,10 @@ describe('Data Provider Testing Setup', () => {
         [],
         { minimalCommission: 0.4 },
         {
-          inflationCommissions: new Map<string, number>().set('validator', 80),
-          mevCommissions: new Map<string, number>().set('validator', 90),
-          blockRewardsCommissions: new Map<string, number>().set('validator', 100),
-          cpmpes: new Map<string, number>().set('validator', 50 * 1e9),
+          inflationCommissionsDec: new Map<string, number>().set('validator', 0.8),
+          mevCommissionsDec: new Map<string, number>().set('validator', 0.009),
+          blockRewardsCommissionsDec: new Map<string, number>().set('validator', 0.01),
+          cpmpesDec: new Map<string, number>().set('validator', 50),
         },
       )
       expect(agg.validators[0]?.values.commissions).toEqual({
@@ -222,7 +222,6 @@ describe('Data Provider Testing Setup', () => {
         mevCommissionInBondDec: 0.4,
         blockRewardsCommissionInBondDec: 0.5,
         minimalCommissionDec: 0.4,
-        // override for inflation in different units than block and mev
         inflationCommissionOverrideDec: 0.8,
         blockRewardsCommissionOverrideDec: 0.01,
         mevCommissionOverrideDec: 0.009,
