@@ -104,6 +104,7 @@ fi
 
 # create output directory
 mkdir -p "$output_dir"
+mkdir -p "$cache_dir"
 
 # build and run auction
 ((cd packages/ds-sam-sdk/; pnpm build); pnpm run cli -- auction \
