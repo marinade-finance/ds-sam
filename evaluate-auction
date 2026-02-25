@@ -88,6 +88,7 @@ parent="${tag%/*}"
 
 if [[ "$baseline" == true ]]; then
   cache_dir="$output_dir/inputs"
+  mkdir -p "$cache_dir"
   inputs_source="APIS"
   cache_flag="--cache-inputs"
 else
@@ -109,7 +110,6 @@ fi
 
 # create output directory
 mkdir -p "$output_dir"
-mkdir -p "$cache_dir"
 
 # build and run auction
 ((cd packages/ds-sam-sdk/; pnpm build); pnpm run cli -- auction \
