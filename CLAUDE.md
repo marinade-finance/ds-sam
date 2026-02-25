@@ -1,7 +1,6 @@
 # CLAUDE.md
 
-ds-sam: TypeScript monorepo for Marinade's directed stake
-auction.
+ds-sam: TypeScript monorepo for Marinade's directed stake auction.
 
 ## Layout
 
@@ -43,25 +42,20 @@ pnpm run cli -- auction -i FILES --cache-dir-path ./cache -c config.json -o ./ou
 
 ### PMPE Group Iteration (auction.ts)
 
-Iterates PMPE groups LOWEST to HIGHEST
-(counter-intuitive):
+Iterates PMPE groups LOWEST to HIGHEST (counter-intuitive):
 
-1. `findNextPmpeGroup(previousPmpe)` finds max PMPE <
-   previousPmpe
+1. `findNextPmpeGroup(previousPmpe)` finds max PMPE < previousPmpe
 2. Distribute evenly within group until constraints hit
 3. Remove capped validators, continue to next group
-4. Last group to receive stake = winning group (highest
-   PMPE that got stake)
+4. Last group to receive stake = winning group (highest PMPE that got stake)
 
 ### Unstake Priority (auction.ts:189-207)
 
 Three tiers (lower = unstake first):
 
 1. Ineligible validators (`!samEligible`) -> priority 0
-2. Underfunded bonds (`bondSamHealth < 1`) sorted by
-   health ascending
-3. Funded bonds sorted by APY ascending, then health
-   ascending
+2. Underfunded bonds (`bondSamHealth < 1`) sorted by health ascending
+3. Funded bonds sorted by APY ascending, then health ascending
 
 Counter-intuitive: lower APY unstaked first.
 
@@ -77,35 +71,29 @@ Prevents stake flapping near `minBondBalanceSol`:
 
 `(bondBalance - onchainPmpe * protectedStake) / expectedMaxBidPmpe`
 
-Only counts protected stake (excludes
-unprotected/matching). Used in health calculations, NOT
-directly in stake caps.
+Only counts protected stake (excludes unprotected/matching). Used in health calculations,
+NOT directly in stake caps.
 
 ### Unprotected Stake
 
-"Unprotected" = matching stake covering
-foundation/delegated stake (NO bond required). Confusing
-name: sounds risky, actually reduces bond requirements.
+"Unprotected" = matching stake covering foundation/delegated stake (NO bond required).
+Confusing name: sounds risky, actually reduces bond requirements.
 
 ### Blacklist Penalty (auction.ts:400-408)
 
 `winningPmpe + min(3 * effParticipatingBidPmpe, winningPmpe)`
 
-Makes validator 2-4x uncompetitive but not infinite
-(allows un-blacklisting).
+Makes validator 2-4x uncompetitive but not infinite (allows un-blacklisting).
 
 ### Commission Layers (calculations.ts:30-44)
 
 1. **On-chain**: current validator commission
 2. **Override**: Marinade-specific (via bonds program)
-3. **Bond obligation**: what validator pays from bond
-   claims
+3. **Bond obligation**: what validator pays from bond claims
 
-`onchainDistributedPmpe` = override if exists, else
-on-chain. `bondObligationPmpe` = additional from bonds
-(override diff + bond diff). Total PMPE = inflation + MEV
-
-- bid + block (NOT reduced by commissions).
+`onchainDistributedPmpe` = override if exists, else on-chain. `bondObligationPmpe` = additional
+from bonds (override diff + bond diff). Total PMPE = inflation + MEV + bid + block (NOT reduced
+by commissions).
 
 ## Config
 
@@ -116,12 +104,8 @@ on-chain. `bondObligationPmpe` = additional from bonds
 
 ## Dev Notes
 
-- Pre-commit reformats on first run - retry commit
-  (2 attempts)
-- Publish SDK: `cd packages/ds-sam-sdk && npm publish`
-  (NOT pnpm)
-- Debug: set `debugVoteAccounts` + `logVerbosity` in
-  config
+- Pre-commit reformats on first run - retry commit (2 attempts)
+- Publish SDK: `cd packages/ds-sam-sdk && npm publish` (NOT pnpm)
+- Debug: set `debugVoteAccounts` + `logVerbosity` in config
 - Cache: `--cache-inputs --cache-dir-path ./cache`
-- Helper scripts: `evaluate-auction`,
-  `evaluate-blacklist`, `simulate-auction`
+- Helper scripts: `evaluate-auction`, `evaluate-blacklist`, `simulate-auction`

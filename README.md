@@ -6,9 +6,8 @@ Marinade's Stake Auction for Solana validators.
   <img src="https://img.shields.io/npm/v/%40marinade.finance%2Fds-sam-sdk?logo=npm&color=377CC0" />
 </a>
 
-Validators bid PMPE (price per mSOL epoch) to receive
-Marinade stake. Allocation proceeds lowest to highest PMPE
-until stake depletes or constraints bind.
+Validators bid PMPE (price per mSOL epoch) to receive Marinade stake. Allocation proceeds
+lowest to highest PMPE until stake depletes or constraints bind.
 
 ## Install
 
@@ -32,15 +31,12 @@ pnpm -r build
 
 Other scripts:
 - `evaluate-blacklist`: blacklist impact comparison
-- `simulate-auction <epoch>`: historical replay from GCP
-  snapshots
-- `evaluate-revenue-changes.bash`: revenue impact from
-  production run
+- `simulate-auction <epoch>`: historical replay from GCP snapshots
+- `evaluate-revenue-changes.bash`: revenue impact from production run
 
 ## Configuration
 
-Pass via `-c config.json`. Defaults to
-`../ds-sam-pipeline/auction-config.json`.
+Pass via `-c config.json`. Defaults to `../ds-sam-pipeline/auction-config.json`.
 
 Key parameters:
 
