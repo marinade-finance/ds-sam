@@ -5,6 +5,7 @@ import Decimal from 'decimal.js'
 
 import { calcEffParticipatingBidPmpe } from '../calculations'
 import { InputsSource } from '../config'
+import { effectiveCommissions } from '../utils'
 
 import type { AggregatedData, AggregatedValidator } from '../types'
 import type {
@@ -154,17 +155,11 @@ export class DataProvider {
       const mev = data.mevInfo.validators.find(({ vote_account }) => validator.vote_account === vote_account)
       const override = data.overrides?.validators.find(({ voteAccount }) => validator.vote_account === voteAccount)
 
-      const inflationCommissionOverride = dataOverrides?.inflationCommissions?.get(validator.vote_account)
-      const mevCommissionOverride = dataOverrides?.mevCommissions?.get(validator.vote_account)
-      const blockRewardsCommissionOverride = dataOverrides?.blockRewardsCommissions?.get(validator.vote_account)
-      const bidCpmpeOverride = dataOverrides?.cpmpes?.get(validator.vote_account)
-
-      const inflationCommissionOverrideDec =
-        inflationCommissionOverride !== undefined ? inflationCommissionOverride / 100 : null
-      const mevCommissionOverrideDec = mevCommissionOverride !== undefined ? mevCommissionOverride / 10_000 : null
+      const inflationCommissionOverrideDec = dataOverrides?.inflationCommissionsDec?.get(validator.vote_account) ?? null
+      const mevCommissionOverrideDec = dataOverrides?.mevCommissionsDec?.get(validator.vote_account) ?? null
       const blockRewardsCommissionOverrideDec =
-        blockRewardsCommissionOverride !== undefined ? blockRewardsCommissionOverride / 10_000 : null
-      const bidCpmpeOverrideDec = bidCpmpeOverride !== undefined ? bidCpmpeOverride / 1e9 : null
+        dataOverrides?.blockRewardsCommissionsDec?.get(validator.vote_account) ?? null
+      const bidCpmpeOverrideDec = dataOverrides?.cpmpesDec?.get(validator.vote_account) ?? null
 
       const inflationCommissionInBondDec =
         bond?.inflation_commission_bps != null ? Number(bond.inflation_commission_bps) / 10_000 : null
@@ -177,14 +172,14 @@ export class DataProvider {
       const mevCommissionOnchainDec = mev ? mev.mev_commission_bps / 10_000 : null
 
       // data to be applied in calculation of rev share as it considers the overrides and bond commissions (note: it can be negative)
-      let inflationCommissionDec =
-        inflationCommissionOverrideDec ??
-        Math.min(inflationCommissionInBondDec ?? Infinity, inflationCommissionOnchainDec)
-      let mevCommissionDec =
-        mevCommissionOverrideDec ??
-        (mevCommissionInBondDec != null && mevCommissionInBondDec < (mevCommissionOnchainDec ?? 1)
-          ? mevCommissionInBondDec
-          : mevCommissionOnchainDec)
+      const effective = effectiveCommissions(
+        inflationCommissionOnchainDec,
+        inflationCommissionInBondDec,
+        mevCommissionOnchainDec,
+        mevCommissionInBondDec,
+      )
+      let inflationCommissionDec = inflationCommissionOverrideDec ?? effective.inflationDec
+      let mevCommissionDec = mevCommissionOverrideDec ?? effective.mevDec
       let blockRewardsCommissionDec = blockRewardsCommissionOverrideDec ?? blockRewardsCommissionInBondDec
 
       const bidCpmpeInBondDec = bond?.cpmpe != null ? new Decimal(bond.cpmpe).div(1e9).toNumber() : null
