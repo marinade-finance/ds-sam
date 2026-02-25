@@ -34,17 +34,15 @@ examples:
 
   # results in report/20260225_tvl_cap/{main,maxcap8,unpro06}/
 EOF
-  exit 0
 }
 
-# parse arguments
 config="../ds-sam-pipeline/auction-config.json"
 baseline=false
 tag=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    -h|--help) _help ;;
+    -h|--help) _help; exit 0 ;;
     -c|--config)
       config="$2"
       shift 2
@@ -71,29 +69,25 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# validate tag is provided
 if [[ -z "$tag" ]]; then
   echo "usage: evaluate-auction <tag> [-c config] [-b|--baseline]" >&2
   exit 1
 fi
 
-# validate config exists
 if [[ ! -f "$config" ]]; then
   echo "config file not found: $config" >&2
   exit 1
 fi
 
-# setup paths
 output_dir="report/$tag"
 parent="${tag%/*}"
 
-if [[ "$baseline" == true ]]; then
+if $baseline; then
   cache_dir="$output_dir/inputs"
   mkdir -p "$cache_dir"
   inputs_source="APIS"
   cache_flag="--cache-inputs"
 else
-  # handle case where tag has no slash
   if [[ "$parent" == "$tag" ]]; then
     echo "tag must contain slash for comparison mode (e.g., parent/variant)" >&2
     exit 1
@@ -102,17 +96,14 @@ else
   inputs_source="FILES"
   cache_flag=""
 
-  # validate baseline inputs exist
   if [[ ! -d "$cache_dir" ]]; then
     echo "baseline inputs not found at $cache_dir. run with -b first." >&2
     exit 1
   fi
 fi
 
-# create output directory
 mkdir -p "$output_dir"
 
-# build and run auction
 ((cd packages/ds-sam-sdk/; pnpm build); pnpm run cli -- auction \
   -c "$config" \
   -o "$output_dir" \
@@ -120,7 +111,6 @@ mkdir -p "$output_dir"
   --cache-dir-path "$cache_dir" \
   ${cache_flag:+"$cache_flag"})
 
-# display summary
 echo
 echo "# $tag"
 cat "$output_dir/summary.md"
