@@ -27,19 +27,24 @@ modes:
   baseline (-b):     fetches fresh API data, saves to report/<tag>/inputs/
   comparison:        uses existing inputs from report/<parent>/main/inputs/
 
+tags:
+  structure is <group>/<variant>, where "main" is the baseline
+  variants reuse inputs from report/<group>/main/inputs/,
+  keeping API data stable across all runs in the group
+
 examples:
   # create baseline with fresh data
-  ./evaluate-auction 20260213_test/main -b
+  ./evaluate-auction 20260225_tvl_cap/main -b
 
-  # run variant using baseline inputs
-  ./evaluate-auction 20260213_test/variant1 -c custom.json
+  # run variants using baseline inputs
+  ./evaluate-auction 20260225_tvl_cap/maxcap8 -c config-8pct.json
+  ./evaluate-auction 20260225_tvl_cap/unpro06 -c config-unpro06.json
 
-  # variant with different parent
-  ./evaluate-auction 20260213_test/variant2
+  # results in report/20260225_tvl_cap/{main,maxcap8,unpro06}/
 EOF
       exit 0
       ;;
-    -c|--config-file-path)
+    -c|--config)
       config="$2"
       shift 2
       ;;
