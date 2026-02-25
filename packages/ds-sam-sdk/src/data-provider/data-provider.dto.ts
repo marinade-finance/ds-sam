@@ -136,9 +136,10 @@ export type RawOverrideDataDto = {
   validators: AuctionValidator[]
 }
 
+/** All override values are in decimal (0–1) scale, e.g. 5% = 0.05; cpmpe in SOL units */
 export type SourceDataOverrides = {
-  inflationCommissions: Map<string, number | undefined>
-  mevCommissions: Map<string, number | undefined>
-  blockRewardsCommissions: Map<string, number | undefined>
-  cpmpes: Map<string, number | undefined>
+  inflationCommissionsDec: Map<string, number | undefined>
+  mevCommissionsDec: Map<string, number | undefined>
+  blockRewardsCommissionsDec: Map<string, number | undefined>
+  cpmpesDec: Map<string, number | undefined>
 }

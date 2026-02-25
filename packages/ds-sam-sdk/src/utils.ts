@@ -67,3 +67,23 @@ export function assert(condition: boolean, message: string): asserts condition {
     throw new Error(message)
   }
 }
+
+/**
+ * Determines effective commissions by applying the bond-caps-onchain rule.
+ * All inputs and outputs are in decimal (0–1) scale.
+ *
+ * Inflation: bond wins when it's lower (Math.min).
+ * MEV: bond wins only when strictly less than on-chain.
+ */
+export function effectiveCommissions(
+  inflationOnchainDec: number,
+  inflationBondDec: number | null,
+  mevOnchainDec: number | null,
+  mevBondDec: number | null,
+): { inflationDec: number; mevDec: number | null } {
+  const inflationDec = inflationBondDec != null ? Math.min(inflationBondDec, inflationOnchainDec) : inflationOnchainDec
+
+  const mevDec = mevBondDec != null && mevBondDec < (mevOnchainDec ?? 1) ? mevBondDec : mevOnchainDec
+
+  return { inflationDec, mevDec }
+}
