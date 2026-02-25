@@ -231,11 +231,8 @@ export class AnalyzeRevenuesCommand extends CommandRunner {
       }
 
       // TODO: we are missing the information about blockCommission
-      // TODO: temporary fix for wrong value of MEV commission when there is no MEV data for epoch, skipping MEV for now
-      // const expectedNonBidPmpe = validatorBefore.revShare.inflationPmpe + validatorBefore.revShare.mevPmpe
-      // const actualNonBidPmpe = validatorAfter.revShare.inflationPmpe + validatorAfter.revShare.mevPmpe
-      const expectedNonBidPmpe = validatorBefore.revShare.inflationPmpe
-      const actualNonBidPmpe = validatorAfter.revShare.inflationPmpe
+      const expectedNonBidPmpe = validatorBefore.revShare.inflationPmpe + validatorBefore.revShare.mevPmpe
+      const actualNonBidPmpe = validatorAfter.revShare.inflationPmpe + validatorAfter.revShare.mevPmpe
 
       // verification of commission increase (rug) at time before SAM was run in this epoch
       // validatorBefore is data when SAM was run, validatorAfter is data after SAM was run
