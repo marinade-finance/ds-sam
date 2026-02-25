@@ -108,4 +108,4 @@ by commissions).
 - Publish SDK: `cd packages/ds-sam-sdk && npm publish` (NOT pnpm)
 - Debug: set `debugVoteAccounts` + `logVerbosity` in config
 - Cache: `--cache-inputs --cache-dir-path ./cache`
-- Helper scripts: `evaluate-auction`, `evaluate-blacklist`, `simulate-auction`
+- Helper scripts: `scripts/evaluate-auction.bash`, `evaluate-blacklist`, `simulate-auction`

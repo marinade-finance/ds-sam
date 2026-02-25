@@ -70,7 +70,7 @@ idealBondPmpe = onchainDistributedPmpe + expectedMaxEffBidPmpe
 protectedStakeCap = bondBalanceSol / (bondPmpe / 1000)
 ```
 
-Production: `minBondEpochs=1`, `idealBondEpochs=12`.
+Production: `minBondEpochs=4`, `idealBondEpochs=12`.
 
 ### Health
 

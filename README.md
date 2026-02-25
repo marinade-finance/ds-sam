@@ -20,18 +20,18 @@ pnpm -r build
 
 ```bash
 # baseline: fetch fresh API data
-./evaluate-auction 20260225_experiment/main -b
+scripts/evaluate-auction.bash 20260225_experiment/main -b
 
 # variants: reuse baseline inputs, different config
-./evaluate-auction 20260225_experiment/maxcap8 -c config-8pct.json
+scripts/evaluate-auction.bash 20260225_experiment/maxcap8 -c config-8pct.json
 
-# results in report/<tag>/ with summary.md and report.md
-./evaluate-auction -h
+# results in report/<tag>/ with summary.md and results.json
+scripts/evaluate-auction.bash -h
 ```
 
 Other scripts:
 - `evaluate-blacklist`: blacklist impact comparison
-- `simulate-auction <epoch>`: historical replay from GCP snapshots
+- `simulate-auction <epoch>`: historical revenue analysis from GCP snapshots
 - `evaluate-revenue-changes.bash`: revenue impact from production run
 
 ## Configuration
@@ -45,7 +45,7 @@ Key parameters:
 | `maxMarinadeTvlSharePerValidatorDec` | 0.04 | Per-validator stake cap (4%) |
 | `maxUnprotectedStakePerValidatorDec` | 0.06 | Unprotected stake cap (6% of delegated) |
 | `minBondBalanceSol` | - | Minimum bond balance |
-| `minBondEpochs` / `idealBondEpochs` | 1 / 12 | Bond reserve requirements |
+| `minBondEpochs` / `idealBondEpochs` | 1 / 1 | Bond reserve requirements |
 | `maxNetworkStakeConcentrationPerCountryDec` | 0.3 | Country concentration cap (30%) |
 | `maxNetworkStakeConcentrationPerAsoDec` | 0.3 | ASO concentration cap (30%) |
 | `validatorsUptimeThresholdDec` | 0.8 | Minimum uptime (80%) |
