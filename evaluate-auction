@@ -1,16 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# parse arguments
-config="../ds-sam-pipeline/auction-config.json"
-baseline=false
-tag=""
-
-# manual argument parsing to allow flags after positional args
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-    -h|--help)
-      cat <<'EOF'
+_help() {
+  cat <<'EOF'
 usage: evaluate-auction <tag> [-c config] [-b|--baseline]
 
 run auction simulations with tag-based organization
@@ -42,8 +34,17 @@ examples:
 
   # results in report/20260225_tvl_cap/{main,maxcap8,unpro06}/
 EOF
-      exit 0
-      ;;
+  exit 0
+}
+
+# parse arguments
+config="../ds-sam-pipeline/auction-config.json"
+baseline=false
+tag=""
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -h|--help) _help ;;
     -c|--config)
       config="$2"
       shift 2
