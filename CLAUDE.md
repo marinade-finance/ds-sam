@@ -111,4 +111,4 @@ Total PMPE = inflation + MEV + bid + block (NOT reduced by commissions - those a
 - Publishing SDK: `cd packages/ds-sam-sdk && npm publish` (NOT pnpm)
 - Debug: Set `debugVoteAccounts` + `logVerbosity` in config
 - Cache data: `--cache-inputs --cache-dir-path ./cache` (avoids re-fetching during dev)
-- Helper scripts: `simulate-auction`, `evaluate-blacklist`, `evaluate-tag`
+- Helper scripts: `simulate-auction`, `evaluate-blacklist`, `evaluate-auction`

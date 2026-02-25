@@ -219,11 +219,11 @@ Underbidding winning PMPE incurs penalty based on historical bids. Encourages co
 
 - `packages/ds-sam-sdk/test/`: SDK unit tests
 - `test/`: CLI integration tests
-- `make test`: Fast unit tests
-- `make smoke`: Full test suite
+- `pnpm test`: Run all tests
+- `FILE='*.test.ts' pnpm test`: Single test file
 
 ## Helper Scripts
 
 - `simulate-auction`: Run auction for specific epoch from GCP snapshots
 - `evaluate-blacklist`: Test blacklist impact
-- `evaluate-tag`: Evaluate tagged validator groups
+- `evaluate-auction`: Organized baseline/comparison workflows with reports
