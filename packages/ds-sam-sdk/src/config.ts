@@ -28,8 +28,6 @@ export type DsSamConfig = {
   blacklistApiBaseUrl: string
   // Base URL of the scoring API
   scoringApiBaseUrl: string
-  // The base URL for the location of the overrides json
-  overridesApiBaseUrl: string
 
   // Use zero-commission validators for backstop
   enableZeroCommissionBackstop: boolean
@@ -135,8 +133,6 @@ export const DEFAULT_CONFIG: DsSamConfig = {
   tvlInfoApiBaseUrl: 'https://api.marinade.finance',
   // marinade proxy cache API, pointing to raw gh: 'https://raw.githubusercontent.com/marinade-finance/delegation-strategy-2/master'
   blacklistApiBaseUrl: 'https://thru.marinade.finance/marinade-finance/delegation-strategy-2/master',
-  // marinade proxy cache API, pointing to 'https://raw.githubusercontent.com/marinade-finance/ds-sam-pipeline/main/epochs'
-  overridesApiBaseUrl: 'https://thru.marinade.finance/marinade-finance/ds-sam-pipeline/main/epochs',
   scoringApiBaseUrl: 'https://scoring.marinade.finance',
 
   enableZeroCommissionBackstop: false,

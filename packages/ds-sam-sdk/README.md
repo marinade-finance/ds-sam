@@ -25,8 +25,6 @@ SDK for Marinade's DS-SAM - max yield - auction evaluation tool.
   snapshotsApiBaseUrl: string
   // Base URL of the scoring API
   scoringApiBaseUrl: string
-  // The base URL for the location of the overrides json
-  overridesApiBaseUrl: string
 
   // How many epochs in the past to fetch rewards for
   rewardsEpochsCount: number
