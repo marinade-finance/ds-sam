@@ -1,80 +1,65 @@
 # ds-sam
 
+Marinade's Stake Auction for Solana validators.
+
 <a href="https://www.npmjs.com/package/@marinade.finance/ds-sam-sdk">
   <img src="https://img.shields.io/npm/v/%40marinade.finance%2Fds-sam-sdk?logo=npm&color=377CC0" />
 </a>
 
-## Running the CLI
-Get info about available CLI options
-```bash
-pnpm run cli -- auction --help
-```
+Validators bid PMPE (price per mSOL epoch) to receive Marinade stake. Allocation proceeds
+lowest to highest PMPE until stake depletes or constraints bind.
 
-Evaluate the auction
-```bash
-pnpm run cli -- auction [--options...]
-```
-
-### Example from ds-sam-pipeline
+## Install
 
 ```bash
-cache_dir="/tmp/cache"
-rm -rf "$cache_dir" && \
-  mkdir -p "${cache_dir}/inputs" "${cache_dir}/outputs" && \
-  inputs_dir="${cache_dir}/inputs" && \
-  outputs_dir="${cache_dir}/outputs"  && \
-  curl 'https://raw.githubusercontent.com/marinade-finance/ds-sam-pipeline/refs/heads/main/auction-config.json' \
-    > "${inputs_dir}/config.json"
-
-pnpm run cli -- auction --inputs-source APIS --cache-inputs --cache-dir-path "$inputs_dir" \
-  -c "${inputs_dir}/config.json"  -o "$outputs_dir" > /dev/null
-```
-
-# Example to re-run with cached files
-
-```bash
-cache_dir="/tmp/cache"
-inputs_dir="${cache_dir}/inputs"
-outputs_dir="${cache_dir}/outputs-2"
-mkdir -p "$outputs_dir"
-
-pnpm run cli -- auction --inputs-source FILES --cache-dir-path "$inputs_dir" \
-  -c "${inputs_dir}/config.json"  -o "$outputs_dir" > /dev/null
-```
-
-## CLI config
-Configured using CLI options or a config file passed in via the `-c` (`--config-file-path`) option
-
-The CLI options take precedence over the config file values
-
-## SDK config
-
-Config [defaults](./packages/ds-sam-sdk/src/config.ts#L35)
-
-Configuration used in the auction evaluation pipeline can be found at
-https://github.com/marinade-finance/ds-sam-pipeline/blob/main/auction-config.json
-
-
-## Development
-
-To build
-
-```sh
+pnpm install
 pnpm -r build
 ```
 
-To run tests
+## Running Simulations
 
-```sh
-pnpm test
+```bash
+# baseline: fetch fresh API data
+scripts/evaluate-auction.bash 20260225_experiment/main -b
 
-# single test file
-FILE='testfile.test.ts' pnpm test
+# variants: reuse baseline inputs, different config
+scripts/evaluate-auction.bash 20260225_experiment/maxcap8 -c config-8pct.json
+
+# results in report/<tag>/ with summary.md and results.json
+scripts/evaluate-auction.bash -h
 ```
 
-### Publishing SDK package
+Other scripts:
+- `evaluate-blacklist`: blacklist impact comparison
+- `simulate-auction <epoch>`: historical revenue analysis from GCP snapshots
+- `evaluate-revenue-changes.bash`: revenue impact from production run
 
-```sh
+## Configuration
+
+Pass via `-c config.json`. Defaults to `../ds-sam-pipeline/auction-config.json`.
+
+Key parameters:
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `maxMarinadeTvlSharePerValidatorDec` | 0.04 | Per-validator stake cap (4%) |
+| `maxUnprotectedStakePerValidatorDec` | 0.06 | Unprotected stake cap (6% of delegated) |
+| `minBondBalanceSol` | - | Minimum bond balance |
+| `minBondEpochs` / `idealBondEpochs` | 1 / 1 | Bond reserve requirements |
+| `maxNetworkStakeConcentrationPerCountryDec` | 0.3 | Country concentration cap (30%) |
+| `maxNetworkStakeConcentrationPerAsoDec` | 0.3 | ASO concentration cap (30%) |
+| `validatorsUptimeThresholdDec` | 0.8 | Minimum uptime (80%) |
+
+All options:
+[config.ts](./packages/ds-sam-sdk/src/config.ts).
+Production values:
+[auction-config.json](https://github.com/marinade-finance/ds-sam-pipeline/blob/main/auction-config.json).
+
+## Publishing SDK
+
+```bash
 cd packages/ds-sam-sdk
 npm publish
 ```
+
+See ARCHITECTURE.md for algorithm details.
