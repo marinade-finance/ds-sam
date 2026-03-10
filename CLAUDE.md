@@ -9,14 +9,18 @@ packages/ds-sam-sdk/src/
   auction.ts         # Auction.distributeSamStake() - main algorithm
   constraints.ts     # AuctionConstraints - stake caps, bond requirements
   calculations.ts    # Revenue share, penalties, fees
+  types.ts           # Core types: AuctionValidator, AggregatedValidator, RevShare, etc.
   config.ts          # DEFAULT_CONFIG
   sdk.ts             # DsSamSDK entry point
+  utils.ts           # Shared utilities
   data-provider/     # Fetch from APIs or cached files
 src/
   commands/auction.cmd.ts          # Main CLI command
   commands/analyze-revenue.cmd.ts  # Revenue analysis
 test/                              # CLI integration tests
 packages/ds-sam-sdk/test/          # SDK unit tests
+  helpers/validator-mock-builder.ts       # Build mock validator data for tests
+  helpers/static-data-provider-builder.ts # Build test data provider
 ```
 
 ## Build & Test
@@ -42,12 +46,12 @@ pnpm run cli -- auction -i FILES --cache-dir-path ./cache -c config.json -o ./ou
 
 ### PMPE Group Iteration (auction.ts)
 
-Iterates PMPE groups LOWEST to HIGHEST (counter-intuitive):
+Iterates PMPE groups HIGHEST to LOWEST (counter-intuitive given auction semantics):
 
-1. `findNextPmpeGroup(previousPmpe)` finds max PMPE < previousPmpe
+1. `findNextPmpeGroup(previousPmpe)` finds max PMPE < previousPmpe, starting at Infinity
 2. Distribute evenly within group until constraints hit
-3. Remove capped validators, continue to next group
-4. Last group to receive stake = winning group (highest PMPE that got stake)
+3. Remove capped validators, continue to next lower group
+4. `winningTotalPmpe` = last PMPE group to receive stake = lowest clearing PMPE (auction price)
 
 ### Unstake Priority (auction.ts:189-207)
 
