@@ -156,24 +156,27 @@ export const calcBondRiskFee = (cfg: BondRiskFeeConfig, validator: AuctionValida
     0,
     validator.marinadeActivatedStakeSol - validator.values.paidUndelegationSol,
   )
-  const minBondCoef =
-    (revShare.onchainDistributedPmpe + (cfg.minBondEpochs + 1) * revShare.expectedMaxEffBidPmpe) / 1000
+  const minBidReservePmpe = cfg.minBondEpochs * revShare.expectedMaxEffBidPmpe
+  const idealBidReservePmpe = cfg.idealBondEpochs * revShare.expectedMaxEffBidPmpe
+  const minBondPmpe = revShare.onchainDistributedPmpe + revShare.expectedMaxEffBidPmpe + minBidReservePmpe
+  const idealBondPmpe = revShare.onchainDistributedPmpe + revShare.expectedMaxEffBidPmpe + idealBidReservePmpe
   const riskBondSol =
     cfg.pendingWithdrawalBondMult * (validator.claimableBondBalanceSol ?? 0) +
     (1 - cfg.pendingWithdrawalBondMult) * (validator.bondBalanceSol ?? 0)
   const unprotectedStakeSol = validator.unprotectedStakeSol ?? 0
   const projectedProtectedStakeSol = Math.max(0, projectedActivatedStakeSol - unprotectedStakeSol)
-  const minUnprotectedReserve = (unprotectedStakeSol * cfg.minBondEpochs * revShare.expectedMaxEffBidPmpe) / 1000
-  if (riskBondSol - minUnprotectedReserve < projectedProtectedStakeSol * minBondCoef) {
-    const idealBondCoef =
-      (revShare.onchainDistributedPmpe + (cfg.idealBondEpochs + 1) * revShare.expectedMaxEffBidPmpe) / 1000
+  const minUnprotectedReserve = unprotectedStakeSol * (minBidReservePmpe / 1000)
+  if (riskBondSol - minUnprotectedReserve < projectedProtectedStakeSol * (minBondPmpe / 1000)) {
     const feeCoef = (revShare.onchainDistributedPmpe + revShare.auctionEffectiveBidPmpe) / 1000
-    const idealUnprotectedReserve = (unprotectedStakeSol * cfg.idealBondEpochs * revShare.expectedMaxEffBidPmpe) / 1000
-    // always: base >= 0, even with no max, since idealBondCoef >= minBondCoef, since idealBondEpochs >= minBondEpochs
-    // and we already ensured that (riskBondSol - minUnprotectedReserve) / minBondCoef < projectedProtectedStakeSol above
-    // also, if minBondCoef == 0, then we can never get here, in the opposite case, idealBondCoef >= minBondCoef > 0
-    const base = Math.max(0, projectedProtectedStakeSol - (riskBondSol - idealUnprotectedReserve) / idealBondCoef)
-    const coef = 1 - feeCoef / idealBondCoef
+    const idealUnprotectedReserve = unprotectedStakeSol * (idealBidReservePmpe / 1000)
+    // always: base >= 0, even with no max, since idealBondPmpe >= minBondPmpe, since idealBondEpochs >= minBondEpochs
+    // and we already ensured that (riskBondSol - minUnprotectedReserve) / minBondPmpe * 1000 < projectedProtectedStakeSol above
+    // also, if minBondPmpe == 0, then we can never get here, in the opposite case, idealBondPmpe >= minBondPmpe > 0
+    const base = Math.max(
+      0,
+      projectedProtectedStakeSol - (riskBondSol - idealUnprotectedReserve) / (idealBondPmpe / 1000),
+    )
+    const coef = 1 - feeCoef / (idealBondPmpe / 1000)
     let value = coef > 0 ? Math.min(projectedProtectedStakeSol, base / coef) : projectedProtectedStakeSol
     // always: value <= projectedProtectedStakeSol
     if (
