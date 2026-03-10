@@ -1,4 +1,4 @@
-import type { AuctionValidator, CommissionDetails } from '../types'
+import type { CommissionDetails } from '../types'
 
 export type RawScoredValidatorDto = {
   voteAccount: string
@@ -129,11 +129,6 @@ export type RawSourceData = {
   blacklist: RawBlacklistResponseDto
   rewards: RawRewardsResponseDto
   auctions: RawScoredValidatorDto[]
-  overrides?: RawOverrideDataDto
-}
-
-export type RawOverrideDataDto = {
-  validators: AuctionValidator[]
 }
 
 /** All override values are in decimal (0–1) scale, e.g. 5% = 0.05; cpmpe in SOL units */
