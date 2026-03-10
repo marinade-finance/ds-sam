@@ -223,6 +223,10 @@ export class AuctionConstraints {
     const unprotectedStakeSol = Math.min(this.unprotectedStakeCap(validator), maxUnprotectedStakeSol)
     const minUnprotectedReserve = unprotectedStakeSol * (minBidReservePmpe / 1000)
     const idealUnprotectedReserve = unprotectedStakeSol * (idealBidReservePmpe / 1000)
+    validator.minBondPmpe = minBondPmpe
+    validator.idealBondPmpe = idealBondPmpe
+    validator.minUnprotectedReserve = minUnprotectedReserve
+    validator.idealUnprotectedReserve = idealUnprotectedReserve
     const minLimit = Math.max(0, bondBalanceSol - minUnprotectedReserve) / (minBondPmpe / 1000)
     const idealLimit = Math.max(0, bondBalanceSol - idealUnprotectedReserve) / (idealBondPmpe / 1000)
     // always minLimit > idealLimit, since minBondEpochs < idealBondEpochs
