@@ -13,11 +13,12 @@ arguments:
 options:
   -c, --config       config file path (default: ../ds-sam-pipeline/auction-config.json)
   -b, --baseline     baseline mode: fetch fresh inputs and save them
+  -i, --input-overlay  dir of files to overlay on top of baseline inputs
   -h, --help         show this help
 
 modes:
   baseline (-b):     fetches fresh API data, saves to report/<tag>/inputs/
-  comparison:        uses existing inputs from report/<parent>/main/inputs/
+  comparison:        copies report/<parent>/main/inputs/ to report/<tag>/inputs/, applies overlay if given
 
 tags:
   structure is <group>/<variant>, where "main" is the baseline
@@ -32,12 +33,16 @@ examples:
   ./evaluate-auction 20260225_tvl_cap/maxcap8 -c config-8pct.json
   ./evaluate-auction 20260225_tvl_cap/unpro06 -c config-unpro06.json
 
-  # results in report/20260225_tvl_cap/{main,maxcap8,unpro06}/
+  # run variant with modified inputs (e.g. blacklist)
+  ./evaluate-auction 20260225_tvl_cap/blacklist -i ./overlays/blacklist/
+
+  # results in report/20260225_tvl_cap/{main,maxcap8,unpro06,blacklist}/
 EOF
 }
 
 config="../ds-sam-pipeline/auction-config.json"
 baseline=false
+overlay=""
 tag=""
 
 while [[ $# -gt 0 ]]; do
@@ -50,6 +55,10 @@ while [[ $# -gt 0 ]]; do
     -b|--baseline)
       baseline=true
       shift
+      ;;
+    -i|--input-overlay)
+      overlay="$2"
+      shift 2
       ;;
     -*)
       echo "unknown option: $1" >&2
@@ -83,6 +92,10 @@ output_dir="report/$tag"
 parent="${tag%/*}"
 
 if $baseline; then
+  if [[ -n "$overlay" ]]; then
+    echo "--input-overlay not allowed in baseline mode" >&2
+    exit 1
+  fi
   cache_dir="$output_dir/inputs"
   mkdir -p "$cache_dir"
   inputs_source="APIS"
@@ -92,14 +105,21 @@ else
     echo "tag must contain slash for comparison mode (e.g., parent/variant)" >&2
     exit 1
   fi
-  cache_dir="report/$parent/main/inputs"
-  inputs_source="FILES"
-  cache_flag=""
-
-  if [[ ! -d "$cache_dir" ]]; then
-    echo "baseline inputs not found at $cache_dir. run with -b first." >&2
+  baseline_inputs="report/$parent/main/inputs"
+  if [[ ! -d "$baseline_inputs" ]]; then
+    echo "baseline inputs not found at $baseline_inputs. run with -b first." >&2
     exit 1
   fi
+  if [[ -n "$overlay" && ! -d "$overlay" ]]; then
+    echo "overlay dir not found: $overlay" >&2
+    exit 1
+  fi
+  cache_dir="$output_dir/inputs"
+  mkdir -p "$cache_dir"
+  cp -r "$baseline_inputs/." "$cache_dir/"
+  [[ -n "$overlay" ]] && cp -r "$overlay/." "$cache_dir/"
+  inputs_source="FILES"
+  cache_flag=""
 fi
 
 mkdir -p "$output_dir"
