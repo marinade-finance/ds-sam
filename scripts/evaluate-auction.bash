@@ -14,6 +14,7 @@ options:
   -c, --config       config file path (default: ../ds-sam-pipeline/auction-config.json)
   -b, --baseline     baseline mode: fetch fresh inputs and save them
   -i, --input-overlay  dir of files to overlay on top of baseline inputs
+  -f, --file           copy a single file into inputs dir (repeatable)
   -h, --help         show this help
 
 modes:
@@ -35,6 +36,7 @@ examples:
 
   # run variant with modified inputs (e.g. blacklist)
   ./evaluate-auction 20260225_tvl_cap/blacklist -i ./overlays/blacklist/
+  ./evaluate-auction 20260225_tvl_cap/blacklist -f ./my-blacklist.json -f ./my-other.json
 
   # results in report/20260225_tvl_cap/{main,maxcap8,unpro06,blacklist}/
 EOF
@@ -43,6 +45,7 @@ EOF
 config="../ds-sam-pipeline/auction-config.json"
 baseline=false
 overlay=""
+overlay_files=()
 tag=""
 
 while [[ $# -gt 0 ]]; do
@@ -58,6 +61,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     -i|--input-overlay)
       overlay="$2"
+      shift 2
+      ;;
+    -f|--file)
+      overlay_files+=("$2")
       shift 2
       ;;
     -*)
@@ -92,8 +99,8 @@ output_dir="report/$tag"
 parent="${tag%/*}"
 
 if $baseline; then
-  if [[ -n "$overlay" ]]; then
-    echo "--input-overlay not allowed in baseline mode" >&2
+  if [[ -n "$overlay" || ${#overlay_files[@]} -gt 0 ]]; then
+    echo "--input-overlay and --file not allowed in baseline mode" >&2
     exit 1
   fi
   cache_dir="$output_dir/inputs"
@@ -118,6 +125,10 @@ else
   mkdir -p "$cache_dir"
   cp -r "$baseline_inputs/." "$cache_dir/"
   [[ -n "$overlay" ]] && cp -r "$overlay/." "$cache_dir/"
+  for f in "${overlay_files[@]}"; do
+    [[ -f "$f" ]] || { echo "overlay file not found: $f" >&2; exit 1; }
+    cp "$f" "$cache_dir/"
+  done
   inputs_source="FILES"
   cache_flag=""
 fi
