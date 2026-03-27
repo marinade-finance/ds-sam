@@ -164,6 +164,7 @@ export const calcBondRiskFee = (cfg: BondRiskFeeConfig, validator: AuctionValida
   const unprotectedStakeSol = validator.unprotectedStakeSol ?? 0
   const projectedExposedStakeSol = Math.max(0, projectedActivatedStakeSol - unprotectedStakeSol)
   const minUnprotectedReserve = validator.minUnprotectedReserve ?? 0
+  // bond earmarked for unprotected stake; remainder covers exposed stake
   if (riskBondSol - minUnprotectedReserve < projectedExposedStakeSol * (minBondPmpe / 1000)) {
     const feeCoef = (revShare.onchainDistributedPmpe + revShare.auctionEffectiveBidPmpe) / 1000
     const idealUnprotectedReserve = validator.idealUnprotectedReserve ?? 0
