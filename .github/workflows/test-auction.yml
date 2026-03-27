@@ -24,20 +24,20 @@ env:
 
 jobs:
   run-auction-cli:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
 
     steps:
       - name: 🏃‍♂️ Checkout project
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: 👩‍🔧 Install pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
         with:
           version: 10
 
       - name: 👨‍🔧 Install Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:
           node-version: 20
           cache: 'pnpm'
@@ -51,7 +51,7 @@ jobs:
 
       - name: 💾 Cache auction data
         id: cache-auctions
-        uses: actions/cache@v4
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5
         with:
           path: data-repo/auctions
           key: auction-data-${{ steps.data-hash.outputs.hash }}
@@ -93,7 +93,7 @@ jobs:
           ./scripts/run-auction-test.sh $ARGS --verbose
 
       - name: 📁📎 Upload results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         if: always()
         with:
           name: auction-results-${{ github.run_id }}
@@ -102,7 +102,7 @@ jobs:
           retention-days: 15
 
       - name: 📁✏️ Upload logs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         if: always()
         with:
           name: auction-logs-${{ github.run_id }}
@@ -111,7 +111,7 @@ jobs:
           retention-days: 3
 
       - name: 📁🔬 Upload diffs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         if: always()
         with:
           name: auction-diffs-${{ github.run_id }}
