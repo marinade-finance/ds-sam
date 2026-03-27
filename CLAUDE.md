@@ -1,5 +1,7 @@
 # CLAUDE.md
 
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 ds-sam: TypeScript monorepo for Marinade's directed stake auction.
 
 ## Layout
@@ -48,6 +50,12 @@ pnpm run cli -- auction -i FILES --cache-dir-path ./cache -c config.json -o ./ou
 - SDK: `DEFAULT_CONFIG` in config.ts
 - InputsSource: `APIS` (live) vs `FILES` (cached)
 - Production: https://github.com/marinade-finance/ds-sam-pipeline/blob/main/auction-config.json
+
+## Architecture
+
+The auction algorithm (`Auction.distributeSamStake()`) iterates PMPE groups from highest to lowest. Within each group, it distributes stake evenly across eligible validators, respecting constraints (stake concentration caps, bond requirements). `AuctionConstraints` tracks per-validator and per-entity caps. `calculations.ts` handles revenue share math (effective PMPE, bond risk fees, bid-too-low penalties).
+
+Data flow: `DsSamSDK.run()` → fetch/aggregate data → build `AuctionData` → `Auction.distributeSamStake()` → `AuctionResult` with winning PMPE and per-validator stake targets.
 
 ## Dev Notes
 
