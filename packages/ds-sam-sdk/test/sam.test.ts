@@ -3,9 +3,8 @@ import assert from 'assert'
 import { DsSamSDK } from '../src'
 import { Auction } from '../src/auction'
 import { DEFAULT_CONFIG } from '../src/config'
-import { AuctionConstraints } from '../src/constraints'
 import { Debug } from '../src/debug'
-import { ineligibleValidatorAggDefaults } from '../src/utils'
+import { buildRevShare, makeConstraints as makeUnitConstraints, makeUnitValidator } from './helpers/auction-test-utils'
 import {
   blockRewardsStaticDataProviderBuilder,
   defaultStaticDataProviderBuilder,
@@ -13,79 +12,7 @@ import {
 import { findValidatorInResult, prettyPrintAuctionResult, prettyPrintStakeUnstakePriorities } from './helpers/utils'
 import { ValidatorMockBuilder, generateIdentities, generateVoteAccounts } from './helpers/validator-mock-builder'
 
-import type { AuctionConstraintsConfig, AuctionData, AuctionValidator, RevShare } from '../src/types'
-
-const BASE_CONSTRAINTS: AuctionConstraintsConfig = {
-  totalCountryStakeCapSol: Infinity,
-  totalAsoStakeCapSol: Infinity,
-  marinadeCountryStakeCapSol: Infinity,
-  marinadeAsoStakeCapSol: Infinity,
-  marinadeValidatorStakeCapSol: Infinity,
-  minBondBalanceSol: 0,
-  minMaxStakeWanted: 0,
-  minBondEpochs: 0,
-  idealBondEpochs: 0,
-  unprotectedValidatorStakeCapSol: 0,
-  minUnprotectedStakeToDelegateSol: 0,
-  unprotectedFoundationStakeDec: 1,
-  unprotectedDelegatedStakeDec: 1,
-  bondObligationSafetyMult: 1,
-}
-
-function makeUnitConstraints(overrides: Partial<AuctionConstraintsConfig> = {}) {
-  return new AuctionConstraints({ ...BASE_CONSTRAINTS, ...overrides }, new Debug(new Set()))
-}
-
-function buildRevShare(overrides: Partial<RevShare> = {}): RevShare {
-  return {
-    totalPmpe: 0,
-    inflationPmpe: 0,
-    mevPmpe: 0,
-    bidPmpe: 0,
-    blockPmpe: 0,
-    onchainDistributedPmpe: 0,
-    bondObligationPmpe: 0,
-    auctionEffectiveStaticBidPmpe: 0,
-    auctionEffectiveBidPmpe: 0,
-    bidTooLowPenaltyPmpe: 0,
-    effParticipatingBidPmpe: 0,
-    expectedMaxEffBidPmpe: 0,
-    blacklistPenaltyPmpe: 0,
-    ...overrides,
-  }
-}
-
-function makeUnitValidator(overrides: Partial<AuctionValidator>): AuctionValidator {
-  const base = {
-    ...ineligibleValidatorAggDefaults(),
-    voteAccount: 'v',
-    country: 'C',
-    aso: 'A',
-    totalActivatedStakeSol: 0,
-    auctionStake: {
-      externalActivatedSol: 0,
-      marinadeSamTargetSol: 0,
-    },
-    marinadeActivatedStakeSol: 0,
-    bondBalanceSol: 0,
-    lastBondBalanceSol: null,
-    revShare: buildRevShare(),
-    values: {
-      paidUndelegationSol: 0,
-      bondRiskFeeSol: 0,
-    },
-    samEligible: true,
-    samBlocked: false,
-    stakePriority: NaN,
-    unstakePriority: NaN,
-    maxBondDelegation: NaN,
-    lastMarinadeActivatedStakeSol: null,
-    selfStakeSol: 0,
-    foundationStakeSol: 0,
-  } as AuctionValidator
-
-  return { ...base, ...overrides }
-}
+import type { AuctionData } from '../src/types'
 
 describe('sam', () => {
   describe('distribution', () => {

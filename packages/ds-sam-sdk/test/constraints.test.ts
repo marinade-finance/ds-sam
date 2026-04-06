@@ -13,116 +13,16 @@
  */
 import assert from 'node:assert'
 
-import { AuctionConstraints } from '../src/constraints'
-import { Debug } from '../src/debug'
 import { AuctionConstraintType } from '../src/types'
-import { ineligibleValidatorAggDefaults, minCapFromConstraint } from '../src/utils'
+import { minCapFromConstraint } from '../src/utils'
+import {
+  buildRevShare,
+  makeAuction,
+  makeConstraints,
+  makeUnitValidator as makeValidator,
+} from './helpers/auction-test-utils'
 
-import type { AuctionConstraint, AuctionConstraintsConfig, AuctionValidator, AuctionData, RevShare } from '../src/types'
-
-const BASE_CONSTRAINTS: AuctionConstraintsConfig = {
-  totalCountryStakeCapSol: Infinity,
-  totalAsoStakeCapSol: Infinity,
-  marinadeCountryStakeCapSol: Infinity,
-  marinadeAsoStakeCapSol: Infinity,
-  marinadeValidatorStakeCapSol: Infinity,
-  minBondBalanceSol: 0,
-  minMaxStakeWanted: 0,
-  minBondEpochs: 0,
-  idealBondEpochs: 0,
-  unprotectedValidatorStakeCapSol: 0,
-  minUnprotectedStakeToDelegateSol: 0,
-  unprotectedFoundationStakeDec: 1,
-  unprotectedDelegatedStakeDec: 1,
-  bondObligationSafetyMult: 1,
-}
-
-function makeConstraints(overrides: Partial<AuctionConstraintsConfig> = {}) {
-  return new AuctionConstraints({ ...BASE_CONSTRAINTS, ...overrides }, new Debug(new Set()))
-}
-
-function buildRevShare(overrides: Partial<RevShare> = {}): RevShare {
-  return {
-    totalPmpe: 0,
-    inflationPmpe: 0,
-    mevPmpe: 0,
-    bidPmpe: 0,
-    blockPmpe: 0,
-    onchainDistributedPmpe: 0,
-    bondObligationPmpe: 0,
-    auctionEffectiveStaticBidPmpe: 0,
-    auctionEffectiveBidPmpe: 0,
-    bidTooLowPenaltyPmpe: 0,
-    effParticipatingBidPmpe: 0,
-    expectedMaxEffBidPmpe: 0,
-    blacklistPenaltyPmpe: 0,
-    ...overrides,
-  }
-}
-
-/**
- * Minimal stub factory for AuctionValidator, re-using your ineligibleValidatorAggDefaults
- * and then merging in only the fields the cap functions actually read.
- */
-function makeValidator(overrides: Partial<AuctionValidator>): AuctionValidator {
-  const base = {
-    ...ineligibleValidatorAggDefaults(),
-    voteAccount: 'v',
-    country: 'C',
-    aso: 'A',
-    totalActivatedStakeSol: 0,
-    auctionStake: {
-      externalActivatedSol: 0,
-      marinadeSamTargetSol: 0,
-    },
-    marinadeActivatedStakeSol: 0,
-    bondBalanceSol: 0,
-    lastBondBalanceSol: null,
-    revShare: {
-      inflationPmpe: 0,
-      mevPmpe: 0,
-      bidPmpe: 0,
-      totalPmpe: 0,
-      auctionEffectiveBidPmpe: 0,
-      effParticipatingBidPmpe: 0,
-      expectedMaxEffBidPmpe: 0,
-      bidTooLowPenaltyPmpe: 0,
-    },
-    values: {
-      paidUndelegationSol: 0,
-      bondRiskFeeSol: 0,
-    },
-    samEligible: true,
-    samBlocked: false,
-    stakePriority: NaN,
-    unstakePriority: NaN,
-    maxBondDelegation: NaN,
-    lastMarinadeActivatedStakeSol: null,
-    selfStakeSol: 0,
-    foundationStakeSol: 0,
-  } as AuctionValidator
-
-  return { ...base, ...overrides }
-}
-
-function makeAuction(overrides: Partial<AuctionData> = {}): AuctionData {
-  const base: AuctionData = {
-    epoch: 0,
-    validators: [],
-    stakeAmounts: {
-      networkTotalSol: 0,
-      marinadeSamTvlSol: 0,
-      marinadeRemainingSamSol: 0,
-    },
-    rewards: {
-      inflationPmpe: 0,
-      mevPmpe: 0,
-      blockPmpe: 0,
-    },
-    blacklist: new Set<string>(),
-  }
-  return { ...base, ...overrides }
-}
+import type { AuctionConstraint } from '../src/types'
 
 describe('clipBondStakeCap()', () => {
   const minBondBalanceSol = 1000

@@ -73,93 +73,13 @@ describe('Auction.updatePaidUndelegation (simplified)', () => {
     expect(paidUndelegationSol).toBeCloseTo(3)
   })
 
-  it('treats empty auction history as zero last stake (no undelegation)', () => {
-    const aggDefaults = ineligibleValidatorAggDefaults()
-    const data: AuctionData = {
-      epoch: NaN,
-      validators: [
-        {
-          voteAccount: 'v1',
-          auctions: [],
-          marinadeActivatedStakeSol: 25,
-          values: {
-            paidUndelegationSol: 0,
-            ...aggDefaults.bidTooLowPenalty,
-          } as unknown as AuctionValidator['values'],
-          ...aggDefaults,
-        },
-      ] as unknown as AuctionValidator[],
-      stakeAmounts: {
-        networkTotalSol: NaN,
-        marinadeSamTvlSol: NaN,
-        marinadeRemainingSamSol: NaN,
-      },
-      rewards: { inflationPmpe: NaN, mevPmpe: NaN, blockPmpe: NaN },
-      blacklist: new Set<string>(),
-    }
-    const auction = new Auction(
-      data,
-      {} as unknown as AuctionConstraints,
-      {} as unknown as DsSamConfig,
-      new Debug(new Set()),
-    )
-    auction.updatePaidUndelegation()
-    const v = data.validators[0]
-    assert(v)
-    expect(v.values.paidUndelegationSol).toBeCloseTo(0)
+  // lastMarinadeActivatedStakeSol=0 is falsy, so delta=0, no undelegation
+  it('treats zero last stake as no undelegation', () => {
+    expect(run(0, 25, 0)).toBeCloseTo(0)
   })
 
+  // delta = 100 - 50 = 50 > 10% of 0 -> reset to 0
   it('paidUndelegation=0 with positive delta resets to 0', () => {
-    const aggDefaults = ineligibleValidatorAggDefaults()
-    const data: AuctionData = {
-      epoch: NaN,
-      validators: [
-        {
-          voteAccount: 'v1',
-          marinadeActivatedStakeSol: 100,
-          lastMarinadeActivatedStakeSol: 50,
-          values: {
-            paidUndelegationSol: 0,
-            bondRiskFeeSol: 0,
-            bondBalanceSol: null,
-            marinadeActivatedStakeSol: 100,
-            samBlacklisted: false,
-            commissions: {
-              inflationCommissionDec: 0,
-              mevCommissionDec: 0,
-              blockRewardsCommissionDec: 0,
-              inflationCommissionOnchainDec: 0,
-              inflationCommissionInBondDec: null,
-              mevCommissionOnchainDec: null,
-              mevCommissionInBondDec: null,
-              blockRewardsCommissionInBondDec: null,
-            },
-          },
-          ...aggDefaults,
-        },
-      ] as unknown as AuctionValidator[],
-      stakeAmounts: {
-        networkTotalSol: NaN,
-        marinadeSamTvlSol: NaN,
-        marinadeRemainingSamSol: NaN,
-      },
-      rewards: {
-        inflationPmpe: NaN,
-        mevPmpe: NaN,
-        blockPmpe: NaN,
-      },
-      blacklist: new Set<string>(),
-    }
-    const auction = new Auction(
-      data,
-      {} as unknown as AuctionConstraints,
-      {} as unknown as DsSamConfig,
-      new Debug(new Set()),
-    )
-    // delta = 100 - 50 = 50 > 10% of 0 -> reset
-    auction.updatePaidUndelegation()
-    const v = data.validators[0]
-    assert(v)
-    expect(v.values.paidUndelegationSol).toBe(0)
+    expect(run(50, 100, 0)).toBe(0)
   })
 })
