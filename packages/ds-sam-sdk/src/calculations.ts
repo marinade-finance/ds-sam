@@ -131,24 +131,18 @@ export type BondRiskFeeResult = {
 }
 
 /**
+ * Checks if a validator's bond covers its exposed stake
+ * (riskBondSol minus unprotected reserve vs projected exposed
+ * stake times minBondPmpe). If underfunded, computes forced
+ * undelegation and fee so post-fee bond covers remaining stake:
  *
- * Calculates whether a validator's bond is sufficient to safely cover its active stake.
- * and if not:
+ *   (riskBondSol - reserve - fee) / idealBondCoef
+ *     = projectedExposedStakeSol - forcedUndelegation
  *
- *  Determines how much stake must be force-undelegated this epoch and,
- *  a fee so that the resulting stake after undelegation is covered by the
- *  remaining bond after the fee is charged on top of it.
- *
- *  This means that the forcedUndelegation and bondRiskFeeSol satisfy
- *
- *   (bondBalanceSol - bondRiskFeeSol) / idealBondCoef
- *     = projectedActivatedStakeSol - forcedUndelegation
- *
- * where
- *
- *   idealBondCoef = (totalPmpe + idealBondEpochs * effParticipatingBidPmpe) / 1000
- *   bondRiskFeeSol    = forcedUndelegation * effPmpe / 1000
- *
+ * riskBondSol = weighted blend of claimable + total bond
+ *   (pendingWithdrawalBondMult adjusts for pending withdrawals)
+ * idealBondCoef = idealBondPmpe / 1000
+ * fee = forcedUndelegation * effPmpe / 1000
  */
 export const calcBondRiskFee = (cfg: BondRiskFeeConfig, validator: AuctionValidator): BondRiskFeeResult | null => {
   const { revShare } = validator
