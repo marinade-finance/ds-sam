@@ -131,8 +131,7 @@ export type BondRiskFeeResult = {
 
 /**
  * Checks if a validator's claimable bond covers its exposed
- * stake (bond minus unprotected reserve vs projected exposed
- * stake times minBondPmpe). If underfunded, computes forced
+ * stake. If underfunded, computes forced
  * undelegation and fee so post-fee bond covers remaining stake:
  *
  *   (claimableBond - reserve - fee) / idealBondCoef
