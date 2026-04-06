@@ -1,12 +1,91 @@
 import assert from 'assert'
 
 import { DsSamSDK } from '../src'
+import { Auction } from '../src/auction'
+import { DEFAULT_CONFIG } from '../src/config'
+import { AuctionConstraints } from '../src/constraints'
+import { Debug } from '../src/debug'
+import { ineligibleValidatorAggDefaults } from '../src/utils'
 import {
   blockRewardsStaticDataProviderBuilder,
   defaultStaticDataProviderBuilder,
 } from './helpers/static-data-provider-builder'
-import { prettyPrintAuctionResult, prettyPrintStakeUnstakePriorities } from './helpers/utils'
+import { findValidatorInResult, prettyPrintAuctionResult, prettyPrintStakeUnstakePriorities } from './helpers/utils'
 import { ValidatorMockBuilder, generateIdentities, generateVoteAccounts } from './helpers/validator-mock-builder'
+
+import type { AuctionConstraintsConfig, AuctionData, AuctionValidator, RevShare } from '../src/types'
+
+const BASE_CONSTRAINTS: AuctionConstraintsConfig = {
+  totalCountryStakeCapSol: Infinity,
+  totalAsoStakeCapSol: Infinity,
+  marinadeCountryStakeCapSol: Infinity,
+  marinadeAsoStakeCapSol: Infinity,
+  marinadeValidatorStakeCapSol: Infinity,
+  minBondBalanceSol: 0,
+  minMaxStakeWanted: 0,
+  minBondEpochs: 0,
+  idealBondEpochs: 0,
+  unprotectedValidatorStakeCapSol: 0,
+  minUnprotectedStakeToDelegateSol: 0,
+  unprotectedFoundationStakeDec: 1,
+  unprotectedDelegatedStakeDec: 1,
+  bondObligationSafetyMult: 1,
+}
+
+function makeUnitConstraints(overrides: Partial<AuctionConstraintsConfig> = {}) {
+  return new AuctionConstraints({ ...BASE_CONSTRAINTS, ...overrides }, new Debug(new Set()))
+}
+
+function buildRevShare(overrides: Partial<RevShare> = {}): RevShare {
+  return {
+    totalPmpe: 0,
+    inflationPmpe: 0,
+    mevPmpe: 0,
+    bidPmpe: 0,
+    blockPmpe: 0,
+    onchainDistributedPmpe: 0,
+    bondObligationPmpe: 0,
+    auctionEffectiveStaticBidPmpe: 0,
+    auctionEffectiveBidPmpe: 0,
+    bidTooLowPenaltyPmpe: 0,
+    effParticipatingBidPmpe: 0,
+    expectedMaxEffBidPmpe: 0,
+    blacklistPenaltyPmpe: 0,
+    ...overrides,
+  }
+}
+
+function makeUnitValidator(overrides: Partial<AuctionValidator>): AuctionValidator {
+  const base = {
+    ...ineligibleValidatorAggDefaults(),
+    voteAccount: 'v',
+    country: 'C',
+    aso: 'A',
+    totalActivatedStakeSol: 0,
+    auctionStake: {
+      externalActivatedSol: 0,
+      marinadeSamTargetSol: 0,
+    },
+    marinadeActivatedStakeSol: 0,
+    bondBalanceSol: 0,
+    lastBondBalanceSol: null,
+    revShare: buildRevShare(),
+    values: {
+      paidUndelegationSol: 0,
+      bondRiskFeeSol: 0,
+    },
+    samEligible: true,
+    samBlocked: false,
+    stakePriority: NaN,
+    unstakePriority: NaN,
+    maxBondDelegation: NaN,
+    lastMarinadeActivatedStakeSol: null,
+    selfStakeSol: 0,
+    foundationStakeSol: 0,
+  } as AuctionValidator
+
+  return { ...base, ...overrides }
+}
 
 describe('sam', () => {
   describe('distribution', () => {
@@ -153,73 +232,6 @@ describe('sam', () => {
     })
 
     it('run() assigns effective participating bids', async () => {
-      const voteAccounts = generateVoteAccounts()
-      const identities = generateIdentities()
-      const validators = [
-        ...Array.from({ length: 60 }, (_, index) =>
-          new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
-            .withGoodPerformance()
-            .withExternalStake(1_000_000)
-            .withLiquidStake(10_000)
-            .withInflationCommission(index)
-            .withBond({
-              stakeWanted: 1_000_000,
-              cpmpe: index + 1,
-              balance: 1_000,
-            }),
-        ),
-      ]
-      const dsSam = new DsSamSDK({}, defaultStaticDataProviderBuilder(validators))
-      const result = await dsSam.run()
-
-      result.auctionData.validators.forEach(({ revShare }) =>
-        expect(isFinite(revShare.effParticipatingBidPmpe)).toBe(true),
-      )
-
-      result.auctionData.validators.forEach(({ revShare }) =>
-        expect(isFinite(revShare.auctionEffectiveBidPmpe)).toBe(true),
-      )
-
-      result.auctionData.validators
-        .filter(validator => validator.revShare.effParticipatingBidPmpe > 0)
-        .forEach(({ revShare }) => {
-          expect(
-            Math.abs(
-              revShare.mevPmpe + revShare.inflationPmpe + revShare.effParticipatingBidPmpe - result.winningTotalPmpe,
-            ),
-          ).toBeLessThan(1e-12)
-          expect(
-            Math.abs(revShare.onchainDistributedPmpe + revShare.effParticipatingBidPmpe - result.winningTotalPmpe),
-          ).toBeLessThan(1e-12)
-        })
-
-      result.auctionData.validators
-        .filter(validator => validator.revShare.totalPmpe < result.winningTotalPmpe)
-        .forEach(({ revShare }) => {
-          expect(revShare.auctionEffectiveBidPmpe).toStrictEqual(revShare.bidPmpe)
-        })
-
-      result.auctionData.validators
-        .filter(validator => validator.revShare.totalPmpe < result.winningTotalPmpe)
-        .forEach(({ revShare }) => {
-          expect(revShare.auctionEffectiveBidPmpe).toStrictEqual(revShare.bidPmpe)
-        })
-
-      result.auctionData.validators
-        .filter(validator => validator.revShare.totalPmpe >= result.winningTotalPmpe)
-        .forEach(({ revShare }) => {
-          expect(
-            Math.abs(
-              revShare.mevPmpe + revShare.inflationPmpe + revShare.auctionEffectiveBidPmpe - result.winningTotalPmpe,
-            ),
-          ).toBeLessThan(1e-12)
-          expect(
-            Math.abs(revShare.onchainDistributedPmpe + revShare.auctionEffectiveBidPmpe - result.winningTotalPmpe),
-          ).toBeLessThan(1e-12)
-        })
-    })
-
-    it('run() (final only) assigns effective participating bids', async () => {
       const voteAccounts = generateVoteAccounts()
       const identities = generateIdentities()
       const validators = [
@@ -501,6 +513,111 @@ describe('sam', () => {
       expect(goodValidator1.revShare.totalPmpe).toEqual(result.winningTotalPmpe)
       expect(backStopValidator.revShare.totalPmpe).toBeGreaterThan(result.winningTotalPmpe)
       expect(goodValidator2.revShare.totalPmpe).toBeGreaterThan(result.winningTotalPmpe)
+    })
+  })
+
+  describe('auction unit', () => {
+    it('samBlocked=true filtered from distribution', () => {
+      const debug = new Debug(new Set())
+      const v1 = makeUnitValidator({
+        voteAccount: 'v1',
+        samEligible: true,
+        samBlocked: true,
+        revShare: buildRevShare({ totalPmpe: 100 }),
+      })
+      const v2 = makeUnitValidator({
+        voteAccount: 'v2',
+        samEligible: true,
+        samBlocked: false,
+        revShare: buildRevShare({ totalPmpe: 50 }),
+      })
+      const data: AuctionData = {
+        epoch: 1,
+        validators: [v1, v2],
+        rewards: {
+          inflationPmpe: 10,
+          mevPmpe: 5,
+          blockPmpe: 0,
+        },
+        stakeAmounts: {
+          networkTotalSol: 1e6,
+          marinadeSamTvlSol: 1000,
+          marinadeRemainingSamSol: 1000,
+        },
+        blacklist: new Set(),
+      }
+      const constraints = makeUnitConstraints()
+      const auction = new Auction(data, constraints, DEFAULT_CONFIG, debug)
+      const winningPmpe = auction.distributeSamStake()
+      expect(v1.auctionStake.marinadeSamTargetSol).toBe(0)
+      expect(v2.auctionStake.marinadeSamTargetSol).toBeGreaterThan(0)
+      expect(winningPmpe).toBe(50)
+    })
+
+    it('setMaxBondDelegations: totalPmpe=0 yields 0', () => {
+      const debug = new Debug(new Set())
+      const v = makeUnitValidator({
+        voteAccount: 'v1',
+        bondBalanceSol: 1000,
+        revShare: buildRevShare({ totalPmpe: 0 }),
+      })
+      const data: AuctionData = {
+        epoch: 1,
+        validators: [v],
+        rewards: {
+          inflationPmpe: 10,
+          mevPmpe: 5,
+          blockPmpe: 0,
+        },
+        stakeAmounts: {
+          networkTotalSol: 1e6,
+          marinadeSamTvlSol: 1000,
+          marinadeRemainingSamSol: 1000,
+        },
+        blacklist: new Set(),
+      }
+      const constraints = makeUnitConstraints()
+      const auction = new Auction(data, constraints, DEFAULT_CONFIG, debug)
+      auction.setMaxBondDelegations()
+      expect(v.maxBondDelegation).toBe(0)
+    })
+
+    it('distributeBackstopStake() gives stake to backstop', async () => {
+      const votes = generateVoteAccounts('backstop')
+      const ids = generateIdentities()
+      const samVals = Array.from({ length: 2 }, () =>
+        new ValidatorMockBuilder(votes.next().value, ids.next().value)
+          .withGoodPerformance()
+          .withLiquidStake(100_000)
+          .withNativeStake(50_000)
+          .withBond({
+            stakeWanted: 50_000,
+            cpmpe: 0,
+            balance: 100,
+          }),
+      )
+      const backstopVal = new ValidatorMockBuilder(votes.next().value, ids.next().value)
+        .withInflationCommission(0)
+        .withMevCommission(0)
+        .withGoodPerformance()
+        .withLiquidStake(100_000)
+        .withNativeStake(50_000)
+
+      const dsSam = new DsSamSDK(
+        {
+          enableZeroCommissionBackstop: true,
+          maxUnprotectedStakePerValidatorDec: 1,
+          unprotectedDelegatedStakeDec: 1,
+          minUnprotectedStakeToDelegateSol: 0,
+        },
+        defaultStaticDataProviderBuilder([...samVals, backstopVal]),
+      )
+      const result = await dsSam.run()
+
+      const bv = findValidatorInResult(backstopVal.voteAccount, result)
+      assert(bv)
+      expect(bv.backstopEligible).toBe(true)
+      expect(bv.auctionStake.marinadeSamTargetSol).toBeGreaterThan(0)
     })
   })
 })

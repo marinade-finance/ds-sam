@@ -92,4 +92,51 @@ describe('Auction.updatePaidUndelegation (simplified)', () => {
 
     expect(data.validators[0]!.values.paidUndelegationSol).toBeCloseTo(0)
   })
+
+  it('paidUndelegation=0 with positive delta resets to 0', () => {
+    const aggDefaults = ineligibleValidatorAggDefaults()
+    const data: AuctionData = {
+      epoch: NaN,
+      validators: [
+        {
+          voteAccount: 'v1',
+          marinadeActivatedStakeSol: 100,
+          lastMarinadeActivatedStakeSol: 50,
+          values: {
+            paidUndelegationSol: 0,
+            bondRiskFeeSol: 0,
+            bondBalanceSol: null,
+            marinadeActivatedStakeSol: 100,
+            samBlacklisted: false,
+            commissions: {
+              inflationCommissionDec: 0,
+              mevCommissionDec: 0,
+              blockRewardsCommissionDec: 0,
+              inflationCommissionOnchainDec: 0,
+              inflationCommissionInBondDec: null,
+              mevCommissionOnchainDec: null,
+              mevCommissionInBondDec: null,
+              blockRewardsCommissionInBondDec: null,
+            },
+          },
+          ...aggDefaults,
+        },
+      ] as any[],
+      stakeAmounts: {
+        networkTotalSol: NaN,
+        marinadeSamTvlSol: NaN,
+        marinadeRemainingSamSol: NaN,
+      },
+      rewards: {
+        inflationPmpe: NaN,
+        mevPmpe: NaN,
+        blockPmpe: NaN,
+      },
+      blacklist: new Set<string>(),
+    }
+    const auction = new Auction(data, {} as any, {} as any, new Debug(new Set()))
+    // delta = 100 - 50 = 50 > 10% of 0 -> reset
+    auction.updatePaidUndelegation()
+    expect(data.validators[0]!.values.paidUndelegationSol).toBe(0)
+  })
 })
