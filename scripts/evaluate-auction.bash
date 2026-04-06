@@ -42,6 +42,17 @@ examples:
 EOF
 }
 
+_apply_overlay() {
+  local src="$1" dst="$2"
+  mkdir -p "$dst"
+  cp -r "$src/." "$dst/"
+  [[ -n "$overlay" ]] && cp -r "$overlay/." "$dst/"
+  for f in "${overlay_files[@]}"; do
+    [[ -f "$f" ]] || { echo "overlay file not found: $f" >&2; exit 1; }
+    cp "$f" "$dst/"
+  done
+}
+
 config="../ds-sam-pipeline/auction-config.json"
 baseline=false
 overlay=""
@@ -123,13 +134,7 @@ else
   fi
   if [[ -n "$overlay" || ${#overlay_files[@]} -gt 0 ]]; then
     cache_dir="$output_dir/inputs"
-    mkdir -p "$cache_dir"
-    cp -r "$baseline_inputs/." "$cache_dir/"
-    [[ -n "$overlay" ]] && cp -r "$overlay/." "$cache_dir/"
-    for f in "${overlay_files[@]}"; do
-      [[ -f "$f" ]] || { echo "overlay file not found: $f" >&2; exit 1; }
-      cp "$f" "$cache_dir/"
-    done
+    _apply_overlay "$baseline_inputs" "$cache_dir"
   else
     cache_dir="$baseline_inputs"
   fi
