@@ -294,7 +294,6 @@ describe('edge cases: division-by-zero and boundaries', () => {
         idealBondEpochs: 0,
         minBondBalanceSol: 0,
         bondRiskFeeMult: 1,
-        pendingWithdrawalBondMult: 1,
       },
       v,
     )
@@ -347,7 +346,6 @@ describe('edge cases: division-by-zero and boundaries', () => {
         idealBondEpochs: 1,
         minBondBalanceSol: 0,
         bondRiskFeeMult: 1,
-        pendingWithdrawalBondMult: 1,
       },
       v,
     )
@@ -355,82 +353,6 @@ describe('edge cases: division-by-zero and boundaries', () => {
     // coef = 1 - 10/1000 / (10/1000) = 0 => else branch
     expect(result.bondForcedUndelegation.coef).toBe(0)
     expect(result.bondForcedUndelegation.value).toBe(500)
-  })
-
-  it('calcBondRiskFee: riskBondSol < minUnprotectedReserve', () => {
-    // pending withdrawals reduce riskBondSol below reserve,
-    // making riskBondSol - minUnprotectedReserve negative,
-    // which always triggers fee path
-    const v = makeValidator({
-      marinadeActivatedStakeSol: 1000,
-      bondBalanceSol: 100,
-      claimableBondBalanceSol: 10,
-      unprotectedStakeSol: 500,
-      minBondPmpe: 10,
-      idealBondPmpe: 20,
-      minUnprotectedReserve: 50,
-      idealUnprotectedReserve: 100,
-      revShare: buildRevShare({
-        onchainDistributedPmpe: 5,
-        auctionEffectiveBidPmpe: 5,
-        expectedMaxEffBidPmpe: 5,
-      }),
-      values: {
-        bondBalanceSol: 100,
-        marinadeActivatedStakeSol: 1000,
-        bondRiskFeeSol: 0,
-        paidUndelegationSol: 0,
-        samBlacklisted: false,
-        commissions: {
-          inflationCommissionDec: 0.05,
-          mevCommissionDec: 0.08,
-          blockRewardsCommissionDec: 0,
-          inflationCommissionOnchainDec: 0.05,
-          inflationCommissionInBondDec: null,
-          mevCommissionOnchainDec: 0.08,
-          mevCommissionInBondDec: null,
-          blockRewardsCommissionInBondDec: null,
-        },
-      },
-    })
-    // pendingWithdrawalBondMult=0.5 =>
-    // riskBondSol = 0.5*10 + 0.5*100 = 55, reserve=50
-    // riskBondSol - reserve = 5, exposed = 500
-    // 5 < 500*(10/1000)=5 is false (equal), no fee
-    const noFee = calcBondRiskFee(
-      {
-        minBondEpochs: 1,
-        idealBondEpochs: 2,
-        minBondBalanceSol: 0,
-        bondRiskFeeMult: 1,
-        pendingWithdrawalBondMult: 0.5,
-      },
-      v,
-    )
-    expect(noFee).toBeNull()
-
-    // pendingWithdrawalBondMult=0.1 =>
-    // riskBondSol = 0.1*10 + 0.9*100 = 91, reserve=50
-    // but with claimable=1 instead:
-    const v2 = makeValidator({
-      ...v,
-      claimableBondBalanceSol: 1,
-      bondBalanceSol: 20,
-    })
-    // riskBondSol = 0.1*1 + 0.9*20 = 18.1, reserve=50
-    // 18.1 - 50 = -31.9 < 0 < any positive => always fee
-    const fee = calcBondRiskFee(
-      {
-        minBondEpochs: 1,
-        idealBondEpochs: 2,
-        minBondBalanceSol: 0,
-        bondRiskFeeMult: 1,
-        pendingWithdrawalBondMult: 0.1,
-      },
-      v2,
-    )
-    assert(fee)
-    expect(fee.bondRiskFeeSol).toBeGreaterThan(0)
   })
 
   it('setStakeUnstakePriorities: samBlocked=true filtered', () => {

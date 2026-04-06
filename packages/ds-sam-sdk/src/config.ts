@@ -83,11 +83,6 @@ export type DsSamConfig = {
   // If set to zero, bondRiskFeeSol is effectivelly disabled
   bondRiskFeeMult: number
 
-  // The amount of bond-to-be withdrawn still counted as available
-  // for the purposes of bondRiskFeeSol
-  // If set to one, exitFee is not charged
-  pendingWithdrawalBondMult: number
-
   // The minimal bound for delegated stake a validator can set through maxStakeWanted
   // If null, maxStakeWanted does not limit delegated stake
   minMaxStakeWanted: number | null
@@ -160,7 +155,6 @@ export const DEFAULT_CONFIG: DsSamConfig = {
   minBondEpochs: 1,
   idealBondEpochs: 1,
   bondRiskFeeMult: 0,
-  pendingWithdrawalBondMult: 1,
   minMaxStakeWanted: null,
   expectedFeePmpe: 0,
   expectedMaxWinningBidRatio: null,

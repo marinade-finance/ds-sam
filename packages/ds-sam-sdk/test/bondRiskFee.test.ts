@@ -32,7 +32,6 @@ const baseConfig: BondRiskFeeConfig = {
   idealBondEpochs: 2,
   minBondBalanceSol: 10,
   bondRiskFeeMult: 0.1,
-  pendingWithdrawalBondMult: 0,
 }
 
 function makeValidator(

@@ -116,7 +116,6 @@ export type BondRiskFeeConfig = {
   idealBondEpochs: number
   minBondBalanceSol: number
   bondRiskFeeMult: number
-  pendingWithdrawalBondMult: number
 }
 
 export type BondRiskFeeResult = {
@@ -131,16 +130,14 @@ export type BondRiskFeeResult = {
 }
 
 /**
- * Checks if a validator's bond covers its exposed stake
- * (riskBondSol minus unprotected reserve vs projected exposed
+ * Checks if a validator's claimable bond covers its exposed
+ * stake (bond minus unprotected reserve vs projected exposed
  * stake times minBondPmpe). If underfunded, computes forced
  * undelegation and fee so post-fee bond covers remaining stake:
  *
- *   (riskBondSol - reserve - fee) / idealBondCoef
+ *   (claimableBond - reserve - fee) / idealBondCoef
  *     = projectedExposedStakeSol - forcedUndelegation
  *
- * riskBondSol = weighted blend of claimable + total bond
- *   (pendingWithdrawalBondMult adjusts for pending withdrawals)
  * idealBondCoef = idealBondPmpe / 1000
  * fee = forcedUndelegation * effPmpe / 1000
  */
@@ -152,22 +149,20 @@ export const calcBondRiskFee = (cfg: BondRiskFeeConfig, validator: AuctionValida
   )
   const minBondPmpe = validator.minBondPmpe ?? 0
   const idealBondPmpe = validator.idealBondPmpe ?? 0
-  const riskBondSol =
-    cfg.pendingWithdrawalBondMult * (validator.claimableBondBalanceSol ?? 0) +
-    (1 - cfg.pendingWithdrawalBondMult) * (validator.bondBalanceSol ?? 0)
+  const claimableBondSol = validator.claimableBondBalanceSol ?? 0
   const unprotectedStakeSol = validator.unprotectedStakeSol ?? 0
   const projectedExposedStakeSol = Math.max(0, projectedActivatedStakeSol - unprotectedStakeSol)
   const minUnprotectedReserve = validator.minUnprotectedReserve ?? 0
   // bond earmarked for unprotected stake; remainder covers exposed stake
-  if (riskBondSol - minUnprotectedReserve < projectedExposedStakeSol * (minBondPmpe / 1000)) {
+  if (claimableBondSol - minUnprotectedReserve < projectedExposedStakeSol * (minBondPmpe / 1000)) {
     const feeCoef = (revShare.onchainDistributedPmpe + revShare.auctionEffectiveBidPmpe) / 1000
     const idealUnprotectedReserve = validator.idealUnprotectedReserve ?? 0
     // always: base >= 0, even with no max, since idealBondPmpe >= minBondPmpe, since idealBondEpochs >= minBondEpochs
-    // and we already ensured that (riskBondSol - minUnprotectedReserve) / minBondPmpe * 1000 < projectedExposedStakeSol above
+    // and we already ensured that (claimableBondSol - minUnprotectedReserve) / minBondPmpe * 1000 < projectedExposedStakeSol above
     // also, if minBondPmpe == 0, then we can never get here, in the opposite case, idealBondPmpe >= minBondPmpe > 0
     const base = Math.max(
       0,
-      projectedExposedStakeSol - (riskBondSol - idealUnprotectedReserve) / (idealBondPmpe / 1000),
+      projectedExposedStakeSol - (claimableBondSol - idealUnprotectedReserve) / (idealBondPmpe / 1000),
     )
     const coef = 1 - feeCoef / (idealBondPmpe / 1000)
     let value = coef > 0 ? Math.min(projectedExposedStakeSol, base / coef) : projectedExposedStakeSol
