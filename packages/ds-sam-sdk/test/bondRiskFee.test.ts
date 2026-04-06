@@ -1,11 +1,12 @@
 /**
- *
  * Tests cover:
  *  - early exit when lastBondBalanceSol < 1
  *  - no action when bond balance is sufficient
- *  - correct computation of forced undelegation, coefficient, and fee
- *  - clamping behavior when floor threshold forces full undelegation
- *  - error thrown when result is non-finite
+ *  - forced undelegation and fee computation (various coef/pmpe combos)
+ *  - clamping: floor threshold, coef <= 0, full exposed stake
+ *  - division by zero: idealBondPmpe=0, zero effective PMPE
+ *  - zero expected max PMPE
+ *  - SDK integration: bondRiskFeeMult=0 yields 0
  */
 
 import assert from 'node:assert'
