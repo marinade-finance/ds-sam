@@ -1,9 +1,12 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-non-null-assertion */
+import assert from 'node:assert'
+
 import { Auction } from '../src/auction'
 import { Debug } from '../src/debug'
 import { ineligibleValidatorAggDefaults } from '../src/utils'
 
-import type { AuctionData } from '../src/types'
+import type { DsSamConfig } from '../src/config'
+import type { AuctionConstraints } from '../src/constraints'
+import type { AuctionData, AuctionValidator } from '../src/types'
 
 describe('Auction.updatePaidUndelegation (simplified)', () => {
   /**
@@ -26,10 +29,10 @@ describe('Auction.updatePaidUndelegation (simplified)', () => {
           values: {
             paidUndelegationSol: priorPaid,
             ...aggDefaults.bidTooLowPenalty,
-          } as any,
+          } as unknown as AuctionValidator['values'],
           ...aggDefaults,
         },
-      ] as any[],
+      ] as unknown as AuctionValidator[],
       stakeAmounts: {
         networkTotalSol: NaN,
         marinadeSamTvlSol: NaN,
@@ -38,9 +41,16 @@ describe('Auction.updatePaidUndelegation (simplified)', () => {
       rewards: { inflationPmpe: NaN, mevPmpe: NaN, blockPmpe: NaN },
       blacklist: new Set<string>(),
     }
-    const auction = new Auction(data, {} as any, {} as any, new Debug(new Set()))
+    const auction = new Auction(
+      data,
+      {} as unknown as AuctionConstraints,
+      {} as unknown as DsSamConfig,
+      new Debug(new Set()),
+    )
     auction.updatePaidUndelegation()
-    return data.validators[0]!.values.paidUndelegationSol
+    const v = data.validators[0]
+    assert(v)
+    return v.values.paidUndelegationSol
   }
 
   it('resets paid undelegation new there is a new delegation > 10% of paid undelegation', () => {
@@ -75,10 +85,10 @@ describe('Auction.updatePaidUndelegation (simplified)', () => {
           values: {
             paidUndelegationSol: 0,
             ...aggDefaults.bidTooLowPenalty,
-          } as any,
+          } as unknown as AuctionValidator['values'],
           ...aggDefaults,
         },
-      ] as any[],
+      ] as unknown as AuctionValidator[],
       stakeAmounts: {
         networkTotalSol: NaN,
         marinadeSamTvlSol: NaN,
@@ -87,10 +97,16 @@ describe('Auction.updatePaidUndelegation (simplified)', () => {
       rewards: { inflationPmpe: NaN, mevPmpe: NaN, blockPmpe: NaN },
       blacklist: new Set<string>(),
     }
-    const auction = new Auction(data, {} as any, {} as any, new Debug(new Set()))
+    const auction = new Auction(
+      data,
+      {} as unknown as AuctionConstraints,
+      {} as unknown as DsSamConfig,
+      new Debug(new Set()),
+    )
     auction.updatePaidUndelegation()
-
-    expect(data.validators[0]!.values.paidUndelegationSol).toBeCloseTo(0)
+    const v = data.validators[0]
+    assert(v)
+    expect(v.values.paidUndelegationSol).toBeCloseTo(0)
   })
 
   it('paidUndelegation=0 with positive delta resets to 0', () => {
@@ -121,7 +137,7 @@ describe('Auction.updatePaidUndelegation (simplified)', () => {
           },
           ...aggDefaults,
         },
-      ] as any[],
+      ] as unknown as AuctionValidator[],
       stakeAmounts: {
         networkTotalSol: NaN,
         marinadeSamTvlSol: NaN,
@@ -134,9 +150,16 @@ describe('Auction.updatePaidUndelegation (simplified)', () => {
       },
       blacklist: new Set<string>(),
     }
-    const auction = new Auction(data, {} as any, {} as any, new Debug(new Set()))
+    const auction = new Auction(
+      data,
+      {} as unknown as AuctionConstraints,
+      {} as unknown as DsSamConfig,
+      new Debug(new Set()),
+    )
     // delta = 100 - 50 = 50 > 10% of 0 -> reset
     auction.updatePaidUndelegation()
-    expect(data.validators[0]!.values.paidUndelegationSol).toBe(0)
+    const v = data.validators[0]
+    assert(v)
+    expect(v.values.paidUndelegationSol).toBe(0)
   })
 })
