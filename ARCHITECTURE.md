@@ -47,14 +47,16 @@ validators.
 **ASO**: Infrastructure concentration. Same structure as COUNTRY.
 
 **BOND**: Protected stake cap =
-`bondBalanceSol / (bondPmpe / 1000)` where:
+`claimableBondBalanceSol / (bondPmpe / 1000)` where:
 
 ```
 bondPmpe = onchainDistributedPmpe + expectedMaxEffBidPmpe
            + minBondEpochs * expectedMaxEffBidPmpe
 ```
 
-Hysteresis prevents flapping: <0.8x min = unstake, 0.8-1.0x = freeze, >=1.0x = normal.
+`claimableBondBalanceSol` excludes pending withdrawals.
+Hysteresis prevents flapping: <0.8x min = unstake,
+0.8-1.0x = freeze, >=1.0x = normal.
 
 **MAXSTAKEWANTED**: Validator-set hard limit on delegation.
 
@@ -67,7 +69,7 @@ minBondPmpe  = onchainDistributedPmpe + expectedMaxEffBidPmpe
              + minBondEpochs * expectedMaxEffBidPmpe
 idealBondPmpe = onchainDistributedPmpe + expectedMaxEffBidPmpe
              + idealBondEpochs * expectedMaxEffBidPmpe
-protectedStakeCap = bondBalanceSol / (bondPmpe / 1000)
+protectedStakeCap = claimableBondBalanceSol / (bondPmpe / 1000)
 ```
 
 Production: `minBondEpochs=4`, `idealBondEpochs=12`.

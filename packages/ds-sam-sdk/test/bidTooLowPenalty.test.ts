@@ -1,21 +1,14 @@
 /**
- *
- * Test cases covered:
- * - zero penalty when totalPmpe ≥ winningTotalPmpe
- * - positive penalty when totalPmpe < winningTotalPmpe
- * - clamp coef to 1 when bidPmpe=0
- * - zero penalty when bidPmpe ≥ historicalPmpe
- * - fractional inputs handling
- * - zero limit yields zero penalty
- * - only first N epochs considered for history
- * - zero penalty when bid equals historical minimum
- * - clamp coef at 1 for extreme undervaluation
- * - paidUndelegationSol computes correctly
- * - throws when winningTotalPmpe=0
- * - returns 0 with empty auctions
- * - permittedBidDeviation=1 yields zero penalty
- * - bondObligationPmpe >= adjustedLimit yields coef 0
- *
+ * Tests cover:
+ *  - zero/positive penalty based on totalPmpe vs winningTotalPmpe
+ *  - coef clamping at 1 (bidPmpe=0, extreme undervaluation)
+ *  - zero penalty when bid >= historical minimum
+ *  - fractional inputs, history length limiting
+ *  - paidUndelegationSol computation
+ *  - throws on infinite penalty pmpe, winningTotalPmpe=0
+ *  - commission changes: increase within limits, decrease+bid
+ *  - bondObligationPmpe in penalty calc, >= adjustedLimit
+ *  - permittedBidDeviation=1, empty auctions, missing history
  */
 import { calcBidTooLowPenalty as _nativeCalc } from '../src/calculations'
 

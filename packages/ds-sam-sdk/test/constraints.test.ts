@@ -1,51 +1,15 @@
 /**
- * Test plan — high-level overview
- *
- * We exercise every exported “cap” helper in constraints.ts:
- *
- * 1a) clipBondStakeCap exact boundary values:
- *     - bondBalanceSol === 0.8*minBondBalanceSol → hits the “hysteresis” branch
- *     - bondBalanceSol === minBondBalanceSol → returns raw limit
- *
- * 1) clipBondStakeCap()
- *    - When bondBalanceSol < 0.8 * minBondBalanceSol → returns 0
- *    - When 0.8*minBondBalanceSol ≤ bondBalanceSol < minBondBalanceSol
- *      → returns at most marinadeActivatedStakeSol
- *    - When bondBalanceSol ≥ minBondBalanceSol
- *      → returns the raw limit argument
- *
- * 2a) bondStakeCapSam extra scenarios:
- *    - marinadeActivatedStakeSol > idealLimit but < minLimit → cap = marinadeActivatedStakeSol
- *    - marinadeActivatedStakeSol > minLimit → cap = minLimit
- *
- * 2) bondStakeCapSam()
- *    - Uses cfg.minBondEpochs and cfg.idealBondEpochs
- *    - Compute minCoef = inf+mev+(minEpochs+1)*expMaxEffBidPmpe,
- *      idealCoef = inf+mev+(idealEpochs+1)*expMaxEffBidPmpe
- *    - raw limits = bondBalanceSol / (coef/1000)
- *    - final limit = min(minLimit, max(idealLimit, marinadeActivatedStakeSol))
- *
- * 3) getMinCapForEvenDistribution()
- *    - Builds concentration constraints (country, aso, etc.)
- *    - Takes a set of voteAccounts:
- *      • calculates totalLeftToCapSol & marinadeLeftToCapSol
- *      • per-validator cap = max(0, min(totalLeftToCapSol, marinadeLeftToCapSol)/N)
- *    - Negative caps clamp to 0
- *    - Error if no constraints at all
- *
- * 4) findCapForValidator()
- *    - Wrapper around getMinCapForEvenDistribution({single})
- *    - Also populates validator.lastCapConstraint if cap < EPSILON
- *
- * We make minimal AuctionValidator stubs via the same defaults you use elsewhere,
- * then override only the fields each function reads.
- *
- * Additional concentration‐constraint branches to cover:
- *
- * 6) ASO constraint as the binding one.
- * 7) WANT constraint (clipped maxStakeWanted) wins.
- * 8) Sam‐BOND constraint wins (buildSamBondConstraints).
- * 9) Error path when no constraints exist (empty voteAccounts set).
+ * Tests cover:
+ *  1) clipBondStakeCap: hysteresis bands (< 0.8x, 0.8x-1x, >= 1x)
+ *  2) bondStakeCapSam: PMPE formula, ideal/min cap selection
+ *  3) unprotectedStakeCap: threshold, delegated stake, foundation weight
+ *  4) getMinCapForEvenDistribution: country/aso constraints, clamping
+ *  5) findCapForValidator: lastCapConstraint, positive vs zero cap
+ *  6) constraint selection: COUNTRY, ASO, WANT, BOND as binding
+ *  7) minCapFromConstraint: affectedValidators=0, negative leftToCap
+ *  8) bondStakeCapSam edge: zero PMPE, zero bond, negative limit
+ *  9) SAM uses BOND constraint, backstop uses RISK
+ * 10) negative maxStakeWanted, fractional coefficients
  */
 import assert from 'node:assert'
 
