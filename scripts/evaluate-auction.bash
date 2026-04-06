@@ -69,7 +69,7 @@ while [[ $# -gt 0 ]]; do
       ;;
     -*)
       echo "unknown option: $1" >&2
-      echo "usage: evaluate-auction <tag> [-c config] [-b|--baseline]" >&2
+      echo "usage: evaluate-auction <tag> [-c config] [-b] [-i overlay-dir] [-f file ...]" >&2
       exit 1
       ;;
     *)
@@ -77,7 +77,7 @@ while [[ $# -gt 0 ]]; do
         tag="$1"
       else
         echo "unexpected argument: $1" >&2
-        echo "usage: evaluate-auction <tag> [-c config] [-b|--baseline]" >&2
+        echo "usage: evaluate-auction <tag> [-c config] [-b] [-i overlay-dir] [-f file ...]" >&2
         exit 1
       fi
       shift
@@ -86,7 +86,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ -z "$tag" ]]; then
-  echo "usage: evaluate-auction <tag> [-c config] [-b|--baseline]" >&2
+  echo "usage: evaluate-auction <tag> [-c config] [-b] [-i overlay-dir] [-f file ...]" >&2
   exit 1
 fi
 
@@ -121,14 +121,18 @@ else
     echo "overlay dir not found: $overlay" >&2
     exit 1
   fi
-  cache_dir="$output_dir/inputs"
-  mkdir -p "$cache_dir"
-  cp -r "$baseline_inputs/." "$cache_dir/"
-  [[ -n "$overlay" ]] && cp -r "$overlay/." "$cache_dir/"
-  for f in "${overlay_files[@]}"; do
-    [[ -f "$f" ]] || { echo "overlay file not found: $f" >&2; exit 1; }
-    cp "$f" "$cache_dir/"
-  done
+  if [[ -n "$overlay" || ${#overlay_files[@]} -gt 0 ]]; then
+    cache_dir="$output_dir/inputs"
+    mkdir -p "$cache_dir"
+    cp -r "$baseline_inputs/." "$cache_dir/"
+    [[ -n "$overlay" ]] && cp -r "$overlay/." "$cache_dir/"
+    for f in "${overlay_files[@]}"; do
+      [[ -f "$f" ]] || { echo "overlay file not found: $f" >&2; exit 1; }
+      cp "$f" "$cache_dir/"
+    done
+  else
+    cache_dir="$baseline_inputs"
+  fi
   inputs_source="FILES"
   cache_flag=""
 fi
