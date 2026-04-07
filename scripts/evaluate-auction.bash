@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+_usage() {
+  echo "usage: evaluate-auction <tag> [-c config] [-b] [-i overlay-dir] [-f file ...]" >&2
+}
+
 _help() {
+  _usage 2>&1
   cat <<'EOF'
-usage: evaluate-auction <tag> [-c config] [-b|--baseline]
 
 run auction simulations with tag-based organization
 
@@ -80,7 +84,7 @@ while [[ $# -gt 0 ]]; do
       ;;
     -*)
       echo "unknown option: $1" >&2
-      echo "usage: evaluate-auction <tag> [-c config] [-b] [-i overlay-dir] [-f file ...]" >&2
+      _usage
       exit 1
       ;;
     *)
@@ -88,7 +92,7 @@ while [[ $# -gt 0 ]]; do
         tag="$1"
       else
         echo "unexpected argument: $1" >&2
-        echo "usage: evaluate-auction <tag> [-c config] [-b] [-i overlay-dir] [-f file ...]" >&2
+        _usage
         exit 1
       fi
       shift
@@ -97,7 +101,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ -z "$tag" ]]; then
-  echo "usage: evaluate-auction <tag> [-c config] [-b] [-i overlay-dir] [-f file ...]" >&2
+  _usage
   exit 1
 fi
 
