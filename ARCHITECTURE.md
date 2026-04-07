@@ -80,7 +80,7 @@ obligations:
 ```
 bondPmpe = onchainDistributedPmpe + expectedMaxEffBidPmpe
            + minBondEpochs * expectedMaxEffBidPmpe
-protectedStakeCap = claimableBondBalanceSol / (bondPmpe / 1000)
+protectedStakeCap = bondBalanceSol / (bondPmpe / 1000)
 ```
 
 Hysteresis prevents flapping: <0.8x min = unstake,
