@@ -3,7 +3,7 @@
 ## Overview
 
 ds-sam implements a descending-price auction where validators bid
-PMPE (price per mSOL epoch). Allocation proceeds from lowest to
+PMPE (parts per mile per epoch). Allocation proceeds from lowest to
 highest PMPE until stake depletes or constraints bind.
 
 TypeScript monorepo:
