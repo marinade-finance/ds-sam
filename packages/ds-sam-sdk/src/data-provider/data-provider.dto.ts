@@ -4,6 +4,7 @@ export type RawScoredValidatorDto = {
   voteAccount: string
   revShare: {
     auctionEffectiveBidPmpe: number
+    activatingStakePmpe: number
     bidPmpe: number
     inflationPmpe: number
     mevPmpe: number
@@ -35,6 +36,7 @@ export type AuctionHistoryStats = {
   epoch: number
   winningTotalPmpe: number
   auctionEffectiveBidPmpe: number
+  activatingStakePmpe: number
   effParticipatingBidPmpe: number
   bidPmpe: number
   totalPmpe: number
