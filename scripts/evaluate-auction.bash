@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+_usage() {
+  echo "usage: evaluate-auction <tag> [-c config] [-b] [-i overlay-dir] [-f file ...]" >&2
+}
+
 _help() {
+  _usage 2>&1
   cat <<'EOF'
-usage: evaluate-auction <tag> [-c config] [-b|--baseline]
 
 run auction simulations with tag-based organization
 
@@ -42,6 +46,17 @@ examples:
 EOF
 }
 
+_apply_overlay() {
+  local src="$1" dst="$2"
+  mkdir -p "$dst"
+  cp -r "$src/." "$dst/"
+  [[ -n "$overlay" ]] && cp -r "$overlay/." "$dst/"
+  for f in "${overlay_files[@]}"; do
+    [[ -f "$f" ]] || { echo "overlay file not found: $f" >&2; exit 1; }
+    cp "$f" "$dst/"
+  done
+}
+
 config="../ds-sam-pipeline/auction-config.json"
 baseline=false
 overlay=""
@@ -69,7 +84,7 @@ while [[ $# -gt 0 ]]; do
       ;;
     -*)
       echo "unknown option: $1" >&2
-      echo "usage: evaluate-auction <tag> [-c config] [-b|--baseline]" >&2
+      _usage
       exit 1
       ;;
     *)
@@ -77,7 +92,7 @@ while [[ $# -gt 0 ]]; do
         tag="$1"
       else
         echo "unexpected argument: $1" >&2
-        echo "usage: evaluate-auction <tag> [-c config] [-b|--baseline]" >&2
+        _usage
         exit 1
       fi
       shift
@@ -86,7 +101,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ -z "$tag" ]]; then
-  echo "usage: evaluate-auction <tag> [-c config] [-b|--baseline]" >&2
+  _usage
   exit 1
 fi
 
@@ -121,14 +136,12 @@ else
     echo "overlay dir not found: $overlay" >&2
     exit 1
   fi
-  cache_dir="$output_dir/inputs"
-  mkdir -p "$cache_dir"
-  cp -r "$baseline_inputs/." "$cache_dir/"
-  [[ -n "$overlay" ]] && cp -r "$overlay/." "$cache_dir/"
-  for f in "${overlay_files[@]}"; do
-    [[ -f "$f" ]] || { echo "overlay file not found: $f" >&2; exit 1; }
-    cp "$f" "$cache_dir/"
-  done
+  if [[ -n "$overlay" || ${#overlay_files[@]} -gt 0 ]]; then
+    cache_dir="$output_dir/inputs"
+    _apply_overlay "$baseline_inputs" "$cache_dir"
+  else
+    cache_dir="$baseline_inputs"
+  fi
   inputs_source="FILES"
   cache_flag=""
 fi
