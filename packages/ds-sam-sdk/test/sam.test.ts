@@ -281,6 +281,42 @@ describe('sam', () => {
     })
   })
 
+  describe('activatingStakePmpe', () => {
+    it('is positive for overbidders and zero for marginal winners', async () => {
+      const voteAccounts = generateVoteAccounts()
+      const identities = generateIdentities()
+      // 10 validators at the same low bid — they form the marginal (winning) group
+      const marginal = Array.from({ length: 10 }, () =>
+        new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
+          .withGoodPerformance()
+          .withLiquidStake(100_000)
+          .withNativeStake(50_000)
+          .withBond({ stakeWanted: 1_000_000, cpmpe: 0, balance: 1_000 }),
+      )
+      // 5 validators bidding much higher via cpmpe — their effectiveBid is capped at winningTotalPmpe
+      const overbidders = Array.from({ length: 5 }, () =>
+        new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
+          .withGoodPerformance()
+          .withLiquidStake(100_000)
+          .withNativeStake(50_000)
+          .withBond({ stakeWanted: 1_000_000, cpmpe: 10, balance: 1_000 }),
+      )
+      const dsSam = new DsSamSDK({}, defaultStaticDataProviderBuilder([...marginal, ...overbidders]))
+      const result = await dsSam.run()
+
+      const marginalVAs = new Set(marginal.map(v => v.voteAccount))
+      const overbidderVAs = new Set(overbidders.map(v => v.voteAccount))
+
+      result.auctionData.validators
+        .filter(v => marginalVAs.has(v.voteAccount) && v.revShare.totalPmpe >= result.winningTotalPmpe)
+        .forEach(({ revShare }) => expect(revShare.activatingStakePmpe).toBe(0))
+
+      result.auctionData.validators
+        .filter(v => overbidderVAs.has(v.voteAccount))
+        .forEach(({ revShare }) => expect(revShare.activatingStakePmpe).toBeGreaterThan(0))
+    })
+  })
+
   describe('test dynamic commission', () => {
     it('ds sam sdk run', async () => {
       const voteAccounts = generateVoteAccounts()

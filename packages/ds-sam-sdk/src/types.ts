@@ -133,6 +133,7 @@ export type RevShare = {
   // what is the PMPE to be charged directly from the bond as static bidding PMPE taken from bonds' CPMPE argument
   auctionEffectiveStaticBidPmpe: number
   auctionEffectiveBidPmpe: number
+  // PMPE the validator pays for new activating stake it receives
   activatingStakePmpe: number
   bidTooLowPenaltyPmpe: number
   effParticipatingBidPmpe: number

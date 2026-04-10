@@ -399,6 +399,7 @@ export class DataProvider {
     validators.forEach(v => {
       v.revShare = {
         ...v.revShare,
+        activatingStakePmpe: v.revShare.activatingStakePmpe ?? 0,
         blockPmpe: v.revShare.blockPmpe ?? 0,
         bondObligationPmpe: v.revShare.bondObligationPmpe ?? v.revShare.bidPmpe,
         onchainDistributedPmpe: v.revShare.onchainDistributedPmpe ?? v.revShare.inflationPmpe + v.revShare.mevPmpe,
