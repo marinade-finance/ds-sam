@@ -1,3 +1,5 @@
+import assert from 'node:assert'
+
 import { DsSamSDK } from '../src'
 import { defaultStaticDataProviderBuilder } from './helpers/static-data-provider-builder'
 import { assertValidatorIneligible, findValidatorInResult } from './helpers/utils'
@@ -167,5 +169,29 @@ describe('eligibility', () => {
       expect(v).toBeDefined()
       expect(v?.samEligible).toStrictEqual(eligibility)
     })
+  })
+
+  it('marks empty epochStats as ineligible', async () => {
+    const votes = generateVoteAccounts('empty-epoch')
+    const ids = generateIdentities()
+    const val = new ValidatorMockBuilder(votes.next().value, ids.next().value)
+      .withInflationCommission(5)
+      .withMevCommission(80)
+      .withCredits()
+      .withBond({
+        stakeWanted: 150_000,
+        cpmpe: 0,
+        balance: 100,
+      })
+
+    const goodVal = new ValidatorMockBuilder(votes.next().value, ids.next().value).withEligibleDefaults()
+
+    const dsSam = new DsSamSDK({}, defaultStaticDataProviderBuilder([val, goodVal]))
+    const result = await dsSam.run()
+
+    const v = findValidatorInResult(val.voteAccount, result)
+    assert(v)
+    expect(v.samEligible).toBe(false)
+    expect(v.auctionStake.marinadeSamTargetSol).toBe(0)
   })
 })

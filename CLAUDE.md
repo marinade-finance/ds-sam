@@ -14,6 +14,7 @@ packages/ds-sam-sdk/src/
   types.ts           # Core types: AuctionValidator, AggregatedValidator, RevShare, etc.
   config.ts          # DEFAULT_CONFIG
   sdk.ts             # DsSamSDK entry point
+  debug.ts           # Debug logging and tracing
   utils.ts           # Shared utilities
   data-provider/     # Fetch from APIs or cached files
 src/
@@ -21,8 +22,9 @@ src/
   commands/analyze-revenue.cmd.ts  # Revenue analysis
 test/                              # CLI integration tests
 packages/ds-sam-sdk/test/          # SDK unit tests
-  helpers/validator-mock-builder.ts       # Build mock validator data for tests
+  helpers/validator-mock-builder.ts       # Build mock validators
   helpers/static-data-provider-builder.ts # Build test data provider
+  helpers/auction-test-utils.ts           # Shared test helpers
 ```
 
 ## Build & Test
@@ -53,16 +55,17 @@ pnpm run cli -- auction -i FILES --cache-dir-path ./cache -c config.json -o ./ou
 
 ## Architecture
 
-`Auction.distributeSamStake()` iterates PMPE groups highest to lowest.
-Within each group, distributes stake evenly across eligible validators,
-respecting constraints (stake concentration caps, bond requirements).
-`AuctionConstraints` tracks per-validator and per-entity caps.
-`calculations.ts` handles revenue share math (effective PMPE,
-bond risk fees, bid-too-low penalties).
+`Auction.evaluate()` runs the full auction: estimate max bid,
+distribute SAM stake (lowest-to-highest PMPE), distribute
+backstop stake, then compute priorities/penalties/fees.
+`AuctionConstraints` tracks per-validator and per-entity caps
+(VALIDATOR, COUNTRY, ASO, BOND, WANT, RISK).
+`calculations.ts` handles revenue share math, bond risk fees,
+bid-too-low penalties.
 
-Data flow: `DsSamSDK.run()` → fetch/aggregate data →
-build `AuctionData` → `Auction.distributeSamStake()` →
-`AuctionResult` with winning PMPE and per-validator stake targets.
+Data flow: `DsSamSDK.run()` -> fetch/aggregate data ->
+build `AuctionData` -> `Auction.evaluate()` ->
+`AuctionResult` with winning PMPE and per-validator targets.
 
 ## Dev Notes
 
