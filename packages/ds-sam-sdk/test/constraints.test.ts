@@ -1,163 +1,28 @@
 /**
- * Test plan — high-level overview
- *
- * We exercise every exported “cap” helper in constraints.ts:
- *
- * 1a) clipBondStakeCap exact boundary values:
- *     - bondBalanceSol === 0.8*minBondBalanceSol → hits the “hysteresis” branch
- *     - bondBalanceSol === minBondBalanceSol → returns raw limit
- *
- * 1) clipBondStakeCap()
- *    - When bondBalanceSol < 0.8 * minBondBalanceSol → returns 0
- *    - When 0.8*minBondBalanceSol ≤ bondBalanceSol < minBondBalanceSol
- *      → returns at most marinadeActivatedStakeSol
- *    - When bondBalanceSol ≥ minBondBalanceSol
- *      → returns the raw limit argument
- *
- * 2a) bondStakeCapSam extra scenarios:
- *    - marinadeActivatedStakeSol > idealLimit but < minLimit → cap = marinadeActivatedStakeSol
- *    - marinadeActivatedStakeSol > minLimit → cap = minLimit
- *
- * 2) bondStakeCapSam()
- *    - Uses cfg.minBondEpochs and cfg.idealBondEpochs
- *    - Compute minCoef = inf+mev+(minEpochs+1)*expMaxEffBidPmpe,
- *      idealCoef = inf+mev+(idealEpochs+1)*expMaxEffBidPmpe
- *    - raw limits = bondBalanceSol / (coef/1000)
- *    - final limit = min(minLimit, max(idealLimit, marinadeActivatedStakeSol))
- *
- * 3) getMinCapForEvenDistribution()
- *    - Builds concentration constraints (country, aso, etc.)
- *    - Takes a set of voteAccounts:
- *      • calculates totalLeftToCapSol & marinadeLeftToCapSol
- *      • per-validator cap = max(0, min(totalLeftToCapSol, marinadeLeftToCapSol)/N)
- *    - Negative caps clamp to 0
- *    - Error if no constraints at all
- *
- * 4) findCapForValidator()
- *    - Wrapper around getMinCapForEvenDistribution({single})
- *    - Also populates validator.lastCapConstraint if cap < EPSILON
- *
- * We make minimal AuctionValidator stubs via the same defaults you use elsewhere,
- * then override only the fields each function reads.
- *
- * Additional concentration‐constraint branches to cover:
- *
- * 6) ASO constraint as the binding one.
- * 7) WANT constraint (clipped maxStakeWanted) wins.
- * 8) Sam‐BOND constraint wins (buildSamBondConstraints).
- * 9) Error path when no constraints exist (empty voteAccounts set).
+ * Tests cover:
+ *  1) clipBondStakeCap: hysteresis bands (< 0.8x, 0.8x-1x, >= 1x)
+ *  2) bondStakeCapSam: PMPE formula, ideal/min cap selection
+ *  3) unprotectedStakeCap: threshold, delegated stake, foundation weight
+ *  4) getMinCapForEvenDistribution: country/aso constraints, clamping
+ *  5) findCapForValidator: lastCapConstraint, positive vs zero cap
+ *  6) constraint selection: COUNTRY, ASO, WANT, BOND as binding
+ *  7) minCapFromConstraint: affectedValidators=0, negative leftToCap
+ *  8) bondStakeCapSam edge: zero PMPE, zero bond, negative limit
+ *  9) SAM uses BOND constraint, backstop uses RISK
+ * 10) negative maxStakeWanted, fractional coefficients
  */
-import { AuctionConstraints } from '../src/constraints'
-import { Debug } from '../src/debug'
-import { ineligibleValidatorAggDefaults } from '../src/utils'
+import assert from 'node:assert'
 
-import type { AuctionConstraintsConfig, AuctionValidator, AuctionData, RevShare } from '../src/types'
+import { AuctionConstraintType } from '../src/types'
+import { minCapFromConstraint } from '../src/utils'
+import {
+  buildRevShare,
+  makeAuction,
+  makeConstraints,
+  makeUnitValidator as makeValidator,
+} from './helpers/auction-test-utils'
 
-const BASE_CONSTRAINTS: AuctionConstraintsConfig = {
-  totalCountryStakeCapSol: Infinity,
-  totalAsoStakeCapSol: Infinity,
-  marinadeCountryStakeCapSol: Infinity,
-  marinadeAsoStakeCapSol: Infinity,
-  marinadeValidatorStakeCapSol: Infinity,
-  minBondBalanceSol: 0,
-  minMaxStakeWanted: 0,
-  minBondEpochs: 0,
-  idealBondEpochs: 0,
-  unprotectedValidatorStakeCapSol: 0,
-  minUnprotectedStakeToDelegateSol: 0,
-  unprotectedFoundationStakeDec: 1,
-  unprotectedDelegatedStakeDec: 1,
-  bondObligationSafetyMult: 1,
-}
-
-function makeConstraints(overrides: Partial<AuctionConstraintsConfig> = {}) {
-  return new AuctionConstraints({ ...BASE_CONSTRAINTS, ...overrides }, new Debug(new Set()))
-}
-
-function buildRevShare(overrides: Partial<RevShare> = {}): RevShare {
-  return {
-    totalPmpe: 0,
-    inflationPmpe: 0,
-    mevPmpe: 0,
-    bidPmpe: 0,
-    blockPmpe: 0,
-    onchainDistributedPmpe: 0,
-    bondObligationPmpe: 0,
-    auctionEffectiveStaticBidPmpe: 0,
-    auctionEffectiveBidPmpe: 0,
-    activatingStakePmpe: 0,
-    bidTooLowPenaltyPmpe: 0,
-    effParticipatingBidPmpe: 0,
-    expectedMaxEffBidPmpe: 0,
-    blacklistPenaltyPmpe: 0,
-    ...overrides,
-  }
-}
-
-/**
- * Minimal stub factory for AuctionValidator, re-using your ineligibleValidatorAggDefaults
- * and then merging in only the fields the cap functions actually read.
- */
-function makeValidator(overrides: Partial<AuctionValidator>): AuctionValidator {
-  const base = {
-    ...ineligibleValidatorAggDefaults(),
-    voteAccount: 'v',
-    country: 'C',
-    aso: 'A',
-    totalActivatedStakeSol: 0,
-    auctionStake: {
-      externalActivatedSol: 0,
-      marinadeSamTargetSol: 0,
-    },
-    marinadeActivatedStakeSol: 0,
-    bondBalanceSol: 0,
-    lastBondBalanceSol: null,
-    revShare: {
-      inflationPmpe: 0,
-      mevPmpe: 0,
-      bidPmpe: 0,
-      totalPmpe: 0,
-      auctionEffectiveBidPmpe: 0,
-      activatingStakePmpe: 0,
-      effParticipatingBidPmpe: 0,
-      expectedMaxEffBidPmpe: 0,
-      bidTooLowPenaltyPmpe: 0,
-    },
-    values: {
-      paidUndelegationSol: 0,
-      bondRiskFeeSol: 0,
-    },
-    samEligible: true,
-    samBlocked: false,
-    stakePriority: NaN,
-    unstakePriority: NaN,
-    maxBondDelegation: NaN,
-    lastMarinadeActivatedStakeSol: null,
-    selfStakeSol: 0,
-    foundationStakeSol: 0,
-  } as AuctionValidator
-
-  return { ...base, ...overrides }
-}
-
-function makeAuction(overrides: Partial<AuctionData> = {}): AuctionData {
-  const base: AuctionData = {
-    epoch: 0,
-    validators: [],
-    stakeAmounts: {
-      networkTotalSol: 0,
-      marinadeSamTvlSol: 0,
-      marinadeRemainingSamSol: 0,
-    },
-    rewards: {
-      inflationPmpe: 0,
-      mevPmpe: 0,
-      blockPmpe: 0,
-    },
-    blacklist: new Set<string>(),
-  }
-  return { ...base, ...overrides }
-}
+import type { AuctionConstraint } from '../src/types'
 
 describe('clipBondStakeCap()', () => {
   const minBondBalanceSol = 1000
@@ -542,5 +407,238 @@ describe('getMinCapForEvenDistribution – no constraints', () => {
   const c = makeConstraints()
   it('throws if voteAccounts set is empty', () => {
     expect(() => c.getMinCapForEvenDistribution(new Set())).toThrow(/Failed to find/)
+  })
+})
+
+describe('minCapFromConstraint edge cases', () => {
+  it('with affectedValidators=0 returns Infinity', () => {
+    const constraint: AuctionConstraint = {
+      constraintType: AuctionConstraintType.COUNTRY,
+      constraintName: 'X',
+      totalStakeSol: 0,
+      totalLeftToCapSol: 100,
+      marinadeStakeSol: 0,
+      marinadeLeftToCapSol: 50,
+      validators: [makeValidator({ voteAccount: 'other' })],
+    }
+    const { cap, affectedValidators } = minCapFromConstraint(constraint, new Set(['missing']))
+    expect(affectedValidators).toBe(0)
+    expect(cap).toBe(Infinity)
+  })
+
+  it('clamps negative leftToCap to 0', () => {
+    const constraint: AuctionConstraint = {
+      constraintType: AuctionConstraintType.COUNTRY,
+      constraintName: 'X',
+      totalStakeSol: 0,
+      totalLeftToCapSol: -10,
+      marinadeStakeSol: 0,
+      marinadeLeftToCapSol: -5,
+      validators: [makeValidator({ voteAccount: 'v' })],
+    }
+    const { cap } = minCapFromConstraint(constraint, new Set(['v']))
+    expect(cap).toBe(0)
+  })
+})
+
+describe('bondStakeCapSam edge cases', () => {
+  it('all-zero PMPE yields Infinity', () => {
+    const c = makeConstraints()
+    const v = makeValidator({
+      bondBalanceSol: 1000,
+      revShare: buildRevShare(),
+    })
+    expect(c.bondStakeCapSam(v)).toBe(Infinity)
+  })
+
+  it('bondBalanceSol=0 yields 0', () => {
+    const c = makeConstraints()
+    const v = makeValidator({
+      bondBalanceSol: 0,
+      revShare: buildRevShare({
+        onchainDistributedPmpe: 100,
+        expectedMaxEffBidPmpe: 50,
+      }),
+    })
+    expect(c.bondStakeCapSam(v)).toBe(0)
+  })
+
+  it('both bondBalanceSol=0 AND all PMPE=0 yields NaN', () => {
+    const c = makeConstraints({
+      minBondEpochs: 0,
+      idealBondEpochs: 0,
+      minBondBalanceSol: 0,
+    })
+    const v = makeValidator({
+      bondBalanceSol: 0,
+      marinadeActivatedStakeSol: 0,
+      revShare: buildRevShare({
+        expectedMaxEffBidPmpe: 0,
+        onchainDistributedPmpe: 0,
+      }),
+    })
+    expect(c.bondStakeCapSam(v)).toBeNaN()
+  })
+})
+
+describe('clipBondStakeCap edge cases', () => {
+  it('with negative limit returns >= 0', () => {
+    const c = makeConstraints({
+      minBondEpochs: 1,
+      idealBondEpochs: 10,
+      unprotectedValidatorStakeCapSol: 10000,
+      unprotectedDelegatedStakeDec: 1,
+      unprotectedFoundationStakeDec: 1,
+      minUnprotectedStakeToDelegateSol: 0,
+    })
+    const v = makeValidator({
+      bondBalanceSol: 10,
+      totalActivatedStakeSol: 50000,
+      revShare: buildRevShare({
+        onchainDistributedPmpe: 100,
+        expectedMaxEffBidPmpe: 100,
+      }),
+    })
+    const cap = c.bondStakeCapSam(v)
+    expect(cap).toBeGreaterThanOrEqual(0)
+  })
+
+  it('hysteresis: bond between 0.8x and 1x', () => {
+    const c = makeConstraints({
+      minBondBalanceSol: 10,
+      minBondEpochs: 0,
+      idealBondEpochs: 0,
+    })
+    const v = makeValidator({
+      bondBalanceSol: 9,
+      marinadeActivatedStakeSol: 50,
+      revShare: buildRevShare({
+        expectedMaxEffBidPmpe: 0,
+        onchainDistributedPmpe: 0,
+      }),
+    })
+    expect(c.bondStakeCapSam(v)).toBe(50)
+
+    const v2 = makeValidator({
+      bondBalanceSol: 7,
+      marinadeActivatedStakeSol: 50,
+      revShare: buildRevShare({
+        expectedMaxEffBidPmpe: 0,
+        onchainDistributedPmpe: 0,
+      }),
+    })
+    expect(c.bondStakeCapSam(v2)).toBe(0)
+  })
+})
+
+describe('unprotectedStakeCap edge cases', () => {
+  it('clamps to 0 when foundationStake > totalActivated', () => {
+    const c = makeConstraints({
+      unprotectedValidatorStakeCapSol: 1000,
+      unprotectedDelegatedStakeDec: 1,
+      unprotectedFoundationStakeDec: 1,
+      minUnprotectedStakeToDelegateSol: 0,
+    })
+    const v = makeValidator({
+      totalActivatedStakeSol: 100,
+      selfStakeSol: 0,
+      foundationStakeSol: 200,
+    })
+    expect(c.unprotectedStakeCap(v)).toBe(200)
+  })
+
+  it('zeroes cap below minimum threshold', () => {
+    const c = makeConstraints({
+      unprotectedValidatorStakeCapSol: 1000,
+      unprotectedDelegatedStakeDec: 1,
+      unprotectedFoundationStakeDec: 0,
+      minUnprotectedStakeToDelegateSol: 500,
+    })
+    const v1 = makeValidator({
+      totalActivatedStakeSol: 600,
+    })
+    expect(c.unprotectedStakeCap(v1)).toBe(600)
+
+    const v2 = makeValidator({
+      totalActivatedStakeSol: 400,
+    })
+    expect(c.unprotectedStakeCap(v2)).toBe(0)
+  })
+
+  it('with fractional coefficients', () => {
+    const c = makeConstraints({
+      unprotectedValidatorStakeCapSol: 10_000,
+      unprotectedDelegatedStakeDec: 0.5,
+      unprotectedFoundationStakeDec: 0,
+      minUnprotectedStakeToDelegateSol: 0,
+    })
+    const v = makeValidator({
+      totalActivatedStakeSol: 1000,
+      selfStakeSol: 0,
+      foundationStakeSol: 0,
+    })
+    expect(c.unprotectedStakeCap(v)).toBe(500)
+  })
+})
+
+describe('SAM vs backstop constraint types', () => {
+  it('SAM uses BOND constraint, backstop uses RISK', () => {
+    const v = makeValidator({
+      voteAccount: 'v1',
+      country: 'X',
+      aso: 'A1',
+      bondBalanceSol: 10,
+      totalActivatedStakeSol: 500,
+      selfStakeSol: 100,
+      auctionStake: {
+        externalActivatedSol: 100,
+        marinadeSamTargetSol: 0,
+      },
+      revShare: buildRevShare({
+        inflationPmpe: 10,
+        mevPmpe: 5,
+        expectedMaxEffBidPmpe: 5,
+        onchainDistributedPmpe: 15,
+      }),
+    })
+    const data = makeAuction({ validators: [v] })
+
+    const cSam = makeConstraints({
+      minBondEpochs: 1,
+      idealBondEpochs: 2,
+      unprotectedValidatorStakeCapSol: 100,
+      unprotectedDelegatedStakeDec: 1,
+      minUnprotectedStakeToDelegateSol: 0,
+    })
+    cSam.updateStateForSam(data)
+    expect(cSam.getMinCapForEvenDistribution(new Set(['v1'])).constraint.constraintType).toBe('BOND')
+
+    const cBack = makeConstraints({
+      minBondEpochs: 1,
+      idealBondEpochs: 2,
+      unprotectedValidatorStakeCapSol: 100,
+      unprotectedDelegatedStakeDec: 1,
+      minUnprotectedStakeToDelegateSol: 0,
+    })
+    cBack.updateStateForBackstop(data)
+    expect(cBack.getMinCapForEvenDistribution(new Set(['v1'])).constraint.constraintType).toBe('RISK')
+  })
+})
+
+describe('buildSamWantConstraints edge cases', () => {
+  it('negative maxStakeWanted treated as Infinity', () => {
+    const v = makeValidator({
+      voteAccount: 'v1',
+      maxStakeWanted: -100,
+      marinadeActivatedStakeSol: 0,
+    })
+    const data = makeAuction({ validators: [v] })
+    const c = makeConstraints({ minMaxStakeWanted: 0 })
+    c.updateStateForSam(data)
+    const constraints = c.getValidatorConstraints('v1')
+    assert(constraints)
+    const want = constraints.find(x => x.constraintType === AuctionConstraintType.WANT)
+    assert(want)
+    expect(want.marinadeLeftToCapSol).toBe(Infinity)
   })
 })
