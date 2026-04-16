@@ -113,62 +113,26 @@ describe('bondStakeCapSam()', () => {
 })
 
 describe('bondGoodForNEpochs', () => {
+  // minBondEpochs=1, expectedMaxEffBidPmpe=5, marinadeActivatedStakeSol=200
+  // costPerEpoch = stake * pmpe/1000 = 200 * 5/1000 = 1 SOL/epoch
+  // bondBalanceForBids = max(0, bondBalanceSol - onchain * stake/1000)
+  // goodFor = bondBalanceForBids / costPerEpoch - minBondEpochs
   const c = makeConstraints({ minBondEpochs: 1, idealBondEpochs: 2, minBondBalanceSol: 1 })
 
-  it('is 0 when bond covers exactly minBondEpochs of max bid', () => {
-    // bondBalanceForBids = 1 * (5/1000) * 200 = 1 → goodFor = 1/1 - 1 = 0
+  it.each([
+    ['at threshold → 0', 1, 0, 0],
+    ['above threshold → positive', 2, 0, 1],
+    ['below threshold → negative', 0.5, 0, -0.5],
+    ['zero bond → -minBondEpochs', 0, 0, -1],
+    ['onchainDistributedPmpe reduces', 1, 2, -0.4], // reserve = 200*2/1000 = 0.4
+  ])('%s', (_label, bondBalanceSol, onchainDistributedPmpe, expected) => {
     const v = makeValidator({
-      bondBalanceSol: 1,
+      bondBalanceSol,
       marinadeActivatedStakeSol: 200,
-      revShare: buildRevShare({ expectedMaxEffBidPmpe: 5, onchainDistributedPmpe: 0 }),
+      revShare: buildRevShare({ expectedMaxEffBidPmpe: 5, onchainDistributedPmpe }),
     })
     c.bondStakeCapSam(v)
-    expect(v.bondGoodForNEpochs).toBeCloseTo(0, 6)
-  })
-
-  it('is positive when bond exceeds minBondEpochs coverage', () => {
-    // bondBalanceForBids = 2 * (5/1000) * 200 = 2 → goodFor = 2/1 - 1 = 1
-    const v = makeValidator({
-      bondBalanceSol: 2,
-      marinadeActivatedStakeSol: 200,
-      revShare: buildRevShare({ expectedMaxEffBidPmpe: 5, onchainDistributedPmpe: 0 }),
-    })
-    c.bondStakeCapSam(v)
-    expect(v.bondGoodForNEpochs).toBeCloseTo(1, 6)
-  })
-
-  it('is negative when bond is below minBondEpochs coverage', () => {
-    // bondBalanceForBids = 0.5 * (5/1000) * 200 = 0.5 → goodFor = 0.5/1 - 1 = -0.5
-    const v = makeValidator({
-      bondBalanceSol: 0.5,
-      marinadeActivatedStakeSol: 200,
-      revShare: buildRevShare({ expectedMaxEffBidPmpe: 5, onchainDistributedPmpe: 0 }),
-    })
-    c.bondStakeCapSam(v)
-    expect(v.bondGoodForNEpochs).toBeCloseTo(-0.5, 6)
-  })
-
-  it('is -minBondEpochs when bond is 0', () => {
-    // bondBalanceForBids = max(0, 0) = 0 → goodFor = 0 - 1 = -1
-    const v = makeValidator({
-      bondBalanceSol: 0,
-      marinadeActivatedStakeSol: 200,
-      revShare: buildRevShare({ expectedMaxEffBidPmpe: 5, onchainDistributedPmpe: 0 }),
-    })
-    c.bondStakeCapSam(v)
-    expect(v.bondGoodForNEpochs).toBeCloseTo(-1, 6)
-  })
-
-  it('onchainDistributedPmpe reduces bondBalanceForBids', () => {
-    // protectedStake = 200, onchain = 2/1000 → reserve = 0.4
-    // bondBalanceForBids = max(0, 1 - 0.4) = 0.6 → goodFor = 0.6/1 - 1 = -0.4
-    const v = makeValidator({
-      bondBalanceSol: 1,
-      marinadeActivatedStakeSol: 200,
-      revShare: buildRevShare({ expectedMaxEffBidPmpe: 5, onchainDistributedPmpe: 2 }),
-    })
-    c.bondStakeCapSam(v)
-    expect(v.bondGoodForNEpochs).toBeCloseTo(-0.4, 6)
+    expect(v.bondGoodForNEpochs).toBeCloseTo(expected, 6)
   })
 })
 
