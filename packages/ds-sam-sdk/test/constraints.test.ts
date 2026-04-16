@@ -112,6 +112,43 @@ describe('bondStakeCapSam()', () => {
   })
 })
 
+describe('bondGoodForNEpochs', () => {
+  const c = makeConstraints({ minBondEpochs: 1, idealBondEpochs: 2, minBondBalanceSol: 1 })
+
+  it('is 0 when bond covers exactly minBondEpochs of max bid', () => {
+    // bondBalanceForBids = 1 * (5/1000) * 200 = 1 → goodFor = 1/1 - 1 = 0
+    const v = makeValidator({
+      bondBalanceSol: 1,
+      marinadeActivatedStakeSol: 200,
+      revShare: buildRevShare({ expectedMaxEffBidPmpe: 5, onchainDistributedPmpe: 0 }),
+    })
+    c.bondStakeCapSam(v)
+    expect(v.bondGoodForNEpochs).toBeCloseTo(0, 6)
+  })
+
+  it('is positive when bond exceeds minBondEpochs coverage', () => {
+    // bondBalanceForBids = 2 * (5/1000) * 200 = 2 → goodFor = 2/1 - 1 = 1
+    const v = makeValidator({
+      bondBalanceSol: 2,
+      marinadeActivatedStakeSol: 200,
+      revShare: buildRevShare({ expectedMaxEffBidPmpe: 5, onchainDistributedPmpe: 0 }),
+    })
+    c.bondStakeCapSam(v)
+    expect(v.bondGoodForNEpochs).toBeCloseTo(1, 6)
+  })
+
+  it('is negative when bond is below minBondEpochs coverage', () => {
+    // bondBalanceForBids = 0.5 * (5/1000) * 200 = 0.5 → goodFor = 0.5/1 - 1 = -0.5
+    const v = makeValidator({
+      bondBalanceSol: 0.5,
+      marinadeActivatedStakeSol: 200,
+      revShare: buildRevShare({ expectedMaxEffBidPmpe: 5, onchainDistributedPmpe: 0 }),
+    })
+    c.bondStakeCapSam(v)
+    expect(v.bondGoodForNEpochs).toBeCloseTo(-0.5, 6)
+  })
+})
+
 describe('unprotectedStakeCap()', () => {
   // override the defaults so we can test all branches
   const c = makeConstraints({
