@@ -1,21 +1,18 @@
 /**
- *
- * Test cases covered:
- * - zero penalty when totalPmpe ≥ winningTotalPmpe
- * - positive penalty when totalPmpe < winningTotalPmpe
- * - clamp coef to 1 when bidPmpe=0
- * - zero penalty when bidPmpe ≥ historicalPmpe
- * - fractional inputs handling
- * - zero limit yields zero penalty
- * - only first N epochs considered for history
- * - zero penalty when bid equals historical minimum
- * - clamp coef at 1 for extreme undervaluation
- * - paidUndelegationSol computes correctly
- *
+ * Tests cover:
+ *  - zero/positive penalty based on totalPmpe vs winningTotalPmpe
+ *  - coef clamping at 1 (bidPmpe=0, extreme undervaluation)
+ *  - zero penalty when bid >= historical minimum
+ *  - fractional inputs, history length limiting
+ *  - paidUndelegationSol computation
+ *  - throws on infinite penalty pmpe, winningTotalPmpe=0
+ *  - commission changes: increase within limits, decrease+bid
+ *  - bondObligationPmpe in penalty calc, >= adjustedLimit
+ *  - permittedBidDeviation=1, empty auctions, missing history
  */
 import { calcBidTooLowPenalty as _nativeCalc } from '../src/calculations'
 
-import type { AuctionValidator } from '../src/types'
+import type { AuctionValidator, CommissionDetails } from '../src/types'
 
 const COEF_DEVIATION = 0.95
 
@@ -467,6 +464,136 @@ describe('calcBidTooLowPenalty', () => {
     expect(res.bidTooLowPenalty.base).toBe(expectedBase)
     expect(res.bidTooLowPenaltyPmpe).toBeCloseTo(expectedPenalty)
     expect(res.paidUndelegationSol).toBeCloseTo((expectedPenalty * marinadeActivatedStakeSol) / winningTotalPmpe)
+  })
+
+  it('throws when winningTotalPmpe=0', () => {
+    const validator = {
+      revShare: {
+        effParticipatingBidPmpe: 10,
+        bondObligationPmpe: 5,
+        bidPmpe: 0,
+        totalPmpe: NaN,
+        bidTooLowPenaltyPmpe: NaN,
+      },
+      auctions: [
+        {
+          effParticipatingBidPmpe: 10,
+          bidPmpe: 20,
+          commissions: {
+            inflationCommissionDec: 0.05,
+            mevCommissionDec: 0.08,
+            blockRewardsCommissionDec: 0,
+            inflationCommissionOnchainDec: 0.05,
+            inflationCommissionInBondDec: null,
+            mevCommissionOnchainDec: 0.08,
+            mevCommissionInBondDec: null,
+            blockRewardsCommissionInBondDec: null,
+          },
+        },
+      ],
+      bidTooLowPenalty: { coef: NaN, base: NaN },
+      marinadeActivatedStakeSol: 1000,
+      values: { commissions: null },
+    } as unknown as AuctionValidator
+    expect(() =>
+      _nativeCalc({
+        historyEpochs: 1,
+        winningTotalPmpe: 0,
+        validator,
+      }),
+    ).toThrow(/paidUndelegationSol has to be finite/)
+  })
+
+  it('returns 0 with empty auctions', () => {
+    const validator = {
+      revShare: {
+        effParticipatingBidPmpe: 10,
+        bondObligationPmpe: 5,
+        bidPmpe: 0,
+        totalPmpe: NaN,
+        bidTooLowPenaltyPmpe: NaN,
+      },
+      auctions: [],
+      bidTooLowPenalty: { coef: NaN, base: NaN },
+      marinadeActivatedStakeSol: 100,
+      values: { commissions: null },
+    } as unknown as AuctionValidator
+    const result = _nativeCalc({
+      historyEpochs: 1,
+      winningTotalPmpe: 100,
+      validator,
+    })
+    expect(result.bidTooLowPenaltyPmpe).toBe(0)
+    expect(result.paidUndelegationSol).toBe(0)
+  })
+
+  it('permittedBidDeviation=1 yields zero penalty', () => {
+    const validator = {
+      revShare: {
+        effParticipatingBidPmpe: 10,
+        bondObligationPmpe: 5,
+        bidPmpe: 0,
+        totalPmpe: NaN,
+        bidTooLowPenaltyPmpe: NaN,
+      },
+      auctions: [
+        {
+          effParticipatingBidPmpe: 10,
+          bidPmpe: 20,
+          commissions: {
+            inflationCommissionDec: 0.05,
+            mevCommissionDec: 0.08,
+            blockRewardsCommissionDec: 0,
+            inflationCommissionOnchainDec: 0.05,
+            inflationCommissionInBondDec: null,
+            mevCommissionOnchainDec: 0.08,
+            mevCommissionInBondDec: null,
+            blockRewardsCommissionInBondDec: null,
+          },
+        },
+      ],
+      bidTooLowPenalty: { coef: NaN, base: NaN },
+      marinadeActivatedStakeSol: 100,
+      values: { commissions: null },
+    } as unknown as AuctionValidator
+    const result = _nativeCalc({
+      historyEpochs: 1,
+      winningTotalPmpe: 100,
+      validator,
+      permittedBidDeviation: 1,
+    })
+    // adjustedLimit = limit * (1 - 1) = 0, penaltyCoef = 0
+    expect(result.bidTooLowPenaltyPmpe).toBe(0)
+  })
+
+  it('bondObligationPmpe >= adjustedLimit yields coef 0', () => {
+    const validator = {
+      revShare: {
+        bondObligationPmpe: 10,
+        effParticipatingBidPmpe: 5,
+        bidPmpe: 1,
+        totalPmpe: NaN,
+        bidTooLowPenaltyPmpe: NaN,
+      },
+      auctions: [
+        {
+          effParticipatingBidPmpe: 10,
+          bidPmpe: 10,
+          commissions: {} as unknown as CommissionDetails,
+        },
+      ],
+      bidTooLowPenalty: { coef: NaN, base: NaN },
+      marinadeActivatedStakeSol: 1000,
+      values: { commissions: null },
+    } as unknown as AuctionValidator
+    const result = _nativeCalc({
+      historyEpochs: 1,
+      winningTotalPmpe: 20,
+      validator,
+      permittedBidDeviation: 0,
+    })
+    expect(result.bidTooLowPenalty.coef).toBe(0)
+    expect(result.bidTooLowPenaltyPmpe).toBe(0)
   })
 
   it('handles missing commission history gracefully', () => {

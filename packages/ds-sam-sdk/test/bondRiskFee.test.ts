@@ -1,16 +1,21 @@
 /**
- *
  * Tests cover:
  *  - early exit when lastBondBalanceSol < 1
  *  - no action when bond balance is sufficient
- *  - correct computation of forced undelegation, coefficient, and fee
- *  - clamping behavior when floor threshold forces full undelegation
- *  - error thrown when result is non-finite
+ *  - forced undelegation and fee computation (various coef/pmpe combos)
+ *  - clamping: floor threshold, coef <= 0, full exposed stake
+ *  - division by zero: idealBondPmpe=0, zero effective PMPE
+ *  - zero expected max PMPE
+ *  - SDK integration: bondRiskFeeMult=0 yields 0
  */
 
-import assert from 'assert'
+import assert from 'node:assert'
 
+import { DsSamSDK } from '../src'
 import { calcBondRiskFee } from '../src/calculations'
+import { defaultStaticDataProviderBuilder } from './helpers/static-data-provider-builder'
+import { findValidatorInResult } from './helpers/utils'
+import { ValidatorMockBuilder, generateIdentities, generateVoteAccounts } from './helpers/validator-mock-builder'
 
 import type { BondRiskFeeConfig } from '../src/calculations'
 import type { AuctionValidator, RevShare } from '../src/types'
@@ -32,7 +37,6 @@ const baseConfig: BondRiskFeeConfig = {
   idealBondEpochs: 2,
   minBondBalanceSol: 10,
   bondRiskFeeMult: 0.1,
-  pendingWithdrawalBondMult: 0,
 }
 
 function makeValidator(
@@ -238,6 +242,75 @@ describe('calcBondRiskFee', () => {
     expect(result.bondRiskFeeSol).toBeCloseTo(0)
   })
 
+  it('idealBondPmpe=0 division by zero', () => {
+    const v = {
+      ...makeValidator({
+        bondBalanceSol: 1,
+        lastBondBalanceSol: 1,
+        marinadeActivatedStakeSol: 1000,
+        values: { paidUndelegationSol: 0 },
+        revShare: {
+          onchainDistributedPmpe: 5,
+          auctionEffectiveBidPmpe: 5,
+          expectedMaxEffBidPmpe: 5,
+        },
+      }),
+      claimableBondBalanceSol: 1,
+      unprotectedStakeSol: 0,
+      minBondPmpe: 10,
+      idealBondPmpe: 0,
+      minUnprotectedReserve: 0,
+      idealUnprotectedReserve: 0,
+    } as unknown as AuctionValidator
+    const result = calcBondRiskFee(
+      {
+        minBondEpochs: 1,
+        idealBondEpochs: 0,
+        minBondBalanceSol: 0,
+        bondRiskFeeMult: 1,
+      },
+      v,
+    )
+    assert(result)
+    expect(result.bondForcedUndelegation.base).toBe(0)
+    expect(result.bondForcedUndelegation.coef).toBe(-Infinity)
+    expect(result.bondForcedUndelegation.value).toBe(1000)
+  })
+
+  it('coef <= 0 uses full exposed stake', () => {
+    const v = {
+      ...makeValidator({
+        bondBalanceSol: 1,
+        lastBondBalanceSol: 1,
+        marinadeActivatedStakeSol: 500,
+        values: { paidUndelegationSol: 0 },
+        revShare: {
+          onchainDistributedPmpe: 5,
+          auctionEffectiveBidPmpe: 5,
+          expectedMaxEffBidPmpe: 5,
+        },
+      }),
+      claimableBondBalanceSol: 1,
+      unprotectedStakeSol: 0,
+      minBondPmpe: 10,
+      idealBondPmpe: 10,
+      minUnprotectedReserve: 0,
+      idealUnprotectedReserve: 0,
+    } as unknown as AuctionValidator
+    const result = calcBondRiskFee(
+      {
+        minBondEpochs: 1,
+        idealBondEpochs: 1,
+        minBondBalanceSol: 0,
+        bondRiskFeeMult: 1,
+      },
+      v,
+    )
+    assert(result)
+    expect(result.bondForcedUndelegation.coef).toBe(0)
+    expect(result.bondForcedUndelegation.value).toBe(500)
+  })
+
   it('handles zero expected max PMPE', () => {
     const revShare = {
       ...baseRevShare,
@@ -259,5 +332,28 @@ describe('calcBondRiskFee', () => {
     })
     const result = calcBondRiskFee(baseConfig, validator)
     expect(result).toBeNull()
+  })
+})
+
+describe('setBondRiskFee (SDK integration)', () => {
+  it('yields 0 when bondRiskFeeMult=0', async () => {
+    const votes = generateVoteAccounts('brisk')
+    const ids = generateIdentities()
+    const val = new ValidatorMockBuilder(votes.next().value, ids.next().value)
+      .withGoodPerformance()
+      .withLiquidStake(100_000)
+      .withNativeStake(50_000)
+      .withBond({
+        stakeWanted: 200_000,
+        cpmpe: 0,
+        balance: 100,
+      })
+
+    const dsSam = new DsSamSDK({ bondRiskFeeMult: 0 }, defaultStaticDataProviderBuilder([val]))
+    const result = await dsSam.run()
+
+    const v = findValidatorInResult(val.voteAccount, result)
+    assert(v)
+    expect(v.values.bondRiskFeeSol).toBe(0)
   })
 })

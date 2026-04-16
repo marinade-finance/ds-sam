@@ -1,6 +1,9 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Auction } from '../src/auction'
 import { Debug } from '../src/debug'
+
+import type { DsSamConfig } from '../src/config'
+import type { AuctionConstraints } from '../src/constraints'
+import type { AuctionData, AuctionValidator } from '../src/types'
 
 describe('setBlacklistPenalties', () => {
   it('applies penalties only to newly blacklisted validators', () => {
@@ -9,45 +12,37 @@ describe('setBlacklistPenalties', () => {
     const validators = [
       {
         voteAccount: 'newly-blacklisted',
-        revShare: {
-          effParticipatingBidPmpe: 100,
-          blacklistPenaltyPmpe: 0,
-        },
-        values: { samBlacklisted: true } as any,
+        revShare: { effParticipatingBidPmpe: 100, blacklistPenaltyPmpe: 0 },
+        values: { samBlacklisted: true },
         lastSamBlacklisted: false,
       },
       {
         voteAccount: 'still-blacklisted',
-        revShare: {
-          effParticipatingBidPmpe: 200,
-          blacklistPenaltyPmpe: 0,
-        },
-        values: { samBlacklisted: true } as any,
+        revShare: { effParticipatingBidPmpe: 200, blacklistPenaltyPmpe: 0 },
+        values: { samBlacklisted: true },
         lastSamBlacklisted: true,
       },
       {
         voteAccount: 'not-blacklisted',
-        revShare: {
-          effParticipatingBidPmpe: 300,
-          blacklistPenaltyPmpe: 0,
-        },
-        values: { samBlacklisted: false } as any,
+        revShare: { effParticipatingBidPmpe: 300, blacklistPenaltyPmpe: 0 },
+        values: { samBlacklisted: false },
         lastSamBlacklisted: false,
       },
       {
         voteAccount: 'newly-blacklisted-zero-eff',
-        revShare: {
-          effParticipatingBidPmpe: 0,
-          blacklistPenaltyPmpe: 0,
-        },
-        values: { samBlacklisted: true } as any,
+        revShare: { effParticipatingBidPmpe: 0, blacklistPenaltyPmpe: 0 },
+        values: { samBlacklisted: true },
         lastSamBlacklisted: false,
       },
-    ] as any[]
+    ] as unknown as AuctionValidator[]
 
-    const data = { validators } as any
-
-    const auction = new Auction(data, {} as any, {} as any, new Debug(new Set()))
+    const data = { validators } as unknown as AuctionData
+    const auction = new Auction(
+      data,
+      {} as unknown as AuctionConstraints,
+      {} as unknown as DsSamConfig,
+      new Debug(new Set()),
+    )
 
     auction.setBlacklistPenalties(winningTotalPmpe)
 
