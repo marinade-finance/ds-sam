@@ -147,6 +147,29 @@ describe('bondGoodForNEpochs', () => {
     c.bondStakeCapSam(v)
     expect(v.bondGoodForNEpochs).toBeCloseTo(-0.5, 6)
   })
+
+  it('is -minBondEpochs when bond is 0', () => {
+    // bondBalanceForBids = max(0, 0) = 0 → goodFor = 0 - 1 = -1
+    const v = makeValidator({
+      bondBalanceSol: 0,
+      marinadeActivatedStakeSol: 200,
+      revShare: buildRevShare({ expectedMaxEffBidPmpe: 5, onchainDistributedPmpe: 0 }),
+    })
+    c.bondStakeCapSam(v)
+    expect(v.bondGoodForNEpochs).toBeCloseTo(-1, 6)
+  })
+
+  it('onchainDistributedPmpe reduces bondBalanceForBids', () => {
+    // protectedStake = 200, onchain = 2/1000 → reserve = 0.4
+    // bondBalanceForBids = max(0, 1 - 0.4) = 0.6 → goodFor = 0.6/1 - 1 = -0.4
+    const v = makeValidator({
+      bondBalanceSol: 1,
+      marinadeActivatedStakeSol: 200,
+      revShare: buildRevShare({ expectedMaxEffBidPmpe: 5, onchainDistributedPmpe: 2 }),
+    })
+    c.bondStakeCapSam(v)
+    expect(v.bondGoodForNEpochs).toBeCloseTo(-0.4, 6)
+  })
 })
 
 describe('unprotectedStakeCap()', () => {
