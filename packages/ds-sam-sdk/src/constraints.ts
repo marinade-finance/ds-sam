@@ -245,7 +245,8 @@ export class AuctionConstraints {
       bondBalanceSol - (revShare.onchainDistributedPmpe / 1000) * protectedStakeSol,
     )
     validator.bondGoodForNEpochs =
-      bondBalanceForBids / ((revShare.expectedMaxEffBidPmpe / 1000) * validator.marinadeActivatedStakeSol)
+      bondBalanceForBids / ((revShare.expectedMaxEffBidPmpe / 1000) * validator.marinadeActivatedStakeSol) -
+      this.config.minBondEpochs
     // represents how much of the stake this validator has is protected sufficiently enough
     //
     // do not consider the flapping histeresis for unstake priorities and risk measures
