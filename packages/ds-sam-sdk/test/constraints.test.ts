@@ -120,12 +120,12 @@ describe('bondGoodForNEpochs', () => {
   const c = makeConstraints({ minBondEpochs: 1, idealBondEpochs: 2, minBondBalanceSol: 1 })
 
   it.each([
-    ['at threshold → 0', 1, 0, 0],
-    ['above threshold → positive', 2, 0, 1],
-    ['below threshold → negative', 0.5, 0, -0.5],
-    ['zero bond → -minBondEpochs', 0, 0, -1],
-    ['onchainDistributedPmpe reduces', 1, 2, -0.4], // reserve = 200*2/1000 = 0.4
-  ])('%s', (_label, bondBalanceSol, onchainDistributedPmpe, expected) => {
+    { label: 'at threshold → 0', bondBalanceSol: 1, onchainDistributedPmpe: 0, expected: 0 },
+    { label: 'above threshold → positive', bondBalanceSol: 2, onchainDistributedPmpe: 0, expected: 1 },
+    { label: 'below threshold → negative', bondBalanceSol: 0.5, onchainDistributedPmpe: 0, expected: -0.5 },
+    { label: 'zero bond → -minBondEpochs', bondBalanceSol: 0, onchainDistributedPmpe: 0, expected: -1 },
+    { label: 'onchainDistributedPmpe reduces', bondBalanceSol: 1, onchainDistributedPmpe: 2, expected: -0.4 }, // reserve = 200*2/1000 = 0.4
+  ])('$label', ({ bondBalanceSol, onchainDistributedPmpe, expected }) => {
     const v = makeValidator({
       bondBalanceSol,
       marinadeActivatedStakeSol: 200,
