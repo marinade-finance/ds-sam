@@ -81,6 +81,7 @@ export const calcValidatorRevShare = (
     bondObligationPmpe: bidPmpe + blockPmpe + bondsInflationPmpeDiff + bondsMevPmpeDiff,
     auctionEffectiveStaticBidPmpe: NaN,
     auctionEffectiveBidPmpe: NaN,
+    activatingStakePmpe: NaN,
     bidTooLowPenaltyPmpe: NaN,
     effParticipatingBidPmpe: NaN,
     // in case expectedMaxWinningBidRatio = null, expectedMaxEffBidPmpe never gets set and remains equal to bidPmpe
