@@ -28,6 +28,7 @@ const baseRevShare = {
   blockPmpe: 10,
 
   auctionEffectiveBidPmpe: 200,
+  activatingStakePmpe: 0,
   expectedMaxEffBidPmpe: 200,
   blacklistPenaltyPmpe: NaN,
 }
@@ -154,6 +155,7 @@ describe('calcBondRiskFee', () => {
       revShare: {
         expectedMaxEffBidPmpe: 45,
         auctionEffectiveBidPmpe: 40,
+        activatingStakePmpe: 0,
         onchainDistributedPmpe: 200,
       },
     })
@@ -199,6 +201,7 @@ describe('calcBondRiskFee', () => {
       mevPmpe: 300,
       blockPmpe: 10,
       auctionEffectiveBidPmpe: 200,
+      activatingStakePmpe: 0,
       onchainDistributedPmpe: 790,
     }
     const validator = makeValidator({
@@ -226,6 +229,7 @@ describe('calcBondRiskFee', () => {
       mevPmpe: 0,
       blockPmpe: 0,
       auctionEffectiveBidPmpe: 0,
+      activatingStakePmpe: 0,
       onchainDistributedPmpe: 0,
     }
     const validator = makeValidator({
@@ -320,6 +324,7 @@ describe('calcBondRiskFee', () => {
       mevPmpe: 0,
       blockPmpe: 0,
       auctionEffectiveBidPmpe: 0,
+      activatingStakePmpe: 0,
       expectedMaxEffBidPmpe: 0,
       onchainDistributedPmpe: 0,
     }

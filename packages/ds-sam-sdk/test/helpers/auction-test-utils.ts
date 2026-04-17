@@ -36,6 +36,7 @@ export function buildRevShare(overrides: Partial<RevShare> = {}): RevShare {
     bondObligationPmpe: 0,
     auctionEffectiveStaticBidPmpe: 0,
     auctionEffectiveBidPmpe: 0,
+    activatingStakePmpe: 0,
     bidTooLowPenaltyPmpe: 0,
     effParticipatingBidPmpe: 0,
     expectedMaxEffBidPmpe: 0,

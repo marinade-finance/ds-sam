@@ -68,6 +68,7 @@ describe('bondStakeCapSam()', () => {
         bidPmpe: 0,
         totalPmpe: 0,
         auctionEffectiveBidPmpe: 0,
+        activatingStakePmpe: 0,
         effParticipatingBidPmpe: 0,
         expectedMaxEffBidPmpe: 5,
         bidTooLowPenaltyPmpe: 0,
@@ -86,6 +87,7 @@ describe('bondStakeCapSam()', () => {
       marinadeActivatedStakeSol: 70000,
       revShare: buildRevShare({
         auctionEffectiveBidPmpe: 0,
+        activatingStakePmpe: 0,
         effParticipatingBidPmpe: 0,
         expectedMaxEffBidPmpe: 5,
         bidTooLowPenaltyPmpe: 0,
@@ -102,6 +104,7 @@ describe('bondStakeCapSam()', () => {
       marinadeActivatedStakeSol: 200000,
       revShare: buildRevShare({
         auctionEffectiveBidPmpe: 0,
+        activatingStakePmpe: 0,
         effParticipatingBidPmpe: 0,
         expectedMaxEffBidPmpe: 5,
         bidTooLowPenaltyPmpe: 0,
@@ -380,6 +383,7 @@ describe('getMinCapForEvenDistribution – Sam‐BOND wins', () => {
       bidPmpe: 0,
       totalPmpe: 0,
       auctionEffectiveBidPmpe: 0,
+      activatingStakePmpe: 0,
       effParticipatingBidPmpe: 0,
       expectedMaxEffBidPmpe: 1000,
       bidTooLowPenaltyPmpe: 0,

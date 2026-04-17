@@ -123,6 +123,7 @@ export class DataProvider {
         epoch: auction.epoch,
         winningTotalPmpe: auction.winningTotalPmpe,
         auctionEffectiveBidPmpe: 0,
+        activatingStakePmpe: 0,
         bidPmpe: 0,
         totalPmpe: 0,
         bondObligationPmpe: 0,
@@ -134,6 +135,7 @@ export class DataProvider {
       epoch: auction.epoch,
       winningTotalPmpe: auction.winningTotalPmpe,
       auctionEffectiveBidPmpe: revShare.auctionEffectiveBidPmpe,
+      activatingStakePmpe: revShare.activatingStakePmpe,
       bidPmpe: revShare.bidPmpe,
       totalPmpe: revShare.totalPmpe,
       bondObligationPmpe: revShare.bondObligationPmpe,
@@ -397,6 +399,7 @@ export class DataProvider {
     validators.forEach(v => {
       v.revShare = {
         ...v.revShare,
+        activatingStakePmpe: v.revShare.activatingStakePmpe ?? 0,
         blockPmpe: v.revShare.blockPmpe ?? 0,
         bondObligationPmpe: v.revShare.bondObligationPmpe ?? v.revShare.bidPmpe,
         onchainDistributedPmpe: v.revShare.onchainDistributedPmpe ?? v.revShare.inflationPmpe + v.revShare.mevPmpe,
