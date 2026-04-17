@@ -137,6 +137,16 @@ describe('bondGoodForNEpochs', () => {
     c.bondStakeCapSam(v)
     expect(v.bondGoodForNEpochs).toBeCloseTo(expected, 6)
   })
+
+  it('zero stake → Infinity (bond never depletes)', () => {
+    const v = makeValidator({
+      bondBalanceSol: 1,
+      marinadeActivatedStakeSol: 0,
+      revShare: buildRevShare({ expectedMaxEffBidPmpe: 5, onchainDistributedPmpe: 0 }),
+    })
+    makeConstraints({ minBondEpochs: 1, idealBondEpochs: 2, minBondBalanceSol: 1 }).bondStakeCapSam(v)
+    expect(v.bondGoodForNEpochs).toBe(Infinity)
+  })
 })
 
 describe('unprotectedStakeCap()', () => {
