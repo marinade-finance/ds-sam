@@ -220,6 +220,7 @@ export class Auction {
         // (rewards are calculated from the previous epoch, so they are not known at time the auction is calculated)
         revShare.auctionEffectiveBidPmpe = calcEffParticipatingBidPmpe(revShare, winningTotalPmpe)
       }
+      // Bid surplus over the clearing price — what the validator pays per unit of newly activating stake.
       revShare.activatingStakePmpe = Math.max(0, revShare.bidPmpe - revShare.auctionEffectiveBidPmpe)
     }
     this.setAuctionEffectiveStaticBids(winningTotalPmpe)
