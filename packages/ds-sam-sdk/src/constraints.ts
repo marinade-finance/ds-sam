@@ -240,10 +240,13 @@ export class AuctionConstraints {
     validator.bondSamStakeCapSol = cap
     // represents for how many epochs is this validator protected
     const protectedStakeSol = Math.max(0, validator.marinadeActivatedStakeSol - unprotectedStakeSol)
+    // Reserve the portion of the bond already committed to on-chain distribution; the rest is available for bids.
     const bondBalanceForBids = Math.max(
       0,
       bondBalanceSol - (revShare.onchainDistributedPmpe / 1000) * protectedStakeSol,
     )
+    // Epochs = balance / cost-per-epoch, where cost = expectedMaxEffBidPmpe/1000 * stake.
+    // Subtract minBondEpochs so 0 means the validator is exactly at the fee threshold.
     // Infinity when marinadeActivatedStakeSol or expectedMaxEffBidPmpe is 0 — bond covers infinite epochs.
     validator.bondGoodForNEpochs =
       bondBalanceForBids / ((revShare.expectedMaxEffBidPmpe / 1000) * validator.marinadeActivatedStakeSol) -
