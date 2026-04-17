@@ -13,6 +13,7 @@
  */
 import assert from 'node:assert'
 
+import { calcBondRiskFee } from '../src/calculations'
 import { AuctionConstraintType } from '../src/types'
 import { minCapFromConstraint } from '../src/utils'
 import {
@@ -146,6 +147,51 @@ describe('bondGoodForNEpochs', () => {
     })
     makeConstraints({ minBondEpochs: 1, idealBondEpochs: 2, minBondBalanceSol: 1 }).bondStakeCapSam(v)
     expect(v.bondGoodForNEpochs).toBe(Infinity)
+  })
+})
+
+describe('bondGoodForNEpochs vs calcBondRiskFee threshold', () => {
+  // fee threshold: bond = minBondPmpe/1000 * stake = (onchain + (1+minBondEpochs)*effBid)/1000 * stake
+  // rearranging: bondGoodForNEpochs = (bond - onchain*stake/1000) / (effBid/1000*stake) - minBondEpochs = 1
+  // so fee triggers ↔ bondGoodForNEpochs < 1
+  const minBondEpochs = 1
+  const idealBondEpochs = 2
+  const effBid = 5
+  const onchain = 2
+  const stake = 200
+  // costPerEpoch = effBid/1000 * stake = 1 SOL
+  // bondForBids at threshold = (1+minBondEpochs) * 1 = 2 SOL
+  // bond at threshold = onchain/1000 * stake + 2 = 0.4 + 2 = 2.4 SOL
+  const feeConfig = { minBondEpochs, idealBondEpochs: 2, minBondBalanceSol: 0, bondRiskFeeMult: 0.1 }
+  const c = makeConstraints({ minBondEpochs, idealBondEpochs, minBondBalanceSol: 0 })
+
+  function run(bondBalanceSol: number) {
+    const v = makeValidator({
+      bondBalanceSol,
+      claimableBondBalanceSol: bondBalanceSol,
+      marinadeActivatedStakeSol: stake,
+      revShare: buildRevShare({ expectedMaxEffBidPmpe: effBid, onchainDistributedPmpe: onchain }),
+    })
+    c.bondStakeCapSam(v)
+    return { goodFor: v.bondGoodForNEpochs, fee: calcBondRiskFee(feeConfig, v) }
+  }
+
+  it('exactly at threshold: bondGoodForNEpochs=1, no fee', () => {
+    const { goodFor, fee } = run(2.4)
+    expect(goodFor).toBeCloseTo(1, 6)
+    expect(fee).toBeNull()
+  })
+
+  it('just above threshold: bondGoodForNEpochs>1, no fee', () => {
+    const { goodFor, fee } = run(2.5)
+    expect(goodFor).toBeGreaterThan(1)
+    expect(fee).toBeNull()
+  })
+
+  it('just below threshold: bondGoodForNEpochs<1, fee generated', () => {
+    const { goodFor, fee } = run(2.3)
+    expect(goodFor).toBeLessThan(1)
+    expect(fee).not.toBeNull()
   })
 })
 

@@ -246,7 +246,7 @@ export class AuctionConstraints {
       bondBalanceSol - (revShare.onchainDistributedPmpe / 1000) * protectedStakeSol,
     )
     // Epochs = balance / cost-per-epoch, where cost = expectedMaxEffBidPmpe/1000 * stake.
-    // Subtract minBondEpochs so 0 means the validator is exactly at the fee threshold.
+    // Subtract minBondEpochs so the fee threshold (minBondPmpe) corresponds to bondGoodForNEpochs = 1.
     // Infinity when marinadeActivatedStakeSol or expectedMaxEffBidPmpe is 0 — bond covers infinite epochs.
     validator.bondGoodForNEpochs =
       bondBalanceForBids / ((revShare.expectedMaxEffBidPmpe / 1000) * validator.marinadeActivatedStakeSol) -
