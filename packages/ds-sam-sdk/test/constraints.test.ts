@@ -128,7 +128,13 @@ describe('bondGoodForNEpochs', () => {
     { label: 'at fee threshold → 0', bondBalanceSol: 2, onchainDistributedPmpe: 0, expected: 0 },
     { label: 'above threshold → positive', bondBalanceSol: 3, onchainDistributedPmpe: 0, expected: 1 },
     { label: 'below threshold → negative', bondBalanceSol: 0.5, onchainDistributedPmpe: 0, expected: -1.5 },
-    { label: 'zero bond → -(1+minBondEpochs)', bondBalanceSol: 0, onchainDistributedPmpe: 0, expected: -2 },
+    { label: 'zero bond, no onchain → -(1+minBondEpochs)', bondBalanceSol: 0, onchainDistributedPmpe: 0, expected: -2 },
+    {
+      label: 'zero bond, onchain debt → below -(1+minBondEpochs)',
+      bondBalanceSol: 0,
+      onchainDistributedPmpe: 5,
+      expected: -3,
+    }, // deficit = 200*5/1000 = 1 → goodFor = -1/1 - 2 = -3
     { label: 'onchainDistributedPmpe reduces', bondBalanceSol: 2, onchainDistributedPmpe: 2, expected: -0.4 }, // reserve = 200*2/1000 = 0.4
   ])('$label', ({ bondBalanceSol, onchainDistributedPmpe, expected }) => {
     const v = makeValidator({
