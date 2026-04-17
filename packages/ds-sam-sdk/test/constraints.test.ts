@@ -119,7 +119,7 @@ describe('bondStakeCapSam()', () => {
 describe('bondGoodForNEpochs', () => {
   // minBondEpochs=1, expectedMaxEffBidPmpe=5, marinadeActivatedStakeSol=200
   // costPerEpoch = stake * pmpe/1000 = 200 * 5/1000 = 1 SOL/epoch
-  // bondBalanceForBids = max(0, bondBalanceSol - onchain * stake/1000)
+  // bondBalanceForBids = bondBalanceSol - onchain * stake/1000  (can be negative)
   // goodFor = bondBalanceForBids / costPerEpoch - (1 + minBondEpochs)
   // fee threshold bond = (onchain + (1+minBondEpochs)*effBid)/1000*stake = (0 + 2*5)/1000*200 = 2 SOL
   const c = makeConstraints({ minBondEpochs: 1, idealBondEpochs: 2, minBondBalanceSol: 1 })
