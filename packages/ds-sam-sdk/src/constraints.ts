@@ -244,6 +244,7 @@ export class AuctionConstraints {
       0,
       bondBalanceSol - (revShare.onchainDistributedPmpe / 1000) * protectedStakeSol,
     )
+    // Infinity when marinadeActivatedStakeSol or expectedMaxEffBidPmpe is 0 — bond covers infinite epochs.
     validator.bondGoodForNEpochs =
       bondBalanceForBids / ((revShare.expectedMaxEffBidPmpe / 1000) * validator.marinadeActivatedStakeSol) -
       this.config.minBondEpochs

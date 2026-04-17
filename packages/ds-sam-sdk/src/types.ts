@@ -55,6 +55,7 @@ export type AuctionValidator = AggregatedValidator & {
   idealBondPmpe: number
   minUnprotectedReserve: number
   idealUnprotectedReserve: number
+  // Infinity when marinadeActivatedStakeSol or expectedMaxEffBidPmpe is 0 (serializes to null in JSON).
   bondGoodForNEpochs: number
   bondSamHealth: number
 }
