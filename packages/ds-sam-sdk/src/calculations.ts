@@ -195,6 +195,40 @@ export const calcBondRiskFee = (cfg: BondRiskFeeConfig, validator: AuctionValida
   }
 }
 
+export type BondGoodForNEpochsOverrides = {
+  activatedStakeSol?: number
+  bondBalanceSol?: number
+  unprotectedStakeSol?: number
+}
+
+/**
+ * SOL-slack over the calcBondRiskFee fee threshold, normalized to epochs of
+ * bid on activated stake. Zero is the fee threshold; negative ⇒ fee due;
+ * positive ⇒ fee-safe. Infinity when activatedStakeSol or expectedMaxEffBidPmpe
+ * is 0.
+ *
+ * Protected (exposed) stake needs (1 + minBondEpochs) epochs of bid coverage
+ * plus one onchain-distributed payment; unprotected stake only needs
+ * minBondEpochs of bid reserve. Defaults read from the validator; overrides
+ * let the dashboard evaluate hypothetical stake / bond / unprotected values.
+ */
+export const calcBondGoodForNEpochs = (
+  cfg: { minBondEpochs: number },
+  validator: AuctionValidator,
+  overrides: BondGoodForNEpochsOverrides = {},
+): number => {
+  const activatedStakeSol = overrides.activatedStakeSol ?? validator.projectedActivatedStakeSol
+  const bondBalanceSol = overrides.bondBalanceSol ?? validator.bondBalanceSol ?? 0
+  const unprotectedStakeSol = overrides.unprotectedStakeSol ?? validator.unprotectedStakeSol
+  const { onchainDistributedPmpe, expectedMaxEffBidPmpe } = validator.revShare
+  const exposedStakeSol = Math.max(0, activatedStakeSol - unprotectedStakeSol)
+  const minBondRequiredSol =
+    (onchainDistributedPmpe / 1000) * exposedStakeSol +
+    (expectedMaxEffBidPmpe / 1000) *
+      ((1 + cfg.minBondEpochs) * exposedStakeSol + cfg.minBondEpochs * unprotectedStakeSol)
+  return (bondBalanceSol - minBondRequiredSol) / ((expectedMaxEffBidPmpe / 1000) * activatedStakeSol)
+}
+
 /**
  * The validator’s PMPE represents the portion to be shared by claiming from bond.
  * Because PMPE is based on estimated rewards for the next epoch, the actual bond claim

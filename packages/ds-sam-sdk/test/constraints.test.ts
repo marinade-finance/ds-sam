@@ -13,7 +13,7 @@
  */
 import assert from 'node:assert'
 
-import { calcBondRiskFee } from '../src/calculations'
+import { calcBondGoodForNEpochs, calcBondRiskFee } from '../src/calculations'
 import { AuctionConstraintType } from '../src/types'
 import { minCapFromConstraint } from '../src/utils'
 import {
@@ -290,6 +290,73 @@ describe('projectedActivatedStakeSol / projectedExposedStakeSol', () => {
     expect(v.unprotectedStakeSol).toBe(80)
     expect(v.projectedActivatedStakeSol).toBe(400)
     expect(v.projectedExposedStakeSol).toBe(320)
+  })
+})
+
+describe('calcBondGoodForNEpochs overrides', () => {
+  // base setup: bond=2, stake=200, effBid=5, onchain=0, unprotected=0, minBondEpochs=1
+  // bondGoodForNEpochs = (2 - 0 - 2*(5/1000)*200) / ((5/1000)*200) = (2 - 2) / 1 = 0
+  const cfg = { minBondEpochs: 1 }
+  const mkSeeded = (opts: { paidUndelegationSol?: number } = {}) => {
+    const v = makeValidator({
+      bondBalanceSol: 2,
+      marinadeActivatedStakeSol: 200,
+      values: { paidUndelegationSol: opts.paidUndelegationSol ?? 0, bondRiskFeeSol: 0 } as AuctionValidator['values'],
+      revShare: buildRevShare({ expectedMaxEffBidPmpe: 5, onchainDistributedPmpe: 0 }),
+    })
+    // seed projectedActivatedStakeSol & unprotectedStakeSol via constraint evaluation
+    makeConstraints({ minBondEpochs: 1, idealBondEpochs: 2 }).bondStakeCapSam(v)
+    return v
+  }
+
+  it('no overrides: matches stored bondGoodForNEpochs', () => {
+    const v = mkSeeded()
+    expect(calcBondGoodForNEpochs(cfg, v)).toBe(v.bondGoodForNEpochs)
+  })
+
+  it('activatedStakeSol override halves ⇒ doubles epochs + rescales threshold', () => {
+    const v = mkSeeded()
+    // stake=100 → bondGoodFor = (2 - 0) / ((5/1000)*100) - (1+1) = 4 - 2 = 2
+    expect(calcBondGoodForNEpochs(cfg, v, { activatedStakeSol: 100 })).toBeCloseTo(2, 6)
+  })
+
+  it('activatedStakeSol override doubles ⇒ coverage deficit', () => {
+    const v = mkSeeded()
+    // stake=400 → (2 - 0) / ((5/1000)*400) - 2 = 1 - 2 = -1
+    expect(calcBondGoodForNEpochs(cfg, v, { activatedStakeSol: 400 })).toBeCloseTo(-1, 6)
+  })
+
+  it('bondBalanceSol override scales linearly in numerator', () => {
+    const v = mkSeeded()
+    // bond=4 → (4 - 0)/1 - 2 = 2
+    expect(calcBondGoodForNEpochs(cfg, v, { bondBalanceSol: 4 })).toBeCloseTo(2, 6)
+    // bond=0 → (0 - 0)/1 - 2 = -2
+    expect(calcBondGoodForNEpochs(cfg, v, { bondBalanceSol: 0 })).toBeCloseTo(-2, 6)
+  })
+
+  it('unprotectedStakeSol override shifts exposure (no onchain: fully reclaims reserve terms)', () => {
+    const v = mkSeeded()
+    // unprotected=200 → exposed=0; required = (5/1000)*(0 + 1*200) = 1
+    // goodFor = (2 - 1) / ((5/1000)*200) = 1/1 = 1
+    expect(calcBondGoodForNEpochs(cfg, v, { unprotectedStakeSol: 200 })).toBeCloseTo(1, 6)
+  })
+
+  it('activatedStakeSol=0 → Infinity', () => {
+    const v = mkSeeded()
+    expect(calcBondGoodForNEpochs(cfg, v, { activatedStakeSol: 0 })).toBe(Infinity)
+  })
+
+  it('onchainDistributedPmpe contributes to required bond', () => {
+    // onchain=2, stake=200, exposed=200, bond=2, effBid=5
+    // required = (2/1000)*200 + (5/1000)*2*200 = 0.4 + 2 = 2.4
+    // goodFor = (2 - 2.4) / ((5/1000)*200) = -0.4 / 1 = -0.4
+    const v = makeValidator({
+      bondBalanceSol: 2,
+      marinadeActivatedStakeSol: 200,
+      revShare: buildRevShare({ expectedMaxEffBidPmpe: 5, onchainDistributedPmpe: 2 }),
+    })
+    makeConstraints({ minBondEpochs: 1, idealBondEpochs: 2 }).bondStakeCapSam(v)
+    expect(calcBondGoodForNEpochs(cfg, v)).toBeCloseTo(-0.4, 6)
   })
 })
 

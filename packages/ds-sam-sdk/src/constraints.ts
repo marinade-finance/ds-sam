@@ -1,4 +1,5 @@
 import { EPSILON } from './auction'
+import { calcBondGoodForNEpochs } from './calculations'
 import { AuctionConstraintType } from './types'
 import { minCapFromConstraint, validatorTotalAuctionStakeSol, zeroStakeConcentration } from './utils'
 
@@ -245,17 +246,7 @@ export class AuctionConstraints {
     const cap = this.clipBondStakeCap(validator, limit + unprotectedStakeSol)
     validator.unprotectedStakeSol = unprotectedStakeSol
     validator.bondSamStakeCapSol = cap
-    // SOL of bond slack over the calcBondRiskFee minimum, normalized to epochs of bid on projected stake.
-    // Mirrors calcBondRiskFee exactly: protected (exposed) stake needs (1+minBondEpochs) epochs of bid
-    // coverage plus onchain distribution; unprotected stake only needs minBondEpochs of bid reserve.
-    // bondGoodForNEpochs = 0 is the fee threshold, < 0 ⇒ fee due, > 0 ⇒ fee-safe.
-    // Infinity when projectedActivatedStakeSol or expectedMaxEffBidPmpe is 0.
-    const minBondRequiredSol =
-      (revShare.onchainDistributedPmpe / 1000) * projectedExposedStakeSol +
-      (revShare.expectedMaxEffBidPmpe / 1000) *
-        ((1 + this.config.minBondEpochs) * projectedExposedStakeSol + this.config.minBondEpochs * unprotectedStakeSol)
-    validator.bondGoodForNEpochs =
-      (bondBalanceSol - minBondRequiredSol) / ((revShare.expectedMaxEffBidPmpe / 1000) * projectedActivatedStakeSol)
+    validator.bondGoodForNEpochs = calcBondGoodForNEpochs(this.config, validator, { bondBalanceSol })
     // represents how much of the stake this validator has is protected sufficiently enough
     //
     // do not consider the flapping histeresis for unstake priorities and risk measures
