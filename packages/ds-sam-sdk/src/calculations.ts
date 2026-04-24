@@ -131,15 +131,24 @@ export type BondRiskFeeResult = {
 }
 
 /**
- * Checks if a validator's claimable bond covers its exposed
- * stake. If underfunded, computes forced
- * undelegation and fee so post-fee bond covers remaining stake:
+ * Checks if claimable bond (net of the unprotected-stake earmark) covers
+ * exposed stake at minBondPmpe. If underfunded, solves for forced
+ * undelegation `value` so that, after charging the fee, the remaining bond
+ * covers the remaining exposed stake at idealBondPmpe:
  *
- *   (claimableBond - reserve - fee) / idealBondCoef
- *     = projectedExposedStakeSol - forcedUndelegation
+ *   (claimableBond - idealUnprotectedReserve - fee) / idealBondCoef
+ *     = projectedExposedStakeSol - value
  *
- * idealBondCoef = idealBondPmpe / 1000
- * fee = forcedUndelegation * effPmpe / 1000
+ *   idealBondCoef = idealBondPmpe / 1000
+ *   feeCoef       = (onchainDistributedPmpe + auctionEffectiveBidPmpe) / 1000
+ *   fee           = bondRiskFeeMult * value * feeCoef
+ *   paidUndelegation = min(1, bondRiskFeeMult) * value
+ *
+ * Gating uses minBondPmpe and minUnprotectedReserve; the solved equation
+ * targets idealBondPmpe and idealUnprotectedReserve. If the residual
+ * exposed stake would leave bond below minBondBalanceSol (valued at
+ * onchainDistributedPmpe + expectedMaxEffBidPmpe), `value` is bumped to
+ * the full projectedExposedStakeSol.
  */
 export const calcBondRiskFee = (cfg: BondRiskFeeConfig, validator: AuctionValidator): BondRiskFeeResult | null => {
   const { revShare } = validator
