@@ -181,6 +181,118 @@ describe('bondGoodForNEpochs', () => {
   })
 })
 
+describe('projectedActivatedStakeSol / projectedExposedStakeSol', () => {
+  // projectedActivated = max(0, marinadeActivatedStakeSol - paidUndelegationSol)
+  // projectedExposed   = max(0, projectedActivated - unprotectedStakeSol)
+
+  it('no undelegation, no unprotected → projected = activated, exposed = activated', () => {
+    const c = makeConstraints({ minBondEpochs: 1, idealBondEpochs: 2 })
+    const v = makeValidator({
+      bondBalanceSol: 1000,
+      marinadeActivatedStakeSol: 500,
+      revShare: buildRevShare({ expectedMaxEffBidPmpe: 5 }),
+    })
+    c.bondStakeCapSam(v)
+    expect(v.projectedActivatedStakeSol).toBe(500)
+    expect(v.projectedExposedStakeSol).toBe(500)
+  })
+
+  it('paidUndelegationSol reduces projected (activated and exposed both drop)', () => {
+    const c = makeConstraints({ minBondEpochs: 1, idealBondEpochs: 2 })
+    const v = makeValidator({
+      bondBalanceSol: 1000,
+      marinadeActivatedStakeSol: 500,
+      values: { paidUndelegationSol: 120, bondRiskFeeSol: 0 } as AuctionValidator['values'],
+      revShare: buildRevShare({ expectedMaxEffBidPmpe: 5 }),
+    })
+    c.bondStakeCapSam(v)
+    expect(v.projectedActivatedStakeSol).toBe(380)
+    expect(v.projectedExposedStakeSol).toBe(380)
+  })
+
+  it('paidUndelegationSol >= activated → projected clamped to 0', () => {
+    const c = makeConstraints({ minBondEpochs: 1, idealBondEpochs: 2 })
+    const v = makeValidator({
+      bondBalanceSol: 1000,
+      marinadeActivatedStakeSol: 100,
+      values: { paidUndelegationSol: 250, bondRiskFeeSol: 0 } as AuctionValidator['values'],
+      revShare: buildRevShare({ expectedMaxEffBidPmpe: 5 }),
+    })
+    c.bondStakeCapSam(v)
+    expect(v.projectedActivatedStakeSol).toBe(0)
+    expect(v.projectedExposedStakeSol).toBe(0)
+  })
+
+  it('unprotectedStakeSol reduces exposed but not activated', () => {
+    // unprotectedStakeCap = min(unprotectedValidatorStakeCapSol,
+    //                           unprotectedDelegatedStakeDec * delegated + unprotectedFoundationStakeDec * foundation)
+    // with cap=60, delegated = totalActivated - self - foundation = 1000 - 0 - 0, dec=1 → 60
+    // bond slack (idealBidReserve = idealBondEpochs * effBid = 2*5 = 10 pmpe)
+    //   maxUnprotected = bond / (idealBidReserve/1000) = 1000 / 0.01 = 100000 → not binding
+    const c = makeConstraints({
+      minBondEpochs: 1,
+      idealBondEpochs: 2,
+      unprotectedValidatorStakeCapSol: 60,
+      unprotectedDelegatedStakeDec: 1,
+      unprotectedFoundationStakeDec: 1,
+      minUnprotectedStakeToDelegateSol: 0,
+    })
+    const v = makeValidator({
+      bondBalanceSol: 1000,
+      marinadeActivatedStakeSol: 500,
+      totalActivatedStakeSol: 1000,
+      revShare: buildRevShare({ expectedMaxEffBidPmpe: 5 }),
+    })
+    c.bondStakeCapSam(v)
+    expect(v.unprotectedStakeSol).toBe(60)
+    expect(v.projectedActivatedStakeSol).toBe(500)
+    expect(v.projectedExposedStakeSol).toBe(440)
+  })
+
+  it('unprotectedStakeSol >= projectedActivated → exposed clamped to 0', () => {
+    const c = makeConstraints({
+      minBondEpochs: 1,
+      idealBondEpochs: 2,
+      unprotectedValidatorStakeCapSol: 600,
+      unprotectedDelegatedStakeDec: 1,
+      unprotectedFoundationStakeDec: 1,
+      minUnprotectedStakeToDelegateSol: 0,
+    })
+    const v = makeValidator({
+      bondBalanceSol: 1000,
+      marinadeActivatedStakeSol: 100,
+      totalActivatedStakeSol: 10000,
+      revShare: buildRevShare({ expectedMaxEffBidPmpe: 5 }),
+    })
+    c.bondStakeCapSam(v)
+    expect(v.unprotectedStakeSol).toBe(600)
+    expect(v.projectedActivatedStakeSol).toBe(100)
+    expect(v.projectedExposedStakeSol).toBe(0)
+  })
+
+  it('undelegation + unprotected compose: exposed = max(0, activated - paid - unprotected)', () => {
+    const c = makeConstraints({
+      minBondEpochs: 1,
+      idealBondEpochs: 2,
+      unprotectedValidatorStakeCapSol: 80,
+      unprotectedDelegatedStakeDec: 1,
+      unprotectedFoundationStakeDec: 1,
+      minUnprotectedStakeToDelegateSol: 0,
+    })
+    const v = makeValidator({
+      bondBalanceSol: 1000,
+      marinadeActivatedStakeSol: 500,
+      totalActivatedStakeSol: 1000,
+      values: { paidUndelegationSol: 100, bondRiskFeeSol: 0 } as AuctionValidator['values'],
+      revShare: buildRevShare({ expectedMaxEffBidPmpe: 5 }),
+    })
+    c.bondStakeCapSam(v)
+    expect(v.unprotectedStakeSol).toBe(80)
+    expect(v.projectedActivatedStakeSol).toBe(400)
+    expect(v.projectedExposedStakeSol).toBe(320)
+  })
+})
+
 describe('bondGoodForNEpochs vs calcBondRiskFee threshold', () => {
   // fee threshold: bond = minBondPmpe/1000 * stake = (onchain + (1+minBondEpochs)*effBid)/1000 * stake
   // rearranging: bondGoodForNEpochs = (bond - onchain*stake/1000) / (effBid/1000*stake) - (1+minBondEpochs) = 0
