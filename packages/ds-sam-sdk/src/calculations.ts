@@ -195,6 +195,10 @@ export const calcBondRiskFee = (cfg: BondRiskFeeConfig, validator: AuctionValida
   }
 }
 
+export type BondGoodForNEpochsConfig = {
+  minBondEpochs: number
+}
+
 export type BondGoodForNEpochsOverrides = {
   activatedStakeSol?: number
   bondBalanceSol?: number
@@ -213,7 +217,7 @@ export type BondGoodForNEpochsOverrides = {
  * let the dashboard evaluate hypothetical stake / bond / unprotected values.
  */
 export const calcBondGoodForNEpochs = (
-  cfg: { minBondEpochs: number },
+  cfg: BondGoodForNEpochsConfig,
   validator: AuctionValidator,
   overrides: BondGoodForNEpochsOverrides = {},
 ): number => {
