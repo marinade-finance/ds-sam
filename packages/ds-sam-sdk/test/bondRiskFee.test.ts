@@ -60,17 +60,22 @@ function makeValidator(
   const revShare = { ...defaultRevShare, ...overrides.revShare }
   const minBidReservePmpe = baseConfig.minBondEpochs * revShare.expectedMaxEffBidPmpe
   const idealBidReservePmpe = baseConfig.idealBondEpochs * revShare.expectedMaxEffBidPmpe
+  const marinadeActivatedStakeSol = overrides.marinadeActivatedStakeSol ?? 0
+  const paidUndelegationSol = overrides.values?.paidUndelegationSol ?? 0
+  const projectedActivatedStakeSol = Math.max(0, marinadeActivatedStakeSol - paidUndelegationSol)
   return {
     bondBalanceSol: overrides.bondBalanceSol ?? 0,
     claimableBondBalanceSol: overrides.bondBalanceSol ?? 0,
     lastBondBalanceSol: overrides.lastBondBalanceSol ?? 0,
-    marinadeActivatedStakeSol: overrides.marinadeActivatedStakeSol ?? 0,
+    marinadeActivatedStakeSol,
     unprotectedStakeSol: 0,
+    projectedActivatedStakeSol,
+    projectedExposedStakeSol: projectedActivatedStakeSol,
     minBondPmpe: revShare.onchainDistributedPmpe + revShare.expectedMaxEffBidPmpe + minBidReservePmpe,
     idealBondPmpe: revShare.onchainDistributedPmpe + revShare.expectedMaxEffBidPmpe + idealBidReservePmpe,
     minUnprotectedReserve: 0,
     idealUnprotectedReserve: 0,
-    values: { paidUndelegationSol: overrides.values?.paidUndelegationSol ?? 0 },
+    values: { paidUndelegationSol },
     revShare,
   } as unknown as AuctionValidator
 }

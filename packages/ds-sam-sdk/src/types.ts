@@ -51,6 +51,8 @@ export type AuctionValidator = AggregatedValidator & {
   bondSamStakeCapSol: number
   unprotectedStakeCapSol: number
   unprotectedStakeSol: number
+  projectedActivatedStakeSol: number
+  projectedExposedStakeSol: number
   minBondPmpe: number
   idealBondPmpe: number
   minUnprotectedReserve: number

@@ -24,6 +24,8 @@ export const validatorAggDefaults = () => ({
   bondSamStakeCapSol: NaN,
   unprotectedStakeCapSol: NaN,
   unprotectedStakeSol: NaN,
+  projectedActivatedStakeSol: NaN,
+  projectedExposedStakeSol: NaN,
   minBondPmpe: NaN,
   idealBondPmpe: NaN,
   minUnprotectedReserve: NaN,

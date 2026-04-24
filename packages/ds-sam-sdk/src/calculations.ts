@@ -152,15 +152,10 @@ export type BondRiskFeeResult = {
  */
 export const calcBondRiskFee = (cfg: BondRiskFeeConfig, validator: AuctionValidator): BondRiskFeeResult | null => {
   const { revShare } = validator
-  const projectedActivatedStakeSol = Math.max(
-    0,
-    validator.marinadeActivatedStakeSol - validator.values.paidUndelegationSol,
-  )
   const minBondPmpe = validator.minBondPmpe ?? 0
   const idealBondPmpe = validator.idealBondPmpe ?? 0
   const claimableBondSol = validator.claimableBondBalanceSol ?? 0
-  const unprotectedStakeSol = validator.unprotectedStakeSol ?? 0
-  const projectedExposedStakeSol = Math.max(0, projectedActivatedStakeSol - unprotectedStakeSol)
+  const projectedExposedStakeSol = validator.projectedExposedStakeSol ?? 0
   const minUnprotectedReserve = validator.minUnprotectedReserve ?? 0
   // bond earmarked for unprotected stake; remainder covers exposed stake
   if (claimableBondSol - minUnprotectedReserve < projectedExposedStakeSol * (minBondPmpe / 1000)) {

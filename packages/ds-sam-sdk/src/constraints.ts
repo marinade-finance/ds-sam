@@ -223,10 +223,17 @@ export class AuctionConstraints {
     const unprotectedStakeSol = Math.min(this.unprotectedStakeCap(validator), maxUnprotectedStakeSol)
     const minUnprotectedReserve = unprotectedStakeSol * (minBidReservePmpe / 1000)
     const idealUnprotectedReserve = unprotectedStakeSol * (idealBidReservePmpe / 1000)
+    const projectedActivatedStakeSol = Math.max(
+      0,
+      validator.marinadeActivatedStakeSol - validator.values.paidUndelegationSol,
+    )
+    const projectedExposedStakeSol = Math.max(0, projectedActivatedStakeSol - unprotectedStakeSol)
     validator.minBondPmpe = minBondPmpe
     validator.idealBondPmpe = idealBondPmpe
     validator.minUnprotectedReserve = minUnprotectedReserve
     validator.idealUnprotectedReserve = idealUnprotectedReserve
+    validator.projectedActivatedStakeSol = projectedActivatedStakeSol
+    validator.projectedExposedStakeSol = projectedExposedStakeSol
     const minLimit = Math.max(0, bondBalanceSol - minUnprotectedReserve) / (minBondPmpe / 1000)
     const idealLimit = Math.max(0, bondBalanceSol - idealUnprotectedReserve) / (idealBondPmpe / 1000)
     // always minLimit > idealLimit, since minBondEpochs < idealBondEpochs
@@ -243,11 +250,6 @@ export class AuctionConstraints {
     // coverage plus onchain distribution; unprotected stake only needs minBondEpochs of bid reserve.
     // bondGoodForNEpochs = 0 is the fee threshold, < 0 ⇒ fee due, > 0 ⇒ fee-safe.
     // Infinity when projectedActivatedStakeSol or expectedMaxEffBidPmpe is 0.
-    const projectedActivatedStakeSol = Math.max(
-      0,
-      validator.marinadeActivatedStakeSol - validator.values.paidUndelegationSol,
-    )
-    const projectedExposedStakeSol = Math.max(0, projectedActivatedStakeSol - unprotectedStakeSol)
     const minBondRequiredSol =
       (revShare.onchainDistributedPmpe / 1000) * projectedExposedStakeSol +
       (revShare.expectedMaxEffBidPmpe / 1000) *
