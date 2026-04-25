@@ -23,7 +23,7 @@ import {
   makeUnitValidator as makeValidator,
 } from './helpers/auction-test-utils'
 
-import type { AuctionConstraint } from '../src/types'
+import type { AuctionConstraint, AuctionValidator } from '../src/types'
 
 describe('clipBondStakeCap()', () => {
   const minBondBalanceSol = 1000
@@ -155,6 +155,30 @@ describe('bondGoodForNEpochs', () => {
     makeConstraints({ minBondEpochs: 1, idealBondEpochs: 2, minBondBalanceSol: 1 }).bondStakeCapSam(v)
     expect(v.bondGoodForNEpochs).toBe(Infinity)
   })
+
+  it('paidUndelegationSol reduces projected stake, shifts goodFor', () => {
+    // stake=200, paidUndelegation=100 → projected=100
+    // costPerEpoch on projected = 100 * 5/1000 = 0.5 SOL; bond=2 → goodFor = 2/0.5 - 2 = 2
+    const v = makeValidator({
+      bondBalanceSol: 2,
+      marinadeActivatedStakeSol: 200,
+      values: { paidUndelegationSol: 100, bondRiskFeeSol: 0 } as AuctionValidator['values'],
+      revShare: buildRevShare({ expectedMaxEffBidPmpe: 5, onchainDistributedPmpe: 0 }),
+    })
+    c.bondStakeCapSam(v)
+    expect(v.bondGoodForNEpochs).toBeCloseTo(2, 6)
+  })
+
+  it('paidUndelegationSol >= stake → projected=0 → Infinity', () => {
+    const v = makeValidator({
+      bondBalanceSol: 1,
+      marinadeActivatedStakeSol: 200,
+      values: { paidUndelegationSol: 200, bondRiskFeeSol: 0 } as AuctionValidator['values'],
+      revShare: buildRevShare({ expectedMaxEffBidPmpe: 5, onchainDistributedPmpe: 0 }),
+    })
+    c.bondStakeCapSam(v)
+    expect(v.bondGoodForNEpochs).toBe(Infinity)
+  })
 })
 
 describe('bondGoodForNEpochs vs calcBondRiskFee threshold', () => {
@@ -199,6 +223,27 @@ describe('bondGoodForNEpochs vs calcBondRiskFee threshold', () => {
     const { goodFor, fee } = run(2.3)
     expect(goodFor).toBeLessThan(0)
     expect(fee).not.toBeNull()
+  })
+
+  it('threshold tracks projected stake under paidUndelegationSol', () => {
+    // paidUndelegation=100 → projected=100; threshold bond = onchain/1000*100 + (1+n)*effBid/1000*100 = 0.2 + 1 = 1.2
+    const mk = (bondBalanceSol: number) =>
+      makeValidator({
+        bondBalanceSol,
+        claimableBondBalanceSol: bondBalanceSol,
+        marinadeActivatedStakeSol: stake,
+        values: { paidUndelegationSol: 100, bondRiskFeeSol: 0 } as AuctionValidator['values'],
+        revShare: buildRevShare({ expectedMaxEffBidPmpe: effBid, onchainDistributedPmpe: onchain }),
+      })
+    const vAt = mk(1.2)
+    c.bondStakeCapSam(vAt)
+    expect(vAt.bondGoodForNEpochs).toBeCloseTo(0, 6)
+    expect(calcBondRiskFee(feeConfig, vAt)).toBeNull()
+
+    const vBelow = mk(1.1)
+    c.bondStakeCapSam(vBelow)
+    expect(vBelow.bondGoodForNEpochs).toBeLessThan(0)
+    expect(calcBondRiskFee(feeConfig, vBelow)).not.toBeNull()
   })
 })
 
