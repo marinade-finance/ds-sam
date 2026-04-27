@@ -254,6 +254,47 @@ describe('sam', () => {
         .filter(v => overbidderVAs.has(v.voteAccount))
         .forEach(({ revShare }) => expect(revShare.activatingStakePmpe).toBeGreaterThan(0))
     })
+
+    it('scales linearly with activatingStakePmpeMult', async () => {
+      const buildOverbidders = () => {
+        const voteAccounts = generateVoteAccounts()
+        const identities = generateIdentities()
+        const marginal = Array.from({ length: 10 }, () =>
+          new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
+            .withGoodPerformance()
+            .withLiquidStake(100_000)
+            .withNativeStake(50_000)
+            .withBond({ stakeWanted: 1_000_000, cpmpe: 0, balance: 1_000 }),
+        )
+        const overbidders = Array.from({ length: 5 }, () =>
+          new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
+            .withGoodPerformance()
+            .withLiquidStake(100_000)
+            .withNativeStake(50_000)
+            .withBond({ stakeWanted: 1_000_000, cpmpe: 10, balance: 1_000 }),
+        )
+        return { all: [...marginal, ...overbidders], overbidderVAs: new Set(overbidders.map(v => v.voteAccount)) }
+      }
+
+      const runWithMult = async (mult: number) => {
+        const { all, overbidderVAs } = buildOverbidders()
+        const dsSam = new DsSamSDK({ activatingStakePmpeMult: mult }, defaultStaticDataProviderBuilder(all))
+        const result = await dsSam.run()
+        return result.auctionData.validators
+          .filter(v => overbidderVAs.has(v.voteAccount))
+          .map(v => v.revShare.activatingStakePmpe)
+      }
+
+      const baseline = await runWithMult(1)
+      const half = await runWithMult(0.5)
+      const zero = await runWithMult(0)
+
+      expect(baseline.every(p => p > 0)).toBe(true)
+      baseline.forEach((p, i) => {
+        expect(half[i]).toBeCloseTo(0.5 * p, 12)
+        expect(zero[i]).toBe(0)
+      })
+    })
   })
 
   describe('test dynamic commission', () => {
