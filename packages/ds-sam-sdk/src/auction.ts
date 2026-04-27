@@ -221,7 +221,9 @@ export class Auction {
         revShare.auctionEffectiveBidPmpe = calcEffParticipatingBidPmpe(revShare, winningTotalPmpe)
       }
       // Bid surplus over the clearing price — what the validator pays per unit of newly activating stake.
-      revShare.activatingStakePmpe = Math.max(0, revShare.bidPmpe - revShare.auctionEffectiveBidPmpe)
+      // activatingStakePmpeMult (default 1) lets us roll out overbid charging gradually.
+      revShare.activatingStakePmpe =
+        Math.max(0, revShare.bidPmpe - revShare.auctionEffectiveBidPmpe) * this.config.activatingStakePmpeMult
     }
     this.setAuctionEffectiveStaticBids(winningTotalPmpe)
   }

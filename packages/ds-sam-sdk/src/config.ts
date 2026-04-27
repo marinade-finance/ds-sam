@@ -81,6 +81,10 @@ export type DsSamConfig = {
   // If set to zero, bondRiskFeeSol is effectivelly disabled
   bondRiskFeeMult: number
 
+  // Multiplier applied to the activating-stake overbid (bidPmpe - auctionEffectiveBidPmpe).
+  // 1.0 = full overbid charged from bond on activating stake; 0.0 = no overbid charged.
+  activatingStakePmpeMult: number
+
   // The minimal bound for delegated stake a validator can set through maxStakeWanted
   // If null, maxStakeWanted does not limit delegated stake
   minMaxStakeWanted: number | null
@@ -151,6 +155,7 @@ export const DEFAULT_CONFIG: DsSamConfig = {
   minBondEpochs: 1,
   idealBondEpochs: 1,
   bondRiskFeeMult: 0,
+  activatingStakePmpeMult: 1,
   minMaxStakeWanted: null,
   expectedFeePmpe: 0,
   expectedMaxWinningBidRatio: null,
