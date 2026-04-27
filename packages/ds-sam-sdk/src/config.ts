@@ -83,7 +83,6 @@ export type DsSamConfig = {
 
   // Multiplier applied to the activating-stake overbid (bidPmpe - auctionEffectiveBidPmpe).
   // 1.0 = full overbid charged from bond on activating stake; 0.0 = no overbid charged.
-  // Intended for gradual rollout — ramp from 0 toward 1 across epochs.
   activatingStakePmpeMult: number
 
   // The minimal bound for delegated stake a validator can set through maxStakeWanted
