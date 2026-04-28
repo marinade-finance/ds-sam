@@ -238,16 +238,22 @@ export class AuctionConstraints {
     const cap = this.clipBondStakeCap(validator, limit + unprotectedStakeSol)
     validator.unprotectedStakeSol = unprotectedStakeSol
     validator.bondSamStakeCapSol = cap
-    // represents for how many epochs is this validator protected
-    const protectedStakeSol = Math.max(0, validator.marinadeActivatedStakeSol - unprotectedStakeSol)
-    // Reserve the portion of the bond already committed to on-chain distribution; the rest is available for bids.
-    const bondBalanceForBids = bondBalanceSol - (revShare.onchainDistributedPmpe / 1000) * protectedStakeSol
-    // Epochs = balance / cost-per-epoch, where cost = expectedMaxEffBidPmpe/1000 * stake.
-    // Subtract (1 + minBondEpochs) so 0 is the fee threshold (minBondPmpe), negative means fee is due.
-    // Infinity when marinadeActivatedStakeSol or expectedMaxEffBidPmpe is 0 — bond covers infinite epochs.
+    // SOL of bond slack over the calcBondRiskFee minimum, normalized to epochs of bid on projected stake.
+    // Mirrors calcBondRiskFee exactly: protected (exposed) stake needs (1+minBondEpochs) epochs of bid
+    // coverage plus onchain distribution; unprotected stake only needs minBondEpochs of bid reserve.
+    // bondGoodForNEpochs = 0 is the fee threshold, < 0 ⇒ fee due, > 0 ⇒ fee-safe.
+    // Infinity when projectedActivatedStakeSol or expectedMaxEffBidPmpe is 0.
+    const projectedActivatedStakeSol = Math.max(
+      0,
+      validator.marinadeActivatedStakeSol - validator.values.paidUndelegationSol,
+    )
+    const projectedExposedStakeSol = Math.max(0, projectedActivatedStakeSol - unprotectedStakeSol)
+    const minBondRequiredSol =
+      (revShare.onchainDistributedPmpe / 1000) * projectedExposedStakeSol +
+      (revShare.expectedMaxEffBidPmpe / 1000) *
+        ((1 + this.config.minBondEpochs) * projectedExposedStakeSol + this.config.minBondEpochs * unprotectedStakeSol)
     validator.bondGoodForNEpochs =
-      bondBalanceForBids / ((revShare.expectedMaxEffBidPmpe / 1000) * validator.marinadeActivatedStakeSol) -
-      (1 + this.config.minBondEpochs)
+      (bondBalanceSol - minBondRequiredSol) / ((revShare.expectedMaxEffBidPmpe / 1000) * projectedActivatedStakeSol)
     // represents how much of the stake this validator has is protected sufficiently enough
     //
     // do not consider the flapping histeresis for unstake priorities and risk measures
