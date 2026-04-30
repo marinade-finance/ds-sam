@@ -82,9 +82,6 @@ export class DataProvider {
     rawRewards: RawRewardsResponseDto,
     activatedStakePerEpochs: Map<number, Decimal>,
   ): number | null {
-    if (rawRewards.rewards_inflation_est.length === 0) {
-      return null
-    }
     const latestEpoch = rawRewards.rewards_inflation_est.reduce((max, [epoch]) => Math.max(max, epoch), -Infinity)
     const stake = activatedStakePerEpochs.get(latestEpoch)
     if (!stake || stake.isZero()) {
