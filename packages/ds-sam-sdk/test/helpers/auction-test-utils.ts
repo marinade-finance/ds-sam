@@ -88,6 +88,7 @@ export function makeAuction(overrides: Partial<AuctionData> = {}): AuctionData {
     },
     rewards: { inflationPmpe: 0, mevPmpe: 0, blockPmpe: 0 },
     blacklist: new Set<string>(),
+    ssiPmpe: null,
     ...overrides,
   }
 }

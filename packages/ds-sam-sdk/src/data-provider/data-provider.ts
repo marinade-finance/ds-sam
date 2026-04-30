@@ -75,6 +75,27 @@ export class DataProvider {
     return rewardsTotal.total.div(rewardsTotal.epochs).toNumber()
   }
 
+  // Single-epoch network-wide staker yield in PMPE (SSI; see SSI.md).
+  // Uses the latest epoch present in `rewards_inflation_est`.
+  // Returns null if that epoch's stake is unknown or zero.
+  private computeSsiPmpe(
+    rawRewards: RawRewardsResponseDto,
+    activatedStakePerEpochs: Map<number, Decimal>,
+  ): number | null {
+    if (rawRewards.rewards_inflation_est.length === 0) {
+      return null
+    }
+    const latestEpoch = rawRewards.rewards_inflation_est.reduce((max, [epoch]) => Math.max(max, epoch), -Infinity)
+    const stake = activatedStakePerEpochs.get(latestEpoch)
+    if (!stake || stake.isZero()) {
+      return null
+    }
+    const inflationSol = rawRewards.rewards_inflation_est.find(([e]) => e === latestEpoch)?.[1] ?? 0
+    const blockSol = rawRewards.rewards_block?.find(([e]) => e === latestEpoch)?.[1] ?? 0
+    // SOL (1e9 lamports) → PMPE (per 1000 lamports of stake): * 1e9 * 1000 / stake = * 1e12 / stake
+    return new Decimal(inflationSol).add(blockSol).mul(1e12).div(stake).toNumber()
+  }
+
   /* eslint-disable no-param-reassign */
   private processAuctions(input: RawScoredValidatorDto[]): AuctionHistory[] {
     const result: AuctionHistory[] = []
@@ -312,6 +333,7 @@ export class DataProvider {
         marinadeRemainingSamSol: tvlSol,
       },
       blacklist,
+      ssiPmpe: this.computeSsiPmpe(data.rewards, activatedStakePerEpochs),
     }
   }
 
