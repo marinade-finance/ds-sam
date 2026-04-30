@@ -75,7 +75,7 @@ export class DataProvider {
     return rewardsTotal.total.div(rewardsTotal.epochs).toNumber()
   }
 
-  // Single-epoch network-wide staker yield in PMPE (SSI; see SSI.md).
+  // Single-epoch network-wide staker yield in PMPE
   // Uses the latest epoch present in `rewards_inflation_est`.
   // Returns null if that epoch's stake is unknown or zero.
   private computeSsiPmpe(
