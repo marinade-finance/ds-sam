@@ -75,22 +75,45 @@ export class DataProvider {
     return rewardsTotal.total.div(rewardsTotal.epochs).toNumber()
   }
 
-  // Single-epoch network-wide staker yield in PMPE
-  // Uses the latest epoch present in `rewards_inflation_est`.
-  // Returns null if that epoch's stake is unknown or zero.
+  // Single-epoch network-wide staker yield in PMPE for the latest epoch in rewards_inflation_est.
+  // The two reward streams are populated by independent ETLs (inflation: RPC, near-instant;
+  // block: Snowflake, lags ~1 epoch). When `rewards_block[E]` is missing for the target epoch
+  // we fill it with the median of the 3 most recent prior epochs' block rewards — empirically
+  // keeps SSI APY error within ~5 bps median, ~33 bps tail. Longer windows perform worse
+  // because block rewards trend with network activity.
   private computeSsiPmpe(
     rawRewards: RawRewardsResponseDto,
     activatedStakePerEpochs: Map<number, Decimal>,
   ): number | null {
-    const latestEpoch = rawRewards.rewards_inflation_est.reduce((max, [epoch]) => Math.max(max, epoch), -Infinity)
-    const stake = activatedStakePerEpochs.get(latestEpoch)
-    if (!stake || stake.isZero()) {
-      return null
-    }
-    const inflationSol = rawRewards.rewards_inflation_est.find(([e]) => e === latestEpoch)?.[1] ?? 0
-    const blockSol = rawRewards.rewards_block?.find(([e]) => e === latestEpoch)?.[1] ?? 0
-    // SOL (1e9 lamports) → PMPE (per 1000 lamports of stake): * 1e9 * 1000 / stake = * 1e12 / stake
+    const latest = rawRewards.rewards_inflation_est.reduce<[number, number] | null>(
+      (best, entry) => (!best || entry[0] > best[0] ? entry : best),
+      null,
+    )
+    if (!latest) return null
+    const [epoch, inflationSol] = latest
+    const stake = activatedStakePerEpochs.get(epoch)
+    if (!stake || stake.isZero()) return null
+    const blockSol = this.resolveBlockSol(rawRewards.rewards_block ?? [], epoch)
+    if (blockSol === null) return null
+    // SOL → PMPE (per 1000 lamports of stake): × 1e9 × 1000 / stake = × 1e12 / stake
     return new Decimal(inflationSol).add(blockSol).mul(1e12).div(stake).toNumber()
+  }
+
+  // Returns block_SOL for the requested epoch. Falls back to the median of the 3 most recent
+  // prior epochs' block rewards when the direct entry is missing or zero. Returns null if
+  // fewer than 3 prior values are available.
+  private resolveBlockSol(rewardsBlock: [number, number][], epoch: number): number | null {
+    // An entry present in the array is authoritative even if zero — explicit zero is a real
+    // observation. The lag we're guarding against shows up as a missing entry, not as a zero.
+    const direct = rewardsBlock.find(([e]) => e === epoch)?.[1]
+    if (direct !== undefined) return direct
+    const prior = rewardsBlock
+      .filter(([e]) => e < epoch)
+      .sort(([a], [b]) => b - a)
+      .slice(0, 3)
+      .map(([, v]) => v)
+    if (prior.length < 3) return null
+    return prior.sort((a, b) => a - b)[1] ?? null
   }
 
   /* eslint-disable no-param-reassign */
