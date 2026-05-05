@@ -107,7 +107,7 @@ export class DataProvider {
     if (!stake || stake.isZero()) return null
     const inflation = latestNonZero(rawRewards.rewards_inflation_est, epoch)
     if (!inflation) return null
-    return new Decimal(inflation[1] + blockSol).mul(1e12).div(stake).toNumber()
+    return ((inflation[1] + blockSol) * 1e12) / stake.toNumber()
   }
 
   /* eslint-disable no-param-reassign */
