@@ -25,6 +25,19 @@ import type {
 } from './data-provider.dto'
 import type { DsSamConfig } from '../config'
 
+// Latest entry with a non-zero value, restricted to epochs ≤ maxEpoch.
+// Returns null if no such entry exists.
+const latestNonZero = (entries?: RawRewardsRecordDto[], maxEpoch = Infinity): RawRewardsRecordDto | null => {
+  let best: RawRewardsRecordDto | null = null
+  for (const entry of entries ?? []) {
+    const [epoch, sol] = entry
+    if (sol > 0 && epoch <= maxEpoch && (!best || epoch > best[0])) {
+      best = entry
+    }
+  }
+  return best
+}
+
 export class DataProvider {
   constructor(
     protected readonly config: DsSamConfig,
@@ -73,6 +86,28 @@ export class DataProvider {
     )
 
     return rewardsTotal.total.div(rewardsTotal.epochs).toNumber()
+  }
+
+  // Single-epoch network-wide staker yield in PMPE.
+  // The two reward streams come from independent ETLs (inflation: RPC, near-instant; block:
+  // Snowflake, lags ~1 epoch) and can lead each other in either direction. We anchor on the
+  // freshest non-zero `rewards_block` epoch (the volatile component we care most about getting
+  // current) and use the latest non-zero `rewards_inflation_est` entry at-or-before that epoch.
+  // An explicit zero in either feed is treated as missing — these reward streams are never
+  // genuinely zero on mainnet, so a zero is an ETL artifact, not an observation.
+  // Empirically: picking inflation from the prior epoch costs ~0.4 bps APY (inflation is stable).
+  private computeSsiPmpe(
+    rawRewards: RawRewardsResponseDto,
+    activatedStakePerEpochs: Map<number, Decimal>,
+  ): number | null {
+    const block = latestNonZero(rawRewards.rewards_block)
+    if (!block) return null
+    const [epoch, blockSol] = block
+    const stake = activatedStakePerEpochs.get(epoch)
+    if (!stake || stake.isZero()) return null
+    const inflation = latestNonZero(rawRewards.rewards_inflation_est, epoch)
+    if (!inflation) return null
+    return ((inflation[1] + blockSol) * 1e12) / stake.toNumber()
   }
 
   /* eslint-disable no-param-reassign */
@@ -312,6 +347,7 @@ export class DataProvider {
         marinadeRemainingSamSol: tvlSol,
       },
       blacklist,
+      ssiPmpe: this.computeSsiPmpe(data.rewards, activatedStakePerEpochs),
     }
   }
 

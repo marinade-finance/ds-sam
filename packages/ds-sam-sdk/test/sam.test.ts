@@ -549,6 +549,7 @@ describe('sam', () => {
           marinadeRemainingSamSol: 1000,
         },
         blacklist: new Set(),
+        ssiPmpe: null,
       }
       const constraints = makeUnitConstraints()
       const auction = new Auction(data, constraints, DEFAULT_CONFIG, debug)
@@ -579,6 +580,7 @@ describe('sam', () => {
           marinadeRemainingSamSol: 1000,
         },
         blacklist: new Set(),
+        ssiPmpe: null,
       }
       const constraints = makeUnitConstraints()
       const auction = new Auction(data, constraints, DEFAULT_CONFIG, debug)

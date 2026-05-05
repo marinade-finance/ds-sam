@@ -22,6 +22,7 @@ export type AggregatedData = {
   rewards: Rewards
   stakeAmounts: StakeAmounts
   blacklist: Set<string>
+  ssiPmpe: number | null
 }
 
 export type EpochStats = {
