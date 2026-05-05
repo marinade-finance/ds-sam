@@ -31,7 +31,10 @@ describe('ssiPmpe', () => {
 
   it('block leads inflation: anchors on latest block, uses prior inflation', async () => {
     const { dp, raw } = await buildSdk()
-    raw.rewards.rewards_inflation_est = [[998, 100]]
+    raw.rewards.rewards_inflation_est = [
+      [998, 100],
+      [1001, 999], // ahead of block — must be ignored
+    ]
     raw.rewards.rewards_block = [[999, 50]]
     expect(dp.aggregateData(raw).ssiPmpe).toBeCloseTo(150, 9)
   })

@@ -30,8 +30,8 @@ import type { DsSamConfig } from '../config'
 const latestNonZero = (entries?: RawRewardsRecordDto[], maxEpoch = Infinity): RawRewardsRecordDto | null => {
   let best: RawRewardsRecordDto | null = null
   for (const entry of entries ?? []) {
-    const [e, v] = entry
-    if (v > 0 && e <= maxEpoch && (!best || e > best[0])) {
+    const [epoch, sol] = entry
+    if (sol > 0 && epoch <= maxEpoch && (!best || epoch > best[0])) {
       best = entry
     }
   }
@@ -107,7 +107,7 @@ export class DataProvider {
     if (!stake || stake.isZero()) return null
     const inflation = latestNonZero(rawRewards.rewards_inflation_est, epoch)
     if (!inflation) return null
-    return ((inflation[1] + blockSol) * 1e12) / stake.toNumber()
+    return new Decimal(inflation[1] + blockSol).mul(1e12).div(stake).toNumber()
   }
 
   /* eslint-disable no-param-reassign */
