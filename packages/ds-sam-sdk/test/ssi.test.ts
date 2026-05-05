@@ -2,8 +2,6 @@ import { DEFAULT_CONFIG } from '../src/config'
 import { StaticDataProviderBuilder } from './helpers/static-data-provider-builder'
 import { ValidatorMockBuilder } from './helpers/validator-mock-builder'
 
-// Build a SDK + a minimal raw payload for one validator with `totalStakeSol` external stake.
-// Caller overrides `raw.rewards` to drive the cases under test.
 const buildSdk = async (totalStakeSol = 1000) => {
   const dp = new StaticDataProviderBuilder()
     .withCurrentEpoch(1000)

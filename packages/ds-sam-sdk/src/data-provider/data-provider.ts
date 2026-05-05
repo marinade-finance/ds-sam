@@ -107,8 +107,7 @@ export class DataProvider {
     if (!stake || stake.isZero()) return null
     const inflation = latestNonZero(rawRewards.rewards_inflation_est, epoch)
     if (!inflation) return null
-    // SOL → PMPE (per 1000 lamports of stake): × 1e9 × 1000 / stake = × 1e12 / stake
-    return new Decimal(inflation[1]).add(blockSol).mul(1e12).div(stake).toNumber()
+    return ((inflation[1] + blockSol) * 1e12) / stake.toNumber()
   }
 
   /* eslint-disable no-param-reassign */
