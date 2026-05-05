@@ -25,7 +25,7 @@ import type {
 } from './data-provider.dto'
 import type { DsSamConfig } from '../config'
 
-// Latest entry with a non-zero value, restricted to epochs ≤ maxEpoch (defaults to no limit).
+// Latest entry with a non-zero value, restricted to epochs ≤ maxEpoch.
 // Returns null if no such entry exists.
 const latestNonZero = (entries?: RawRewardsRecordDto[], maxEpoch = Infinity): RawRewardsRecordDto | null => {
   let best: RawRewardsRecordDto | null = null
