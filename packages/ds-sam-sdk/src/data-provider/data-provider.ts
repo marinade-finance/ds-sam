@@ -25,6 +25,19 @@ import type {
 } from './data-provider.dto'
 import type { DsSamConfig } from '../config'
 
+// Latest entry with a non-zero value, restricted to epochs ≤ maxEpoch (defaults to no limit).
+// Returns null if no such entry exists.
+const latestNonZero = (entries: [number, number][] | undefined, maxEpoch = Infinity): [number, number] | null => {
+  let best: [number, number] | null = null
+  for (const entry of entries ?? []) {
+    const [e, v] = entry
+    if (v > 0 && e <= maxEpoch && (!best || e > best[0])) {
+      best = entry
+    }
+  }
+  return best
+}
+
 export class DataProvider {
   constructor(
     protected readonly config: DsSamConfig,
@@ -75,45 +88,27 @@ export class DataProvider {
     return rewardsTotal.total.div(rewardsTotal.epochs).toNumber()
   }
 
-  // Single-epoch network-wide staker yield in PMPE for the latest epoch in rewards_inflation_est.
-  // The two reward streams are populated by independent ETLs (inflation: RPC, near-instant;
-  // block: Snowflake, lags ~1 epoch). When `rewards_block[E]` is missing for the target epoch
-  // we fill it with the median of the 3 most recent prior epochs' block rewards — empirically
-  // keeps SSI APY error within ~5 bps median, ~33 bps tail. Longer windows perform worse
-  // because block rewards trend with network activity.
+  // Single-epoch network-wide staker yield in PMPE.
+  // The two reward streams come from independent ETLs (inflation: RPC, near-instant; block:
+  // Snowflake, lags ~1 epoch) and can lead each other in either direction. We anchor on the
+  // freshest non-zero `rewards_block` epoch (the volatile component we care most about getting
+  // current) and use the latest non-zero `rewards_inflation_est` entry at-or-before that epoch.
+  // An explicit zero in either feed is treated as missing — these reward streams are never
+  // genuinely zero on mainnet, so a zero is an ETL artifact, not an observation.
+  // Empirically: picking inflation from the prior epoch costs ~0.4 bps APY (inflation is stable).
   private computeSsiPmpe(
     rawRewards: RawRewardsResponseDto,
     activatedStakePerEpochs: Map<number, Decimal>,
   ): number | null {
-    const latest = rawRewards.rewards_inflation_est.reduce<[number, number] | null>(
-      (best, entry) => (!best || entry[0] > best[0] ? entry : best),
-      null,
-    )
-    if (!latest) return null
-    const [epoch, inflationSol] = latest
+    const block = latestNonZero(rawRewards.rewards_block)
+    if (!block) return null
+    const [epoch, blockSol] = block
     const stake = activatedStakePerEpochs.get(epoch)
     if (!stake || stake.isZero()) return null
-    const blockSol = this.resolveBlockSol(rawRewards.rewards_block ?? [], epoch)
-    if (blockSol === null) return null
+    const inflation = latestNonZero(rawRewards.rewards_inflation_est, epoch)
+    if (!inflation) return null
     // SOL → PMPE (per 1000 lamports of stake): × 1e9 × 1000 / stake = × 1e12 / stake
-    return new Decimal(inflationSol).add(blockSol).mul(1e12).div(stake).toNumber()
-  }
-
-  // Returns block_SOL for the requested epoch. Falls back to the median of the 3 most recent
-  // prior epochs' block rewards when the direct entry is missing or zero. Returns null if
-  // fewer than 3 prior values are available.
-  private resolveBlockSol(rewardsBlock: [number, number][], epoch: number): number | null {
-    // An entry present in the array is authoritative even if zero — explicit zero is a real
-    // observation. The lag we're guarding against shows up as a missing entry, not as a zero.
-    const direct = rewardsBlock.find(([e]) => e === epoch)?.[1]
-    if (direct !== undefined) return direct
-    const prior = rewardsBlock
-      .filter(([e]) => e < epoch)
-      .sort(([a], [b]) => b - a)
-      .slice(0, 3)
-      .map(([, v]) => v)
-    if (prior.length < 3) return null
-    return prior.sort((a, b) => a - b)[1] ?? null
+    return new Decimal(inflation[1]).add(blockSol).mul(1e12).div(stake).toNumber()
   }
 
   /* eslint-disable no-param-reassign */
