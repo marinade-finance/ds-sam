@@ -27,8 +27,8 @@ import type { DsSamConfig } from '../config'
 
 // Latest entry with a non-zero value, restricted to epochs ≤ maxEpoch (defaults to no limit).
 // Returns null if no such entry exists.
-const latestNonZero = (entries: [number, number][] | undefined, maxEpoch = Infinity): [number, number] | null => {
-  let best: [number, number] | null = null
+const latestNonZero = (entries?: RawRewardsRecordDto[], maxEpoch = Infinity): RawRewardsRecordDto | null => {
+  let best: RawRewardsRecordDto | null = null
   for (const entry of entries ?? []) {
     const [e, v] = entry
     if (v > 0 && e <= maxEpoch && (!best || e > best[0])) {
