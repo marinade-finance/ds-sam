@@ -2,7 +2,7 @@ import { DEFAULT_CONFIG } from '../src/config'
 import { defaultStaticDataProviderBuilder } from './helpers/static-data-provider-builder'
 import { ValidatorMockBuilder } from './helpers/validator-mock-builder'
 
-import type { SourceDataOverrides } from '../src/data-provider/data-provider.dto'
+import type { SourceDataOverrides, RawScoredValidatorDto } from '../src/data-provider/data-provider.dto'
 
 type HistoryEntry = { voteAccount: string; values: { samBlacklisted: boolean } }
 
@@ -274,5 +274,59 @@ describe('Data Provider Testing Setup', () => {
         },
       ])
     })
+  })
+})
+
+describe('processAuctions', () => {
+  it('winningTotalPmpe is min totalPmpe among winners, not sorted by bondObligationPmpe', async () => {
+    const validators = [new ValidatorMockBuilder('alice', 'id-a').withEligibleDefaults()]
+    const dp = defaultStaticDataProviderBuilder(validators)(DEFAULT_CONFIG)
+    const raw = await dp.fetchSourceData()
+
+    // alice: lower bondObligationPmpe but higher totalPmpe than winner1
+    // old code sorted by bondObl desc → alice was last → picked alice.totalPmpe=10 as threshold
+    // correct threshold is min(8, 10) = 8
+    raw.auctions = [
+      {
+        voteAccount: 'winner1',
+        epoch: 700,
+        marinadeSamTargetSol: 100,
+        revShare: {
+          totalPmpe: 8,
+          bondObligationPmpe: 7,
+          onchainDistributedPmpe: 2,
+          bidPmpe: 0,
+          inflationPmpe: 0,
+          mevPmpe: 0,
+          blockPmpe: 0,
+          auctionEffectiveBidPmpe: 0,
+          activatingStakePmpe: 0,
+          calcEffParticipatingBidPmpe: 0,
+        },
+      },
+      {
+        voteAccount: 'alice',
+        epoch: 700,
+        marinadeSamTargetSol: 100,
+        revShare: {
+          totalPmpe: 10,
+          bondObligationPmpe: 3,
+          onchainDistributedPmpe: 3,
+          bidPmpe: 0,
+          inflationPmpe: 0,
+          mevPmpe: 0,
+          blockPmpe: 0,
+          auctionEffectiveBidPmpe: 0,
+          activatingStakePmpe: 0,
+          calcEffParticipatingBidPmpe: 0,
+        },
+      },
+    ] as RawScoredValidatorDto[]
+
+    const agg = dp.aggregateData(raw)
+    const alice = agg.validators.find(v => v.voteAccount === 'alice')
+    const epoch700 = alice?.auctions[0]
+    expect(epoch700?.winningTotalPmpe).toBe(8)
+    expect(epoch700?.effParticipatingBidPmpe).toBeCloseTo(8 - 3) // max(0, 8 - onchainDistributed=3)
   })
 })
