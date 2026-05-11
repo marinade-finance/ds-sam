@@ -66,7 +66,6 @@ export class AuctionCommand extends CommandRunner {
           blacklist: Array.from(result.auctionData.blacklist),
           validators: result.auctionData.validators.map(({ lastCapConstraint, epochStats: _, ...validator }) => ({
             ...validator,
-            ssiPmpe: result.auctionData.ssiPmpe,
             lastCapConstraint: lastCapConstraint && {
               ...lastCapConstraint,
               validators: lastCapConstraint.validators.length,

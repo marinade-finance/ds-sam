@@ -40,7 +40,6 @@ describe('Auction.updatePaidUndelegation (simplified)', () => {
       },
       rewards: { inflationPmpe: NaN, mevPmpe: NaN, blockPmpe: NaN },
       blacklist: new Set<string>(),
-      ssiPmpe: null,
     }
     const auction = new Auction(
       data,
