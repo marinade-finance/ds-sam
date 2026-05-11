@@ -76,35 +76,16 @@ export class DataProvider {
   }
 
   private processAuctions(input: RawScoredValidatorDto[]): AuctionHistory[] {
-    const result: AuctionHistory[] = []
-    let currentEpoch: number | null = null
-    let validators: RawScoredValidatorDto[] = []
-
-    for (const entry of input) {
-      if (entry.epoch !== currentEpoch) {
-        if (currentEpoch !== null) {
-          const winners = validators.filter(w => w.marinadeSamTargetSol > 0)
-          result.push({
-            epoch: currentEpoch,
-            winningTotalPmpe: winners.reduce((min, w) => Math.min(min, w.revShare.totalPmpe), Infinity),
-            validators,
-          })
-        }
-        currentEpoch = entry.epoch
-        validators = []
-      }
-      validators.push(entry)
-    }
-    if (currentEpoch !== null) {
+    const epochs = [...new Set(input.map(e => e.epoch))].sort((a, b) => b - a)
+    return epochs.map(epoch => {
+      const validators = input.filter(e => e.epoch === epoch)
       const winners = validators.filter(w => w.marinadeSamTargetSol > 0)
-      result.push({
-        epoch: currentEpoch,
+      return {
+        epoch,
         winningTotalPmpe: winners.reduce((min, w) => Math.min(min, w.revShare.totalPmpe), Infinity),
         validators,
-      })
-    }
-
-    return result
+      }
+    })
   }
 
   extractAuctionHistoryStats(auction: AuctionHistory, validator: RawValidatorDto): AuctionHistoryStats {
