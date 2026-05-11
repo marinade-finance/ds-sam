@@ -116,8 +116,9 @@ export class DataProvider {
     let epoch = Infinity
     let validators: RawScoredValidatorDto[] = []
     const finalizeEpoch = (inputValidators: RawScoredValidatorDto[]) => {
-      const winners = inputValidators.filter(item => item.marinadeSamTargetSol > 0)
-      const winningTotalPmpe = winners.length > 0 ? Math.min(...winners.map(w => w.revShare.totalPmpe)) : 0
+      const winningTotalPmpe = inputValidators
+        .filter(w => w.marinadeSamTargetSol > 0)
+        .reduce((min, w) => Math.min(min, w.revShare.totalPmpe), Infinity)
       result.push({ epoch, winningTotalPmpe, validators })
       inputValidators = []
     }
