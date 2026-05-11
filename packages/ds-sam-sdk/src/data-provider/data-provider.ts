@@ -80,8 +80,22 @@ export class DataProvider {
     let currentEpoch: number | null = null
     let validators: RawScoredValidatorDto[] = []
 
-    const finalizeGroup = () => {
-      if (currentEpoch === null) return
+    for (const entry of input) {
+      if (entry.epoch !== currentEpoch) {
+        if (currentEpoch !== null) {
+          const winners = validators.filter(w => w.marinadeSamTargetSol > 0)
+          result.push({
+            epoch: currentEpoch,
+            winningTotalPmpe: winners.reduce((min, w) => Math.min(min, w.revShare.totalPmpe), Infinity),
+            validators,
+          })
+        }
+        currentEpoch = entry.epoch
+        validators = []
+      }
+      validators.push(entry)
+    }
+    if (currentEpoch !== null) {
       const winners = validators.filter(w => w.marinadeSamTargetSol > 0)
       result.push({
         epoch: currentEpoch,
@@ -89,16 +103,6 @@ export class DataProvider {
         validators,
       })
     }
-
-    for (const entry of input) {
-      if (entry.epoch !== currentEpoch) {
-        finalizeGroup()
-        currentEpoch = entry.epoch
-        validators = []
-      }
-      validators.push(entry)
-    }
-    finalizeGroup()
 
     return result
   }
