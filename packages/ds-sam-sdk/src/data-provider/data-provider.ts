@@ -90,7 +90,7 @@ export class DataProvider {
       })
     }
 
-    for (const entry of [...input].sort((a, b) => b.epoch - a.epoch)) {
+    for (const entry of input) {
       if (entry.epoch !== currentEpoch) {
         finalizeGroup()
         currentEpoch = entry.epoch
