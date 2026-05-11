@@ -204,8 +204,6 @@ export const calcEffParticipatingBidPmpe = (
   },
   winningTotalPmpe: number,
 ): number => {
-  // for a better memory, later this comment can be deleted; before introduction of blockPmpe this was the code:
-  // return Math.max(0, winningTotalPmpe - revShare.inflationPmpe - revShare.mevPmpe)
   return Math.max(0, winningTotalPmpe - revShare.onchainDistributedPmpe)
 }
 

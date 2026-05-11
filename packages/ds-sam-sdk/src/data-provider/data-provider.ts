@@ -79,22 +79,24 @@ export class DataProvider {
     const result: AuctionHistory[] = []
     let epoch = Infinity
     let validators: RawScoredValidatorDto[] = []
-    const finalizeEpoch = (inputValidators: RawScoredValidatorDto[]) => {
-      const winningTotalPmpe = inputValidators
-        .filter(w => w.marinadeSamTargetSol > 0)
-        .reduce((min, w) => Math.min(min, w.revShare.totalPmpe), Infinity)
-      result.push({ epoch, winningTotalPmpe, validators })
+    const push = () => {
+      const winners = validators.filter(w => w.marinadeSamTargetSol > 0)
+      result.push({
+        epoch,
+        winningTotalPmpe: winners.reduce((min, w) => Math.min(min, w.revShare.totalPmpe), Infinity),
+        validators,
+      })
     }
-    for (const entry of input) {
+    for (const entry of [...input].sort((a, b) => b.epoch - a.epoch)) {
       if (entry.epoch < epoch) {
-        finalizeEpoch(validators)
+        push()
         validators = []
         epoch = entry.epoch
       }
       validators.push(entry)
     }
-    finalizeEpoch(validators)
-    result.shift()
+    push()
+    result.shift() // removes initial Infinity-epoch sentinel
     return result
   }
 
