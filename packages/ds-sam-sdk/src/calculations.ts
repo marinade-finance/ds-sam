@@ -236,7 +236,7 @@ export const calcBidTooLowPenalty = ({
   const { revShare, auctions } = validator
   const historicalPmpe = auctions
     .slice(0, historyEpochs)
-    .reduce((acc, { effParticipatingBidPmpe }) => Math.min(acc, effParticipatingBidPmpe ?? Infinity), Infinity)
+    .reduce((acc, { effParticipatingBidPmpe }) => Math.min(acc, effParticipatingBidPmpe), Infinity)
   const limit = Math.min(revShare.effParticipatingBidPmpe, historicalPmpe)
   const adjustedLimit = limit * (1 - permittedBidDeviation)
   const penaltyCoef =
