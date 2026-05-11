@@ -75,7 +75,6 @@ export class DataProvider {
     return rewardsTotal.total.div(rewardsTotal.epochs).toNumber()
   }
 
-  /* eslint-disable no-param-reassign */
   private processAuctions(input: RawScoredValidatorDto[]): AuctionHistory[] {
     const result: AuctionHistory[] = []
     let epoch = Infinity
@@ -85,7 +84,6 @@ export class DataProvider {
         .filter(w => w.marinadeSamTargetSol > 0)
         .reduce((min, w) => Math.min(min, w.revShare.totalPmpe), Infinity)
       result.push({ epoch, winningTotalPmpe, validators })
-      inputValidators = []
     }
     for (const entry of input) {
       if (entry.epoch < epoch) {
@@ -396,6 +394,7 @@ export class DataProvider {
   // Fixing missing data in validators response from older API versions
   private fixRawScoredValidatorsDto(validators: RawScoredValidatorDto[]): void {
     validators.forEach(v => {
+      // eslint-disable-next-line no-param-reassign
       v.revShare = {
         ...v.revShare,
         activatingStakePmpe: v.revShare.activatingStakePmpe ?? 0,
