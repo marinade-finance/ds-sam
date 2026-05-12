@@ -457,7 +457,7 @@ describe('getMinCapForEvenDistribution positive scenarios', () => {
   it('returns positive cap = min(totalLeft,marinadeLeft)/2', () => {
     const data = makeAuction({ validators: [x1, x2] })
     cpos.updateStateForSam(data)
-    // totalLeft=200-80=120; marinadeLeft=100-20=80; /2=40
+    // totalLeft=200-100=100; marinadeLeft=100-20=80; /2=40
     const { cap, constraint } = cpos.getMinCapForEvenDistribution(new Set(['x1', 'x2']))
     expect(cap).toBe(40)
     expect(constraint.constraintType).toBe('COUNTRY')
@@ -741,7 +741,7 @@ describe('clipBondStakeCap edge cases', () => {
 })
 
 describe('unprotectedStakeCap edge cases', () => {
-  it('clamps to 0 when foundationStake > totalActivated', () => {
+  it('caps via foundationStakeDec even when delegated stake is negative', () => {
     const c = makeConstraints({
       unprotectedValidatorStakeCapSol: 1000,
       unprotectedDelegatedStakeDec: 1,
