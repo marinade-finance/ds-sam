@@ -230,11 +230,12 @@ export class AuctionConstraints {
     const minLimit = Math.max(0, bondBalanceSol - minUnprotectedReserve) / (minBondPmpe / 1000)
     const idealLimit = Math.max(0, bondBalanceSol - idealUnprotectedReserve) / (idealBondPmpe / 1000)
     // always minLimit > idealLimit, since minBondEpochs < idealBondEpochs
-    // if marinadeActivatedStakeSol = 0, then the limit is given by the lower limit, which is the idealLimit
-    // if marinadeActivatedStakeSol > idealLimit, but below minLimit, the limit is given by minLimit
+    // if exposedStake = 0, then the limit is given by the lower limit, which is the idealLimit
+    // if exposedStake > idealLimit, but below minLimit, the limit is given by exposedStake (stable: cap = marinadeActivatedStakeSol)
     // the limit will never exceed minLimit
     // which is also the limit at which we charge the bondRiskFeeSol
-    const limit = Math.min(minLimit, Math.max(idealLimit, validator.marinadeActivatedStakeSol))
+    const projectedExposedStakeSol = Math.max(0, validator.marinadeActivatedStakeSol - unprotectedStakeSol)
+    const limit = Math.min(minLimit, Math.max(idealLimit, projectedExposedStakeSol))
     const cap = this.clipBondStakeCap(validator, limit + unprotectedStakeSol)
     validator.unprotectedStakeSol = unprotectedStakeSol
     validator.bondSamStakeCapSol = cap
