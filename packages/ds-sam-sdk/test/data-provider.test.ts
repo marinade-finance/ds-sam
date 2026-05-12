@@ -385,4 +385,36 @@ describe('processAuctions', () => {
     const epoch700 = agg.validators.find(v => v.voteAccount === 'alice')?.auctions.find(a => a.epoch === 700)
     expect(epoch700?.winningTotalPmpe).toBe(Infinity)
   })
+
+  it('multi-epoch entries are grouped and sorted descending', async () => {
+    const alice = new ValidatorMockBuilder('alice', 'id-a').withEligibleDefaults()
+    const dp = defaultStaticDataProviderBuilder([alice])(DEFAULT_CONFIG)
+    const raw = await dp.fetchSourceData()
+
+    raw.auctions = [
+      alice.toRawAuctionEntryDto({
+        epoch: 699,
+        marinadeSamTargetSol: 100,
+        totalPmpe: 7,
+        bondObligationPmpe: 4,
+        onchainDistributedPmpe: 2,
+      }),
+      alice.toRawAuctionEntryDto({
+        epoch: 700,
+        marinadeSamTargetSol: 100,
+        totalPmpe: 12,
+        bondObligationPmpe: 5,
+        onchainDistributedPmpe: 3,
+      }),
+    ]
+
+    const agg = dp.aggregateData(raw)
+    const aliceAuctions = agg.validators.find(v => v.voteAccount === 'alice')?.auctions ?? []
+
+    expect(aliceAuctions.length).toBe(2)
+    expect(aliceAuctions[0]?.epoch).toBe(700)
+    expect(aliceAuctions[0]?.winningTotalPmpe).toBe(12)
+    expect(aliceAuctions[1]?.epoch).toBe(699)
+    expect(aliceAuctions[1]?.winningTotalPmpe).toBe(7)
+  })
 })
