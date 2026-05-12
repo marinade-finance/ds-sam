@@ -161,7 +161,7 @@ describe('bondStakeCapSam()', () => {
     const marinadeActivatedStakeSol = 100_000
     const v = makeValidator({
       bondBalanceSol: 550,
-      marinadeActivatedStakeSol, // exposed = 70k
+      marinadeActivatedStakeSol,
       totalActivatedStakeSol: marinadeActivatedStakeSol + 30_000, // unprotectedStakeSol = 30k
       revShare: buildRevShare({ onchainDistributedPmpe: 0, expectedMaxEffBidPmpe: 1 }),
     })
@@ -226,7 +226,6 @@ describe('bondStakeCapSam()', () => {
   })
 
   it('marinadeActivated=0, unprotected=0: cap >= 0', () => {
-    // Zero activation and no unprotected stake: protectedActivated=0, limit=idealLimit, cap≥0.
     const cZero = makeConstraints({ minBondEpochs: 1, idealBondEpochs: 2, minBondBalanceSol: 0 })
     const v = makeValidator({
       bondBalanceSol: 500,
@@ -282,9 +281,7 @@ describe('bondStakeCapSam()', () => {
       revShare: buildRevShare({ onchainDistributedPmpe: 0, expectedMaxEffBidPmpe: 1 }),
     })
     const cap = cLowBond.bondStakeCapSam(v)
-    // cap should equal maxUnprotectedStakeSol (the whole bond is consumed by unprotected reserve)
     expect(cap).toBeCloseTo(maxUnprotectedStakeSol, 3)
-    // unprotectedStakeSol should be capped at maxUnprotectedStakeSol, not the full 30k
     expect(v.unprotectedStakeSol).toBeCloseTo(maxUnprotectedStakeSol, 3)
     expect(v.unprotectedStakeSol).toBeLessThan(30_000)
   })

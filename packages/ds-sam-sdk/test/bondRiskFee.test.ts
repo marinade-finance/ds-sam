@@ -362,10 +362,6 @@ describe('claimable vs effective bond inconsistency', () => {
    *   Result: validator allocated within cap is wrongfully penalized.
    */
   it('fee is incorrectly skipped for under-bonded validator with large pending withdrawal', () => {
-    // Parameters: minBondEpochs=1, idealBondEpochs=2, expectedMaxEffBidPmpe=200
-    // onchainDistributedPmpe = inflationPmpe + mevPmpe = 100 + 90 = 190
-    // minBondPmpe = 190 + 200 + 1*200 = 590
-    // idealBondPmpe = 190 + 200 + 2*200 = 790
     const cfg: BondRiskFeeConfig = {
       minBondEpochs: 1,
       idealBondEpochs: 2,
@@ -373,7 +369,7 @@ describe('claimable vs effective bond inconsistency', () => {
       bondRiskFeeMult: 0.1,
     }
 
-    const marinadeActivatedStakeSol = 500 // existing committed stake
+    const marinadeActivatedStakeSol = 500
     const effectiveBond = 200 // bondBalanceSol — what bondStakeCapSam sees
     const claimableBond = 1000 // claimableBondBalanceSol — what calcBondRiskFee sees
 
@@ -385,12 +381,9 @@ describe('claimable vs effective bond inconsistency', () => {
       bondObligationPmpe: baseRevShare.blockPmpe,
       auctionEffectiveStaticBidPmpe: 0,
     }
-    // minBondPmpe set by bondStakeCapSam from effective=200, unprotectedStakeSol=0
     const minBondPmpe = revShare.onchainDistributedPmpe + revShare.expectedMaxEffBidPmpe + cfg.minBondEpochs * revShare.expectedMaxEffBidPmpe // 590
     const idealBondPmpe = revShare.onchainDistributedPmpe + revShare.expectedMaxEffBidPmpe + cfg.idealBondEpochs * revShare.expectedMaxEffBidPmpe // 790
 
-    // Simulate state after bondStakeCapSam(bondBalanceSol=200) has run:
-    // unprotectedStakeSol=0, minUnprotectedReserve=0, idealUnprotectedReserve=0
     const validator = {
       ...makeValidator({
         bondBalanceSol: effectiveBond,
@@ -402,7 +395,7 @@ describe('claimable vs effective bond inconsistency', () => {
       unprotectedStakeSol: 0,
       minBondPmpe,
       idealBondPmpe,
-      minUnprotectedReserve: 0, // computed from effective=200, unprotected=0
+      minUnprotectedReserve: 0,
       idealUnprotectedReserve: 0,
     } as unknown as AuctionValidator
 
@@ -462,7 +455,6 @@ describe('claimable vs effective bond inconsistency', () => {
       bondObligationPmpe: baseRevShare.blockPmpe,
       auctionEffectiveStaticBidPmpe: 0,
     }
-    // minBondPmpe / idealBondPmpe as set by bondStakeCapSam using effective=550
     const minBondPmpe = revShare.onchainDistributedPmpe + revShare.expectedMaxEffBidPmpe + cfg.minBondEpochs * revShare.expectedMaxEffBidPmpe   // 590
     const idealBondPmpe = revShare.onchainDistributedPmpe + revShare.expectedMaxEffBidPmpe + cfg.idealBondEpochs * revShare.expectedMaxEffBidPmpe // 790
 
