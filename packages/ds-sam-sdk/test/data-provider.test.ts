@@ -386,6 +386,26 @@ describe('processAuctions', () => {
     expect(epoch700?.winningTotalPmpe).toBe(Infinity)
   })
 
+  it('effParticipatingBidPmpe clamps to 0 when onchainDistributed exceeds winningTotalPmpe', async () => {
+    const alice = new ValidatorMockBuilder('alice', 'id-a').withEligibleDefaults()
+    const dp = defaultStaticDataProviderBuilder([alice])(DEFAULT_CONFIG)
+    const raw = await dp.fetchSourceData()
+
+    raw.auctions = [
+      alice.toRawAuctionEntryDto({
+        epoch: 700,
+        marinadeSamTargetSol: 100,
+        totalPmpe: 5,
+        bondObligationPmpe: 3,
+        onchainDistributedPmpe: 8,
+      }),
+    ]
+
+    const agg = dp.aggregateData(raw)
+    const epoch700 = agg.validators.find(v => v.voteAccount === 'alice')?.auctions.find(a => a.epoch === 700)
+    expect(epoch700?.effParticipatingBidPmpe).toBe(0)
+  })
+
   it('multi-epoch entries are grouped and sorted descending', async () => {
     const alice = new ValidatorMockBuilder('alice', 'id-a').withEligibleDefaults()
     const dp = defaultStaticDataProviderBuilder([alice])(DEFAULT_CONFIG)
