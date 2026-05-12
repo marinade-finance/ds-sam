@@ -255,7 +255,9 @@ export class AuctionConstraints {
     let regularMinMaxStakeWanted = Math.max(10000, this.config.minMaxStakeWanted)
     let correction = regularMinMaxStakeWanted / (1 + regularMinMaxStakeWanted)
     validator.bondSamHealth =
-      (minLimit + unprotectedStakeSol) / (1 + validator.marinadeActivatedStakeSol) / correction
+      (this.config.bondSamHealthMult * (minLimit + unprotectedStakeSol)) /
+      (1 + validator.marinadeActivatedStakeSol) /
+      correction
     return cap
   }
 

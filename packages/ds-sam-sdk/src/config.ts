@@ -111,6 +111,10 @@ export type DsSamConfig = {
   // by this factor must be in interval [1.0, 2.0].
   bondObligationSafetyMult: number
 
+  // Multiplier applied to the bond cap in bondSamHealth; health < 1 triggers underfunded-bond
+  // unstake priority. Values > 1 create a grace zone above minLimit before deprioritisation kicks in.
+  bondSamHealthMult: number
+
   // Permitted deviation in bid Pmpe below the winning bid Pmpe
   // This deviation will not be penalized when calculating the BidTooLowPenalty meaning validator
   // may slightly underbid the winning bid without being penalized. Permitted interval is [0, 1.0].
@@ -162,6 +166,7 @@ export const DEFAULT_CONFIG: DsSamConfig = {
   minExpectedEffBidPmpe: 0,
   minEligibleFeePmpe: null,
   bondObligationSafetyMult: 1,
+  bondSamHealthMult: 1.1,
   bidTooLowPenaltyPermittedDeviationPmpe: 0.05,
   minimalCommission: -2.0,
 
