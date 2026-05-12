@@ -1,6 +1,6 @@
 /**
  * Tests cover:
- *  - early exit when lastBondBalanceSol < 1
+ *  - returns null when bond comfortably covers stake
  *  - no action when bond balance is sufficient
  *  - forced undelegation and fee computation (various coef/pmpe combos)
  *  - clamping: floor threshold, coef <= 0, full exposed stake
@@ -76,7 +76,7 @@ function makeValidator(
 }
 
 describe('calcBondRiskFee', () => {
-  it('early exits when lastBondBalanceSol < 1', () => {
+  it('returns null when bond comfortably covers stake', () => {
     const validator = makeValidator({
       bondBalanceSol: 100,
       lastBondBalanceSol: 0,

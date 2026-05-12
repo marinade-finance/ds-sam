@@ -165,9 +165,7 @@ describe('bondStakeCapSam()', () => {
     expect(c4.bondStakeCapSam(v)).toBeCloseTo(marinadeActivatedStakeSol, 0)
   })
 
-  it('unprotected=0: old and new are equivalent; cap = marinadeActivatedStakeSol when anti-flap applies', () => {
-    // No unprotected stake → protectedActivated = total activation.
-    // Both buggy and fixed formulas produce identical results here.
+  it('no unprotected stake: anti-flap sets cap = marinadeActivatedStakeSol', () => {
     // bond=1000, bid=5, onchain=0 → minBondPmpe=10, idealBondPmpe=15
     // minLimit = 1000/(10/1000) = 100k, idealLimit = 1000/(15/1000) ≈ 66.67k
     // exposed = 70k (between ideal and min) → limit = 70k → cap = 70k = marinadeActivated
@@ -670,10 +668,6 @@ describe('getMinCapForEvenDistribution – Sam‐BOND wins', () => {
 
   it('picks BOND when its per‐validator bond cap is smallest', () => {
     const data = makeAuction({ validators: [v] })
-    data.validators.forEach(val => {
-      val.revShare.onchainDistributedPmpe = val.revShare.inflationPmpe + val.revShare.mevPmpe
-      val.revShare.bondObligationPmpe = val.revShare.bidPmpe
-    })
     c.updateStateForSam(data)
     const { cap, constraint } = c.getMinCapForEvenDistribution(new Set(['v']))
     expect(cap).toBeCloseTo(1000, 6)
