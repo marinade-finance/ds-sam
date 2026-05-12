@@ -116,7 +116,10 @@ export class StaticDataProvider extends DataProvider {
 
   override fetchMevInfo(): Promise<RawMevInfoResponseDto> {
     return Promise.resolve({
-      validators: this.validatorMockBuilders.map(v => v.toRawValidatorMevInfoDto()).filter(isNotNull),
+      validators: this.validatorMockBuilders
+        .filter(v => !v.isAuctionOnly())
+        .map(v => v.toRawValidatorMevInfoDto())
+        .filter(isNotNull),
     })
   }
 
