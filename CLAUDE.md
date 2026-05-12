@@ -28,6 +28,7 @@ packages/ds-sam-sdk/test/          # SDK unit tests
   helpers/static-data-provider.ts         # StaticDataProvider for tests
   helpers/static-data-provider-builder.ts # Builder for StaticDataProvider
   helpers/auction-test-utils.ts           # Shared test helpers
+  helpers/utils.ts                        # prettyPrint* and assert helpers for tests
 ```
 
 ## Build & Test
