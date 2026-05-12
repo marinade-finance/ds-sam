@@ -8,22 +8,25 @@ ds-sam: TypeScript monorepo for Marinade's directed stake auction.
 
 ```
 packages/ds-sam-sdk/src/
-  auction.ts         # Auction.distributeSamStake() - main algorithm
+  auction.ts         # Auction - stake distribution algorithm
   constraints.ts     # AuctionConstraints - stake caps, bond requirements
   calculations.ts    # Revenue share, penalties, fees
   types.ts           # Core types: AuctionValidator, AggregatedValidator, RevShare, etc.
   config.ts          # DEFAULT_CONFIG
-  sdk.ts             # DsSamSDK entry point
+  sdk.ts             # DsSamSDK entry point; transformValidators() computes eligibility
   debug.ts           # Debug logging and tracing
   utils.ts           # Shared utilities
-  data-provider/     # Fetch from APIs or cached files
+  data-provider/
+    data-provider.ts      # DataProvider - fetch/cache/aggregate source data
+    data-provider.dto.ts  # Raw API response types (RawValidatorsResponseDto, etc.)
 src/
   commands/auction.cmd.ts          # Main CLI command
   commands/analyze-revenue.cmd.ts  # Revenue analysis
 test/                              # CLI integration tests
 packages/ds-sam-sdk/test/          # SDK unit tests
   helpers/validator-mock-builder.ts       # Build mock validators
-  helpers/static-data-provider-builder.ts # Build test data provider
+  helpers/static-data-provider.ts         # StaticDataProvider for tests
+  helpers/static-data-provider-builder.ts # Builder for StaticDataProvider
   helpers/auction-test-utils.ts           # Shared test helpers
 ```
 
@@ -53,19 +56,31 @@ pnpm run cli -- auction -i FILES --cache-dir-path ./cache -c config.json -o ./ou
 - InputsSource: `APIS` (live) vs `FILES` (cached)
 - Production: https://github.com/marinade-finance/ds-sam-pipeline/blob/main/auction-config.json
 
+## Key Concepts
+
+**PMPE** = per mille per epoch: reward/stake ratio normalized per 1000 SOL per epoch.
+All bids, rev-share, and penalty values are in PMPE units.
+
 ## Architecture
 
-`Auction.evaluate()` runs the full auction: estimate max bid,
-distribute SAM stake (lowest-to-highest PMPE), distribute
-backstop stake, then compute priorities/penalties/fees.
+`DsSamSDK.run()` flow:
+
+1. `DataProvider.fetchSourceData()` / `parseCachedSourceData()` — load raw API responses
+2. `DataProvider.aggregateData()` — normalize into `AggregatedData`
+3. `DsSamSDK.transformValidators()` — compute `RevShare` and eligibility flags
+   (uptime check, client version semver, bond presence, min PMPE threshold)
+4. `Auction.evaluate()`:
+   - `updateExpectedMaxEffBidPmpe()` — dry-run sub-auction to estimate the clearing price
+   - `updatePaidUndelegation()` — carry forward undelegation bookkeeping
+   - `evaluateOne()` — distribute SAM stake (highest PMPE first), then backstop stake
+   - `setStakeUnstakePriorities()`, `setAuctionEffectiveBids()`, `setBondRiskFee()`,
+     `setBidTooLowPenalties()`, `setMaxBondDelegations()`, `setBlacklistPenalties()`
+5. Returns `AuctionResult` with `winningTotalPmpe` and per-validator `auctionStake` targets
+
 `AuctionConstraints` tracks per-validator and per-entity caps
 (VALIDATOR, COUNTRY, ASO, BOND, WANT, RISK).
 `calculations.ts` handles revenue share math, bond risk fees,
 bid-too-low penalties.
-
-Data flow: `DsSamSDK.run()` -> fetch/aggregate data ->
-build `AuctionData` -> `Auction.evaluate()` ->
-`AuctionResult` with winning PMPE and per-validator targets.
 
 ## Dev Notes
 
