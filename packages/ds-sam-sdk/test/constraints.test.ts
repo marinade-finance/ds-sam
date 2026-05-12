@@ -49,6 +49,22 @@ describe('clipBondStakeCap()', () => {
     })
     expect(c.clipBondStakeCap(v, 777)).toBe(777)
   })
+
+  it('clips to existing stake at exactly 0.8 * minBondBalanceSol (middle branch)', () => {
+    const v = makeValidator({
+      bondBalanceSol: 0.8 * minBondBalanceSol,
+      marinadeActivatedStakeSol: 500,
+    })
+    expect(c.clipBondStakeCap(v, 10000)).toBe(500)
+  })
+
+  it('returns raw limit at exactly 1.0 * minBondBalanceSol (third branch)', () => {
+    const v = makeValidator({
+      bondBalanceSol: 1.0 * minBondBalanceSol,
+      marinadeActivatedStakeSol: 50,
+    })
+    expect(c.clipBondStakeCap(v, 777)).toBe(777)
+  })
 })
 
 describe('bondStakeCapSam()', () => {
@@ -236,6 +252,44 @@ describe('bondStakeCapSam()', () => {
     expect(c4.bondStakeCapSam(v)).toBeCloseTo(IDEAL_LIMIT + 30_000, 0)
     expect(c4.bondStakeCapSam(v)).toBeLessThan(marinadeActivatedStakeSol + 30_000)
   })
+
+  it('low bond limits unprotectedStakeSol below unprotectedStakeCap via maxUnprotectedStakeSol', () => {
+    // bond=10 SOL, expectedMaxEffBidPmpe=1, idealBondEpochs=12
+    // → idealBidReservePmpe = 12*1 = 12
+    // → maxUnprotectedStakeSol = 10 / (12/1000) ≈ 833.33  (<< unprotectedStakeCap=30k)
+    // → unprotectedStakeSol = min(30k, 833.33) ≈ 833.33
+    // → idealUnprotectedReserve = 833.33 * (12/1000) = 10.0  (exactly bonds out)
+    // → idealLimit = max(0, 10 - 10) / (13/1000) = 0
+    // → minUnprotectedReserve = 833.33 * (4/1000) ≈ 3.333
+    // → minLimit = max(0, 10 - 3.333) / (5/1000) = 6.667 / 0.005 ≈ 1333.33
+    // → marinadeActivated=0: protectedActivated=0, limit = min(1333.33, max(0, 0)) = 0
+    // → cap = clipBondStakeCap(v, 0 + 833.33) = 833.33  (bond=10 > minBondBalance=0)
+    const cLowBond = makeConstraints({
+      marinadeValidatorStakeCapSol: Infinity,
+      minBondBalanceSol: 0,
+      minBondEpochs: 4,
+      idealBondEpochs: 12,
+      unprotectedValidatorStakeCapSol: 30_000,
+      unprotectedDelegatedStakeDec: 1,
+      minUnprotectedStakeToDelegateSol: 0,
+    })
+    const bondBalanceSol = 10
+    const idealBidReservePmpe = 12 * 1 // idealBondEpochs * expectedMaxEffBidPmpe
+    const maxUnprotectedStakeSol = bondBalanceSol / (idealBidReservePmpe / 1000)
+    // maxUnprotectedStakeSol ≈ 833.33, which is less than unprotectedStakeCap=30k
+    const v = makeValidator({
+      bondBalanceSol,
+      marinadeActivatedStakeSol: 0,
+      totalActivatedStakeSol: 60_000, // ensures unprotectedStakeCap returns 30k
+      revShare: buildRevShare({ onchainDistributedPmpe: 0, expectedMaxEffBidPmpe: 1 }),
+    })
+    const cap = cLowBond.bondStakeCapSam(v)
+    // cap should equal maxUnprotectedStakeSol (the whole bond is consumed by unprotected reserve)
+    expect(cap).toBeCloseTo(maxUnprotectedStakeSol, 3)
+    // unprotectedStakeSol should be capped at maxUnprotectedStakeSol, not the full 30k
+    expect(v.unprotectedStakeSol).toBeCloseTo(maxUnprotectedStakeSol, 3)
+    expect(v.unprotectedStakeSol).toBeLessThan(30_000)
+  })
 })
 
 describe('bondGoodForNEpochs', () => {
@@ -266,6 +320,35 @@ describe('bondGoodForNEpochs', () => {
     })
     c.bondStakeCapSam(v)
     expect(v.bondGoodForNEpochs).toBeCloseTo(expected, 6)
+  })
+
+  it('unprotected stake present: bondBalanceForBids uses protectedStakeSol not marinadeActivated', () => {
+    // marinadeActivated=200, totalActivated=400 (external=200)
+    // unprotectedDelegatedStakeDec=1, unprotectedValidatorStakeCapSol=200 → unprotectedStakeCap=200
+    // idealBidReservePmpe = idealBondEpochs*5 = 2*5 = 10
+    // maxUnprotectedStakeSol = bond / (idealBidReservePmpe/1000) = 100/0.01 = 10000
+    // unprotectedStakeSol = min(200, 10000) = 200
+    // protectedStakeSol = max(0, 200 - 200) = 0
+    // bondBalanceForBids = 100 - (2/1000)*0 = 100   ← correct: uses protectedStakeSol
+    // wrong would be:      100 - (2/1000)*200 = 99.6 ← wrong: would use marinadeActivatedStakeSol
+    // costPerEpoch = (5/1000)*200 = 1
+    // bondGoodForNEpochs = 100/1 - (1+1) = 98
+    const cu = makeConstraints({
+      minBondEpochs: 1,
+      idealBondEpochs: 2,
+      minBondBalanceSol: 1,
+      unprotectedValidatorStakeCapSol: 200,
+      unprotectedDelegatedStakeDec: 1,
+      minUnprotectedStakeToDelegateSol: 0,
+    })
+    const v = makeValidator({
+      bondBalanceSol: 100,
+      marinadeActivatedStakeSol: 200,
+      totalActivatedStakeSol: 400,
+      revShare: buildRevShare({ expectedMaxEffBidPmpe: 5, onchainDistributedPmpe: 2 }),
+    })
+    cu.bondStakeCapSam(v)
+    expect(v.bondGoodForNEpochs).toBeCloseTo(98, 6)
   })
 
   it('zero stake → Infinity (bond never depletes)', () => {
@@ -834,6 +917,83 @@ describe('SAM vs backstop constraint types', () => {
   })
 })
 
+describe('buildSamWantConstraints floors', () => {
+  it('marinadeActivatedStakeSol floor: prevents want cap from dropping below current stake', () => {
+    // maxStakeWanted=5, but marinadeActivated=100 → clipped cap = max(0, 100, 5) = 100
+    // marinadeLeftToCapSol = 100 - 0 (marinadeSamTargetSol) = 100
+    const v = makeValidator({
+      voteAccount: 'v_floor1',
+      maxStakeWanted: 5,
+      marinadeActivatedStakeSol: 100,
+      auctionStake: { externalActivatedSol: 0, marinadeSamTargetSol: 0 },
+    })
+    const data = makeAuction({ validators: [v] })
+    const c = makeConstraints({ minMaxStakeWanted: 0 })
+    c.updateStateForSam(data)
+    const constraints = c.getValidatorConstraints('v_floor1')
+    assert(constraints)
+    const want = constraints.find(x => x.constraintType === AuctionConstraintType.WANT)
+    assert(want)
+    expect(want.marinadeLeftToCapSol).toBe(100)
+  })
+
+  it('minMaxStakeWanted floor: config minimum applies when maxStakeWanted is below it and marinadeActivated=0', () => {
+    // maxStakeWanted=50, marinadeActivated=0, minMaxStakeWanted=1000
+    // clipped cap = max(1000, 0, 50) = 1000
+    // marinadeLeftToCapSol = 1000 - 0 = 1000
+    const v = makeValidator({
+      voteAccount: 'v_floor2',
+      maxStakeWanted: 50,
+      marinadeActivatedStakeSol: 0,
+      auctionStake: { externalActivatedSol: 0, marinadeSamTargetSol: 0 },
+    })
+    const data = makeAuction({ validators: [v] })
+    const c = makeConstraints({ minMaxStakeWanted: 1000 })
+    c.updateStateForSam(data)
+    const constraints = c.getValidatorConstraints('v_floor2')
+    assert(constraints)
+    const want = constraints.find(x => x.constraintType === AuctionConstraintType.WANT)
+    assert(want)
+    expect(want.marinadeLeftToCapSol).toBe(1000)
+  })
+})
+
+describe('getMinCapForEvenDistribution – VALIDATOR wins', () => {
+  // marinadeValidatorStakeCapSol=50, marinadeSamTargetSol=10 → marinadeLeftToCapSol=40
+  // All other caps are Infinity, bond is huge → VALIDATOR is the binding constraint.
+  const c = makeConstraints({
+    marinadeValidatorStakeCapSol: 50,
+    totalCountryStakeCapSol: Infinity,
+    marinadeCountryStakeCapSol: Infinity,
+    totalAsoStakeCapSol: Infinity,
+    marinadeAsoStakeCapSol: Infinity,
+    minMaxStakeWanted: 0,
+    minBondEpochs: 0,
+    idealBondEpochs: 0,
+    minBondBalanceSol: 0,
+  })
+
+  const v = makeValidator({
+    voteAccount: 'v1',
+    country: 'US',
+    aso: 'A',
+    bondBalanceSol: 1e9,
+    auctionStake: {
+      externalActivatedSol: 0,
+      marinadeSamTargetSol: 10,
+    },
+    revShare: buildRevShare({ expectedMaxEffBidPmpe: 0, onchainDistributedPmpe: 0 }),
+  })
+
+  it('picks VALIDATOR when marinadeValidatorStakeCapSol is the binding cap', () => {
+    const data = makeAuction({ validators: [v] })
+    c.updateStateForSam(data)
+    const { cap, constraint } = c.getMinCapForEvenDistribution(new Set(['v1']))
+    expect(cap).toBe(40)
+    expect(constraint.constraintType).toBe('VALIDATOR')
+  })
+})
+
 describe('buildSamWantConstraints edge cases', () => {
   it('negative maxStakeWanted treated as Infinity', () => {
     const v = makeValidator({
@@ -849,5 +1009,56 @@ describe('buildSamWantConstraints edge cases', () => {
     const want = constraints.find(x => x.constraintType === AuctionConstraintType.WANT)
     assert(want)
     expect(want.marinadeLeftToCapSol).toBe(Infinity)
+  })
+})
+
+describe('calcBondRiskFee uses exposed not total stake', () => {
+  // Setup: marinadeActivated=100k, totalActivated=130k (30k external / unprotected)
+  // After bondStakeCapSam with minBondEpochs=4, idealBondEpochs=12, expectedMaxEffBidPmpe=1:
+  //   idealBidReservePmpe = 12*1 = 12, minBidReservePmpe = 4*1 = 4
+  //   minBondPmpe  = 0 + 1 + 4 = 5
+  //   idealBondPmpe= 0 + 1 + 12 = 13
+  //   bond=500 → maxUnprotectedStakeSol = 500/0.012 ≈ 41667
+  //   unprotectedStakeSol = min(30k, 41667) = 30k
+  //   minUnprotectedReserve = 30k * (4/1000) = 120
+  //   projectedExposedStakeSol = 100k - 30k = 70k
+  //
+  // Fee condition: claimable - 120 < 70k * (5/1000) = 350  →  claimable < 470
+  // Wrong (total):            claimable - 120 < 100k * 0.005 = 500  →  claimable < 620
+  //
+  // claimable=500: 500-120=380 > 350 (exposed) → NO fee ✓ (would fire if code used total)
+  // claimable=400: 400-120=280 < 350 (exposed) → fee fires ✓
+  const c = makeConstraints({
+    marinadeValidatorStakeCapSol: Infinity,
+    minBondBalanceSol: 0,
+    minBondEpochs: 4,
+    idealBondEpochs: 12,
+    unprotectedValidatorStakeCapSol: 30_000,
+    unprotectedDelegatedStakeDec: 1,
+    minUnprotectedStakeToDelegateSol: 0,
+  })
+  const feeConfig = { minBondEpochs: 4, idealBondEpochs: 12, minBondBalanceSol: 0, bondRiskFeeMult: 1 }
+
+  function run(claimableSol: number) {
+    const v = makeValidator({
+      bondBalanceSol: 500,
+      claimableBondBalanceSol: claimableSol,
+      marinadeActivatedStakeSol: 100_000,
+      totalActivatedStakeSol: 130_000,
+      revShare: buildRevShare({ onchainDistributedPmpe: 0, expectedMaxEffBidPmpe: 1, auctionEffectiveBidPmpe: 1 }),
+    })
+    c.bondStakeCapSam(v)
+    return calcBondRiskFee(feeConfig, v)
+  }
+
+  it('no fee when claimable covers exposed but not total stake', () => {
+    // claimable=500: exposed threshold 350 < 380 → null
+    // If code used total: 500 > 380 → would return non-null
+    expect(run(500)).toBeNull()
+  })
+
+  it('fee fires when claimable falls below exposed threshold', () => {
+    // claimable=400: 280 < 350 → non-null
+    expect(run(400)).not.toBeNull()
   })
 })
