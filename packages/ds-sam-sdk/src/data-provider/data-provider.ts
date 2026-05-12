@@ -78,11 +78,11 @@ export class DataProvider {
   private processAuctions(input: RawScoredValidatorDto[]): AuctionHistory[] {
     const epochs = [...new Set(input.map(e => e.epoch))].sort((a, b) => b - a)
     return epochs.map(epoch => {
-      const validators = input.filter(e => e.epoch === epoch)
-      const winners = validators.filter(w => w.marinadeSamTargetSol > 0)
+      const validators = input.filter(entry => entry.epoch === epoch)
+      const winners = validators.filter(entry => entry.marinadeSamTargetSol > 0)
       return {
         epoch,
-        winningTotalPmpe: winners.reduce((min, w) => Math.min(min, w.revShare.totalPmpe), Infinity),
+        winningTotalPmpe: winners.reduce((min, entry) => Math.min(min, entry.revShare.totalPmpe), Infinity),
         validators,
       }
     })
