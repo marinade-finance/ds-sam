@@ -1294,7 +1294,7 @@ describe('bondSamHealth boundary analysis', () => {
     const data = makeAuction({ validators: [vUnder, vHealthy] })
     const debug = new Debug(new Set())
     const cAuction = makeConstraints({ minBondEpochs: 1, idealBondEpochs: 2, minBondBalanceSol: 0 })
-    const auction = new Auction(data, cAuction, {}, debug)
+    const auction = new Auction(data, cAuction, {} as never, debug)
     auction.setStakeUnstakePriorities()
 
     // v_under (health<1) gets the lowest unstakePriority number (first to unstake)

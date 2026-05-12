@@ -78,7 +78,7 @@ export type DsSamConfig = {
   idealBondEpochs: number
 
   // The multiplier used in the bondRiskFeeSol formula
-  // If set to zero, bondRiskFeeSol is effectivelly disabled
+  // If set to zero, bondRiskFeeSol is effectively disabled
   bondRiskFeeMult: number
 
   // Multiplier applied to the activating-stake overbid (bidPmpe - auctionEffectiveBidPmpe).
