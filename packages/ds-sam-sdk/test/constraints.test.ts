@@ -1210,8 +1210,8 @@ describe('bondSamHealth boundary analysis', () => {
   // With minMaxStakeWanted=null (default), N=10000
   //   correction = 10000/10001 ≈ 0.99990001
   //
-  // health = 1.1 * 100_000 / (1 + marinadeActivated) / correction
-  // health = 1 when marinadeActivated = 1.1*100_000/correction - 1 ≈ 110_011
+  // health = 100_000 / (1 + marinadeActivated) / correction
+  // health = 1 when marinadeActivated = 100_000/correction - 1 ≈ 100_009
 
   // minMaxStakeWanted=0 → regularMinMaxStakeWanted = max(10000, 0) = 10000 (the floor)
   const c = makeConstraints({
@@ -1234,59 +1234,54 @@ describe('bondSamHealth boundary analysis', () => {
   const N = 10_000
   const correction = N / (1 + N)
   const minLimit = 100_000 // bond/minBondPmpe*1000 = 1000/(10/1000)
-  const healthAtMinLimit = (1.1 * minLimit) / (1 + minLimit) / correction
-  const health1Threshold = (1.1 * minLimit) / correction - 1 // ≈ 110_011
+  const healthAtMinLimit = minLimit / (1 + minLimit) / correction
+  const health1Threshold = minLimit / correction - 1 // ≈ 100_009
 
-  it('health is well above 1 when validator is exactly at the bond stake cap (min coverage threshold)', () => {
+  it('health is just above 1 when validator is exactly at the bond stake cap (min coverage threshold)', () => {
     // Validator at exact fee threshold: marinadeActivated = minLimit = 100_000
-    // health = 1.1 * 100_000 / (1 + 100_000) / correction ≈ 1.1 (well above 1)
-    // Bond risk fee fires here, but health does NOT signal underfunded yet.
-    // This is the 10% "dead zone" between fee threshold and health<1 threshold.
+    // health = 100_000 / (1 + 100_000) / correction ≈ 1.0001 (just above 1)
     const v = makeV(minLimit)
     expect(v.bondSamHealth).toBeCloseTo(healthAtMinLimit, 4)
     expect(v.bondSamHealth).toBeGreaterThan(1)
-    // Confirm: at the fee threshold, health is ≈ 1.1 (not 1.0)
-    expect(v.bondSamHealth).toBeCloseTo(1.1 / correction, 4)
   })
 
-  it('health crosses 1 at ≈10% above the bond stake cap, not at the cap itself', () => {
-    // health=1 threshold: marinadeActivated ≈ 1.1*minLimit/correction - 1 ≈ 110_011
+  it('health crosses 1 at the bond stake cap', () => {
+    // health=1 threshold: marinadeActivated ≈ minLimit/correction - 1 ≈ 100_009
     // Below this: health > 1 (deemed healthy, excluded from underfunded unstake group)
     // Above this: health < 1 (deemed underfunded, gets priority unstake)
     const justBelow = makeV(Math.floor(health1Threshold) - 1)
     const justAbove = makeV(Math.ceil(health1Threshold) + 1)
     expect(justBelow.bondSamHealth).toBeGreaterThan(1)
     expect(justAbove.bondSamHealth).toBeLessThan(1)
-    // The crossover is ≈10% above minLimit, not at minLimit
-    expect(health1Threshold / minLimit).toBeCloseTo(1.1, 3)
+    // The crossover is at minLimit (not 10% above it)
+    expect(health1Threshold / minLimit).toBeCloseTo(1.0, 3)
   })
 
   it('health is significantly > 1 when marinadeActivated is at half the bond stake cap', () => {
     // marinadeActivated = 50_000 (half of cap = 100_000)
-    // health = 1.1 * 100_000 / (1 + 50_000) / correction ≈ 2.2
+    // health = 100_000 / (1 + 50_000) / correction ≈ 2.0
     const v = makeV(50_000)
-    const expected = (1.1 * minLimit) / (1 + 50_000) / correction
+    const expected = minLimit / (1 + 50_000) / correction
     expect(v.bondSamHealth).toBeCloseTo(expected, 4)
-    expect(v.bondSamHealth).toBeGreaterThan(2)
+    expect(v.bondSamHealth).toBeGreaterThan(1.9)
   })
 
   it('health is < 1 when marinadeActivated is 20% above the bond stake cap', () => {
     // marinadeActivated = 1.2 * minLimit = 120_000
-    // health = 1.1 * 100_000 / (1 + 120_000) / correction ≈ 0.917
+    // health = 100_000 / (1 + 120_000) / correction ≈ 0.833
     const v = makeV(1.2 * minLimit)
-    const expected = (1.1 * minLimit) / (1 + 1.2 * minLimit) / correction
+    const expected = minLimit / (1 + 1.2 * minLimit) / correction
     expect(v.bondSamHealth).toBeCloseTo(expected, 4)
     expect(v.bondSamHealth).toBeLessThan(1)
   })
 
-  it('health is Infinity when marinadeActivated = 0 (bond covers infinite epochs)', () => {
-    // Without the +1 in denominator this would be 0/0=NaN or Infinity; +1 prevents that.
-    // With +1: health = 1.1 * minLimit / 1 / correction = 1.1 * 100_000 / correction (large but finite)
+  it('health is large but finite when marinadeActivated = 0 (bond covers infinite epochs)', () => {
+    // Without the +1 in denominator this would be division by zero; +1 prevents that.
+    // With +1: health = minLimit / 1 / correction = 100_000 / correction (large but finite)
     const v = makeV(0)
     expect(isFinite(v.bondSamHealth)).toBe(true)
     expect(v.bondSamHealth).toBeGreaterThan(1)
-    // The +1 pins health at a large finite value when no stake is active
-    expect(v.bondSamHealth).toBeCloseTo((1.1 * minLimit) / 1 / correction, 0)
+    expect(v.bondSamHealth).toBeCloseTo(minLimit / 1 / correction, 0)
   })
 
   it('health < 1 validator gets lower unstakePriority index than healthy validator', () => {

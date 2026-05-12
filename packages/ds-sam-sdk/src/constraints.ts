@@ -252,13 +252,10 @@ export class AuctionConstraints {
       (1 + this.config.minBondEpochs)
     // represents how much of the stake this validator has is protected sufficiently enough
     //
-    // do not consider the flapping histeresis for unstake priorities and risk measures
-    //
-    // allow for some unprotected slack before we introduce the bond risk system doing this optimally
     let regularMinMaxStakeWanted = Math.max(10000, this.config.minMaxStakeWanted)
     let correction = regularMinMaxStakeWanted / (1 + regularMinMaxStakeWanted)
     validator.bondSamHealth =
-      (1.1 * (minLimit + unprotectedStakeSol)) / (1 + validator.marinadeActivatedStakeSol) / correction
+      (minLimit + unprotectedStakeSol) / (1 + validator.marinadeActivatedStakeSol) / correction
     return cap
   }
 
