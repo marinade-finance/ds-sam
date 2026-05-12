@@ -357,4 +357,32 @@ describe('processAuctions', () => {
     const epoch700 = agg.validators.find(v => v.voteAccount === 'alice')?.auctions.find(a => a.epoch === 700)
     expect(epoch700?.winningTotalPmpe).toBe(12)
   })
+
+  it('all-zero-target epoch: winningTotalPmpe is Infinity', async () => {
+    const alice = new ValidatorMockBuilder('alice', 'id-a').withEligibleDefaults()
+    const other = new ValidatorMockBuilder('other', 'id-o').withEligibleDefaults()
+    const dp = defaultStaticDataProviderBuilder([alice])(DEFAULT_CONFIG)
+    const raw = await dp.fetchSourceData()
+
+    raw.auctions = [
+      alice.toRawAuctionEntryDto({
+        epoch: 700,
+        marinadeSamTargetSol: 0,
+        totalPmpe: 5,
+        bondObligationPmpe: 3,
+        onchainDistributedPmpe: 1,
+      }),
+      other.toRawAuctionEntryDto({
+        epoch: 700,
+        marinadeSamTargetSol: 0,
+        totalPmpe: 9,
+        bondObligationPmpe: 6,
+        onchainDistributedPmpe: 2,
+      }),
+    ]
+
+    const agg = dp.aggregateData(raw)
+    const epoch700 = agg.validators.find(v => v.voteAccount === 'alice')?.auctions.find(a => a.epoch === 700)
+    expect(epoch700?.winningTotalPmpe).toBe(Infinity)
+  })
 })
