@@ -11,6 +11,7 @@ import type {
   RawMevInfoResponseDto,
   RawRewardsRecordDto,
   RawRewardsResponseDto,
+  RawScoredValidatorDto,
   RawTvlResponseDto,
   RawValidatorsResponseDto,
 } from '../../src'
@@ -112,5 +113,9 @@ export class StaticDataProvider extends DataProvider {
     return Promise.resolve({
       validators: this.validatorMockBuilders.map(v => v.toRawValidatorMevInfoDto()).filter(isNotNull),
     })
+  }
+
+  override fetchAuctions(): Promise<RawScoredValidatorDto[]> {
+    return Promise.resolve([])
   }
 }
