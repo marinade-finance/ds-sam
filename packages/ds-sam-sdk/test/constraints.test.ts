@@ -995,17 +995,8 @@ describe('buildSamWantConstraints edge cases', () => {
     expect(want.marinadeLeftToCapSol).toBe(Infinity)
   })
 
-  it('maxStakeWanted=0 is treated as Infinity (same as negative / unset)', () => {
-    // Validator has bond with max_stake_wanted=0 lamports in the API.
-    // data-provider.ts converts this to: maxStakeWanted = new Decimal("0").div(1e9).toNumber() = 0
-    // In buildSamWantConstraints: maxStakeWanted > 0 ? maxStakeWanted : Infinity
-    //   → 0 > 0 is false → Infinity
-    // So marinadeLeftToCapSol = Infinity - 0 = Infinity.
-    // This test documents the ACTUAL behaviour so the team can decide if it is intentional.
-    //
-    // Hypothesis A (bug): 0 means "I explicitly want no more stake" → cap should be 0
-    // Hypothesis B (intentional): 0 is the default / sentinel for "no preference" (API always
-    //   sends a numeric string, 0 = not set), so it must collapse to Infinity like negatives do.
+  it('maxStakeWanted=0 means uncapped (same as negative / unset)', () => {
+    // 0 is the API sentinel for "no preference"; the condition `> 0` intentionally collapses it to Infinity.
     const v = makeValidator({
       voteAccount: 'v_zero_want',
       maxStakeWanted: 0,
@@ -1019,8 +1010,6 @@ describe('buildSamWantConstraints edge cases', () => {
     assert(constraints)
     const want = constraints.find(x => x.constraintType === AuctionConstraintType.WANT)
     assert(want)
-    // Current behaviour: 0 → Infinity (same as negative)
-    // If this should instead be a hard zero-cap, the assertion below will fail and guide the fix.
     expect(want.marinadeLeftToCapSol).toBe(Infinity)
   })
 })
