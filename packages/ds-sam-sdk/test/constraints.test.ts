@@ -115,6 +115,23 @@ describe('bondStakeCapSam()', () => {
     expect(c3.bondStakeCapSam(v)).toBeCloseTo(100000, 0)
   })
 
+  // Shared constraints for regression and related edge cases:
+  // bond=550, bid=1, onchain=0, minBondEpochs=4, idealBondEpochs=12, unprotectedCap=30k
+  // → idealLimit ≈ 14615, minLimit = 86000
+  const c4 = makeConstraints({
+    marinadeValidatorStakeCapSol: Infinity,
+    minBondBalanceSol: 0,
+    minBondEpochs: 4,
+    idealBondEpochs: 12,
+    unprotectedValidatorStakeCapSol: 30_000,
+    unprotectedDelegatedStakeDec: 1,
+    minUnprotectedStakeToDelegateSol: 0,
+  })
+  // idealLimit = (550 - 30k*(12/1000)) / (13/1000) = 190 / 0.013 ≈ 14615
+  // minLimit  = (550 - 30k*(4/1000))  / (5/1000)  = 430 / 0.005  = 86000
+  const IDEAL_LIMIT = (550 - 30_000 * (12 / 1000)) / (13 / 1000)
+  const MIN_LIMIT = (550 - 30_000 * (4 / 1000)) / (5 / 1000)
+
   it('does not exceed marinadeActivatedStakeSol when exposed stake is between idealLimit and minLimit', () => {
     // Regression: epoch 969→970, fVotEjqpmpQYgyVy.
     // With unprotectedStakeSol > 0, the buggy formula
@@ -127,27 +144,97 @@ describe('bondStakeCapSam()', () => {
     // Fix: use exposed stake in the comparison:
     //   limit = min(minLimit, max(idealLimit, marinadeActivatedStakeSol - unprotectedStakeSol))
     // When exposed is between ideal and min, limit = exposed → cap = marinadeActivatedStakeSol (stable).
-    const unprotected = 30_000
     const marinadeActivatedStakeSol = 100_000
-    const c4 = makeConstraints({
-      marinadeValidatorStakeCapSol: Infinity,
-      minBondBalanceSol: 0,
-      minBondEpochs: 4,
-      idealBondEpochs: 12,
-      unprotectedValidatorStakeCapSol: unprotected,
-      unprotectedDelegatedStakeDec: 1,
-      minUnprotectedStakeToDelegateSol: 0,
-    })
     const v = makeValidator({
       bondBalanceSol: 550,
       marinadeActivatedStakeSol, // exposed = 70k
-      totalActivatedStakeSol: marinadeActivatedStakeSol + unprotected, // unprotectedStakeSol = 30k
+      totalActivatedStakeSol: marinadeActivatedStakeSol + 30_000, // unprotectedStakeSol = 30k
       revShare: buildRevShare({ onchainDistributedPmpe: 0, expectedMaxEffBidPmpe: 1 }),
     })
     // exposed = 70k; idealLimit ≈ 14.6k; minLimit ≈ 86k → exposed between ideal and min
     // Bug:  limit = min(86k, max(14.6k, 100k[total])) = 86k → cap = 116k > marinadeActivatedStakeSol
     // Fix:  limit = min(86k, max(14.6k,  70k[exposed])) = 70k → cap = 100k = marinadeActivatedStakeSol
     expect(c4.bondStakeCapSam(v)).toBeCloseTo(marinadeActivatedStakeSol, 0)
+  })
+
+  it('unprotected=0: old and new are equivalent; cap = marinadeActivatedStakeSol when anti-flap applies', () => {
+    // No unprotected stake → protectedActivated = total activation.
+    // Both buggy and fixed formulas produce identical results here.
+    // bond=1000, bid=5, onchain=0 → minBondPmpe=10, idealBondPmpe=15
+    // minLimit = 1000/(10/1000) = 100k, idealLimit = 1000/(15/1000) ≈ 66.67k
+    // exposed = 70k (between ideal and min) → limit = 70k → cap = 70k = marinadeActivated
+    const cNoUnprotected = makeConstraints({ minBondEpochs: 1, idealBondEpochs: 2, minBondBalanceSol: 0 })
+    const v = makeValidator({
+      bondBalanceSol: 1000,
+      marinadeActivatedStakeSol: 70_000,
+      revShare: buildRevShare({ expectedMaxEffBidPmpe: 5, onchainDistributedPmpe: 0 }),
+    })
+    expect(cNoUnprotected.bondStakeCapSam(v)).toBeCloseTo(70_000, 0)
+  })
+
+  it('exposed below idealLimit: cap = idealLimit + unprotected', () => {
+    // marinadeActivated=5k → exposed = max(0, 5k-30k) = 0 < idealLimit≈14.6k
+    // limit = min(86k, max(14.6k, 0)) = idealLimit → cap = idealLimit + 30k
+    // Bug gives same result here (5k < idealLimit → max still returns idealLimit).
+    const v = makeValidator({
+      bondBalanceSol: 550,
+      marinadeActivatedStakeSol: 5_000,
+      totalActivatedStakeSol: 35_000, // unprotectedStakeSol = 30k
+      revShare: buildRevShare({ onchainDistributedPmpe: 0, expectedMaxEffBidPmpe: 1 }),
+    })
+    expect(c4.bondStakeCapSam(v)).toBeCloseTo(IDEAL_LIMIT + 30_000, 0)
+  })
+
+  it('exposed exactly at idealLimit: cap = idealLimit + unprotected = marinadeActivated', () => {
+    // marinadeActivated = idealLimit + 30k → exposed = idealLimit exactly
+    // limit = min(86k, max(idealLimit, idealLimit)) = idealLimit → cap = idealLimit + 30k = marinadeActivated
+    const marinadeActivatedStakeSol = IDEAL_LIMIT + 30_000
+    const v = makeValidator({
+      bondBalanceSol: 550,
+      marinadeActivatedStakeSol,
+      totalActivatedStakeSol: marinadeActivatedStakeSol + 30_000,
+      revShare: buildRevShare({ onchainDistributedPmpe: 0, expectedMaxEffBidPmpe: 1 }),
+    })
+    expect(c4.bondStakeCapSam(v)).toBeCloseTo(marinadeActivatedStakeSol, 0)
+  })
+
+  it('exposed above minLimit: cap = minLimit + unprotected', () => {
+    // marinadeActivated=120k → exposed = 90k > minLimit=86k
+    // limit = min(86k, max(14.6k, 90k)) = 86k → cap = 116k
+    // Bug gives the same result (minLimit clamps regardless of whether total or exposed is used).
+    const v = makeValidator({
+      bondBalanceSol: 550,
+      marinadeActivatedStakeSol: 120_000,
+      totalActivatedStakeSol: 150_000,
+      revShare: buildRevShare({ onchainDistributedPmpe: 0, expectedMaxEffBidPmpe: 1 }),
+    })
+    expect(c4.bondStakeCapSam(v)).toBeCloseTo(MIN_LIMIT + 30_000, 0)
+  })
+
+  it('marinadeActivated=0, unprotected=0: cap >= 0', () => {
+    // Zero activation and no unprotected stake: protectedActivated=0, limit=idealLimit, cap≥0.
+    const cZero = makeConstraints({ minBondEpochs: 1, idealBondEpochs: 2, minBondBalanceSol: 0 })
+    const v = makeValidator({
+      bondBalanceSol: 500,
+      marinadeActivatedStakeSol: 0,
+      revShare: buildRevShare({ expectedMaxEffBidPmpe: 5, onchainDistributedPmpe: 0 }),
+    })
+    expect(cZero.bondStakeCapSam(v)).toBeGreaterThanOrEqual(0)
+  })
+
+  it('marinadeActivated = unprotected exactly: all stake is unprotected, limit = idealLimit', () => {
+    // marinadeActivated=30k, totalActivated=60k → unprotectedStakeSol=30k, exposed=0
+    // limit = min(86k, max(idealLimit, 0)) = idealLimit → cap = idealLimit + 30k
+    // Bug: limit = min(86k, max(idealLimit, 30k[total])) = 30k → cap = 60k (double-counts unprotected)
+    const marinadeActivatedStakeSol = 30_000
+    const v = makeValidator({
+      bondBalanceSol: 550,
+      marinadeActivatedStakeSol,
+      totalActivatedStakeSol: 60_000,
+      revShare: buildRevShare({ onchainDistributedPmpe: 0, expectedMaxEffBidPmpe: 1 }),
+    })
+    expect(c4.bondStakeCapSam(v)).toBeCloseTo(IDEAL_LIMIT + 30_000, 0)
+    expect(c4.bondStakeCapSam(v)).toBeLessThan(marinadeActivatedStakeSol + 30_000)
   })
 })
 
