@@ -164,7 +164,10 @@ export class AnalyzeRevenuesCommand extends CommandRunner {
     const pastValidatorChangeCommissions = this.getPastValidatorCommissions(pastSnapshotValidatorsCollection)
 
     const dsSam = new DsSamSDK({ ...config })
-    const auctionDataCalculatedFromFixtures = await dsSam.run()
+    const auctionDataCalculatedFromFixtures = await dsSam.run().catch((e: unknown) => {
+      console.error('dsSam.run() failed:', e)
+      throw e
+    })
     const auctionDataParsedFromFixtures: AuctionResult = JSON.parse(
       fs.readFileSync(options.samResultsFixtureFilePath).toString(),
     ) as AuctionResult
