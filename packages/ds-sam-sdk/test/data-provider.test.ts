@@ -2,6 +2,7 @@ import { DEFAULT_CONFIG } from '../src/config'
 import { defaultStaticDataProviderBuilder } from './helpers/static-data-provider-builder'
 import { ValidatorMockBuilder } from './helpers/validator-mock-builder'
 
+import type { RawScoredValidatorDto } from '../src'
 import type { SourceDataOverrides } from '../src/data-provider/data-provider.dto'
 
 type HistoryEntry = { voteAccount: string; values: { samBlacklisted: boolean } }
@@ -281,11 +282,8 @@ describe('processAuctions', () => {
   it('winningTotalPmpe is min totalPmpe among winners, not sorted by bondObligationPmpe', async () => {
     const alice = new ValidatorMockBuilder('alice', 'id-a').withEligibleDefaults()
     const winner1 = new ValidatorMockBuilder('winner1', 'id-w1').withEligibleDefaults()
-    const dp = defaultStaticDataProviderBuilder([alice])(DEFAULT_CONFIG)
-    const raw = await dp.fetchSourceData()
-
     // winningTotalPmpe is the minimum totalPmpe among validators with stake, not the last by bondObligationPmpe order
-    raw.auctions = [
+    const auctions: RawScoredValidatorDto[] = [
       winner1.toRawAuctionEntryDto({
         epoch: 700,
         marinadeSamTargetSol: 100,
@@ -301,7 +299,8 @@ describe('processAuctions', () => {
         onchainDistributedPmpe: 3,
       }),
     ]
-
+    const dp = defaultStaticDataProviderBuilder([alice], auctions)(DEFAULT_CONFIG)
+    const raw = await dp.fetchSourceData()
     const agg = dp.aggregateData(raw)
     const epoch700 = agg.validators.find(v => v.voteAccount === 'alice')?.auctions.find(a => a.epoch === 700)
     expect(epoch700?.winningTotalPmpe).toBe(8)
@@ -312,10 +311,7 @@ describe('processAuctions', () => {
     const alice = new ValidatorMockBuilder('alice', 'id-a').withEligibleDefaults()
     const winner1 = new ValidatorMockBuilder('winner1', 'id-w1').withEligibleDefaults()
     const zero = new ValidatorMockBuilder('zero', 'id-z').withEligibleDefaults()
-    const dp = defaultStaticDataProviderBuilder([alice])(DEFAULT_CONFIG)
-    const raw = await dp.fetchSourceData()
-
-    raw.auctions = [
+    const auctions: RawScoredValidatorDto[] = [
       winner1.toRawAuctionEntryDto({
         epoch: 700,
         marinadeSamTargetSol: 100,
@@ -331,7 +327,8 @@ describe('processAuctions', () => {
         onchainDistributedPmpe: 1,
       }),
     ]
-
+    const dp = defaultStaticDataProviderBuilder([alice], auctions)(DEFAULT_CONFIG)
+    const raw = await dp.fetchSourceData()
     const agg = dp.aggregateData(raw)
     const epoch700 = agg.validators.find(v => v.voteAccount === 'alice')?.auctions.find(a => a.epoch === 700)
     // zero-target entry (totalPmpe=3) must not lower the threshold below winner1's 8
@@ -340,10 +337,7 @@ describe('processAuctions', () => {
 
   it('single winner: winningTotalPmpe equals that validator totalPmpe', async () => {
     const alice = new ValidatorMockBuilder('alice', 'id-a').withEligibleDefaults()
-    const dp = defaultStaticDataProviderBuilder([alice])(DEFAULT_CONFIG)
-    const raw = await dp.fetchSourceData()
-
-    raw.auctions = [
+    const auctions: RawScoredValidatorDto[] = [
       alice.toRawAuctionEntryDto({
         epoch: 700,
         marinadeSamTargetSol: 100,
@@ -352,7 +346,8 @@ describe('processAuctions', () => {
         onchainDistributedPmpe: 4,
       }),
     ]
-
+    const dp = defaultStaticDataProviderBuilder([alice], auctions)(DEFAULT_CONFIG)
+    const raw = await dp.fetchSourceData()
     const agg = dp.aggregateData(raw)
     const epoch700 = agg.validators.find(v => v.voteAccount === 'alice')?.auctions.find(a => a.epoch === 700)
     expect(epoch700?.winningTotalPmpe).toBe(12)
@@ -361,10 +356,7 @@ describe('processAuctions', () => {
   it('all-zero-target epoch: winningTotalPmpe is Infinity', async () => {
     const alice = new ValidatorMockBuilder('alice', 'id-a').withEligibleDefaults()
     const other = new ValidatorMockBuilder('other', 'id-o').withEligibleDefaults()
-    const dp = defaultStaticDataProviderBuilder([alice])(DEFAULT_CONFIG)
-    const raw = await dp.fetchSourceData()
-
-    raw.auctions = [
+    const auctions: RawScoredValidatorDto[] = [
       alice.toRawAuctionEntryDto({
         epoch: 700,
         marinadeSamTargetSol: 0,
@@ -380,7 +372,8 @@ describe('processAuctions', () => {
         onchainDistributedPmpe: 2,
       }),
     ]
-
+    const dp = defaultStaticDataProviderBuilder([alice], auctions)(DEFAULT_CONFIG)
+    const raw = await dp.fetchSourceData()
     const agg = dp.aggregateData(raw)
     const epoch700 = agg.validators.find(v => v.voteAccount === 'alice')?.auctions.find(a => a.epoch === 700)
     expect(epoch700?.winningTotalPmpe).toBe(Infinity)
@@ -388,10 +381,7 @@ describe('processAuctions', () => {
 
   it('effParticipatingBidPmpe clamps to 0 when onchainDistributed exceeds winningTotalPmpe', async () => {
     const alice = new ValidatorMockBuilder('alice', 'id-a').withEligibleDefaults()
-    const dp = defaultStaticDataProviderBuilder([alice])(DEFAULT_CONFIG)
-    const raw = await dp.fetchSourceData()
-
-    raw.auctions = [
+    const auctions: RawScoredValidatorDto[] = [
       alice.toRawAuctionEntryDto({
         epoch: 700,
         marinadeSamTargetSol: 100,
@@ -400,7 +390,8 @@ describe('processAuctions', () => {
         onchainDistributedPmpe: 8,
       }),
     ]
-
+    const dp = defaultStaticDataProviderBuilder([alice], auctions)(DEFAULT_CONFIG)
+    const raw = await dp.fetchSourceData()
     const agg = dp.aggregateData(raw)
     const epoch700 = agg.validators.find(v => v.voteAccount === 'alice')?.auctions.find(a => a.epoch === 700)
     expect(epoch700?.effParticipatingBidPmpe).toBe(0)
@@ -416,10 +407,7 @@ describe('processAuctions', () => {
       bondMevCommission: 10,
       bondBlockCommission: 0,
     })
-    const dp = defaultStaticDataProviderBuilder([alice, bob])(DEFAULT_CONFIG)
-    const raw = await dp.fetchSourceData()
-
-    raw.auctions = [
+    const auctions: RawScoredValidatorDto[] = [
       alice.toRawAuctionEntryDto({
         epoch: 700,
         marinadeSamTargetSol: 100,
@@ -428,7 +416,8 @@ describe('processAuctions', () => {
         onchainDistributedPmpe: 3,
       }),
     ]
-
+    const dp = defaultStaticDataProviderBuilder([alice, bob], auctions)(DEFAULT_CONFIG)
+    const raw = await dp.fetchSourceData()
     const agg = dp.aggregateData(raw)
     const bobEpoch700 = agg.validators.find(v => v.voteAccount === 'bob')?.auctions.find(a => a.epoch === 700)
     expect(bobEpoch700?.winningTotalPmpe).toBe(10)
@@ -439,10 +428,7 @@ describe('processAuctions', () => {
 
   it('multi-epoch entries are grouped and sorted descending', async () => {
     const alice = new ValidatorMockBuilder('alice', 'id-a').withEligibleDefaults()
-    const dp = defaultStaticDataProviderBuilder([alice])(DEFAULT_CONFIG)
-    const raw = await dp.fetchSourceData()
-
-    raw.auctions = [
+    const auctions: RawScoredValidatorDto[] = [
       alice.toRawAuctionEntryDto({
         epoch: 699,
         marinadeSamTargetSol: 100,
@@ -458,7 +444,8 @@ describe('processAuctions', () => {
         onchainDistributedPmpe: 3,
       }),
     ]
-
+    const dp = defaultStaticDataProviderBuilder([alice], auctions)(DEFAULT_CONFIG)
+    const raw = await dp.fetchSourceData()
     const agg = dp.aggregateData(raw)
     const aliceAuctions = agg.validators.find(v => v.voteAccount === 'alice')?.auctions ?? []
 
