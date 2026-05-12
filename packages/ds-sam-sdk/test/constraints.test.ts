@@ -808,7 +808,7 @@ describe('clipBondStakeCap edge cases', () => {
 })
 
 describe('unprotectedStakeCap edge cases', () => {
-  it('caps via foundationStakeDec even when delegated stake is negative', () => {
+  it('counts foundation stake when foundation exceeds total activated', () => {
     const c = makeConstraints({
       unprotectedValidatorStakeCapSol: 1000,
       unprotectedDelegatedStakeDec: 1,
