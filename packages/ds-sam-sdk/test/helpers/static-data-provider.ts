@@ -22,7 +22,7 @@ export type StaticDataProviderConfig = {
   mevRewardsPerEpoch: number
   blockRewardsPerEpoch: number
   currentEpoch: number
-  auctions?: RawScoredValidatorDto[]
+  auctions: RawScoredValidatorDto[]
 }
 
 export class StaticDataProvider extends DataProvider {
@@ -117,6 +117,6 @@ export class StaticDataProvider extends DataProvider {
   }
 
   override fetchAuctions(): Promise<RawScoredValidatorDto[]> {
-    return Promise.resolve(this.staticDataProviderConfig.auctions ?? [])
+    return Promise.resolve(this.staticDataProviderConfig.auctions)
   }
 }
