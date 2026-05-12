@@ -143,8 +143,6 @@ describe('bondStakeCapSam()', () => {
     unprotectedDelegatedStakeDec: 1,
     minUnprotectedStakeToDelegateSol: 0,
   })
-  // idealLimit = (550 - 30k*(12/1000)) / (13/1000) = 190 / 0.013 ≈ 14615
-  // minLimit  = (550 - 30k*(4/1000))  / (5/1000)  = 430 / 0.005  = 86000
   const IDEAL_LIMIT = (550 - 30_000 * (12 / 1000)) / (13 / 1000)
   const MIN_LIMIT = (550 - 30_000 * (4 / 1000)) / (5 / 1000)
 
