@@ -361,7 +361,7 @@ describe('bondGoodForNEpochs vs calcBondRiskFee threshold', () => {
   const feeConfig = { minBondEpochs, idealBondEpochs: 2, minBondBalanceSol: 0, bondRiskFeeMult: 0.1 }
   const c = makeConstraints({ minBondEpochs, idealBondEpochs, minBondBalanceSol: 0 })
 
-  function run(bondBalanceSol: number) {
+  function buildValidatorAndComputeFee(bondBalanceSol: number) {
     const v = makeValidator({
       bondBalanceSol,
       claimableBondBalanceSol: bondBalanceSol,
@@ -373,19 +373,19 @@ describe('bondGoodForNEpochs vs calcBondRiskFee threshold', () => {
   }
 
   it('exactly at threshold: bondGoodForNEpochs=0, no fee', () => {
-    const { goodFor, fee } = run(2.4)
+    const { goodFor, fee } = buildValidatorAndComputeFee(2.4)
     expect(goodFor).toBeCloseTo(0, 6)
     expect(fee).toBeNull()
   })
 
   it('just above threshold: bondGoodForNEpochs>0, no fee', () => {
-    const { goodFor, fee } = run(2.5)
+    const { goodFor, fee } = buildValidatorAndComputeFee(2.5)
     expect(goodFor).toBeGreaterThan(0)
     expect(fee).toBeNull()
   })
 
   it('just below threshold: bondGoodForNEpochs<0, fee generated', () => {
-    const { goodFor, fee } = run(2.3)
+    const { goodFor, fee } = buildValidatorAndComputeFee(2.3)
     expect(goodFor).toBeLessThan(0)
     expect(fee).not.toBeNull()
   })
@@ -1146,7 +1146,7 @@ describe('calcBondRiskFee uses exposed not total stake', () => {
   })
   const feeConfig = { minBondEpochs: 4, idealBondEpochs: 12, minBondBalanceSol: 0, bondRiskFeeMult: 1 }
 
-  function run(claimableSol: number) {
+  function buildValidatorAndComputeFee(claimableSol: number) {
     const v = makeValidator({
       bondBalanceSol: 500,
       claimableBondBalanceSol: claimableSol,
@@ -1161,12 +1161,12 @@ describe('calcBondRiskFee uses exposed not total stake', () => {
   it('no fee when claimable covers exposed but not total stake', () => {
     // claimable=500: exposed threshold 350 < 380 → null
     // If code used total: 500 > 380 → would return non-null
-    expect(run(500)).toBeNull()
+    expect(buildValidatorAndComputeFee(500)).toBeNull()
   })
 
   it('fee fires when claimable falls below exposed threshold', () => {
     // claimable=400: 280 < 350 → non-null
-    expect(run(400)).not.toBeNull()
+    expect(buildValidatorAndComputeFee(400)).not.toBeNull()
   })
 })
 
@@ -1194,7 +1194,7 @@ describe('bondSamHealth boundary analysis', () => {
     marinadeValidatorStakeCapSol: Infinity,
   })
 
-  function makeV(marinadeActivatedStakeSol: number) {
+  function makeValidatorAtStake(marinadeActivatedStakeSol: number) {
     const v = makeValidator({
       bondBalanceSol: 1000,
       marinadeActivatedStakeSol,
@@ -1214,7 +1214,7 @@ describe('bondSamHealth boundary analysis', () => {
   it('health is well above 1 when validator is exactly at the bond stake cap (min coverage threshold)', () => {
     // Validator at exact fee threshold: marinadeActivated = minLimit = 100_000
     // health = 1.1 * 100_000 / (1 + 100_000) / correction ≈ 1.1001 (well above 1)
-    const v = makeV(minLimit)
+    const v = makeValidatorAtStake(minLimit)
     expect(v.bondSamHealth).toBeCloseTo(healthAtMinLimit, 4)
     expect(v.bondSamHealth).toBeGreaterThan(1)
   })
@@ -1223,8 +1223,8 @@ describe('bondSamHealth boundary analysis', () => {
     // health=1 threshold: marinadeActivated ≈ 1.1 * minLimit / correction - 1 ≈ 110_010
     // Below this: health > 1 (deemed healthy, excluded from underfunded unstake group)
     // Above this: health < 1 (deemed underfunded, gets priority unstake)
-    const justBelow = makeV(Math.floor(health1Threshold) - 1)
-    const justAbove = makeV(Math.ceil(health1Threshold) + 1)
+    const justBelow = makeValidatorAtStake(Math.floor(health1Threshold) - 1)
+    const justAbove = makeValidatorAtStake(Math.ceil(health1Threshold) + 1)
     expect(justBelow.bondSamHealth).toBeGreaterThan(1)
     expect(justAbove.bondSamHealth).toBeLessThan(1)
     // The crossover is ~10% above minLimit (the grace zone created by bondSamHealthMult=1.1)
@@ -1234,7 +1234,7 @@ describe('bondSamHealth boundary analysis', () => {
   it('health is significantly > 1 when marinadeActivated is at half the bond stake cap', () => {
     // marinadeActivated = 50_000 (half of cap = 100_000)
     // health = 1.1 * 100_000 / (1 + 50_000) / correction ≈ 2.2
-    const v = makeV(50_000)
+    const v = makeValidatorAtStake(50_000)
     const expected = mult * minLimit / (1 + 50_000) / correction
     expect(v.bondSamHealth).toBeCloseTo(expected, 4)
     expect(v.bondSamHealth).toBeGreaterThan(1.9)
@@ -1243,7 +1243,7 @@ describe('bondSamHealth boundary analysis', () => {
   it('health is < 1 when marinadeActivated is 20% above the bond stake cap', () => {
     // marinadeActivated = 1.2 * minLimit = 120_000
     // health = 1.1 * 100_000 / (1 + 120_000) / correction ≈ 0.917
-    const v = makeV(1.2 * minLimit)
+    const v = makeValidatorAtStake(1.2 * minLimit)
     const expected = mult * minLimit / (1 + 1.2 * minLimit) / correction
     expect(v.bondSamHealth).toBeCloseTo(expected, 4)
     expect(v.bondSamHealth).toBeLessThan(1)
