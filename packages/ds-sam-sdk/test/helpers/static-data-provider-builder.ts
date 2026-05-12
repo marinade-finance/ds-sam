@@ -35,7 +35,7 @@ export class StaticDataProviderBuilder {
     return this
   }
 
-  builder() {
+  build() {
     const { validatorMockBuilders, inflationRewardsPerEpoch, mevRewardsPerEpoch, blockRewardsPerEpoch, currentEpoch } =
       this
     if (validatorMockBuilders === null) {
@@ -72,7 +72,7 @@ export const defaultStaticDataProviderBuilder = (validators: ValidatorMockBuilde
     .withMevRewardsPerEpoch(50000)
     .withBlockRewardsPerEpoch(0)
     .withValidators(validators)
-    .builder()
+    .build()
 
 export const blockRewardsStaticDataProviderBuilder = (validators: ValidatorMockBuilder[]) =>
   new StaticDataProviderBuilder()
@@ -81,4 +81,4 @@ export const blockRewardsStaticDataProviderBuilder = (validators: ValidatorMockB
     .withMevRewardsPerEpoch(50000)
     .withBlockRewardsPerEpoch(90000)
     .withValidators(validators)
-    .builder()
+    .build()

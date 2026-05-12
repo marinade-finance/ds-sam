@@ -405,21 +405,23 @@ describe('processAuctions', () => {
   })
 
   it('multi-epoch entries are grouped and sorted descending', async () => {
-    const alice699 = new ValidatorMockBuilder('alice', 'id-a').withEligibleDefaults().withAuctionEntry({
-      epoch: 699,
-      marinadeSamTargetSol: 100,
-      totalPmpe: 7,
-      bondObligationPmpe: 4,
-      onchainDistributedPmpe: 2,
-    })
-    const alice700 = new ValidatorMockBuilder('alice', 'id-a').withEligibleDefaults().withAuctionEntry({
-      epoch: 700,
-      marinadeSamTargetSol: 100,
-      totalPmpe: 12,
-      bondObligationPmpe: 5,
-      onchainDistributedPmpe: 3,
-    })
-    const dp = defaultStaticDataProviderBuilder([alice699, alice700])(DEFAULT_CONFIG)
+    const alice = new ValidatorMockBuilder('alice', 'id-a')
+      .withEligibleDefaults()
+      .withAuctionEntry({
+        epoch: 699,
+        marinadeSamTargetSol: 100,
+        totalPmpe: 7,
+        bondObligationPmpe: 4,
+        onchainDistributedPmpe: 2,
+      })
+      .withAuctionEntry({
+        epoch: 700,
+        marinadeSamTargetSol: 100,
+        totalPmpe: 12,
+        bondObligationPmpe: 5,
+        onchainDistributedPmpe: 3,
+      })
+    const dp = defaultStaticDataProviderBuilder([alice])(DEFAULT_CONFIG)
     const raw = await dp.fetchSourceData()
     const agg = dp.aggregateData(raw)
     const aliceAuctions = agg.validators.find(v => v.voteAccount === 'alice')?.auctions ?? []

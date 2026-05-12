@@ -53,22 +53,13 @@ export class StaticDataProvider extends DataProvider {
   }
 
   override fetchTvlInfo(): Promise<RawTvlResponseDto> {
-    const active = this.validatorMockBuilders.filter(v => !v.isAuctionOnly())
+    const dtos = this.validatorMockBuilders
+      .filter(v => !v.isAuctionOnly())
+      .map(v => v.toRawValidatorDto(this.staticDataProviderConfig.currentEpoch))
     return Promise.resolve({
-      total_virtual_staked_sol: active.reduce(
-        (sum, v) =>
-          sum +
-          new Decimal(v.toRawValidatorDto(this.staticDataProviderConfig.currentEpoch).marinade_stake)
-            .div(1e9)
-            .toNumber(),
-        0,
-      ),
-      marinade_native_stake_sol: active.reduce(
-        (sum, v) =>
-          sum +
-          new Decimal(v.toRawValidatorDto(this.staticDataProviderConfig.currentEpoch).marinade_native_stake)
-            .div(1e9)
-            .toNumber(),
+      total_virtual_staked_sol: dtos.reduce((sum, dto) => sum + new Decimal(dto.marinade_stake).div(1e9).toNumber(), 0),
+      marinade_native_stake_sol: dtos.reduce(
+        (sum, dto) => sum + new Decimal(dto.marinade_native_stake).div(1e9).toNumber(),
         0,
       ),
     })
@@ -89,14 +80,14 @@ export class StaticDataProvider extends DataProvider {
       { length: epochs },
       (_, i): RawRewardsRecordDto => [
         this.staticDataProviderConfig.currentEpoch - i - 1,
-        this.staticDataProviderConfig.inflationRewardsPerEpoch,
+        this.staticDataProviderConfig.mevRewardsPerEpoch,
       ],
     )
     const rewardsInflationEst = Array.from(
       { length: epochs },
       (_, i): RawRewardsRecordDto => [
         this.staticDataProviderConfig.currentEpoch - i - 1,
-        this.staticDataProviderConfig.mevRewardsPerEpoch,
+        this.staticDataProviderConfig.inflationRewardsPerEpoch,
       ],
     )
     const rewardsBlock = Array.from(
@@ -125,7 +116,7 @@ export class StaticDataProvider extends DataProvider {
 
   override fetchAuctions(): Promise<RawScoredValidatorDto[]> {
     return Promise.resolve(
-      this.validatorMockBuilders.filter(v => v.hasAuctionEntry()).map(v => v.toRawAuctionEntryDto()),
+      this.validatorMockBuilders.filter(v => v.hasAuctionEntry()).flatMap(v => v.toRawAuctionEntryDtos()),
     )
   }
 }

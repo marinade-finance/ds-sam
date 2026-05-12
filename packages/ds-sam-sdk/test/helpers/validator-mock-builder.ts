@@ -32,13 +32,13 @@ export class ValidatorMockBuilder {
   private bond: BondDataType | null = null
   private country: string | null = null
   private aso: string | null = null
-  private auctionEntry: {
+  private auctionEntries: {
     epoch: number
     marinadeSamTargetSol: number
     totalPmpe: number
     bondObligationPmpe: number
     onchainDistributedPmpe: number
-  } | null = null
+  }[] = []
   private auctionOnlyFlag = false
 
   constructor(
@@ -144,12 +144,12 @@ export class ValidatorMockBuilder {
     bondObligationPmpe: number
     onchainDistributedPmpe: number
   }): this {
-    this.auctionEntry = params
+    this.auctionEntries.push(params)
     return this
   }
 
   hasAuctionEntry(): boolean {
-    return this.auctionEntry !== null
+    return this.auctionEntries.length > 0
   }
 
   toRawBondDto(currentEpoch: number): RawBondDto | null {
@@ -192,28 +192,27 @@ export class ValidatorMockBuilder {
         }
   }
 
-  toRawAuctionEntryDto(): RawScoredValidatorDto {
-    if (this.auctionEntry === null) {
-      throw new Error('toRawAuctionEntryDto called on builder without withAuctionEntry set')
-    }
-    const { epoch, marinadeSamTargetSol, totalPmpe, bondObligationPmpe, onchainDistributedPmpe } = this.auctionEntry
-    return {
-      voteAccount: this.voteAccount,
-      epoch,
-      marinadeSamTargetSol,
-      revShare: {
-        totalPmpe,
-        bondObligationPmpe,
-        onchainDistributedPmpe,
-        bidPmpe: 0,
-        inflationPmpe: 0,
-        mevPmpe: 0,
-        blockPmpe: 0,
-        auctionEffectiveBidPmpe: 0,
-        activatingStakePmpe: 0,
-        calcEffParticipatingBidPmpe: 0,
-      },
-    } as RawScoredValidatorDto
+  toRawAuctionEntryDtos(): RawScoredValidatorDto[] {
+    return this.auctionEntries.map(
+      ({ epoch, marinadeSamTargetSol, totalPmpe, bondObligationPmpe, onchainDistributedPmpe }) =>
+        ({
+          voteAccount: this.voteAccount,
+          epoch,
+          marinadeSamTargetSol,
+          revShare: {
+            totalPmpe,
+            bondObligationPmpe,
+            onchainDistributedPmpe,
+            bidPmpe: 0,
+            inflationPmpe: 0,
+            mevPmpe: 0,
+            blockPmpe: 0,
+            auctionEffectiveBidPmpe: 0,
+            activatingStakePmpe: 0,
+            calcEffParticipatingBidPmpe: 0,
+          },
+        }) as RawScoredValidatorDto,
+    )
   }
 
   toRawValidatorDto(currentEpoch: number): RawValidatorDto {
