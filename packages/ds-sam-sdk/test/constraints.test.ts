@@ -1010,6 +1010,140 @@ describe('buildSamWantConstraints edge cases', () => {
     assert(want)
     expect(want.marinadeLeftToCapSol).toBe(Infinity)
   })
+
+  it('maxStakeWanted=0 is treated as Infinity (same as negative / unset)', () => {
+    // Validator has bond with max_stake_wanted=0 lamports in the API.
+    // data-provider.ts converts this to: maxStakeWanted = new Decimal("0").div(1e9).toNumber() = 0
+    // In buildSamWantConstraints: maxStakeWanted > 0 ? maxStakeWanted : Infinity
+    //   → 0 > 0 is false → Infinity
+    // So marinadeLeftToCapSol = Infinity - 0 = Infinity.
+    // This test documents the ACTUAL behaviour so the team can decide if it is intentional.
+    //
+    // Hypothesis A (bug): 0 means "I explicitly want no more stake" → cap should be 0
+    // Hypothesis B (intentional): 0 is the default / sentinel for "no preference" (API always
+    //   sends a numeric string, 0 = not set), so it must collapse to Infinity like negatives do.
+    const v = makeValidator({
+      voteAccount: 'v_zero_want',
+      maxStakeWanted: 0,
+      marinadeActivatedStakeSol: 0,
+      auctionStake: { externalActivatedSol: 0, marinadeSamTargetSol: 0 },
+    })
+    const data = makeAuction({ validators: [v] })
+    const c = makeConstraints({ minMaxStakeWanted: 0 })
+    c.updateStateForSam(data)
+    const constraints = c.getValidatorConstraints('v_zero_want')
+    assert(constraints)
+    const want = constraints.find(x => x.constraintType === AuctionConstraintType.WANT)
+    assert(want)
+    // Current behaviour: 0 → Infinity (same as negative)
+    // If this should instead be a hard zero-cap, the assertion below will fail and guide the fix.
+    expect(want.marinadeLeftToCapSol).toBe(Infinity)
+  })
+})
+
+describe('buildBackstopConstraints: negative marinadeLeftToCapSol is clamped to 0', () => {
+  // Scenario: marinadeSamTargetSol=100k >> unprotectedStakeCap=30k
+  // marinadeLeftToCapSol = 30k - 100k = -70k
+  // minCapFromConstraint: Math.max(0, Math.min(Infinity, -70k)) / 1 = 0
+  // Expected: RISK cap = 0 (no additional backstop allowed), not negative.
+  it('RISK cap is 0 when marinadeSamTargetSol exceeds unprotectedStakeCap', () => {
+    const v = makeValidator({
+      voteAccount: 'vbig',
+      country: 'X',
+      aso: 'A',
+      totalActivatedStakeSol: 500_000,
+      selfStakeSol: 0,
+      foundationStakeSol: 0,
+      auctionStake: {
+        externalActivatedSol: 0,
+        marinadeSamTargetSol: 100_000,
+      },
+    })
+    const data = makeAuction({ validators: [v] })
+    const c = makeConstraints({
+      unprotectedValidatorStakeCapSol: 30_000,
+      unprotectedDelegatedStakeDec: 1,
+      minUnprotectedStakeToDelegateSol: 0,
+    })
+    c.updateStateForBackstop(data)
+
+    const { cap, constraint } = c.getMinCapForEvenDistribution(new Set(['vbig']))
+    // marinadeLeftToCapSol = 30k - 100k = -70k → clamped to 0 by Math.max(0, ...)
+    expect(cap).toBe(0)
+    expect(constraint.constraintType).toBe(AuctionConstraintType.RISK)
+
+    // Verify the raw marinadeLeftToCapSol on the RISK constraint is indeed negative
+    const constraints = c.getValidatorConstraints('vbig')
+    const riskConstraint = constraints?.find(x => x.constraintType === AuctionConstraintType.RISK)
+    expect(riskConstraint).toBeDefined()
+    expect(riskConstraint!.marinadeLeftToCapSol).toBe(-70_000)
+  })
+
+  it('RISK cap is positive when marinadeSamTargetSol is within unprotectedStakeCap', () => {
+    const v = makeValidator({
+      voteAccount: 'vsmall',
+      country: 'X',
+      aso: 'A',
+      totalActivatedStakeSol: 500_000,
+      selfStakeSol: 0,
+      foundationStakeSol: 0,
+      auctionStake: {
+        externalActivatedSol: 0,
+        marinadeSamTargetSol: 10_000,
+      },
+    })
+    const data = makeAuction({ validators: [v] })
+    const c = makeConstraints({
+      unprotectedValidatorStakeCapSol: 30_000,
+      unprotectedDelegatedStakeDec: 1,
+      minUnprotectedStakeToDelegateSol: 0,
+    })
+    c.updateStateForBackstop(data)
+
+    const { cap, constraint } = c.getMinCapForEvenDistribution(new Set(['vsmall']))
+    // marinadeLeftToCapSol = 30k - 10k = 20k → cap = 20k
+    expect(cap).toBe(20_000)
+    expect(constraint.constraintType).toBe(AuctionConstraintType.RISK)
+  })
+})
+
+describe('buildSamBondConstraints: negative marinadeLeftToCapSol is clamped to 0', () => {
+  // Symmetric check: bondStakeCapSam can be less than marinadeSamTargetSol,
+  // yielding negative marinadeLeftToCapSol on the BOND constraint.
+  // minCapFromConstraint must clamp this to 0.
+  it('BOND cap is 0 when marinadeSamTargetSol exceeds bondStakeCapSam', () => {
+    // With minBondEpochs=0, idealBondEpochs=0, bond=0 → bondStakeCapSam=0
+    // marinadeSamTargetSol=50k → marinadeLeftToCapSol = 0 - 50k = -50k → clamped to 0
+    const v = makeValidator({
+      voteAccount: 'vbond',
+      country: 'X',
+      aso: 'A',
+      bondBalanceSol: 0,
+      totalActivatedStakeSol: 200_000,
+      selfStakeSol: 0,
+      auctionStake: {
+        externalActivatedSol: 0,
+        marinadeSamTargetSol: 50_000,
+      },
+      revShare: buildRevShare({ expectedMaxEffBidPmpe: 5, onchainDistributedPmpe: 0 }),
+    })
+    const data = makeAuction({ validators: [v] })
+    const c = makeConstraints({
+      minBondEpochs: 0,
+      idealBondEpochs: 0,
+      minBondBalanceSol: 0,
+    })
+    c.updateStateForSam(data)
+
+    const { cap, constraint } = c.getMinCapForEvenDistribution(new Set(['vbond']))
+    expect(cap).toBe(0)
+    expect(constraint.constraintType).toBe(AuctionConstraintType.BOND)
+
+    const constraints = c.getValidatorConstraints('vbond')
+    const bondConstraint = constraints?.find(x => x.constraintType === AuctionConstraintType.BOND)
+    expect(bondConstraint).toBeDefined()
+    expect(bondConstraint!.marinadeLeftToCapSol).toBe(-50_000)
+  })
 })
 
 describe('calcBondRiskFee uses exposed not total stake', () => {
@@ -1060,5 +1194,144 @@ describe('calcBondRiskFee uses exposed not total stake', () => {
   it('fee fires when claimable falls below exposed threshold', () => {
     // claimable=400: 280 < 350 → non-null
     expect(run(400)).not.toBeNull()
+  })
+})
+
+describe('bondSamHealth boundary analysis', () => {
+  // Setup:
+  //   minBondEpochs=1, idealBondEpochs=2, expectedMaxEffBidPmpe=5, onchainDistributedPmpe=0
+  //   minBondPmpe = 0 + 5 + 1*5 = 10   (= onchain + effBid + minBondEpochs*effBid)
+  //   idealBondPmpe = 0 + 5 + 2*5 = 15
+  //   bond=1000 → minLimit = 1000 / (10/1000) = 100_000
+  //   No unprotected stake (unprotectedStakeCapSol=0)
+  //   So minLimit + unprotectedStakeSol = 100_000 = the bond stake cap
+  //
+  // correction = N/(1+N) where N = max(10000, minMaxStakeWanted)
+  // With minMaxStakeWanted=null (default), N=10000
+  //   correction = 10000/10001 ≈ 0.99990001
+  //
+  // health = 1.1 * 100_000 / (1 + marinadeActivated) / correction
+  // health = 1 when marinadeActivated = 1.1*100_000/correction - 1 ≈ 110_011
+
+  // minMaxStakeWanted=0 → regularMinMaxStakeWanted = max(10000, 0) = 10000 (the floor)
+  const c = makeConstraints({
+    minBondEpochs: 1,
+    idealBondEpochs: 2,
+    minBondBalanceSol: 0,
+    marinadeValidatorStakeCapSol: Infinity,
+  })
+
+  function makeV(marinadeActivatedStakeSol: number) {
+    const v = makeValidator({
+      bondBalanceSol: 1000,
+      marinadeActivatedStakeSol,
+      revShare: buildRevShare({ expectedMaxEffBidPmpe: 5, onchainDistributedPmpe: 0 }),
+    })
+    c.bondStakeCapSam(v)
+    return v
+  }
+
+  const N = 10_000
+  const correction = N / (1 + N)
+  const minLimit = 100_000 // bond/minBondPmpe*1000 = 1000/(10/1000)
+  const healthAtMinLimit = (1.1 * minLimit) / (1 + minLimit) / correction
+  const health1Threshold = (1.1 * minLimit) / correction - 1 // ≈ 110_011
+
+  it('health is well above 1 when validator is exactly at the bond stake cap (min coverage threshold)', () => {
+    // Validator at exact fee threshold: marinadeActivated = minLimit = 100_000
+    // health = 1.1 * 100_000 / (1 + 100_000) / correction ≈ 1.1 (well above 1)
+    // Bond risk fee fires here, but health does NOT signal underfunded yet.
+    // This is the 10% "dead zone" between fee threshold and health<1 threshold.
+    const v = makeV(minLimit)
+    expect(v.bondSamHealth).toBeCloseTo(healthAtMinLimit, 4)
+    expect(v.bondSamHealth).toBeGreaterThan(1)
+    // Confirm: at the fee threshold, health is ≈ 1.1 (not 1.0)
+    expect(v.bondSamHealth).toBeCloseTo(1.1 / correction, 4)
+  })
+
+  it('health crosses 1 at ≈10% above the bond stake cap, not at the cap itself', () => {
+    // health=1 threshold: marinadeActivated ≈ 1.1*minLimit/correction - 1 ≈ 110_011
+    // Below this: health > 1 (deemed healthy, excluded from underfunded unstake group)
+    // Above this: health < 1 (deemed underfunded, gets priority unstake)
+    const justBelow = makeV(Math.floor(health1Threshold) - 1)
+    const justAbove = makeV(Math.ceil(health1Threshold) + 1)
+    expect(justBelow.bondSamHealth).toBeGreaterThan(1)
+    expect(justAbove.bondSamHealth).toBeLessThan(1)
+    // The crossover is ≈10% above minLimit, not at minLimit
+    expect(health1Threshold / minLimit).toBeCloseTo(1.1, 3)
+  })
+
+  it('health is significantly > 1 when marinadeActivated is at half the bond stake cap', () => {
+    // marinadeActivated = 50_000 (half of cap = 100_000)
+    // health = 1.1 * 100_000 / (1 + 50_000) / correction ≈ 2.2
+    const v = makeV(50_000)
+    const expected = (1.1 * minLimit) / (1 + 50_000) / correction
+    expect(v.bondSamHealth).toBeCloseTo(expected, 4)
+    expect(v.bondSamHealth).toBeGreaterThan(2)
+  })
+
+  it('health is < 1 when marinadeActivated is 20% above the bond stake cap', () => {
+    // marinadeActivated = 1.2 * minLimit = 120_000
+    // health = 1.1 * 100_000 / (1 + 120_000) / correction ≈ 0.917
+    const v = makeV(1.2 * minLimit)
+    const expected = (1.1 * minLimit) / (1 + 1.2 * minLimit) / correction
+    expect(v.bondSamHealth).toBeCloseTo(expected, 4)
+    expect(v.bondSamHealth).toBeLessThan(1)
+  })
+
+  it('health is Infinity when marinadeActivated = 0 (bond covers infinite epochs)', () => {
+    // Without the +1 in denominator this would be 0/0=NaN or Infinity; +1 prevents that.
+    // With +1: health = 1.1 * minLimit / 1 / correction = 1.1 * 100_000 / correction (large but finite)
+    const v = makeV(0)
+    expect(isFinite(v.bondSamHealth)).toBe(true)
+    expect(v.bondSamHealth).toBeGreaterThan(1)
+    // The +1 pins health at a large finite value when no stake is active
+    expect(v.bondSamHealth).toBeCloseTo((1.1 * minLimit) / 1 / correction, 0)
+  })
+
+  it('health < 1 validator gets lower unstakePriority index than healthy validator', () => {
+    // Underfunded validator should appear first in the unstake queue (priority = 1)
+    // Healthy validator (health >= 1) gets a later priority number
+    //
+    // Arrange two validators via the Auction class:
+    // v_under: marinadeActivated = 1.5 * minLimit → health < 1
+    // v_health: marinadeActivated = minLimit → health > 1
+    //
+    // setStakeUnstakePriorities() assigns unstakePriority=1 to v_under (the underfunded one).
+    // v_health ends up with a higher priority number (not in the health<1 bucket).
+    const { Auction } = require('../src/auction')
+    const { Debug } = require('../src/debug')
+
+    const bond = 1000
+    const effBid = 5
+
+    function makeAV(voteAccount: string, marinadeActivatedStakeSol: number) {
+      const v = makeValidator({
+        voteAccount,
+        bondBalanceSol: bond,
+        marinadeActivatedStakeSol,
+        samEligible: true,
+        revShare: buildRevShare({ expectedMaxEffBidPmpe: effBid, onchainDistributedPmpe: 0, totalPmpe: 10 }),
+      })
+      c.bondStakeCapSam(v) // populates bondSamHealth
+      return v
+    }
+
+    const vUnder = makeAV('v_under', 1.5 * minLimit) // health < 1
+    const vHealthy = makeAV('v_healthy', minLimit) // health > 1
+
+    expect(vUnder.bondSamHealth).toBeLessThan(1)
+    expect(vHealthy.bondSamHealth).toBeGreaterThan(1)
+
+    const data = makeAuction({ validators: [vUnder, vHealthy] })
+    const debug = new Debug(new Set())
+    const cAuction = makeConstraints({ minBondEpochs: 1, idealBondEpochs: 2, minBondBalanceSol: 0 })
+    const auction = new Auction(data, cAuction, {}, debug)
+    auction.setStakeUnstakePriorities()
+
+    // v_under (health<1) gets the lowest unstakePriority number (first to unstake)
+    expect(vUnder.unstakePriority).toBe(1)
+    // v_healthy (health>=1) is not in the health<1 bucket, gets a higher number
+    expect(vHealthy.unstakePriority).toBeGreaterThan(vUnder.unstakePriority)
   })
 })

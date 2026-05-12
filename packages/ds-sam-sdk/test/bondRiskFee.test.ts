@@ -340,6 +340,92 @@ describe('calcBondRiskFee', () => {
   })
 })
 
+describe('claimable vs effective bond inconsistency', () => {
+  /**
+   * BUG DEMONSTRATION
+   *
+   * bondStakeCapSam uses bondBalanceSol (effective = lowest, net of withdrawals AND settlement claims).
+   * calcBondRiskFee uses claimableBondBalanceSol (net of settlement claims ONLY, ignores withdrawals).
+   *
+   * When a validator has a large pending withdrawal request:
+   *   effective (bondBalanceSol)   = 200  SOL
+   *   claimable (claimableBondSol) = 1000 SOL
+   *
+   * bondStakeCapSam correctly caps new stake at ~339 SOL (using effective=200).
+   * calcBondRiskFee sees claimable=1000 and incorrectly skips the fee for 500 SOL of already-staked stake.
+   *
+   * Manual check with marinadeActivatedStakeSol=500, minBondPmpe=590:
+   *   fee condition: claimableBondSol - minUnprotectedReserve < projectedExposedStakeSol * (minBondPmpe/1000)
+   *   using claimable=1000: 1000 - 0 < 500 * 0.590 → 1000 < 295 → FALSE  → fee skipped (BUG)
+   *   using effective=200:   200 - 0 < 500 * 0.590 →  200 < 295 → TRUE   → fee would fire (correct)
+   */
+  it('fee is incorrectly skipped for under-bonded validator with large pending withdrawal', () => {
+    // Parameters: minBondEpochs=1, idealBondEpochs=2, expectedMaxEffBidPmpe=200
+    // onchainDistributedPmpe = inflationPmpe + mevPmpe = 100 + 90 = 190
+    // minBondPmpe = 190 + 200 + 1*200 = 590
+    // idealBondPmpe = 190 + 200 + 2*200 = 790
+    const cfg: BondRiskFeeConfig = {
+      minBondEpochs: 1,
+      idealBondEpochs: 2,
+      minBondBalanceSol: 0,
+      bondRiskFeeMult: 0.1,
+    }
+
+    const marinadeActivatedStakeSol = 500 // existing committed stake
+    const effectiveBond = 200 // bondBalanceSol — what bondStakeCapSam sees
+    const claimableBond = 1000 // claimableBondBalanceSol — what calcBondRiskFee sees
+
+    const revShare: RevShare = {
+      ...baseRevShare,
+      bidPmpe: 0,
+      bidTooLowPenaltyPmpe: 0,
+      onchainDistributedPmpe: baseRevShare.inflationPmpe + baseRevShare.mevPmpe, // 190
+      bondObligationPmpe: baseRevShare.blockPmpe,
+      auctionEffectiveStaticBidPmpe: 0,
+    }
+    // minBondPmpe set by bondStakeCapSam from effective=200, unprotectedStakeSol=0
+    const minBondPmpe = revShare.onchainDistributedPmpe + revShare.expectedMaxEffBidPmpe + cfg.minBondEpochs * revShare.expectedMaxEffBidPmpe // 590
+    const idealBondPmpe = revShare.onchainDistributedPmpe + revShare.expectedMaxEffBidPmpe + cfg.idealBondEpochs * revShare.expectedMaxEffBidPmpe // 790
+
+    // Simulate state after bondStakeCapSam(bondBalanceSol=200) has run:
+    // unprotectedStakeSol=0, minUnprotectedReserve=0, idealUnprotectedReserve=0
+    const validator = {
+      ...makeValidator({
+        bondBalanceSol: effectiveBond,
+        marinadeActivatedStakeSol,
+        values: { paidUndelegationSol: 0 },
+        revShare,
+      }),
+      claimableBondBalanceSol: claimableBond, // HIGHER value
+      unprotectedStakeSol: 0,
+      minBondPmpe,
+      idealBondPmpe,
+      minUnprotectedReserve: 0, // computed from effective=200, unprotected=0
+      idealUnprotectedReserve: 0,
+    } as unknown as AuctionValidator
+
+    // Fee check condition (manual):
+    //   claimableBond - minUnprotectedReserve < projectedExposedStakeSol * (minBondPmpe / 1000)
+    //   1000 - 0 < 500 * (590/1000)
+    //   1000 < 295  → FALSE → fee NOT fired
+    const resultWithClaimable = calcBondRiskFee(cfg, validator)
+
+    // What the check would produce if using effective bond consistently:
+    //   200 - 0 < 500 * (590/1000)
+    //   200 < 295  → TRUE → fee WOULD fire
+    const validatorEffective = { ...validator, claimableBondBalanceSol: effectiveBond } as unknown as AuctionValidator
+    const resultWithEffective = calcBondRiskFee(cfg, validatorEffective)
+
+    // The code uses claimable=1000 → fee is NOT charged (returns null)
+    // This is the BUG: the validator's actual usable bond is only 200 SOL,
+    // which cannot cover 500 SOL × 590‰ = 295 SOL obligation.
+    expect(resultWithClaimable).toBeNull() // BUG: fee skipped because claimable=1000 masks the shortfall
+
+    // If the fee were computed consistently with the effective bond (200 SOL), it WOULD fire
+    expect(resultWithEffective).not.toBeNull() // correct: 200 < 295 → fee due
+  })
+})
+
 describe('setBondRiskFee (SDK integration)', () => {
   it('yields 0 when bondRiskFeeMult=0', async () => {
     const votes = generateVoteAccounts('brisk')
