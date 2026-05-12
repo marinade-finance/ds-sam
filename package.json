@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "license": "UNLICENSED",
+  "packageManager": "pnpm@10.33.4",
   "scripts": {
     "build": "nest build",
     "test": "pnpm jest -- \"$FILE\"",
