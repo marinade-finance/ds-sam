@@ -1,6 +1,7 @@
 import Decimal from 'decimal.js'
 
 import type { RawBondDto, RawValidatorDto, RawValidatorMevInfoDto } from '../../src'
+import type { RawScoredValidatorDto } from '../../src/data-provider/data-provider.dto'
 
 const infiniteGenerator = function* (prefix: string, padding: number) {
   for (let i = 0; ; i++) {
@@ -157,6 +158,33 @@ export class ValidatorMockBuilder {
           mev_commission_bps: mevCommission * 100,
           epoch: 0, // TODO?
         }
+  }
+
+  toRawAuctionEntryDto(params: {
+    epoch: number
+    marinadeSamTargetSol: number
+    totalPmpe: number
+    bondObligationPmpe: number
+    onchainDistributedPmpe: number
+  }): RawScoredValidatorDto {
+    const { epoch, marinadeSamTargetSol, totalPmpe, bondObligationPmpe, onchainDistributedPmpe } = params
+    return {
+      voteAccount: this.voteAccount,
+      epoch,
+      marinadeSamTargetSol,
+      revShare: {
+        totalPmpe,
+        bondObligationPmpe,
+        onchainDistributedPmpe,
+        bidPmpe: 0,
+        inflationPmpe: 0,
+        mevPmpe: 0,
+        blockPmpe: 0,
+        auctionEffectiveBidPmpe: 0,
+        activatingStakePmpe: 0,
+        calcEffParticipatingBidPmpe: 0,
+      },
+    } as RawScoredValidatorDto
   }
 
   toRawValidatorDto(currentEpoch: number): RawValidatorDto {
