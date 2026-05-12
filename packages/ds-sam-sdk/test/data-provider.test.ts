@@ -278,11 +278,11 @@ describe('Data Provider Testing Setup', () => {
 })
 
 describe('processAuctions', () => {
-  it('winningTotalPmpe is min totalPmpe among winners, not sorted by bondObligationPmpe', () => {
+  it('winningTotalPmpe is min totalPmpe among winners, not sorted by bondObligationPmpe', async () => {
     const alice = new ValidatorMockBuilder('alice', 'id-a').withEligibleDefaults()
     const winner1 = new ValidatorMockBuilder('winner1', 'id-w1').withEligibleDefaults()
     const dp = defaultStaticDataProviderBuilder([alice])(DEFAULT_CONFIG)
-    const raw = dp.buildRaw()
+    const raw = await dp.fetchSourceData()
 
     // winningTotalPmpe is the minimum totalPmpe among validators with stake, not the last by bondObligationPmpe order
     raw.auctions = [
@@ -308,12 +308,12 @@ describe('processAuctions', () => {
     expect(epoch700?.effParticipatingBidPmpe).toBe(5) // max(0, 8 - onchainDistributed=3)
   })
 
-  it('zero-target/zero-stake entry does not influence winningTotalPmpe', () => {
+  it('zero-target/zero-stake entry does not influence winningTotalPmpe', async () => {
     const alice = new ValidatorMockBuilder('alice', 'id-a').withEligibleDefaults()
     const winner1 = new ValidatorMockBuilder('winner1', 'id-w1').withEligibleDefaults()
     const zero = new ValidatorMockBuilder('zero', 'id-z').withEligibleDefaults()
     const dp = defaultStaticDataProviderBuilder([alice])(DEFAULT_CONFIG)
-    const raw = dp.buildRaw()
+    const raw = await dp.fetchSourceData()
 
     raw.auctions = [
       winner1.toRawAuctionEntryDto({
@@ -338,10 +338,10 @@ describe('processAuctions', () => {
     expect(epoch700?.winningTotalPmpe).toBe(8)
   })
 
-  it('single winner: winningTotalPmpe equals that validator totalPmpe', () => {
+  it('single winner: winningTotalPmpe equals that validator totalPmpe', async () => {
     const alice = new ValidatorMockBuilder('alice', 'id-a').withEligibleDefaults()
     const dp = defaultStaticDataProviderBuilder([alice])(DEFAULT_CONFIG)
-    const raw = dp.buildRaw()
+    const raw = await dp.fetchSourceData()
 
     raw.auctions = [
       alice.toRawAuctionEntryDto({
