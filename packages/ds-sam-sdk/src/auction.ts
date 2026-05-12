@@ -281,6 +281,9 @@ export class Auction {
       if (validator.marinadeActivatedStakeSol === 0) {
         values.paidUndelegationSol = 0
       } else {
+        // Decay by |delta| (not reset) so a new delegation does not silently cancel
+        // accumulated penalty undelegation. The old condition (delta > 0.1 * paid) would
+        // zero the tracker whenever stake grew, enabling a repeat penalty-and-restake cycle.
         values.paidUndelegationSol = Math.max(0, values.paidUndelegationSol - Math.abs(delta))
       }
     }
