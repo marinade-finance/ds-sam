@@ -12,6 +12,7 @@ import type {
   RawRewardsRecordDto,
   RawRewardsResponseDto,
   RawScoredValidatorDto,
+  RawSourceData,
   RawTvlResponseDto,
   RawValidatorsResponseDto,
 } from '../../src'
@@ -117,5 +118,48 @@ export class StaticDataProvider extends DataProvider {
 
   override fetchAuctions(): Promise<RawScoredValidatorDto[]> {
     return Promise.resolve([])
+  }
+
+  buildRaw(): RawSourceData {
+    const cfg = this.staticDataProviderConfig
+    const epoch = cfg.currentEpoch
+    const epochs = this.config.rewardsEpochsCount
+    const rewardsRow = (value: number) =>
+      Array.from({ length: epochs }, (_, i): RawRewardsRecordDto => [epoch - i - 1, value])
+
+    return {
+      validators: {
+        validators: this.validatorMockBuilders.map(v => v.toRawValidatorDto(epoch)),
+      },
+      bonds: {
+        bonds: this.validatorMockBuilders.map(v => v.toRawBondDto(epoch)).filter(isNotNull),
+      },
+      mevInfo: {
+        validators: this.validatorMockBuilders.map(v => v.toRawValidatorMevInfoDto()).filter(isNotNull),
+      },
+      tvlInfo: {
+        total_virtual_staked_sol: this.validatorMockBuilders.reduce(
+          (sum, v) =>
+            sum +
+            new Decimal(v.toRawValidatorDto(epoch).marinade_stake).div(1e9).toNumber() +
+            new Decimal(v.toRawValidatorDto(epoch).marinade_native_stake).div(1e9).toNumber(),
+          0,
+        ),
+        marinade_native_stake_sol: this.validatorMockBuilders.reduce(
+          (sum, v) => sum + new Decimal(v.toRawValidatorDto(epoch).marinade_native_stake).div(1e9).toNumber(),
+          0,
+        ),
+      },
+      blacklist: `vote_account,code\n${this.validatorMockBuilders
+        .map(v => v.toRawBlacklistResponseDtoRow())
+        .filter(isNotNull)
+        .join('\n')}`,
+      rewards: {
+        rewards_mev: rewardsRow(cfg.inflationRewardsPerEpoch),
+        rewards_inflation_est: rewardsRow(cfg.mevRewardsPerEpoch),
+        rewards_block: rewardsRow(cfg.blockRewardsPerEpoch),
+      },
+      auctions: [],
+    }
   }
 }
