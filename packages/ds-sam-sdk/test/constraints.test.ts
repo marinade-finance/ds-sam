@@ -313,10 +313,10 @@ describe('bondGoodForNEpochs', () => {
     // maxUnprotectedStakeSol = bond / (idealBidReservePmpe/1000) = 100/0.01 = 10000
     // unprotectedStakeSol = min(200, 10000) = 200
     // protectedStakeSol = max(0, 200 - 200) = 0
-    // bondBalanceForBids = 100 - (2/1000)*0 = 100   ← correct: uses protectedStakeSol
-    // wrong would be:      100 - (2/1000)*200 = 99.6 ← wrong: would use marinadeActivatedStakeSol
+    // bondBalanceForBids = 100 - (100/1000)*0 = 100   ← correct: uses protectedStakeSol
+    // wrong would be:      100 - (100/1000)*200 = 80  ← wrong: would use marinadeActivatedStakeSol
     // costPerEpoch = (5/1000)*200 = 1
-    // bondGoodForNEpochs = 100/1 - (1+1) = 98
+    // bondGoodForNEpochs = 100/1 - (1+1) = 98  (wrong formula gives 78 — gap of 20)
     const cu = makeConstraints({
       minBondEpochs: 1,
       idealBondEpochs: 2,
@@ -329,7 +329,7 @@ describe('bondGoodForNEpochs', () => {
       bondBalanceSol: 100,
       marinadeActivatedStakeSol: 200,
       totalActivatedStakeSol: 400,
-      revShare: buildRevShare({ expectedMaxEffBidPmpe: 5, onchainDistributedPmpe: 2 }),
+      revShare: buildRevShare({ expectedMaxEffBidPmpe: 5, onchainDistributedPmpe: 100 }),
     })
     cu.bondStakeCapSam(v)
     expect(v.bondGoodForNEpochs).toBeCloseTo(98, 6)
