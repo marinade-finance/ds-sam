@@ -1,7 +1,7 @@
 import { StaticDataProvider } from './static-data-provider'
 
 import type { ValidatorMockBuilder } from './validator-mock-builder'
-import type { DsSamConfig, RawScoredValidatorDto } from '../../src'
+import type { DsSamConfig } from '../../src'
 
 export class StaticDataProviderBuilder {
   private validatorMockBuilders: ValidatorMockBuilder[] | null = null
@@ -9,7 +9,6 @@ export class StaticDataProviderBuilder {
   private mevRewardsPerEpoch: number | null = null
   private blockRewardsPerEpoch: number | null = null
   private currentEpoch: number | null = null
-  private auctionEntries: RawScoredValidatorDto[] = []
 
   withValidators(validatorMockBuilders: ValidatorMockBuilder[]) {
     this.validatorMockBuilders = validatorMockBuilders
@@ -36,20 +35,9 @@ export class StaticDataProviderBuilder {
     return this
   }
 
-  withAuctions(entries: RawScoredValidatorDto[]) {
-    this.auctionEntries = entries
-    return this
-  }
-
   builder() {
-    const {
-      validatorMockBuilders,
-      inflationRewardsPerEpoch,
-      mevRewardsPerEpoch,
-      blockRewardsPerEpoch,
-      currentEpoch,
-      auctionEntries,
-    } = this
+    const { validatorMockBuilders, inflationRewardsPerEpoch, mevRewardsPerEpoch, blockRewardsPerEpoch, currentEpoch } =
+      this
     if (validatorMockBuilders === null) {
       throw new Error('StaticDataProviderBuilder needs validators to be set')
     }
@@ -73,22 +61,17 @@ export class StaticDataProviderBuilder {
         mevRewardsPerEpoch,
         blockRewardsPerEpoch,
         currentEpoch,
-        auctions: auctionEntries,
       })
   }
 }
 
-export const defaultStaticDataProviderBuilder = (
-  validators: ValidatorMockBuilder[],
-  auctions: RawScoredValidatorDto[] = [],
-) =>
+export const defaultStaticDataProviderBuilder = (validators: ValidatorMockBuilder[]) =>
   new StaticDataProviderBuilder()
     .withCurrentEpoch(1000)
     .withInflationRewardsPerEpoch(200000)
     .withMevRewardsPerEpoch(50000)
     .withBlockRewardsPerEpoch(0)
     .withValidators(validators)
-    .withAuctions(auctions)
     .builder()
 
 export const blockRewardsStaticDataProviderBuilder = (validators: ValidatorMockBuilder[]) =>

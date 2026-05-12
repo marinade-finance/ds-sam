@@ -32,6 +32,14 @@ export class ValidatorMockBuilder {
   private bond: BondDataType | null = null
   private country: string | null = null
   private aso: string | null = null
+  private auctionEntry: {
+    epoch: number
+    marinadeSamTargetSol: number
+    totalPmpe: number
+    bondObligationPmpe: number
+    onchainDistributedPmpe: number
+  } | null = null
+  private auctionOnlyFlag = false
 
   constructor(
     public readonly voteAccount: string,
@@ -120,6 +128,30 @@ export class ValidatorMockBuilder {
     return this
   }
 
+  auctionOnly(): this {
+    this.auctionOnlyFlag = true
+    return this
+  }
+
+  isAuctionOnly(): boolean {
+    return this.auctionOnlyFlag
+  }
+
+  withAuctionEntry(params: {
+    epoch: number
+    marinadeSamTargetSol: number
+    totalPmpe: number
+    bondObligationPmpe: number
+    onchainDistributedPmpe: number
+  }): this {
+    this.auctionEntry = params
+    return this
+  }
+
+  hasAuctionEntry(): boolean {
+    return this.auctionEntry !== null
+  }
+
   toRawBondDto(currentEpoch: number): RawBondDto | null {
     const { bond } = this
     if (!bond) {
@@ -160,14 +192,11 @@ export class ValidatorMockBuilder {
         }
   }
 
-  toRawAuctionEntryDto(params: {
-    epoch: number
-    marinadeSamTargetSol: number
-    totalPmpe: number
-    bondObligationPmpe: number
-    onchainDistributedPmpe: number
-  }): RawScoredValidatorDto {
-    const { epoch, marinadeSamTargetSol, totalPmpe, bondObligationPmpe, onchainDistributedPmpe } = params
+  toRawAuctionEntryDto(): RawScoredValidatorDto {
+    if (this.auctionEntry === null) {
+      throw new Error('toRawAuctionEntryDto called on builder without withAuctionEntry set')
+    }
+    const { epoch, marinadeSamTargetSol, totalPmpe, bondObligationPmpe, onchainDistributedPmpe } = this.auctionEntry
     return {
       voteAccount: this.voteAccount,
       epoch,
