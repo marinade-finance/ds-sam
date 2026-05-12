@@ -13,7 +13,9 @@
  */
 import assert from 'node:assert'
 
+import { Auction } from '../src/auction'
 import { calcBondRiskFee } from '../src/calculations'
+import { Debug } from '../src/debug'
 import { AuctionConstraintType } from '../src/types'
 import { minCapFromConstraint } from '../src/utils'
 import {
@@ -1048,8 +1050,8 @@ describe('buildBackstopConstraints: negative marinadeLeftToCapSol is clamped to 
     // Verify the raw marinadeLeftToCapSol on the RISK constraint is indeed negative
     const constraints = c.getValidatorConstraints('vbig')
     const riskConstraint = constraints?.find(x => x.constraintType === AuctionConstraintType.RISK)
-    expect(riskConstraint).toBeDefined()
-    expect(riskConstraint!.marinadeLeftToCapSol).toBe(-70_000)
+    assert(riskConstraint)
+    expect(riskConstraint.marinadeLeftToCapSol).toBe(-70_000)
   })
 
   it('RISK cap is positive when marinadeSamTargetSol is within unprotectedStakeCap', () => {
@@ -1114,8 +1116,8 @@ describe('buildSamBondConstraints: negative marinadeLeftToCapSol is clamped to 0
 
     const constraints = c.getValidatorConstraints('vbond')
     const bondConstraint = constraints?.find(x => x.constraintType === AuctionConstraintType.BOND)
-    expect(bondConstraint).toBeDefined()
-    expect(bondConstraint!.marinadeLeftToCapSol).toBe(-50_000)
+    assert(bondConstraint)
+    expect(bondConstraint.marinadeLeftToCapSol).toBe(-50_000)
   })
 })
 
@@ -1208,8 +1210,8 @@ describe('bondSamHealth boundary analysis', () => {
   const mult = 1.1 // bondSamHealthMult default
   const correction = N / (1 + N)
   const minLimit = 100_000 // bond/minBondPmpe*1000 = 1000/(10/1000)
-  const healthAtMinLimit = mult * minLimit / (1 + minLimit) / correction
-  const health1Threshold = mult * minLimit / correction - 1 // ≈ 110_010
+  const healthAtMinLimit = (mult * minLimit) / (1 + minLimit) / correction
+  const health1Threshold = (mult * minLimit) / correction - 1 // ≈ 110_010
 
   it('health is well above 1 when validator is exactly at the bond stake cap (min coverage threshold)', () => {
     // Validator at exact fee threshold: marinadeActivated = minLimit = 100_000
@@ -1235,7 +1237,7 @@ describe('bondSamHealth boundary analysis', () => {
     // marinadeActivated = 50_000 (half of cap = 100_000)
     // health = 1.1 * 100_000 / (1 + 50_000) / correction ≈ 2.2
     const v = makeValidatorAtStake(50_000)
-    const expected = mult * minLimit / (1 + 50_000) / correction
+    const expected = (mult * minLimit) / (1 + 50_000) / correction
     expect(v.bondSamHealth).toBeCloseTo(expected, 4)
     expect(v.bondSamHealth).toBeGreaterThan(1.9)
   })
@@ -1244,7 +1246,7 @@ describe('bondSamHealth boundary analysis', () => {
     // marinadeActivated = 1.2 * minLimit = 120_000
     // health = 1.1 * 100_000 / (1 + 120_000) / correction ≈ 0.917
     const v = makeValidatorAtStake(1.2 * minLimit)
-    const expected = mult * minLimit / (1 + 1.2 * minLimit) / correction
+    const expected = (mult * minLimit) / (1 + 1.2 * minLimit) / correction
     expect(v.bondSamHealth).toBeCloseTo(expected, 4)
     expect(v.bondSamHealth).toBeLessThan(1)
   })
@@ -1252,10 +1254,10 @@ describe('bondSamHealth boundary analysis', () => {
   it('health is large but finite when marinadeActivated = 0 (bond covers infinite epochs)', () => {
     // Without the +1 in denominator this would be division by zero; +1 prevents that.
     // With +1: health = 1.1 * minLimit / 1 / correction (large but finite)
-    const v = makeV(0)
+    const v = makeValidatorAtStake(0)
     expect(isFinite(v.bondSamHealth)).toBe(true)
     expect(v.bondSamHealth).toBeGreaterThan(1)
-    expect(v.bondSamHealth).toBeCloseTo(mult * minLimit / 1 / correction, 0)
+    expect(v.bondSamHealth).toBeCloseTo((mult * minLimit) / 1 / correction, 0)
   })
 
   it('health < 1 validator gets lower unstakePriority index than healthy validator', () => {
@@ -1268,13 +1270,10 @@ describe('bondSamHealth boundary analysis', () => {
     //
     // setStakeUnstakePriorities() assigns unstakePriority=1 to v_under (the underfunded one).
     // v_health ends up with a higher priority number (not in the health<1 bucket).
-    const { Auction } = require('../src/auction')
-    const { Debug } = require('../src/debug')
-
     const bond = 1000
     const effBid = 5
 
-    function makeAV(voteAccount: string, marinadeActivatedStakeSol: number) {
+    function makeValidatorWithBond(voteAccount: string, marinadeActivatedStakeSol: number) {
       const v = makeValidator({
         voteAccount,
         bondBalanceSol: bond,
@@ -1286,8 +1285,8 @@ describe('bondSamHealth boundary analysis', () => {
       return v
     }
 
-    const vUnder = makeAV('v_under', 1.5 * minLimit) // health < 1
-    const vHealthy = makeAV('v_healthy', minLimit) // health > 1
+    const vUnder = makeValidatorWithBond('v_under', 1.5 * minLimit) // health < 1
+    const vHealthy = makeValidatorWithBond('v_healthy', minLimit) // health > 1
 
     expect(vUnder.bondSamHealth).toBeLessThan(1)
     expect(vHealthy.bondSamHealth).toBeGreaterThan(1)
