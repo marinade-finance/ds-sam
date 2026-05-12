@@ -53,14 +53,16 @@ describe('Auction.updatePaidUndelegation (simplified)', () => {
     return v.values.paidUndelegationSol
   }
 
-  it('resets paid undelegation new there is a new delegation > 10% of paid undelegation', () => {
+  it('reduces paid undelegation by absolute stake change when new delegation arrives', () => {
+    // delta=+3, abs=3 → max(0, 20-3) = 17
     const paidUndelegationSol = run(100, 103, 20)
-    expect(paidUndelegationSol).toBeCloseTo(0)
+    expect(paidUndelegationSol).toBeCloseTo(17)
   })
 
-  it('accumulates paid and no undelegation when new delegation ≤ 10% of paid undelegation', () => {
+  it('reduces paid undelegation by smaller absolute stake change', () => {
+    // delta=+2, abs=2 → max(0, 20-2) = 18
     const paidUndelegationSol = run(100, 102, 20)
-    expect(paidUndelegationSol).toBeCloseTo(20)
+    expect(paidUndelegationSol).toBeCloseTo(18)
   })
 
   it('records undelegation when delta ≤ 0; but does not go below 0', () => {
@@ -78,8 +80,20 @@ describe('Auction.updatePaidUndelegation (simplified)', () => {
     expect(run(0, 25, 0)).toBeCloseTo(0)
   })
 
-  // delta = 100 - 50 = 50 > 10% of 0 -> reset to 0
-  it('paidUndelegation=0 with positive delta resets to 0', () => {
+  // delta = 100 - 50 = 50 → max(0, 0-50) = 0
+  it('paidUndelegation=0 with positive delta stays at 0', () => {
     expect(run(50, 100, 0)).toBe(0)
+  })
+
+  // large new delegation reduces but does not zero paidUndelegationSol
+  it('large delegation reduces paidUndelegationSol without zeroing it', () => {
+    // delta=+50, abs=50 → max(0, 150-50) = 100
+    expect(run(50, 100, 150)).toBeCloseTo(100)
+  })
+
+  // paidUndelegationSol never goes negative
+  it('paidUndelegationSol does not go negative on large undelegation', () => {
+    // delta=-50, abs=50 → max(0, 10-50) = 0
+    expect(run(100, 50, 10)).toBeCloseTo(0)
   })
 })
