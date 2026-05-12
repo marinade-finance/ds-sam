@@ -147,15 +147,8 @@ describe('bondStakeCapSam()', () => {
   const MIN_LIMIT = (550 - 30_000 * (4 / 1000)) / (5 / 1000)
 
   it('does not exceed marinadeActivatedStakeSol when exposed stake is between idealLimit and minLimit', () => {
-    // Regression: epoch 969→970, fVotEjqpmpQYgyVy.
-    // With unprotectedStakeSol > 0, the buggy formula
-    //   limit = min(minLimit, max(idealLimit, marinadeActivatedStakeSol))
-    // uses total stake (not exposed) in max(), then adds unprotectedStakeSol on top.
-    // When exposed is between idealLimit and minLimit, limit pins to minLimit and
-    // cap = minLimit + unprotected > marinadeActivatedStakeSol — stake grows beyond current.
-    // Bond shrank 6 SOL next epoch; bond risk fee fired.
-    //
-    // Fix: use exposed stake in the comparison:
+    // With unprotectedStakeSol > 0, the formula must use exposed stake (not total) in the max()
+    // comparison:
     //   limit = min(minLimit, max(idealLimit, marinadeActivatedStakeSol - unprotectedStakeSol))
     // When exposed is between ideal and min, limit = exposed → cap = marinadeActivatedStakeSol (stable).
     const marinadeActivatedStakeSol = 100_000
@@ -166,8 +159,7 @@ describe('bondStakeCapSam()', () => {
       revShare: buildRevShare({ onchainDistributedPmpe: 0, expectedMaxEffBidPmpe: 1 }),
     })
     // exposed = 70k; idealLimit ≈ 14.6k; minLimit ≈ 86k → exposed between ideal and min
-    // Bug:  limit = min(86k, max(14.6k, 100k[total])) = 86k → cap = 116k > marinadeActivatedStakeSol
-    // Fix:  limit = min(86k, max(14.6k,  70k[exposed])) = 70k → cap = 100k = marinadeActivatedStakeSol
+    // limit = min(86k, max(14.6k, 70k[exposed])) = 70k → cap = 100k = marinadeActivatedStakeSol
     expect(c4.bondStakeCapSam(v)).toBeCloseTo(marinadeActivatedStakeSol, 0)
   })
 
@@ -189,7 +181,6 @@ describe('bondStakeCapSam()', () => {
   it('exposed below idealLimit: cap = idealLimit + unprotected', () => {
     // marinadeActivated=5k → exposed = max(0, 5k-30k) = 0 < idealLimit≈14.6k
     // limit = min(86k, max(14.6k, 0)) = idealLimit → cap = idealLimit + 30k
-    // Bug gives same result here (5k < idealLimit → max still returns idealLimit).
     const v = makeValidator({
       bondBalanceSol: 550,
       marinadeActivatedStakeSol: 5_000,
@@ -215,7 +206,6 @@ describe('bondStakeCapSam()', () => {
   it('exposed above minLimit: cap = minLimit + unprotected', () => {
     // marinadeActivated=120k → exposed = 90k > minLimit=86k
     // limit = min(86k, max(14.6k, 90k)) = 86k → cap = 116k
-    // Bug gives the same result (minLimit clamps regardless of whether total or exposed is used).
     const v = makeValidator({
       bondBalanceSol: 550,
       marinadeActivatedStakeSol: 120_000,
@@ -238,7 +228,6 @@ describe('bondStakeCapSam()', () => {
   it('marinadeActivated = unprotected exactly: all stake is unprotected, limit = idealLimit', () => {
     // marinadeActivated=30k, totalActivated=60k → unprotectedStakeSol=30k, exposed=0
     // limit = min(86k, max(idealLimit, 0)) = idealLimit → cap = idealLimit + 30k
-    // Bug: limit = min(86k, max(idealLimit, 30k[total])) = 30k → cap = 60k (double-counts unprotected)
     const marinadeActivatedStakeSol = 30_000
     const v = makeValidator({
       bondBalanceSol: 550,

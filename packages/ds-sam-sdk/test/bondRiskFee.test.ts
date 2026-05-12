@@ -342,8 +342,6 @@ describe('calcBondRiskFee', () => {
 
 describe('claimable vs effective bond inconsistency', () => {
   /**
-   * BUG DEMONSTRATIONS — two directions of the same inconsistency:
-   *
    * bondStakeCapSam uses bondBalanceSol (effective_amount from API = net of WITHDRAWAL requests only).
    * calcBondRiskFee uses claimableBondBalanceSol (funded_amount - remaining_settlement_claims).
    *
@@ -352,7 +350,7 @@ describe('claimable vs effective bond inconsistency', () => {
    * Direction 1 — large pending WITHDRAWAL (effective << claimable):
    *   effective=200, claimable=1000, stake=500
    *   Cap uses 200 → correctly limits stake to ~339 SOL.
-   *   Fee uses 1000 → incorrectly SKIPS the fee for already-staked 500 SOL.
+   *   Fee uses 1000 → skips the fee for already-staked 500 SOL.
    *   Result: under-bonded validator escapes the fee.
    *
    * Direction 2 — large SETTLEMENT CLAIMS (effective >> claimable):
@@ -391,7 +389,7 @@ describe('claimable vs effective bond inconsistency', () => {
         values: { paidUndelegationSol: 0 },
         revShare,
       }),
-      claimableBondBalanceSol: claimableBond, // HIGHER value
+      claimableBondBalanceSol: claimableBond,
       unprotectedStakeSol: 0,
       minBondPmpe,
       idealBondPmpe,
@@ -412,9 +410,7 @@ describe('claimable vs effective bond inconsistency', () => {
     const resultWithEffective = calcBondRiskFee(cfg, validatorEffective)
 
     // The code uses claimable=1000 → fee is NOT charged (returns null)
-    // This is the BUG: the validator's actual usable bond is only 200 SOL,
-    // which cannot cover 500 SOL × 590‰ = 295 SOL obligation.
-    expect(resultWithClaimable).toBeNull() // BUG: fee skipped because claimable=1000 masks the shortfall
+    expect(resultWithClaimable).toBeNull()
 
     // If the fee were computed consistently with the effective bond (200 SOL), it WOULD fire
     expect(resultWithEffective).not.toBeNull() // correct: 200 < 295 → fee due
@@ -466,7 +462,7 @@ describe('claimable vs effective bond inconsistency', () => {
         values: { paidUndelegationSol: 0 },
         revShare,
       }),
-      claimableBondBalanceSol: claimableBond, // MUCH LOWER due to settlement claims
+      claimableBondBalanceSol: claimableBond,
       unprotectedStakeSol: 0,
       minBondPmpe,
       idealBondPmpe,
@@ -474,10 +470,10 @@ describe('claimable vs effective bond inconsistency', () => {
       idealUnprotectedReserve: 0,
     } as unknown as AuctionValidator
 
-    // BUG: fee fires because calcBondRiskFee uses claimable=50, not effective=550
     // The stake (800) was allocated within the cap (~932) derived from effective=550,
     // so no penalty should apply — the validator is fully covered by the effective bond.
-    expect(calcBondRiskFee(cfg, validator)).toBeNull() // FAILS: returns non-null (fee fires)
+    // calcBondRiskFee uses claimable=50, not effective=550 → fee fires incorrectly.
+    expect(calcBondRiskFee(cfg, validator)).toBeNull()
 
     // Confirm the effective bond alone would NOT trigger the fee
     const validatorEffective = { ...validator, claimableBondBalanceSol: effectiveBond } as unknown as AuctionValidator
