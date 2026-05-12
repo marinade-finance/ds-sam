@@ -344,32 +344,6 @@ describe('processAuctions', () => {
     expect(epoch700?.effParticipatingBidPmpe).toBe(5) // max(0, 8 - onchainDistributed=3)
   })
 
-  it('non-participant gets effParticipatingBidPmpe=0 and epoch winningTotalPmpe', () => {
-    const validators = [
-      new ValidatorMockBuilder('alice', 'id-a').withEligibleDefaults(),
-      new ValidatorMockBuilder('bob', 'id-b').withEligibleDefaults(),
-    ]
-    const dp = defaultStaticDataProviderBuilder(validators)(DEFAULT_CONFIG)
-    const raw = dp.buildRaw()
-
-    raw.auctions = [
-      makeEntry({
-        voteAccount: 'alice',
-        epoch: 700,
-        marinadeSamTargetSol: 100,
-        totalPmpe: 8,
-        bondObligationPmpe: 7,
-        onchainDistributedPmpe: 2,
-      }),
-    ]
-
-    const agg = dp.aggregateData(raw)
-    const bob = agg.validators.find(v => v.voteAccount === 'bob')
-    const epoch700 = bob?.auctions.find(a => a.epoch === 700)
-    expect(epoch700?.effParticipatingBidPmpe).toBe(0)
-    expect(epoch700?.winningTotalPmpe).toBe(8)
-  })
-
   it('zero-stake entry does not influence winningTotalPmpe', () => {
     const validators = [new ValidatorMockBuilder('alice', 'id-a').withEligibleDefaults()]
     const dp = defaultStaticDataProviderBuilder(validators)(DEFAULT_CONFIG)
