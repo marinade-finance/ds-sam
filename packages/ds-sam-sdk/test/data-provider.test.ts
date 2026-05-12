@@ -344,7 +344,7 @@ describe('processAuctions', () => {
     expect(epoch700?.effParticipatingBidPmpe).toBe(5) // max(0, 8 - onchainDistributed=3)
   })
 
-  it('zero-stake entry does not influence winningTotalPmpe', () => {
+  it('zero-target/zero-stake entry does not influence winningTotalPmpe', () => {
     const validators = [new ValidatorMockBuilder('alice', 'id-a').withEligibleDefaults()]
     const dp = defaultStaticDataProviderBuilder(validators)(DEFAULT_CONFIG)
     const raw = dp.buildRaw()
