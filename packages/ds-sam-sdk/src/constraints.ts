@@ -234,7 +234,9 @@ export class AuctionConstraints {
     // if marinadeActivatedStakeSol > idealLimit, but below minLimit, the limit is given by minLimit
     // the limit will never exceed minLimit
     // which is also the limit at which we charge the bondRiskFeeSol
-    const limit = Math.min(minLimit, Math.max(idealLimit, validator.marinadeActivatedStakeSol))
+    // anti-flap uses protected-only activation so unprotected stake is not double-counted in the cap
+    const protectedActivated = Math.max(0, validator.marinadeActivatedStakeSol - unprotectedStakeSol)
+    const limit = Math.min(minLimit, Math.max(idealLimit, protectedActivated))
     const cap = this.clipBondStakeCap(validator, limit + unprotectedStakeSol)
     validator.unprotectedStakeSol = unprotectedStakeSol
     validator.bondSamStakeCapSol = cap
