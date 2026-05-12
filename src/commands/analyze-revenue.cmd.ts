@@ -132,66 +132,68 @@ export class AnalyzeRevenuesCommand extends CommandRunner {
   }
 
   async getRevenueExpectationCollection(options: AnalyzeRevenuesCommandOptions): Promise<RevenueExpectationCollection> {
-    const parsedConfig: DsSamConfig = JSON.parse(
-      fs.readFileSync(`${options.inputsCacheDirPath}/config.json`).toString(),
-    ) as DsSamConfig
-    const fileConfig: DsSamConfig = {
-      ...parsedConfig,
-      inputsSource: InputsSource.FILES,
-      inputsCacheDirPath: options.inputsCacheDirPath,
-    }
+    try {
+      const parsedConfig: DsSamConfig = JSON.parse(
+        fs.readFileSync(`${options.inputsCacheDirPath}/config.json`).toString(),
+      ) as DsSamConfig
+      const fileConfig: DsSamConfig = {
+        ...parsedConfig,
+        inputsSource: InputsSource.FILES,
+        inputsCacheDirPath: options.inputsCacheDirPath,
+      }
 
-    const config: AnalyzeRevenuesCommandOptions = { ...fileConfig, ...options }
-    this.logger.log(`Running "${COMMAND_NAME}" command...`, { ...config })
+      const config: AnalyzeRevenuesCommandOptions = { ...fileConfig, ...options }
+      this.logger.log(`Running "${COMMAND_NAME}" command...`, { ...config })
 
-    const snapshotValidatorsCollection = loadSnapshotValidatorsCollection(options.snapshotValidatorsFilePath)
+      const snapshotValidatorsCollection = loadSnapshotValidatorsCollection(options.snapshotValidatorsFilePath)
 
-    let pastSnapshotValidatorsCollection: null | SnapshotValidatorsCollection = null
-    if (options.snapshotPastValidatorsFilePath) {
-      pastSnapshotValidatorsCollection = loadSnapshotValidatorsCollection(options.snapshotPastValidatorsFilePath)
-      assert(
-        pastSnapshotValidatorsCollection.epoch === snapshotValidatorsCollection.epoch - 1,
-        `Epoch loaded from argument data '--snapshot-past-validators-file-path ${options.snapshotValidatorsFilePath}' ` +
-          `has to be one less than the current snapshot epoch, but validators epoch is '${snapshotValidatorsCollection.epoch}' ` +
-          `and past validators is '${pastSnapshotValidatorsCollection.epoch}'`,
+      let pastSnapshotValidatorsCollection: null | SnapshotValidatorsCollection = null
+      if (options.snapshotPastValidatorsFilePath) {
+        pastSnapshotValidatorsCollection = loadSnapshotValidatorsCollection(options.snapshotPastValidatorsFilePath)
+        assert(
+          pastSnapshotValidatorsCollection.epoch === snapshotValidatorsCollection.epoch - 1,
+          `Epoch loaded from argument data '--snapshot-past-validators-file-path ${options.snapshotValidatorsFilePath}' ` +
+            `has to be one less than the current snapshot epoch, but validators epoch is '${snapshotValidatorsCollection.epoch}' ` +
+            `and past validators is '${pastSnapshotValidatorsCollection.epoch}'`,
+        )
+      }
+
+      const bonds: RawBondsResponseDto = JSON.parse(
+        fs.readFileSync(`${options.inputsCacheDirPath}/bonds.json`).toString(),
+      ) as RawBondsResponseDto
+      const sourceDataOverrides = getValidatorOverrides(snapshotValidatorsCollection, bonds)
+      const pastValidatorChangeCommissions = this.getPastValidatorCommissions(pastSnapshotValidatorsCollection)
+
+      const dsSam = new DsSamSDK({ ...config })
+      const auctionDataCalculatedFromFixtures = await dsSam.run()
+      const auctionDataParsedFromFixtures: AuctionResult = JSON.parse(
+        fs.readFileSync(options.samResultsFixtureFilePath).toString(),
+      ) as AuctionResult
+      console.log('Winning Total PMPE parsed from static results:', auctionDataParsedFromFixtures.winningTotalPmpe)
+      console.log(
+        'Winning Total PMPE calculated from static results:',
+        auctionDataCalculatedFromFixtures.winningTotalPmpe,
       )
-    }
 
-    const bonds: RawBondsResponseDto = JSON.parse(
-      fs.readFileSync(`${options.inputsCacheDirPath}/bonds.json`).toString(),
-    ) as RawBondsResponseDto
-    const sourceDataOverrides = getValidatorOverrides(snapshotValidatorsCollection, bonds)
-    const pastValidatorChangeCommissions = this.getPastValidatorCommissions(pastSnapshotValidatorsCollection)
+      const aggregatedData = await dsSam.getAggregatedData(sourceDataOverrides)
+      const auctionValidatorsCalculatedWithOverrides = dsSam.transformValidators(aggregatedData)
 
-    const dsSam = new DsSamSDK({ ...config })
-    const auctionDataCalculatedFromFixtures = await dsSam.run().catch((e: unknown) => {
-      console.error('dsSam.run() failed:', e)
+      const revenueExpectations = this.evaluateRevenueExpectationForAuctionValidators(
+        auctionDataCalculatedFromFixtures.auctionData.validators,
+        auctionValidatorsCalculatedWithOverrides,
+        auctionDataCalculatedFromFixtures, // TODO: difference between auction calculated and parsed data?
+        pastValidatorChangeCommissions,
+        aggregatedData.rewards,
+      )
+
+      return {
+        epoch: snapshotValidatorsCollection.epoch,
+        slot: snapshotValidatorsCollection.slot,
+        revenueExpectations,
+      }
+    } catch (e: unknown) {
+      console.error('getRevenueExpectationCollection failed:', e)
       throw e
-    })
-    const auctionDataParsedFromFixtures: AuctionResult = JSON.parse(
-      fs.readFileSync(options.samResultsFixtureFilePath).toString(),
-    ) as AuctionResult
-    console.log('Winning Total PMPE parsed from static results:', auctionDataParsedFromFixtures.winningTotalPmpe)
-    console.log(
-      'Winning Total PMPE calculated from static results:',
-      auctionDataCalculatedFromFixtures.winningTotalPmpe,
-    )
-
-    const aggregatedData = await dsSam.getAggregatedData(sourceDataOverrides)
-    const auctionValidatorsCalculatedWithOverrides = dsSam.transformValidators(aggregatedData)
-
-    const revenueExpectations = this.evaluateRevenueExpectationForAuctionValidators(
-      auctionDataCalculatedFromFixtures.auctionData.validators,
-      auctionValidatorsCalculatedWithOverrides,
-      auctionDataCalculatedFromFixtures, // TODO: difference between auction calculated and parsed data?
-      pastValidatorChangeCommissions,
-      aggregatedData.rewards,
-    )
-
-    return {
-      epoch: snapshotValidatorsCollection.epoch,
-      slot: snapshotValidatorsCollection.slot,
-      revenueExpectations,
     }
   }
 
