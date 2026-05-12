@@ -287,7 +287,7 @@ describe('processAuctions', () => {
       bondObligationPmpe: 3,
       onchainDistributedPmpe: 3,
     })
-    const winner1 = new ValidatorMockBuilder('winner1', 'id-w1').withEligibleDefaults().withAuctionEntry({
+    const winner1 = new ValidatorMockBuilder('winner1', 'id-w1').auctionOnly().withAuctionEntry({
       epoch: 700,
       marinadeSamTargetSol: 100,
       totalPmpe: 8,
@@ -302,16 +302,16 @@ describe('processAuctions', () => {
     expect(epoch700?.effParticipatingBidPmpe).toBe(5) // max(0, 8 - onchainDistributed=3)
   })
 
-  it('zero-target/zero-stake entry does not influence winningTotalPmpe', async () => {
+  it('zero-target entry does not influence winningTotalPmpe', async () => {
     const alice = new ValidatorMockBuilder('alice', 'id-a').withEligibleDefaults()
-    const winner1 = new ValidatorMockBuilder('winner1', 'id-w1').withEligibleDefaults().withAuctionEntry({
+    const winner1 = new ValidatorMockBuilder('winner1', 'id-w1').auctionOnly().withAuctionEntry({
       epoch: 700,
       marinadeSamTargetSol: 100,
       totalPmpe: 8,
       bondObligationPmpe: 7,
       onchainDistributedPmpe: 2,
     })
-    const zero = new ValidatorMockBuilder('zero', 'id-z').withEligibleDefaults().withAuctionEntry({
+    const zero = new ValidatorMockBuilder('zero', 'id-z').auctionOnly().withAuctionEntry({
       epoch: 700,
       marinadeSamTargetSol: 0,
       totalPmpe: 3,
@@ -349,7 +349,7 @@ describe('processAuctions', () => {
       bondObligationPmpe: 3,
       onchainDistributedPmpe: 1,
     })
-    const other = new ValidatorMockBuilder('other', 'id-o').withEligibleDefaults().withAuctionEntry({
+    const other = new ValidatorMockBuilder('other', 'id-o').auctionOnly().withAuctionEntry({
       epoch: 700,
       marinadeSamTargetSol: 0,
       totalPmpe: 9,
