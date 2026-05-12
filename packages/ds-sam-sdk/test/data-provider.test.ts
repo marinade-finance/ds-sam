@@ -406,6 +406,37 @@ describe('processAuctions', () => {
     expect(epoch700?.effParticipatingBidPmpe).toBe(0)
   })
 
+  it('non-participant in an epoch gets zeros and epoch winningTotalPmpe', async () => {
+    const alice = new ValidatorMockBuilder('alice', 'id-a').withEligibleDefaults()
+    const bob = new ValidatorMockBuilder('bob', 'id-b').withEligibleDefaults().withBond({
+      stakeWanted: 100000,
+      cpmpe: 5,
+      balance: 500,
+      bondInflationCommission: 10,
+      bondMevCommission: 10,
+      bondBlockCommission: 0,
+    })
+    const dp = defaultStaticDataProviderBuilder([alice, bob])(DEFAULT_CONFIG)
+    const raw = await dp.fetchSourceData()
+
+    raw.auctions = [
+      alice.toRawAuctionEntryDto({
+        epoch: 700,
+        marinadeSamTargetSol: 100,
+        totalPmpe: 10,
+        bondObligationPmpe: 5,
+        onchainDistributedPmpe: 3,
+      }),
+    ]
+
+    const agg = dp.aggregateData(raw)
+    const bobEpoch700 = agg.validators.find(v => v.voteAccount === 'bob')?.auctions.find(a => a.epoch === 700)
+    expect(bobEpoch700?.winningTotalPmpe).toBe(10)
+    expect(bobEpoch700?.effParticipatingBidPmpe).toBe(0)
+    expect(bobEpoch700?.totalPmpe).toBe(0)
+    expect(bobEpoch700?.bidPmpe).toBe(0)
+  })
+
   it('multi-epoch entries are grouped and sorted descending', async () => {
     const alice = new ValidatorMockBuilder('alice', 'id-a').withEligibleDefaults()
     const dp = defaultStaticDataProviderBuilder([alice])(DEFAULT_CONFIG)
