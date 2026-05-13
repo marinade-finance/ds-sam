@@ -149,6 +149,9 @@ export const calcBondRiskFee = (cfg: BondRiskFeeConfig, validator: AuctionValida
   )
   const minBondPmpe = validator.minBondPmpe ?? 0
   const idealBondPmpe = validator.idealBondPmpe ?? 0
+  // claimable (funded - pending_settlement_claims) >= effective_amount always.
+  // Using claimable avoids stacking the fee on top of a withdrawal already in progress:
+  // effective_amount drops when a withdrawal is requested, but funded still backs the obligations.
   const claimableBondSol = validator.claimableBondBalanceSol ?? 0
   const unprotectedStakeSol = validator.unprotectedStakeSol ?? 0
   const projectedExposedStakeSol = Math.max(0, projectedActivatedStakeSol - unprotectedStakeSol)

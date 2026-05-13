@@ -216,8 +216,7 @@ export class AuctionConstraints {
     const idealBidReservePmpe = this.config.idealBondEpochs * revShare.expectedMaxEffBidPmpe
     const minBondPmpe = revShare.onchainDistributedPmpe + revShare.expectedMaxEffBidPmpe + minBidReservePmpe
     const idealBondPmpe = revShare.onchainDistributedPmpe + revShare.expectedMaxEffBidPmpe + idealBidReservePmpe
-    const effBondBalanceSol = validator.bondBalanceSol ?? 0
-    const bondBalanceSol = Math.max(effBondBalanceSol, 0)
+    const bondBalanceSol = Math.max(validator.bondBalanceSol ?? 0, 0)
     // how much does the validator need to keep to pay for the unprotected stake
     const maxUnprotectedStakeSol = bondBalanceSol > 0 ? bondBalanceSol / (idealBidReservePmpe / 1000) : 0
     const unprotectedStakeSol = Math.min(this.unprotectedStakeCap(validator), maxUnprotectedStakeSol)
@@ -234,12 +233,12 @@ export class AuctionConstraints {
     // if marinadeActivatedStakeSol > idealLimit, but below minLimit, the limit is given by minLimit
     // the limit will never exceed minLimit
     // which is also the limit at which we charge the bondRiskFeeSol
-    const limit = Math.min(minLimit, Math.max(idealLimit, validator.marinadeActivatedStakeSol))
+    // anti-flap uses protected-only activation so unprotected stake is not double-counted in the cap
+    const protectedStakeSol = Math.max(0, validator.marinadeActivatedStakeSol - unprotectedStakeSol)
+    const limit = Math.min(minLimit, Math.max(idealLimit, protectedStakeSol))
     const cap = this.clipBondStakeCap(validator, limit + unprotectedStakeSol)
     validator.unprotectedStakeSol = unprotectedStakeSol
     validator.bondSamStakeCapSol = cap
-    // represents for how many epochs is this validator protected
-    const protectedStakeSol = Math.max(0, validator.marinadeActivatedStakeSol - unprotectedStakeSol)
     // Reserve the portion of the bond already committed to on-chain distribution; the rest is available for bids.
     const bondBalanceForBids = bondBalanceSol - (revShare.onchainDistributedPmpe / 1000) * protectedStakeSol
     // Epochs = balance / cost-per-epoch, where cost = expectedMaxEffBidPmpe/1000 * stake.
@@ -248,15 +247,13 @@ export class AuctionConstraints {
     validator.bondGoodForNEpochs =
       bondBalanceForBids / ((revShare.expectedMaxEffBidPmpe / 1000) * validator.marinadeActivatedStakeSol) -
       (1 + this.config.minBondEpochs)
-    // represents how much of the stake this validator has is protected sufficiently enough
-    //
-    // do not consider the flapping histeresis for unstake priorities and risk measures
-    //
-    // allow for some unprotected slack before we introduce the bond risk system doing this optimally
-    let regularMinMaxStakeWanted = Math.max(10000, this.config.minMaxStakeWanted)
-    let correction = regularMinMaxStakeWanted / (1 + regularMinMaxStakeWanted)
+    // Normalise so health=1 threshold is independent of minMaxStakeWanted at large values
+    const regularMinMaxStakeWanted = Math.max(10000, this.config.minMaxStakeWanted)
+    const correction = regularMinMaxStakeWanted / (1 + regularMinMaxStakeWanted)
     validator.bondSamHealth =
-      (1.1 * (minLimit + unprotectedStakeSol)) / (1 + validator.marinadeActivatedStakeSol) / correction
+      (this.config.bondSamHealthMult * (minLimit + unprotectedStakeSol)) /
+      (1 + validator.marinadeActivatedStakeSol) /
+      correction
     return cap
   }
 

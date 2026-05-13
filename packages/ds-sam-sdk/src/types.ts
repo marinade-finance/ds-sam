@@ -168,6 +168,7 @@ export type AuctionConstraintsConfig = {
   unprotectedDelegatedStakeDec: number
   unprotectedFoundationStakeDec: number
   bondObligationSafetyMult: number
+  bondSamHealthMult: number
 }
 
 export enum AuctionConstraintType {
