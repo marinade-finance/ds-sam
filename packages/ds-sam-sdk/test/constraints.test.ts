@@ -82,17 +82,8 @@ describe('bondStakeCapSam()', () => {
       bondBalanceSol: 1000,
       marinadeActivatedStakeSol: 50,
       revShare: buildRevShare({
-        inflationPmpe: 10,
-        mevPmpe: 0,
-        bidPmpe: 0,
-        totalPmpe: 0,
-        auctionEffectiveBidPmpe: 0,
-        activatingStakePmpe: 0,
-        effParticipatingBidPmpe: 0,
         expectedMaxEffBidPmpe: 5,
-        bidTooLowPenaltyPmpe: 0,
         onchainDistributedPmpe: 10,
-        bondObligationPmpe: 0,
       }),
     })
     const result = 1000 / (25 / 1000)
@@ -105,11 +96,7 @@ describe('bondStakeCapSam()', () => {
       bondBalanceSol: 1000,
       marinadeActivatedStakeSol: 70000,
       revShare: buildRevShare({
-        auctionEffectiveBidPmpe: 0,
-        activatingStakePmpe: 0,
-        effParticipatingBidPmpe: 0,
         expectedMaxEffBidPmpe: 5,
-        bidTooLowPenaltyPmpe: 0,
         onchainDistributedPmpe: 0,
       }),
     })
@@ -479,9 +466,12 @@ describe('getMinCapForEvenDistribution() & findCapForValidator()', () => {
     },
   })
 
-  it('computes min cap correctly and selects COUNTRY constraint', () => {
+  beforeEach(() => {
     const data = makeAuction({ validators: [v1, v2] })
     c.updateStateForSam(data)
+  })
+
+  it('computes min cap correctly and selects COUNTRY constraint', () => {
     const { cap, constraint } = c.getMinCapForEvenDistribution(new Set(['v1', 'v2']))
     expect(cap).toBe(0)
     expect(constraint.constraintType).toBe('COUNTRY')
@@ -524,7 +514,7 @@ describe('getMinCapForEvenDistribution positive scenarios', () => {
   it('returns positive cap = min(totalLeft,marinadeLeft)/2', () => {
     const data = makeAuction({ validators: [x1, x2] })
     cpos.updateStateForSam(data)
-    // totalLeft=200-100=100; marinadeLeft=100-20=80; /2=40
+    // x1: externalActivatedSol=50 + marinadeSamTargetSol=10 = 60; x2: 30+10=40; consumed=100; totalLeft=200-100=100; marinadeLeft=100-20=80; /2=40
     const { cap, constraint } = cpos.getMinCapForEvenDistribution(new Set(['x1', 'x2']))
     expect(cap).toBe(40)
     expect(constraint.constraintType).toBe('COUNTRY')
@@ -754,25 +744,14 @@ describe('bondStakeCapSam edge cases', () => {
 })
 
 describe('clipBondStakeCap edge cases', () => {
-  it('with negative limit returns >= 0', () => {
-    const c = makeConstraints({
-      minBondEpochs: 1,
-      idealBondEpochs: 10,
-      unprotectedValidatorStakeCapSol: 10000,
-      unprotectedDelegatedStakeDec: 1,
-      unprotectedFoundationStakeDec: 1,
-      minUnprotectedStakeToDelegateSol: 0,
-    })
+  it('with negative limit returns 0 (bond below 0.8 * minBondBalanceSol floor)', () => {
+    // bondBalanceSol=5 < 0.8*minBondBalanceSol=8 → first branch returns 0 regardless of limit
+    const c = makeConstraints({ minBondBalanceSol: 10 })
     const v = makeValidator({
-      bondBalanceSol: 10,
-      totalActivatedStakeSol: 50000,
-      revShare: buildRevShare({
-        onchainDistributedPmpe: 100,
-        expectedMaxEffBidPmpe: 100,
-      }),
+      bondBalanceSol: 5,
+      marinadeActivatedStakeSol: 100,
     })
-    const cap = c.bondStakeCapSam(v)
-    expect(cap).toBeGreaterThanOrEqual(0)
+    expect(c.clipBondStakeCap(v, -5)).toBe(0)
   })
 
   it('hysteresis: bond between 0.8x and 1x', () => {

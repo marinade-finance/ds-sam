@@ -85,7 +85,7 @@ const calcBidTooLowPenalty = ({
 describe('calcBidTooLowPenalty', () => {
   const historyLength = 3
 
-  it('returns zero penalty when totalPmpe ≥ winningTotalPmpe', () => {
+  it('returns zero penalty when bid did not decrease', () => {
     const result = calcBidTooLowPenalty({
       bidPmpe: 30,
       inflationPmpe: 10,
@@ -133,7 +133,7 @@ describe('calcBidTooLowPenalty', () => {
     expect(res.bidTooLowPenaltyPmpe).toBe(res.base)
   })
 
-  it('yields zero penalty when bidPmpe ≥ historicalPmpe', () => {
+  it('returns zero penalty when bondObligationPmpe exceeds adjustedLimit', () => {
     const res = calcBidTooLowPenalty({
       bidPmpe: 10,
       inflationPmpe: 0,
@@ -195,7 +195,7 @@ describe('calcBidTooLowPenalty', () => {
     expect(res.bidTooLowPenaltyPmpe).toBe(expectedPenaltyCoef * 10)
   })
 
-  it('zero penalty when bid equals historical minimum', () => {
+  it('returns zero penalty when bondObligationPmpe equals adjustedLimit', () => {
     const res = calcBidTooLowPenalty({
       bidPmpe: 3,
       inflationPmpe: 1,
@@ -264,8 +264,7 @@ describe('calcBidTooLowPenalty', () => {
     const expectedCoef = Math.min(1, Math.sqrt((1.5 * (20 * COEF_DEVIATION - 15)) / (20 * COEF_DEVIATION)))
     const expectedBase = winningTotalPmpe + effParticipatingBidPmpe
     const expectedPmpe = expectedCoef * expectedBase
-    const effPmpe = inflationPmpe + mevPmpe + effParticipatingBidPmpe
-    const expectedPaid = (expectedPmpe * marinadeActivatedStakeSol) / effPmpe
+    const expectedPaid = (expectedPmpe * marinadeActivatedStakeSol) / winningTotalPmpe
 
     expect(native.bidTooLowPenalty.coef).toBeCloseTo(expectedCoef)
     expect(native.bidTooLowPenalty.base).toBe(expectedBase)
@@ -273,7 +272,7 @@ describe('calcBidTooLowPenalty', () => {
     expect(native.paidUndelegationSol).toBeCloseTo(expectedPaid)
   })
 
-  it('throws on infinite penalty pmpe', () => {
+  it('throws when penalty pmpe is NaN (0 × Infinity)', () => {
     const validator = {
       revShare: {
         bidPmpe: 0,
@@ -398,7 +397,7 @@ describe('calcBidTooLowPenalty', () => {
       validator,
       permittedBidDeviation: 0,
     })
-    // isNegativeBiddingChange = false (nothing changed)
+    // isNegativeBiddingChange = false (bid increased from 0 to 20)
     expect(res.bidTooLowPenalty.coef).toBe(0)
     expect(res.bidTooLowPenaltyPmpe).toBe(0)
     expect(res.paidUndelegationSol).toBe(0)
@@ -596,7 +595,7 @@ describe('calcBidTooLowPenalty', () => {
     expect(result.bidTooLowPenaltyPmpe).toBe(0)
   })
 
-  it('handles missing commission history gracefully', () => {
+  it('applies bid-decrease penalty regardless of commission history', () => {
     const validator = {
       revShare: {
         bidPmpe: 19,

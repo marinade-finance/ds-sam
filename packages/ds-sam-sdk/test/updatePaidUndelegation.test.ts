@@ -80,9 +80,9 @@ describe('Auction.updatePaidUndelegation (simplified)', () => {
     expect(run(0, 25, 0)).toBeCloseTo(0)
   })
 
-  // delta = 100 - 50 = 50 → max(0, 0-50) = 0
-  it('paidUndelegation=0 with positive delta stays at 0', () => {
-    expect(run(50, 100, 0)).toBe(0)
+  // delta = 100 - 50 = 50 → max(0, 5-50) = 0; starts from non-zero to exercise the clamp
+  it('paidUndelegation resets to 0 when delta exceeds prior value', () => {
+    expect(run(50, 100, 5)).toBe(0)
   })
 
   // large new delegation reduces but does not zero paidUndelegationSol
