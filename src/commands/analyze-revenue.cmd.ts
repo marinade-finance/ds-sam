@@ -123,11 +123,16 @@ export class AnalyzeRevenuesCommand extends CommandRunner {
   }
 
   async run(inputs: string[], options: AnalyzeRevenuesCommandOptions): Promise<void> {
-    const revenueExpectationCollection = await this.getRevenueExpectationCollection(options)
+    try {
+      const revenueExpectationCollection = await this.getRevenueExpectationCollection(options)
 
-    const { resultsFilePath } = options
-    if (resultsFilePath) {
-      this.storeResults(resultsFilePath, revenueExpectationCollection)
+      const { resultsFilePath } = options
+      if (resultsFilePath) {
+        this.storeResults(resultsFilePath, revenueExpectationCollection)
+      }
+    } catch (e: unknown) {
+      console.error(e)
+      throw e
     }
   }
 

@@ -50,6 +50,7 @@ Key parameters:
 | `minBondBalanceSol` | Minimum bond balance |
 | `minBondEpochs` / `idealBondEpochs` | Bond reserve epochs |
 | `bondRiskFeeMult` | Bond risk fee multiplier |
+| `activatingStakePmpeMult` | Overbid fraction charged on activating stake [0-1] |
 | `bondObligationSafetyMult` | Bond obligation safety [1.0-2.0] |
 | `maxNetworkStakeConcentrationPerCountryDec` | Country cap |
 | `maxNetworkStakeConcentrationPerAsoDec` | ASO cap |

@@ -11,6 +11,7 @@ import type {
   RawMevInfoResponseDto,
   RawRewardsRecordDto,
   RawRewardsResponseDto,
+  RawScoredValidatorDto,
   RawTvlResponseDto,
   RawValidatorsResponseDto,
 } from '../../src'
@@ -36,34 +37,29 @@ export class StaticDataProvider extends DataProvider {
 
   override fetchValidators(): Promise<RawValidatorsResponseDto> {
     return Promise.resolve({
-      validators: this.validatorMockBuilders.map(v => v.toRawValidatorDto(this.staticDataProviderConfig.currentEpoch)),
+      validators: this.validatorMockBuilders
+        .filter(v => !v.isAuctionOnly())
+        .map(v => v.toRawValidatorDto(this.staticDataProviderConfig.currentEpoch)),
     })
   }
 
   override fetchBonds(): Promise<RawBondsResponseDto> {
     return Promise.resolve({
       bonds: this.validatorMockBuilders
+        .filter(v => !v.isAuctionOnly())
         .map(v => v.toRawBondDto(this.staticDataProviderConfig.currentEpoch))
         .filter(isNotNull),
     })
   }
 
   override fetchTvlInfo(): Promise<RawTvlResponseDto> {
+    const dtos = this.validatorMockBuilders
+      .filter(v => !v.isAuctionOnly())
+      .map(v => v.toRawValidatorDto(this.staticDataProviderConfig.currentEpoch))
     return Promise.resolve({
-      total_virtual_staked_sol: this.validatorMockBuilders.reduce(
-        (sum, v) =>
-          sum +
-          new Decimal(v.toRawValidatorDto(this.staticDataProviderConfig.currentEpoch).marinade_stake)
-            .div(1e9)
-            .toNumber(),
-        0,
-      ),
-      marinade_native_stake_sol: this.validatorMockBuilders.reduce(
-        (sum, v) =>
-          sum +
-          new Decimal(v.toRawValidatorDto(this.staticDataProviderConfig.currentEpoch).marinade_native_stake)
-            .div(1e9)
-            .toNumber(),
+      total_virtual_staked_sol: dtos.reduce((sum, dto) => sum + new Decimal(dto.marinade_stake).div(1e9).toNumber(), 0),
+      marinade_native_stake_sol: dtos.reduce(
+        (sum, dto) => sum + new Decimal(dto.marinade_native_stake).div(1e9).toNumber(),
         0,
       ),
     })
@@ -71,6 +67,7 @@ export class StaticDataProvider extends DataProvider {
 
   override fetchBlacklist(): Promise<RawBlacklistResponseDto> {
     const rows = this.validatorMockBuilders
+      .filter(v => !v.isAuctionOnly())
       .map(v => v.toRawBlacklistResponseDtoRow())
       .filter(isNotNull)
       .join('\n')
@@ -83,14 +80,14 @@ export class StaticDataProvider extends DataProvider {
       { length: epochs },
       (_, i): RawRewardsRecordDto => [
         this.staticDataProviderConfig.currentEpoch - i - 1,
-        this.staticDataProviderConfig.inflationRewardsPerEpoch,
+        this.staticDataProviderConfig.mevRewardsPerEpoch,
       ],
     )
     const rewardsInflationEst = Array.from(
       { length: epochs },
       (_, i): RawRewardsRecordDto => [
         this.staticDataProviderConfig.currentEpoch - i - 1,
-        this.staticDataProviderConfig.mevRewardsPerEpoch,
+        this.staticDataProviderConfig.inflationRewardsPerEpoch,
       ],
     )
     const rewardsBlock = Array.from(
@@ -110,7 +107,16 @@ export class StaticDataProvider extends DataProvider {
 
   override fetchMevInfo(): Promise<RawMevInfoResponseDto> {
     return Promise.resolve({
-      validators: this.validatorMockBuilders.map(v => v.toRawValidatorMevInfoDto()).filter(isNotNull),
+      validators: this.validatorMockBuilders
+        .filter(v => !v.isAuctionOnly())
+        .map(v => v.toRawValidatorMevInfoDto())
+        .filter(isNotNull),
     })
+  }
+
+  override fetchAuctions(): Promise<RawScoredValidatorDto[]> {
+    return Promise.resolve(
+      this.validatorMockBuilders.filter(v => v.hasAuctionEntry()).flatMap(v => v.toRawAuctionEntryDtos()),
+    )
   }
 }

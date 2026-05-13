@@ -22,7 +22,9 @@ TypeScript monorepo:
    a. `distributeSamStake()` - main auction distribution
    b. `distributeBackstopStake()` - backstop for zero-commission
 4. `setStakeUnstakePriorities()` - order validators for un/staking
-5. `setAuctionEffectiveBids()` - compute effective bids
+5. `setAuctionEffectiveBids()` - compute effective bids and
+   `activatingStakePmpe` (overbid charged on newly activating stake,
+   scaled by `activatingStakePmpeMult`)
 6. `setEffParticipatingBids()` - participating bid amounts
 7. `setBondRiskFee()` - charge risk fees for underfunded bonds
 8. `setBidTooLowPenalties()` - penalize underbidding
@@ -205,3 +207,6 @@ underbidding without penalty.
 - Caches to local files for replay
   (`--cache-inputs --cache-dir-path`)
 - `inputsSource`: `APIS` (live) or `FILES` (cached)
+- `minimalCommission` config clamps negative commissions to a floor
+  before PMPE calculations (prevents validators gaming via
+  negative-commission bids)

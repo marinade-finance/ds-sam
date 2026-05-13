@@ -1,6 +1,7 @@
 import Decimal from 'decimal.js'
 
 import type { RawBondDto, RawValidatorDto, RawValidatorMevInfoDto } from '../../src'
+import type { RawScoredValidatorDto } from '../../src/data-provider/data-provider.dto'
 
 const infiniteGenerator = function* (prefix: string, padding: number) {
   for (let i = 0; ; i++) {
@@ -31,6 +32,14 @@ export class ValidatorMockBuilder {
   private bond: BondDataType | null = null
   private country: string | null = null
   private aso: string | null = null
+  private auctionEntries: {
+    epoch: number
+    marinadeSamTargetSol: number
+    totalPmpe: number
+    bondObligationPmpe: number
+    onchainDistributedPmpe: number
+  }[] = []
+  private auctionOnlyFlag = false
 
   constructor(
     public readonly voteAccount: string,
@@ -119,6 +128,30 @@ export class ValidatorMockBuilder {
     return this
   }
 
+  auctionOnly(): this {
+    this.auctionOnlyFlag = true
+    return this
+  }
+
+  isAuctionOnly(): boolean {
+    return this.auctionOnlyFlag
+  }
+
+  withAuctionEntry(params: {
+    epoch: number
+    marinadeSamTargetSol: number
+    totalPmpe: number
+    bondObligationPmpe: number
+    onchainDistributedPmpe: number
+  }): this {
+    this.auctionEntries.push(params)
+    return this
+  }
+
+  hasAuctionEntry(): boolean {
+    return this.auctionEntries.length > 0
+  }
+
   toRawBondDto(currentEpoch: number): RawBondDto | null {
     const { bond } = this
     if (!bond) {
@@ -157,6 +190,29 @@ export class ValidatorMockBuilder {
           mev_commission_bps: mevCommission * 100,
           epoch: 0, // TODO?
         }
+  }
+
+  toRawAuctionEntryDtos(): RawScoredValidatorDto[] {
+    return this.auctionEntries.map(
+      ({ epoch, marinadeSamTargetSol, totalPmpe, bondObligationPmpe, onchainDistributedPmpe }) =>
+        ({
+          voteAccount: this.voteAccount,
+          epoch,
+          marinadeSamTargetSol,
+          revShare: {
+            totalPmpe,
+            bondObligationPmpe,
+            onchainDistributedPmpe,
+            bidPmpe: 0,
+            inflationPmpe: 0,
+            mevPmpe: 0,
+            blockPmpe: 0,
+            auctionEffectiveBidPmpe: 0,
+            activatingStakePmpe: 0,
+            calcEffParticipatingBidPmpe: 0,
+          },
+        }) as RawScoredValidatorDto,
+    )
   }
 
   toRawValidatorDto(currentEpoch: number): RawValidatorDto {

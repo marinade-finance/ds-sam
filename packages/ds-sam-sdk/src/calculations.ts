@@ -204,8 +204,6 @@ export const calcEffParticipatingBidPmpe = (
   },
   winningTotalPmpe: number,
 ): number => {
-  // for a better memory, later this comment can be deleted; before introduction of blockPmpe this was the code:
-  // return Math.max(0, winningTotalPmpe - revShare.inflationPmpe - revShare.mevPmpe)
   return Math.max(0, winningTotalPmpe - revShare.onchainDistributedPmpe)
 }
 
@@ -236,7 +234,7 @@ export const calcBidTooLowPenalty = ({
   const { revShare, auctions } = validator
   const historicalPmpe = auctions
     .slice(0, historyEpochs)
-    .reduce((acc, { effParticipatingBidPmpe }) => Math.min(acc, effParticipatingBidPmpe ?? Infinity), Infinity)
+    .reduce((acc, { effParticipatingBidPmpe }) => Math.min(acc, effParticipatingBidPmpe), Infinity)
   const limit = Math.min(revShare.effParticipatingBidPmpe, historicalPmpe)
   const adjustedLimit = limit * (1 - permittedBidDeviation)
   const penaltyCoef =

@@ -75,30 +75,17 @@ export class DataProvider {
     return rewardsTotal.total.div(rewardsTotal.epochs).toNumber()
   }
 
-  /* eslint-disable no-param-reassign */
   private processAuctions(input: RawScoredValidatorDto[]): AuctionHistory[] {
-    const result: AuctionHistory[] = []
-    let epoch = Infinity
-    let validators: RawScoredValidatorDto[] = []
-    const finalizeEpoch = (inputValidators: RawScoredValidatorDto[]) => {
-      inputValidators.sort((a, b) => b.revShare.bondObligationPmpe - a.revShare.bondObligationPmpe)
-      const winningTotalPmpe = inputValidators
-        .filter(item => item.marinadeSamTargetSol > 0)
-        .reduce((_, item) => item.revShare.totalPmpe, 0)
-      result.push({ epoch, winningTotalPmpe, validators })
-      inputValidators = []
-    }
-    for (const entry of input) {
-      if (entry.epoch < epoch) {
-        finalizeEpoch(validators)
-        validators = []
-        epoch = entry.epoch
+    const epochs = [...new Set(input.map(e => e.epoch))].sort((a, b) => b - a)
+    return epochs.map(epoch => {
+      const validators = input.filter(entry => entry.epoch === epoch)
+      const winners = validators.filter(entry => entry.marinadeSamTargetSol > 0)
+      return {
+        epoch,
+        winningTotalPmpe: winners.reduce((min, entry) => Math.min(min, entry.revShare.totalPmpe), Infinity),
+        validators,
       }
-      validators.push(entry)
-    }
-    finalizeEpoch(validators)
-    result.shift()
-    return result
+    })
   }
 
   extractAuctionHistoryStats(auction: AuctionHistory, validator: RawValidatorDto): AuctionHistoryStats {
@@ -397,6 +384,7 @@ export class DataProvider {
   // Fixing missing data in validators response from older API versions
   private fixRawScoredValidatorsDto(validators: RawScoredValidatorDto[]): void {
     validators.forEach(v => {
+      // eslint-disable-next-line no-param-reassign
       v.revShare = {
         ...v.revShare,
         activatingStakePmpe: v.revShare.activatingStakePmpe ?? 0,
