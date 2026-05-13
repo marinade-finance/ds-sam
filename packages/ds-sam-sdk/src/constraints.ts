@@ -234,13 +234,13 @@ export class AuctionConstraints {
     // the limit will never exceed minLimit
     // which is also the limit at which we charge the bondRiskFeeSol
     // anti-flap uses protected-only activation so unprotected stake is not double-counted in the cap
-    const protectedActivated = Math.max(0, validator.marinadeActivatedStakeSol - unprotectedStakeSol)
-    const limit = Math.min(minLimit, Math.max(idealLimit, protectedActivated))
+    const protectedStakeSol = Math.max(0, validator.marinadeActivatedStakeSol - unprotectedStakeSol)
+    const limit = Math.min(minLimit, Math.max(idealLimit, protectedStakeSol))
     const cap = this.clipBondStakeCap(validator, limit + unprotectedStakeSol)
     validator.unprotectedStakeSol = unprotectedStakeSol
     validator.bondSamStakeCapSol = cap
     // Reserve the portion of the bond already committed to on-chain distribution; the rest is available for bids.
-    const bondBalanceForBids = bondBalanceSol - (revShare.onchainDistributedPmpe / 1000) * protectedActivated
+    const bondBalanceForBids = bondBalanceSol - (revShare.onchainDistributedPmpe / 1000) * protectedStakeSol
     // Epochs = balance / cost-per-epoch, where cost = expectedMaxEffBidPmpe/1000 * stake.
     // Subtract (1 + minBondEpochs) so 0 is the fee threshold (minBondPmpe), negative means fee is due.
     // Infinity when marinadeActivatedStakeSol or expectedMaxEffBidPmpe is 0 — bond covers infinite epochs.
