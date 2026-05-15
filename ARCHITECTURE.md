@@ -3,7 +3,7 @@
 ## Overview
 
 ds-sam implements a descending-price auction where validators bid
-PMPE (parts per mile per epoch). Allocation proceeds from highest to
+PMPE (per mille per epoch). Allocation proceeds from highest to
 lowest PMPE until stake depletes or constraints bind; the last
 (lowest) group to receive stake sets the clearing price.
 
