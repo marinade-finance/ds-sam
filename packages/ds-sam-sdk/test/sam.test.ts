@@ -521,46 +521,33 @@ describe('sam', () => {
   })
 
   describe('client version gate', () => {
-    const buildResultForVersion = async (version: string) => {
-      const voteAccounts = generateVoteAccounts()
-      const identities = generateIdentities()
-      const target = new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
-        .withEligibleDefaults()
-        .withBond({ stakeWanted: 1_000_000, cpmpe: 0.1, balance: 100 })
-        .withVersion(version)
-      const filler = Array.from({ length: 5 }, () =>
-        new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
-          .withEligibleDefaults()
-          .withBond({ stakeWanted: 1_000_000, cpmpe: 0.1, balance: 100 }),
-      )
-      const dsSam = new DsSamSDK({}, defaultStaticDataProviderBuilder([target, ...filler]))
-      const result = await dsSam.run()
-      const v = result.auctionData.validators.find(x => x.voteAccount === target.voteAccount)
-      assert(v, 'target validator not found in results')
-      return v
+    const isEligible = async (version: string) => {
+      const target = new ValidatorMockBuilder('target', 'target-i').withEligibleDefaults().withVersion(version)
+      // Auction needs at least one eligible validator to compute winning PMPE.
+      const filler = new ValidatorMockBuilder('filler', 'filler-i').withEligibleDefaults()
+      const result = await new DsSamSDK({}, defaultStaticDataProviderBuilder([target, filler])).run()
+      const v = result.auctionData.validators.find(x => x.voteAccount === 'target')
+      assert(v, 'target validator not found in result')
+      return v.samEligible
     }
 
     it('accepts in-range stable Firedancer version', async () => {
-      const v = await buildResultForVersion('0.909.0')
-      expect(v.samEligible).toBe(true)
+      expect(await isEligible('0.909.0')).toBe(true)
     })
 
+    // Regression: validators-API reports harmonic FD as 0.909.0-rc.40001.
+    // node-semver excludes prereleases from ranges by default; SDK passes
+    // { includePrerelease: true } so this version is treated as in-range.
     it('accepts in-range Firedancer prerelease (harmonic FD)', async () => {
-      // Regression: validators-API reports harmonic FD as 0.909.0-rc.40001.
-      // node-semver excludes prereleases from ranges by default; the SDK must
-      // pass { includePrerelease: true } so this version is treated as in-range.
-      const v = await buildResultForVersion('0.909.0-rc.40001')
-      expect(v.samEligible).toBe(true)
+      expect(await isEligible('0.909.0-rc.40001')).toBe(true)
     })
 
     it('rejects out-of-range version', async () => {
-      const v = await buildResultForVersion('0.100.0')
-      expect(v.samEligible).toBe(false)
+      expect(await isEligible('0.100.0')).toBe(false)
     })
 
     it('rejects 0.0.0 fallback (missing version)', async () => {
-      const v = await buildResultForVersion('0.0.0')
-      expect(v.samEligible).toBe(false)
+      expect(await isEligible('0.0.0')).toBe(false)
     })
   })
 
