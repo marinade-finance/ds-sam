@@ -132,7 +132,11 @@ export class DsSamSDK {
           ...ineligibleValidatorAggDefaults(),
         }
       }
-      if (!semver.satisfies(validator.clientVersion, this.config.validatorsClientVersionSemverExpr)) {
+      if (
+        !semver.satisfies(validator.clientVersion, this.config.validatorsClientVersionSemverExpr, {
+          includePrerelease: true,
+        })
+      ) {
         return {
           ...validator,
           revShare,
