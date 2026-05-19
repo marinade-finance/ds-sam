@@ -78,7 +78,7 @@ export type DsSamConfig = {
   idealBondEpochs: number
 
   // The multiplier used in the bondRiskFeeSol formula
-  // If set to zero, bondRiskFeeSol is effectivelly disabled
+  // If set to zero, bondRiskFeeSol is effectively disabled
   bondRiskFeeMult: number
 
   // Multiplier applied to the activating-stake overbid (bidPmpe - auctionEffectiveBidPmpe).
@@ -110,6 +110,10 @@ export type DsSamConfig = {
   // We assume some bond balance for the stake is required and multiply the calculated bond requirement
   // by this factor must be in interval [1.0, 2.0].
   bondObligationSafetyMult: number
+
+  // Multiplier applied to the bond cap in bondSamHealth; health < 1 triggers underfunded-bond
+  // unstake priority. Values > 1 create a grace zone above minLimit before deprioritisation kicks in.
+  bondSamHealthMult: number
 
   // Permitted deviation in bid Pmpe below the winning bid Pmpe
   // This deviation will not be penalized when calculating the BidTooLowPenalty meaning validator
@@ -162,6 +166,7 @@ export const DEFAULT_CONFIG: DsSamConfig = {
   minExpectedEffBidPmpe: 0,
   minEligibleFeePmpe: null,
   bondObligationSafetyMult: 1,
+  bondSamHealthMult: 1.1,
   bidTooLowPenaltyPermittedDeviationPmpe: 0.05,
   minimalCommission: -2.0,
 

@@ -19,6 +19,7 @@ export const BASE_CONSTRAINTS: AuctionConstraintsConfig = {
   unprotectedFoundationStakeDec: 1,
   unprotectedDelegatedStakeDec: 1,
   bondObligationSafetyMult: 1,
+  bondSamHealthMult: 1.1,
 }
 
 export function makeConstraints(overrides: Partial<AuctionConstraintsConfig> = {}) {

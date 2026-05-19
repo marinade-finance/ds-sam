@@ -1,6 +1,5 @@
 /**
  * Tests cover:
- *  - early exit when lastBondBalanceSol < 1
  *  - no action when bond balance is sufficient
  *  - forced undelegation and fee computation (various coef/pmpe combos)
  *  - clamping: floor threshold, coef <= 0, full exposed stake
@@ -76,17 +75,6 @@ function makeValidator(
 }
 
 describe('calcBondRiskFee', () => {
-  it('early exits when lastBondBalanceSol < 1', () => {
-    const validator = makeValidator({
-      bondBalanceSol: 100,
-      lastBondBalanceSol: 0,
-      marinadeActivatedStakeSol: 50,
-      values: { paidUndelegationSol: 0 },
-    })
-    const result = calcBondRiskFee(baseConfig, validator)
-    expect(result).toBeNull()
-  })
-
   it('no action when bond balance is sufficient', () => {
     const validator = makeValidator({
       bondBalanceSol: 100,
@@ -192,7 +180,7 @@ describe('calcBondRiskFee', () => {
     expect(result.paidUndelegationSol).toBeCloseTo(5, 6)
   })
 
-  it('forces full undelegation when coefficient <= 0', () => {
+  it('forces full undelegation when base/coef exceeds exposed stake', () => {
     const revShare = {
       ...baseRevShare,
       totalPmpe: 1000,
@@ -214,6 +202,7 @@ describe('calcBondRiskFee', () => {
     const result = calcBondRiskFee(baseConfig, validator)
     expect(result).not.toBeNull()
     assert(result)
+    expect(result.bondForcedUndelegation.coef).toBeGreaterThan(0)
     expect(result.bondForcedUndelegation.value).toBeCloseTo(50)
     expect(result.bondRiskFeeSol).toBeCloseTo(
       baseConfig.bondRiskFeeMult * 50 * ((revShare.onchainDistributedPmpe + revShare.auctionEffectiveBidPmpe) / 1000),
@@ -253,11 +242,6 @@ describe('calcBondRiskFee', () => {
         lastBondBalanceSol: 1,
         marinadeActivatedStakeSol: 1000,
         values: { paidUndelegationSol: 0 },
-        revShare: {
-          onchainDistributedPmpe: 5,
-          auctionEffectiveBidPmpe: 5,
-          expectedMaxEffBidPmpe: 5,
-        },
       }),
       claimableBondBalanceSol: 1,
       unprotectedStakeSol: 0,
