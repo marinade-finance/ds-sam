@@ -3,8 +3,9 @@
 ## Overview
 
 ds-sam implements a descending-price auction where validators bid
-PMPE (parts per mile per epoch). Allocation proceeds from lowest to
-highest PMPE until stake depletes or constraints bind.
+PMPE (per mille per epoch). Allocation proceeds from highest to
+lowest PMPE until stake depletes or constraints bind; the last
+(lowest) group to receive stake sets the clearing price.
 
 TypeScript monorepo:
 
@@ -39,11 +40,12 @@ TypeScript monorepo:
    threshold, wrong client version, excessive commission,
    or missing bond account
 2. **PMPE grouping**: Group validators by total PMPE
-3. **Ascending iteration**: Iterate LOWEST to HIGHEST PMPE
+3. **Descending iteration**: Iterate HIGHEST to LOWEST PMPE
 4. **Even distribution**: Within each group, distribute evenly
    until constraints bind
 5. **Constraint enforcement**: Remove capped validators, continue
-6. **Winning PMPE**: Last group to receive stake = winning bid
+6. **Winning PMPE**: Last (lowest) group to receive stake =
+   clearing bid
 
 ### Even Distribution Mechanics
 

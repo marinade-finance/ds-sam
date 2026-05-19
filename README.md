@@ -6,9 +6,10 @@ Marinade's Stake Auction for Solana validators.
   <img src="https://img.shields.io/npm/v/%40marinade.finance%2Fds-sam-sdk?logo=npm&color=377CC0" />
 </a>
 
-Validators bid PMPE (parts per mile per epoch) to receive Marinade
-stake. Allocation proceeds lowest to highest PMPE until stake
-depletes or constraints bind.
+Validators bid PMPE (per mille per epoch) to receive Marinade
+stake. Allocation proceeds highest to lowest PMPE until stake
+depletes or constraints bind; the last (lowest) group to receive
+stake sets the clearing price.
 
 ## Install
 
