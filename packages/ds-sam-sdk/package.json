@@ -11,7 +11,8 @@
   "scripts": {
     "build": "tsc --build",
     "test": "pnpm jest --config ../../jest.config.js --testPathPatterns=\"$(pwd)\"",
-    "prepack": "pnpm test && pnpm build"
+    "prepack": "pnpm test && pnpm build",
+    "postpublish": "if git tag -a v$npm_package_version -m \"Release v$npm_package_version\" 2>/dev/null; then echo \"Tag v$npm_package_version created locally. Push it with: git push <remote> v$npm_package_version\"; else echo \"Tag v$npm_package_version already exists (or could not be created). If it points to the right commit, push with: git push <remote> v$npm_package_version\"; fi"
   },
   "files": [
     "dist",
