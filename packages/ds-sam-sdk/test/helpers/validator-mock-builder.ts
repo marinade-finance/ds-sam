@@ -2,6 +2,7 @@ import Decimal from 'decimal.js'
 
 import type { RawBondDto, RawValidatorDto, RawValidatorMevInfoDto } from '../../src'
 import type { RawScoredValidatorDto } from '../../src/data-provider/data-provider.dto'
+import type { CommissionDetails } from '../../src/types'
 
 const infiniteGenerator = function* (prefix: string, padding: number) {
   for (let i = 0; ; i++) {
@@ -38,6 +39,8 @@ export class ValidatorMockBuilder {
     totalPmpe: number
     bondObligationPmpe: number
     onchainDistributedPmpe: number
+    bidPmpe?: number
+    commissions?: CommissionDetails
   }[] = []
   private auctionOnlyFlag = false
 
@@ -143,6 +146,8 @@ export class ValidatorMockBuilder {
     totalPmpe: number
     bondObligationPmpe: number
     onchainDistributedPmpe: number
+    bidPmpe?: number
+    commissions?: CommissionDetails
   }): this {
     this.auctionEntries.push(params)
     return this
@@ -194,7 +199,7 @@ export class ValidatorMockBuilder {
 
   toRawAuctionEntryDtos(): RawScoredValidatorDto[] {
     return this.auctionEntries.map(
-      ({ epoch, marinadeSamTargetSol, totalPmpe, bondObligationPmpe, onchainDistributedPmpe }) =>
+      ({ epoch, marinadeSamTargetSol, totalPmpe, bondObligationPmpe, onchainDistributedPmpe, bidPmpe, commissions }) =>
         ({
           voteAccount: this.voteAccount,
           epoch,
@@ -203,7 +208,7 @@ export class ValidatorMockBuilder {
             totalPmpe,
             bondObligationPmpe,
             onchainDistributedPmpe,
-            bidPmpe: 0,
+            bidPmpe: bidPmpe ?? 0,
             inflationPmpe: 0,
             mevPmpe: 0,
             blockPmpe: 0,
@@ -211,6 +216,7 @@ export class ValidatorMockBuilder {
             activatingStakePmpe: 0,
             calcEffParticipatingBidPmpe: 0,
           },
+          values: commissions ? { commissions } : undefined,
         }) as RawScoredValidatorDto,
     )
   }

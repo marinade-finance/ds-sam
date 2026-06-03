@@ -145,6 +145,9 @@ export type RevShare = {
 export type BidTooLowPenalty = {
   coef: number
   base: number
+  // optional as they are missing in the reset/default state
+  prevCommitmentPmpe?: number
+  shortfallPmpe?: number
 }
 
 export type BondForcedUndelegation = {

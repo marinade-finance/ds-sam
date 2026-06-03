@@ -1,8 +1,16 @@
+import { calcValidatorRevShare } from '../../src/calculations'
 import { AuctionConstraints } from '../../src/constraints'
 import { Debug } from '../../src/debug'
-import { ineligibleValidatorAggDefaults } from '../../src/utils'
+import { effectiveCommissions, ineligibleValidatorAggDefaults } from '../../src/utils'
 
-import type { AuctionConstraintsConfig, AuctionData, AuctionValidator, RevShare } from '../../src/types'
+import type {
+  AuctionConstraintsConfig,
+  AuctionData,
+  AuctionValidator,
+  CommissionDetails,
+  RevShare,
+  Rewards,
+} from '../../src/types'
 
 export const BASE_CONSTRAINTS: AuctionConstraintsConfig = {
   totalCountryStakeCapSol: Infinity,
@@ -76,6 +84,43 @@ export function makeUnitValidator(overrides: Partial<AuctionValidator>): Auction
   } as AuctionValidator
 
   return { ...base, ...overrides }
+}
+
+export function commissionDetailsFor(
+  onchainInflationDec: number,
+  inBondInflationDec: number | null,
+): CommissionDetails {
+  const effective = effectiveCommissions(onchainInflationDec, inBondInflationDec, 0, null)
+  return {
+    inflationCommissionDec: effective.inflationDec,
+    mevCommissionDec: effective.mevDec ?? 1,
+    blockRewardsCommissionDec: 1,
+    inflationCommissionOnchainDec: onchainInflationDec,
+    inflationCommissionInBondDec: inBondInflationDec,
+    mevCommissionOnchainDec: 0,
+    mevCommissionInBondDec: null,
+    blockRewardsCommissionInBondDec: null,
+  }
+}
+
+export function revShareForCommissions(
+  rewards: Rewards,
+  onchainInflationDec: number,
+  inBondInflationDec: number | null,
+  bidCpmpe: number,
+): RevShare {
+  const commissions = commissionDetailsFor(onchainInflationDec, inBondInflationDec)
+  return calcValidatorRevShare(
+    {
+      voteAccount: 'validator',
+      inflationCommissionDec: commissions.inflationCommissionDec,
+      mevCommissionDec: commissions.mevCommissionDec,
+      blockRewardsCommissionDec: commissions.blockRewardsCommissionDec,
+      bidCpmpe,
+      values: { commissions },
+    },
+    rewards,
+  )
 }
 
 export function makeAuction(overrides: Partial<AuctionData> = {}): AuctionData {

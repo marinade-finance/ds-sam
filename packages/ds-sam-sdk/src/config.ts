@@ -47,10 +47,6 @@ export type DsSamConfig = {
   unprotectedFoundationStakeDec: number
   // How much unprotected stake do we put on a validator w.r.t the other 3-rd party delegated stake
   unprotectedDelegatedStakeDec: number
-  // How many historical bids to consider when deciding how much to charge for
-  // the BidTooLowPenalty
-  bidTooLowPenaltyHistoryEpochs: number
-
   // Cap of Marinade stake share in a single country
   maxMarinadeStakeConcentrationPerCountryDec: number
   // Cap of Marinade stake share with a single ASO
@@ -115,11 +111,6 @@ export type DsSamConfig = {
   // unstake priority. Values > 1 create a grace zone above minLimit before deprioritisation kicks in.
   bondSamHealthMult: number
 
-  // Permitted deviation in bid Pmpe below the winning bid Pmpe
-  // This deviation will not be penalized when calculating the BidTooLowPenalty meaning validator
-  // may slightly underbid the winning bid without being penalized. Permitted interval is [0, 1.0].
-  bidTooLowPenaltyPermittedDeviationPmpe: number
-
   // Validator vote accounts to collect debug info for
   debugVoteAccounts: string[]
 
@@ -147,7 +138,6 @@ export const DEFAULT_CONFIG: DsSamConfig = {
   unprotectedDelegatedStakeDec: 0,
   unprotectedFoundationStakeDec: 0,
   minUnprotectedStakeToDelegateSol: 0,
-  bidTooLowPenaltyHistoryEpochs: 3,
 
   maxMarinadeStakeConcentrationPerCountryDec: 1,
   maxMarinadeStakeConcentrationPerAsoDec: 1,
@@ -167,7 +157,6 @@ export const DEFAULT_CONFIG: DsSamConfig = {
   minEligibleFeePmpe: null,
   bondObligationSafetyMult: 1,
   bondSamHealthMult: 1.1,
-  bidTooLowPenaltyPermittedDeviationPmpe: 0.05,
   minimalCommission: -2.0,
 
   debugVoteAccounts: [],

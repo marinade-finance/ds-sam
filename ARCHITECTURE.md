@@ -28,7 +28,7 @@ TypeScript monorepo:
    scaled by `activatingStakePmpeMult`)
 6. `setEffParticipatingBids()` - participating bid amounts
 7. `setBondRiskFee()` - charge risk fees for underfunded bonds
-8. `setBidTooLowPenalties()` - penalize underbidding
+8. `setBidTooLowPenalties()` - penalize reduced commitments
 9. `setMaxBondDelegations()` - max stake per bond
 10. `setBlacklistPenalties()` - penalize blacklisted validators
 
@@ -195,10 +195,18 @@ bondObligationPmpe = bidPmpe + blockPmpe
 `winningPmpe + min(3 * effParticipatingBidPmpe, winningPmpe)`.
 Makes bid 2-4x uncompetitive but allows recovery.
 
-**Bid too low**: Underbidding winning PMPE incurs penalty based
-on historical bids. A permitted deviation
-(`bidTooLowPenaltyPermittedDeviationPmpe`) allows slight
-underbidding without penalty.
+**Bid too low**: Current `totalPmpe` is compared against the
+validator's own previous-auction offer (commissions + bid,
+reconstructed at current reward estimates), so any decommitment
+path — bid cut, commission raise — is charged equally. The
+reference is the most recent epoch where the validator actually
+has a record, looked up within the last
+`BID_TOO_LOW_PENALTY_HISTORY_EPOCHS` (3) epochs — a missing
+record (API gap) falls back to an older one instead of granting
+a free pass. Validators whose offer still clears the auction
+never pay; below it the penalty equals the shortfall, capped at
+`winningPmpe + effParticipatingBidPmpe`. Newcomers and validators
+without any record in the window are never charged.
 
 ## Data Provider
 

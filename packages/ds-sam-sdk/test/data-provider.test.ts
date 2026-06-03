@@ -402,6 +402,36 @@ describe('processAuctions', () => {
     expect(bobEpoch700?.effParticipatingBidPmpe).toBe(0)
     expect(bobEpoch700?.totalPmpe).toBe(0)
     expect(bobEpoch700?.bidPmpe).toBe(0)
+    expect(bobEpoch700?.present).toBe(false)
+    const aliceEpoch700 = agg.validators.find(v => v.voteAccount === 'alice')?.auctions.find(a => a.epoch === 700)
+    expect(aliceEpoch700?.present).toBe(true)
+  })
+
+  it('drops records of the current epoch (recompute / duplicate runs)', async () => {
+    const alice = new ValidatorMockBuilder('alice', 'id-a')
+      .withEligibleDefaults()
+      .withAuctionEntry({
+        epoch: 700,
+        marinadeSamTargetSol: 100,
+        totalPmpe: 7,
+        bondObligationPmpe: 4,
+        onchainDistributedPmpe: 2,
+      })
+      .withAuctionEntry({
+        // defaultStaticDataProviderBuilder current epoch
+        epoch: 1000,
+        marinadeSamTargetSol: 100,
+        totalPmpe: 12,
+        bondObligationPmpe: 5,
+        onchainDistributedPmpe: 3,
+      })
+    const dp = defaultStaticDataProviderBuilder([alice])(DEFAULT_CONFIG)
+    const raw = await dp.fetchSourceData()
+    const agg = dp.aggregateData(raw)
+    const aliceAuctions = agg.validators.find(v => v.voteAccount === 'alice')?.auctions ?? []
+
+    expect(aliceAuctions.length).toBe(1)
+    expect(aliceAuctions[0]?.epoch).toBe(700)
   })
 
   it('multi-epoch entries are grouped and sorted descending', async () => {

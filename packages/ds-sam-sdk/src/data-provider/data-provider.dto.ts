@@ -34,6 +34,8 @@ export type AuctionHistory = {
 
 export type AuctionHistoryStats = {
   epoch: number
+  // false for placeholder entries fabricated when the validator has no record for the epoch
+  present: boolean
   winningTotalPmpe: number
   auctionEffectiveBidPmpe: number
   activatingStakePmpe: number

@@ -216,53 +216,55 @@ export type BidTooLowPenaltyResult = {
   paidUndelegationSol: number
 }
 
-// Calculates the penalty for lowering the bid (considered whatever static, or dynamic commission)
-//  compared to the last epochs - i.e., penalizes validators who reduce their commitment
-// cf. https://www.notion.so/marinade/20250416-MRP-2-Stake-Auction-Marketplace-Bid-Penalty-1d7e465715a480cc80cecd86d63ce6af
+// How many epochs back to look for the commitment reference; a record missing for an epoch
+// (API gap, publish failure) then falls back to the nearest older record instead of a free pass
+export const BID_TOO_LOW_PENALTY_HISTORY_EPOCHS = 3
 
+/**
+ * Calculates the penalty by comparing the validator's current total PMPE against their own
+ * previous auction commitment (commissions + bid) reconstructed at current reward estimates,
+ * so the comparison reacts only to setting changes, never to reward estimate drift.
+ * Any decommitment path (bid reduction, onchain or in-bond commission increase) is treated equally.
+ * cf. GEN-7037
+ */
 export const calcBidTooLowPenalty = ({
-  historyEpochs,
+  rewards,
   winningTotalPmpe,
   validator,
-  permittedBidDeviation = 0,
 }: {
-  historyEpochs: number
+  rewards: Rewards
   winningTotalPmpe: number
   validator: AuctionValidator
-  permittedBidDeviation?: number
 }): BidTooLowPenaltyResult => {
-  const tolCoef = 0.99999
-  const scaleCoef = 1.5
-  assert(permittedBidDeviation >= 0 && permittedBidDeviation <= 1, 'permittedBidDeviation has to be in [0, 1]')
   const { revShare, auctions } = validator
-  const historicalPmpe = auctions
-    .slice(0, historyEpochs)
-    .reduce((acc, { effParticipatingBidPmpe }) => Math.min(acc, effParticipatingBidPmpe), Infinity)
-  const limit = Math.min(revShare.effParticipatingBidPmpe, historicalPmpe)
-  const adjustedLimit = limit * (1 - permittedBidDeviation)
-  const penaltyCoef =
-    adjustedLimit > 0
-      ? Math.min(1, Math.sqrt(scaleCoef * Math.max(0, (adjustedLimit - revShare.bondObligationPmpe) / adjustedLimit)))
-      : 0
-  const pastAuction = auctions[0]
-  const isNegativeBiddingChange = revShare.bidPmpe < tolCoef * (pastAuction?.bidPmpe ?? 0)
-  // Disable commission-based penalty for now; commmissions = validator.values.commissions
-  // || tolCoef * commissions.inflationCommissionDec > (pastAuction?.commissions?.inflationCommissionDec ?? Infinity) ||
-  // tolCoef * commissions.mevCommissionDec > (pastAuction?.commissions?.mevCommissionDec ?? Infinity) ||
-  // tolCoef * commissions.blockRewardsCommissionDec > (pastAuction?.commissions?.blockRewardsCommissionDec ?? Infinity)
-  const bidTooLowPenaltyValue = {
-    base: winningTotalPmpe + revShare.effParticipatingBidPmpe,
-    // did validator lower its bid compared to last epoch; if so how much
-    coef: isNegativeBiddingChange ? penaltyCoef : 0,
+  const prevAuction = auctions.slice(0, BID_TOO_LOW_PENALTY_HISTORY_EPOCHS).find(auction => auction.present)
+  // newcomers have no present record in the window and missing commission history defaults
+  // to 100% commissions (extractAuctionHistoryStats), both yielding commitment 0 -> never charged
+  const prevCommitmentPmpe =
+    prevAuction == null
+      ? 0
+      : calculatePmpe(rewards.inflationPmpe, prevAuction.commissions.inflationCommissionDec) +
+        calculatePmpe(rewards.mevPmpe, prevAuction.commissions.mevCommissionDec) +
+        calculatePmpe(rewards.blockPmpe, prevAuction.commissions.blockRewardsCommissionDec) +
+        Math.max(0, prevAuction.bidPmpe)
+  const shortfallPmpe = Math.max(0, prevCommitmentPmpe - revShare.totalPmpe)
+  // validators whose offer still clears the auction keep their stake and never pay
+  const isWinner = revShare.totalPmpe >= winningTotalPmpe
+  const base = winningTotalPmpe + revShare.effParticipatingBidPmpe
+  const bidTooLowPenaltyPmpe = isWinner ? 0 : Math.min(shortfallPmpe, base)
+  const bidTooLowPenalty: BidTooLowPenalty = {
+    base,
+    coef: base > 0 ? bidTooLowPenaltyPmpe / base : 0,
+    prevCommitmentPmpe,
+    shortfallPmpe,
   }
-  const bidTooLowPenaltyPmpe = bidTooLowPenaltyValue.coef * bidTooLowPenaltyValue.base
   const paidUndelegationSol =
     bidTooLowPenaltyPmpe > 0 ? (bidTooLowPenaltyPmpe * validator.marinadeActivatedStakeSol) / winningTotalPmpe : 0
   if (!isFinite(bidTooLowPenaltyPmpe)) {
-    throw new Error(`bidTooLowPenaltyPmpe has to be finite # ${JSON.stringify(bidTooLowPenaltyValue)}`)
+    throw new Error(`bidTooLowPenaltyPmpe has to be finite # ${JSON.stringify(bidTooLowPenalty)}`)
   }
   if (bidTooLowPenaltyPmpe < 0) {
-    throw new Error(`bidTooLowPenaltyPmpe can not be negative # ${JSON.stringify(bidTooLowPenaltyValue)}`)
+    throw new Error(`bidTooLowPenaltyPmpe can not be negative # ${JSON.stringify(bidTooLowPenalty)}`)
   }
   if (!isFinite(paidUndelegationSol)) {
     throw new Error(
@@ -275,7 +277,7 @@ export const calcBidTooLowPenalty = ({
     )
   }
   return {
-    bidTooLowPenalty: bidTooLowPenaltyValue,
+    bidTooLowPenalty,
     bidTooLowPenaltyPmpe,
     paidUndelegationSol,
   }

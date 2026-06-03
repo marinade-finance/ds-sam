@@ -40,11 +40,6 @@ export class DsSamSDK {
         `Invalid config: bondObligationSafetyMult must be in interval [1.0, 2.0], got ${config.bondObligationSafetyMult}`,
       )
     }
-    if (config.bidTooLowPenaltyPermittedDeviationPmpe < 0 || config.bidTooLowPenaltyPermittedDeviationPmpe > 1.0) {
-      throw new Error(
-        `Invalid config: bidTooLowPenaltyPermittedDeviationPmpe must be in interval [0.0, 1.0], got ${config.bidTooLowPenaltyPermittedDeviationPmpe}`,
-      )
-    }
   }
 
   getAuctionConstraints({ stakeAmounts }: AggregatedData, debug: Debug): AuctionConstraints {

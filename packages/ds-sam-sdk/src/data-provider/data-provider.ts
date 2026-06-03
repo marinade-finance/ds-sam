@@ -3,7 +3,7 @@ import fs from 'fs'
 import axios from 'axios'
 import Decimal from 'decimal.js'
 
-import { calcEffParticipatingBidPmpe } from '../calculations'
+import { BID_TOO_LOW_PENALTY_HISTORY_EPOCHS, calcEffParticipatingBidPmpe } from '../calculations'
 import { InputsSource } from '../config'
 import { effectiveCommissions } from '../utils'
 
@@ -108,6 +108,7 @@ export class DataProvider {
       console.log(`validator ${validator.vote_account} did not participate in auction in epoch ${auction.epoch}`)
       return {
         epoch: auction.epoch,
+        present: false,
         winningTotalPmpe: auction.winningTotalPmpe,
         auctionEffectiveBidPmpe: 0,
         activatingStakePmpe: 0,
@@ -120,6 +121,7 @@ export class DataProvider {
     }
     return {
       epoch: auction.epoch,
+      present: true,
       winningTotalPmpe: auction.winningTotalPmpe,
       auctionEffectiveBidPmpe: revShare.auctionEffectiveBidPmpe,
       activatingStakePmpe: revShare.activatingStakePmpe,
@@ -135,9 +137,11 @@ export class DataProvider {
   private aggregateValidators(
     data: RawSourceData,
     blacklist: Set<string>,
+    epoch: number,
     dataOverrides: SourceDataOverrides | null = null,
   ): AggregatedValidator[] {
-    const auctionHistoriesData = this.processAuctions(data.auctions)
+    // same-epoch records (duplicate runs / recompute) must not shadow the previous-epoch history
+    const auctionHistoriesData = this.processAuctions(data.auctions.filter(auction => auction.epoch < epoch))
     return data.validators.validators.map((validator): AggregatedValidator => {
       const bond = data.bonds.bonds.find(({ vote_account }) => validator.vote_account === vote_account)
       const mev = data.mevInfo.validators.find(({ vote_account }) => validator.vote_account === vote_account)
@@ -285,7 +289,7 @@ export class DataProvider {
     console.log('tvl', tvlSol)
     return {
       epoch,
-      validators: this.aggregateValidators(data, blacklist, dataOverrides),
+      validators: this.aggregateValidators(data, blacklist, epoch, dataOverrides),
       rewards: {
         inflationPmpe: this.aggregateRewardsRecords(activatedStakePerEpochs, data.rewards.rewards_inflation_est),
         mevPmpe: this.aggregateRewardsRecords(activatedStakePerEpochs, data.rewards.rewards_mev),
@@ -363,7 +367,7 @@ export class DataProvider {
       this.fetchTvlInfo(),
       this.fetchBlacklist(),
       this.fetchRewards(),
-      this.fetchAuctions(this.config.bidTooLowPenaltyHistoryEpochs),
+      this.fetchAuctions(BID_TOO_LOW_PENALTY_HISTORY_EPOCHS),
     ])
 
     const data = {
