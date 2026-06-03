@@ -1,7 +1,7 @@
-import { calcBidTooLowPenalty, calcValidatorRevShare } from '../src/calculations'
+import { calcBidTooLowPenalty, calcEffParticipatingBidPmpe, calcValidatorRevShare } from '../src/calculations'
 import { effectiveCommissions } from '../src/utils'
 
-import type { RevShare } from '../src/types'
+import type { CommissionDetails, RevShare } from '../src/types'
 import type { AuctionValidator } from '../src/types'
 
 const REWARDS = { inflationPmpe: 0.4, mevPmpe: 0.05, blockPmpe: 0 }
@@ -9,30 +9,38 @@ const BID = 0.005
 const PERMITTED_DEVIATION = 0.01
 const HISTORY_EPOCHS = 3
 
-const revShareFor = (onchainInflationDec: number, inBondInflationDec: number | null, bidCpmpe: number): RevShare => {
+const commissionsFor = (onchainInflationDec: number, inBondInflationDec: number | null): CommissionDetails => {
   const effective = effectiveCommissions(onchainInflationDec, inBondInflationDec, 0, null)
-  return calcValidatorRevShare(
+  return {
+    inflationCommissionDec: effective.inflationDec,
+    mevCommissionDec: effective.mevDec ?? 1,
+    blockRewardsCommissionDec: 1,
+    inflationCommissionOnchainDec: onchainInflationDec,
+    inflationCommissionInBondDec: inBondInflationDec,
+    mevCommissionOnchainDec: 0,
+    mevCommissionInBondDec: null,
+    blockRewardsCommissionInBondDec: null,
+  }
+}
+
+const revShareFor = (
+  onchainInflationDec: number,
+  inBondInflationDec: number | null,
+  bidCpmpe: number,
+): RevShare & { commissions: CommissionDetails } => {
+  const commissions = commissionsFor(onchainInflationDec, inBondInflationDec)
+  const revShare = calcValidatorRevShare(
     {
       voteAccount: 'validator',
-      inflationCommissionDec: effective.inflationDec,
-      mevCommissionDec: effective.mevDec,
+      inflationCommissionDec: commissions.inflationCommissionDec,
+      mevCommissionDec: commissions.mevCommissionDec,
       blockRewardsCommissionDec: null,
       bidCpmpe,
-      values: {
-        commissions: {
-          inflationCommissionDec: effective.inflationDec,
-          mevCommissionDec: effective.mevDec ?? 1,
-          blockRewardsCommissionDec: 1,
-          inflationCommissionOnchainDec: onchainInflationDec,
-          inflationCommissionInBondDec: inBondInflationDec,
-          mevCommissionOnchainDec: 0,
-          mevCommissionInBondDec: null,
-          blockRewardsCommissionInBondDec: null,
-        },
-      },
+      values: { commissions },
     },
     REWARDS,
   )
+  return { ...revShare, commissions }
 }
 
 const penaltyFor = ({
@@ -41,21 +49,23 @@ const penaltyFor = ({
   pastEffParticipating,
   pastBidPmpe,
 }: {
-  revShare: RevShare
+  revShare: RevShare & { commissions: CommissionDetails }
   winningTotalPmpe: number
   pastEffParticipating: number[]
   pastBidPmpe: number
 }) => {
-  revShare.effParticipatingBidPmpe = Math.max(0, winningTotalPmpe - revShare.onchainDistributedPmpe)
+  revShare.effParticipatingBidPmpe = calcEffParticipatingBidPmpe(revShare, winningTotalPmpe)
   const validator = {
     revShare,
     auctions: pastEffParticipating.map(effParticipatingBidPmpe => ({
       effParticipatingBidPmpe,
       bidPmpe: pastBidPmpe,
+      // past 0%-commission era; relevant once the commission trigger gets re-enabled
+      commissions: commissionsFor(0, null),
     })),
     bidTooLowPenalty: { coef: NaN, base: NaN },
     marinadeActivatedStakeSol: 100000,
-    values: { commissions: null },
+    values: { commissions: revShare.commissions },
   } as unknown as AuctionValidator
   return calcBidTooLowPenalty({
     historyEpochs: HISTORY_EPOCHS,

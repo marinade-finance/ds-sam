@@ -11,7 +11,7 @@ const auctionValidator = (inflationPmpe: number, mevPmpe: number, totalPmpe: num
   ({
     voteAccount: VOTE_ACCOUNT,
     inflationCommissionDec: 1 - inflationPmpe / REWARDS.inflationPmpe,
-    mevCommissionDec: null,
+    mevCommissionDec: 1 - mevPmpe / REWARDS.mevPmpe,
     maxStakeWanted: null,
     revShare: {
       inflationPmpe,
@@ -62,6 +62,20 @@ describe('analyze-revenues beforeSamCommissionIncreasePmpe', () => {
     expect(res.beforeSamCommissionIncreasePmpe).toBeCloseTo(0.02 + 0.005, 12)
   })
 
+  it('nets a MEV commission decrease against an inflation commission increase', () => {
+    // inflation 0% -> 5% (share 0.40 -> 0.38) while MEV 10% -> 0% (share 0.045 -> 0.05)
+    const past = new Map([[VOTE_ACCOUNT, { inflation: 0, mev: 0.1 }]])
+    const res = evaluate(0.38, 0.05, 0.43, past)
+    expect(res.beforeSamCommissionIncreasePmpe).toBeCloseTo(0.02 - 0.005, 12)
+  })
+
+  it('does not charge when a MEV commission decrease outweighs the inflation increase', () => {
+    // inflation 5% -> 6% (share 0.38 -> 0.376) while MEV 50% -> 0% (share 0.025 -> 0.05)
+    const past = new Map([[VOTE_ACCOUNT, { inflation: 0.05, mev: 0.5 }]])
+    const res = evaluate(0.376, 0.05, 0.43, past)
+    expect(res.beforeSamCommissionIncreasePmpe).toBe(0)
+  })
+
   it('does not charge a validator who won the auction', () => {
     const past = new Map([[VOTE_ACCOUNT, { inflation: 0, mev: 0 }]])
     const res = evaluate(0.38, 0.045, WINNING_TOTAL_PMPE, past)
@@ -73,6 +87,24 @@ describe('analyze-revenues beforeSamCommissionIncreasePmpe', () => {
     const past = new Map([[VOTE_ACCOUNT, { inflation: 0.05, mev: null }]])
     const res = evaluate(0.4, 0.05, 0.43, past)
     expect(res.beforeSamCommissionIncreasePmpe).toBe(0)
+  })
+
+  it('charges when auction was lost at SAM time even if pmpe rose after the SAM run', () => {
+    // lost at SAM time (0.43 < 0.45), commission decreased after so the after-state would look like a win
+    const past = new Map([[VOTE_ACCOUNT, { inflation: 0, mev: null }]])
+    const before = auctionValidator(0.38, 0.05, 0.43)
+    const after = auctionValidator(0.4, 0.05, WINNING_TOTAL_PMPE)
+    const result = cmd.evaluateRevenueExpectationForAuctionValidators([before], [after], auctionResult, past, REWARDS)
+    expect(result[0]?.beforeSamCommissionIncreasePmpe).toBeCloseTo(0.02, 12)
+  })
+
+  it('does not charge when auction was won at SAM time even if pmpe dropped after the SAM run', () => {
+    // won at SAM time thanks to the bid, commission increased after so the after-state would look like a loss
+    const past = new Map([[VOTE_ACCOUNT, { inflation: 0, mev: null }]])
+    const before = auctionValidator(0.38, 0.05, WINNING_TOTAL_PMPE)
+    const after = auctionValidator(0.36, 0.05, 0.41)
+    const result = cmd.evaluateRevenueExpectationForAuctionValidators([before], [after], auctionResult, past, REWARDS)
+    expect(result[0]?.beforeSamCommissionIncreasePmpe).toBe(0)
   })
 
   it('does not charge without past snapshot data', () => {
