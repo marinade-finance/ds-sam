@@ -79,14 +79,22 @@ const penaltyFor = ({
 // path is shared with the bid trigger, so scenarios force it via a marginal bid decrease.
 const TRIGGERING_PAST_BID = BID * 1.01
 
+// effParticipatingBidPmpe = winningTotalPmpe - onchainDistributedPmpe: the slice of the
+// clearing price the bond must cover, NOT the validator's own bid — so it INCREASES
+// when commission increases (less gets distributed on-chain)
+const effParticipatingFor = (onchainInflationDec: number, winningTotalPmpe: number): number =>
+  calcEffParticipatingBidPmpe(revShareFor(onchainInflationDec, null, BID), winningTotalPmpe)
+
 describe('bid too low penalty on commission changes (GEN-7037 exploration)', () => {
   it('commission raise alone does not fire the penalty today (commission trigger disabled)', () => {
+    const winningTotalPmpe = 0.455
     const revShare = revShareFor(0.05, null, BID)
     expect(revShare.bondObligationPmpe).toBeCloseTo(BID, 12)
+    const zeroEraEff = effParticipatingFor(0, winningTotalPmpe)
     const res = penaltyFor({
       revShare,
-      winningTotalPmpe: 0.455,
-      pastEffParticipating: [0.005, 0.005, 0.005],
+      winningTotalPmpe,
+      pastEffParticipating: [zeroEraEff, zeroEraEff, zeroEraEff],
       pastBidPmpe: BID,
     })
     expect(res.bidTooLowPenalty.coef).toBe(0)
@@ -102,12 +110,14 @@ describe('bid too low penalty on commission changes (GEN-7037 exploration)', () 
   })
 
   it('onchain raise 0% -> 5% with no in-bond config yields zero fee even when the trigger fires', () => {
+    const winningTotalPmpe = 0.455
     const revShare = revShareFor(0.05, null, BID)
+    // floor still holds the 0%-commission era values W - G = 0.005
+    const zeroEraEff = effParticipatingFor(0, winningTotalPmpe)
     const res = penaltyFor({
       revShare,
-      winningTotalPmpe: 0.455,
-      // floor still holds the 0%-commission era values W - G = 0.005
-      pastEffParticipating: [0.005, 0.005, 0.005],
+      winningTotalPmpe,
+      pastEffParticipating: [zeroEraEff, zeroEraEff, zeroEraEff],
       pastBidPmpe: TRIGGERING_PAST_BID,
     })
     expect(revShare.effParticipatingBidPmpe).toBeCloseTo(0.025, 12)
@@ -128,10 +138,11 @@ describe('bid too low penalty on commission changes (GEN-7037 exploration)', () 
     const revShare = revShareFor(0.05, 0.02, BID)
     expect(revShare.totalPmpe).toBeGreaterThanOrEqual(winningTotalPmpe)
     expect(revShare.bondObligationPmpe).toBeCloseTo(0.017, 12)
+    const pastEff = effParticipatingFor(0.05, winningTotalPmpe)
     const res = penaltyFor({
       revShare,
       winningTotalPmpe,
-      pastEffParticipating: [0.01, 0.01, 0.01],
+      pastEffParticipating: [pastEff, pastEff, pastEff],
       pastBidPmpe: TRIGGERING_PAST_BID,
     })
     expect(res.bidTooLowPenalty.coef).toBe(0)
@@ -140,7 +151,8 @@ describe('bid too low penalty on commission changes (GEN-7037 exploration)', () 
 
   it('the 1% slack does not renew: a second small in-bond step pays a fee', () => {
     const winningTotalPmpe = 0.44
-    const floor = 0.01
+    const floor = effParticipatingFor(0.05, winningTotalPmpe)
+    expect(floor).toBeCloseTo(0.01, 12)
     const withinSlack = revShareFor(0.05, 0.0376, BID)
     expect(withinSlack.bondObligationPmpe).toBeCloseTo(0.00996, 12)
     const first = penaltyFor({
@@ -166,16 +178,22 @@ describe('bid too low penalty on commission changes (GEN-7037 exploration)', () 
     expect(second.bidTooLowPenalty.coef).toBeGreaterThan(0)
   })
 
-  it('full 0% -> 5% effective jump is free within the 3-epoch history window and maximal after it', () => {
+  it('0% -> 5% raise stays free only while pre-raise epochs keep the history floor low', () => {
     const winningTotalPmpe = 0.455
     const revShare = revShareFor(0.05, 0.05, BID)
     expect(revShare.bondObligationPmpe).toBeCloseTo(BID, 12)
+
+    // the penalty limit is the min of the current and the historical eff participating values
+    const raisedEff = effParticipatingFor(0.05, winningTotalPmpe)
+    const zeroEraEff = effParticipatingFor(0, winningTotalPmpe)
+    expect(raisedEff).toBeCloseTo(0.025, 12)
+    expect(zeroEraEff).toBeCloseTo(0.005, 12)
 
     // onchain was raised last epoch; older history still holds the low 0%-era floor
     const withinWindow = penaltyFor({
       revShare: revShareFor(0.05, 0.05, BID),
       winningTotalPmpe,
-      pastEffParticipating: [0.025, 0.005, 0.005],
+      pastEffParticipating: [raisedEff, zeroEraEff, zeroEraEff],
       pastBidPmpe: TRIGGERING_PAST_BID,
     })
     expect(withinWindow.bidTooLowPenalty.coef).toBe(0)
@@ -183,21 +201,22 @@ describe('bid too low penalty on commission changes (GEN-7037 exploration)', () 
     const afterWindow = penaltyFor({
       revShare: revShareFor(0.05, 0.05, BID),
       winningTotalPmpe,
-      pastEffParticipating: [0.025, 0.025, 0.025],
+      pastEffParticipating: [raisedEff, raisedEff, raisedEff],
       pastBidPmpe: TRIGGERING_PAST_BID,
     })
     expect(afterWindow.bidTooLowPenalty.coef).toBe(1)
-    expect(afterWindow.bidTooLowPenaltyPmpe).toBeCloseTo(winningTotalPmpe + 0.025, 12)
+    expect(afterWindow.bidTooLowPenaltyPmpe).toBeCloseTo(winningTotalPmpe + raisedEff, 12)
   })
 
   it('overshooting onchain commission keeps bondObligationPmpe above the floor at 5% effective', () => {
     const winningTotalPmpe = 0.455
     const revShare = revShareFor(0.1, 0.05, BID)
     expect(revShare.bondObligationPmpe).toBeCloseTo(0.025, 12)
+    const pastEff = effParticipatingFor(0.05, winningTotalPmpe)
     const res = penaltyFor({
       revShare,
       winningTotalPmpe,
-      pastEffParticipating: [0.025, 0.025, 0.025],
+      pastEffParticipating: [pastEff, pastEff, pastEff],
       pastBidPmpe: TRIGGERING_PAST_BID,
     })
     expect(res.bidTooLowPenalty.coef).toBe(0)
