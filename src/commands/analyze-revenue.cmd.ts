@@ -77,6 +77,12 @@ export type RevenueExpectation = {
 export const loadSnapshotValidatorsCollection = (path: string): SnapshotValidatorsCollection =>
   JSON.parse(fs.readFileSync(path).toString()) as SnapshotValidatorsCollection
 
+export const snapshotOnchainCommissions = (validatorMeta: SnapshotValidatorMeta): PastValidatorCommissions => ({
+  inflation: validatorMeta.commission / 100,
+  // mev_commission is validator_commission_bps from Jito TipDistributionAccount
+  mev: validatorMeta.mev_commission != null ? validatorMeta.mev_commission / 10_000 : null,
+})
+
 export const getValidatorOverrides = (
   snapshotValidatorsCollection: SnapshotValidatorsCollection,
   bonds: RawBondsResponseDto,
@@ -91,13 +97,12 @@ export const getValidatorOverrides = (
   for (const validatorMeta of snapshotValidatorsCollection.validator_metas) {
     const bond = bondsByVoteAccount.get(validatorMeta.vote_account)
 
-    const inflationOnchainDec = validatorMeta.commission / 100
+    const onchain = snapshotOnchainCommissions(validatorMeta)
     const inflationBondDec =
       bond?.inflation_commission_bps != null ? Number(bond.inflation_commission_bps) / 10_000 : null
-    const mevOnchainDec = validatorMeta.mev_commission != null ? validatorMeta.mev_commission / 10_000 : null
     const mevBondDec = bond?.mev_commission_bps != null ? Number(bond.mev_commission_bps) / 10_000 : null
 
-    const effective = effectiveCommissions(inflationOnchainDec, inflationBondDec, mevOnchainDec, mevBondDec)
+    const effective = effectiveCommissions(onchain.inflation, inflationBondDec, onchain.mev, mevBondDec)
 
     inflationCommissionsDec.set(validatorMeta.vote_account, effective.inflationDec)
     mevCommissionsDec.set(validatorMeta.vote_account, effective.mevDec ?? undefined)
@@ -206,13 +211,7 @@ export class AnalyzeRevenuesCommand extends CommandRunner {
     }
 
     for (const validatorMeta of pastValidatorCollection.validator_metas) {
-      const voteAccount = validatorMeta.vote_account
-      const inflationLastEpoch = validatorMeta.commission / 100
-      const mevLastEpoch = validatorMeta.mev_commission ? validatorMeta.mev_commission / 100 : null
-      commissionMap.set(voteAccount, {
-        inflation: inflationLastEpoch,
-        mev: mevLastEpoch,
-      })
+      commissionMap.set(validatorMeta.vote_account, snapshotOnchainCommissions(validatorMeta))
     }
 
     return commissionMap
@@ -245,37 +244,45 @@ export class AnalyzeRevenuesCommand extends CommandRunner {
       // if validator increased commission (in comparison to last epoch) AND his auction bid is under the winning PMPE
       // he requires to top up the difference that is not covered by the bid (the part within winning PMPE range is covered by the bid)
       let beforeSamCommissionIncreasePmpe = 0
-      const lastEpochCommissions = pastValidatorCommissions.get(validatorBefore.voteAccount) ?? {
-        inflation: 0,
-        mev: null,
-      }
-      const lastEpochInflationPmpe = rewards.inflationPmpe * (1.0 - lastEpochCommissions.inflation)
-      if (
-        // validatorBefore.revShare.inflationPmpe - inflation at time SAM was run
-        validatorBefore.revShare.inflationPmpe > lastEpochInflationPmpe &&
-        auctionResult.winningTotalPmpe > validatorAfter.revShare.totalPmpe
-      ) {
+      const lastEpochCommissions = pastValidatorCommissions.get(validatorBefore.voteAccount)
+      // without the past snapshot data (--snapshot-past-validators-file-path) nothing is charged
+      if (lastEpochCommissions != null && auctionResult.winningTotalPmpe > validatorBefore.revShare.totalPmpe) {
         const samInflationPmpe = validatorBefore.revShare.inflationPmpe
-        beforeSamCommissionIncreasePmpe = Math.max(0, samInflationPmpe - lastEpochInflationPmpe - samInflationPmpe)
-        this.logger.debug('Validator increased commission and has not won auction', {
-          voteAccount: validatorBefore.voteAccount,
-          inflationCommissionLastEpoch: lastEpochCommissions.inflation,
-          inflationPmpeLastEpoch: lastEpochInflationPmpe,
-          samInflationPmpe: samInflationPmpe,
-          beforeSamCommissionIncreasePmpe: beforeSamCommissionIncreasePmpe,
-          winningPmpe: auctionResult.winningTotalPmpe,
-          validatorTotalPmpe: validatorAfter.revShare.totalPmpe,
-        })
+        const samMevPmpe = validatorBefore.revShare.mevPmpe
+        const lastEpochInflationPmpe = rewards.inflationPmpe * (1.0 - lastEpochCommissions.inflation)
+        const lastEpochMevPmpe =
+          lastEpochCommissions.mev == null ? null : rewards.mevPmpe * (1.0 - lastEpochCommissions.mev)
+        // combined delta: downstream charges combined non-bid PMPE, so a decrease in one commission offsets an increase in the other
+        const lastEpochMevBasePmpe = lastEpochMevPmpe ?? samMevPmpe
+        beforeSamCommissionIncreasePmpe = Math.max(
+          0,
+          lastEpochInflationPmpe + lastEpochMevBasePmpe - (samInflationPmpe + samMevPmpe),
+        )
+        if (beforeSamCommissionIncreasePmpe > 0) {
+          this.logger.debug('Validator increased commission before SAM run and has not won auction', {
+            voteAccount: validatorBefore.voteAccount,
+            inflationCommissionLastEpoch: lastEpochCommissions.inflation,
+            mevCommissionLastEpoch: lastEpochCommissions.mev,
+            lastEpochInflationPmpe,
+            lastEpochMevPmpe,
+            samInflationPmpe,
+            samMevPmpe,
+            beforeSamCommissionIncreasePmpe,
+            winningPmpe: auctionResult.winningTotalPmpe,
+            validatorTotalPmpe: validatorBefore.revShare.totalPmpe,
+          })
+        }
       }
 
       evaluation.push({
         voteAccount: validatorBefore.voteAccount,
         expectedInflationCommission: validatorBefore.inflationCommissionDec,
         actualInflationCommission: validatorAfter.inflationCommissionDec,
-        pastInflationCommission: lastEpochCommissions.inflation,
+        // 0 may also mean missing past snapshot data; beforeSamCommissionIncreasePmpe is 0 in that case too
+        pastInflationCommission: lastEpochCommissions?.inflation ?? 0,
         expectedMevCommission: validatorBefore.mevCommissionDec,
         actualMevCommission: validatorAfter.mevCommissionDec,
-        pastMevCommission: lastEpochCommissions.mev,
+        pastMevCommission: lastEpochCommissions?.mev ?? null,
         expectedNonBidPmpe,
         actualNonBidPmpe,
         expectedSamPmpe: expectedNonBidPmpe + validatorBefore.revShare.auctionEffectiveBidPmpe,
