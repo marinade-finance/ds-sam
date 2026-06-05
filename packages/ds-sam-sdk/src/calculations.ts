@@ -238,8 +238,8 @@ export const calcBidTooLowPenalty = ({
 }): BidTooLowPenaltyResult => {
   const { revShare, auctions } = validator
   const prevAuction = auctions.slice(0, BID_TOO_LOW_PENALTY_HISTORY_EPOCHS).find(auction => auction.present)
-  // newcomers have no present record in the window and missing commission history defaults
-  // to 100% commissions (extractAuctionHistoryStats), both yielding commitment 0 -> never charged
+  // newcomers have no present record in the window -> commitment 0 -> never charged; missing commission
+  // history defaults to 100% commissions (extractAuctionHistoryStats) -> commitment reduced to the recorded bid
   const prevCommitmentPmpe =
     prevAuction == null
       ? 0

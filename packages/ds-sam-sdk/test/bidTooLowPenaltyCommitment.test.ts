@@ -5,7 +5,7 @@ import { defaultStaticDataProviderBuilder } from './helpers/static-data-provider
 import { findValidatorInResult } from './helpers/utils'
 import { ValidatorMockBuilder, generateIdentities, generateVoteAccounts } from './helpers/validator-mock-builder'
 
-import type { RevShare } from '../src/types'
+import type { RevShare, Rewards } from '../src/types'
 import type { AuctionValidator } from '../src/types'
 
 const REWARDS = { inflationPmpe: 0.4, mevPmpe: 0.05, blockPmpe: 0 }
@@ -15,7 +15,12 @@ const STAKE_SOL = 100000
 const revShareFor = (onchainInflationDec: number, inBondInflationDec: number | null, bidCpmpe: number): RevShare =>
   revShareForCommissions(REWARDS, onchainInflationDec, inBondInflationDec, bidCpmpe)
 
-const pastAuction = (inflationCommissionDec: number, mevCommissionDec: number, bidPmpe: number) => ({
+const pastAuction = (
+  inflationCommissionDec: number,
+  mevCommissionDec: number,
+  bidPmpe: number,
+  blockRewardsCommissionDec = 1,
+) => ({
   present: true,
   bidPmpe,
   // stale estimate-based values must be ignored by the commitment reconstruction
@@ -25,7 +30,7 @@ const pastAuction = (inflationCommissionDec: number, mevCommissionDec: number, b
   commissions: {
     inflationCommissionDec,
     mevCommissionDec,
-    blockRewardsCommissionDec: 1,
+    blockRewardsCommissionDec,
   },
 })
 
@@ -47,10 +52,12 @@ const penaltyFor = ({
   revShare,
   winningTotalPmpe,
   prevAuctions,
+  rewards = REWARDS,
 }: {
   revShare: RevShare
   winningTotalPmpe: number
   prevAuctions: object[]
+  rewards?: Rewards
 }) => {
   revShare.effParticipatingBidPmpe = calcEffParticipatingBidPmpe(revShare, winningTotalPmpe)
   const validator = {
@@ -61,7 +68,7 @@ const penaltyFor = ({
     values: { commissions: null },
   } as unknown as AuctionValidator
   return calcBidTooLowPenalty({
-    rewards: REWARDS,
+    rewards,
     winningTotalPmpe,
     validator,
   })
@@ -127,6 +134,23 @@ describe('calcBidTooLowPenalty (commitment formula, GEN-7037)', () => {
       prevAuctions: [pastAuction(0.011, 0, BID)],
     })
     expect(second.bidTooLowPenaltyPmpe).toBeCloseTo(firstStep.totalPmpe - secondStep.totalPmpe, 12)
+  })
+
+  it('includes the block rewards term in the commitment reconstruction', () => {
+    const rewards = { inflationPmpe: 0.4, mevPmpe: 0.05, blockPmpe: 0.03 }
+    const winningTotalPmpe = 0.46
+    // current block commission is 1 (helper hardcodes it), modeling a raise from the committed 0
+    const revShare = revShareForCommissions(rewards, 0, null, BID)
+    const res = penaltyFor({
+      revShare,
+      winningTotalPmpe,
+      prevAuctions: [pastAuction(0, 0, BID, 0)],
+      rewards,
+    })
+    const prevCommitment = 0.4 + 0.05 + 0.03 + BID
+    expect(res.bidTooLowPenalty.prevCommitmentPmpe).toBeCloseTo(prevCommitment, 12)
+    expect(res.bidTooLowPenalty.shortfallPmpe).toBeCloseTo(prevCommitment - revShare.totalPmpe, 12)
+    expect(res.bidTooLowPenaltyPmpe).toBeCloseTo(0.03, 12)
   })
 
   it('ignores reward estimate drift when settings are unchanged', () => {

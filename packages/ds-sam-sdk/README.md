@@ -37,10 +37,6 @@ SDK for Marinade's DS-SAM - max yield - auction evaluation tool.
   // Max effective commission of a validator to be eligible
   validatorsMaxEffectiveCommissionDec: number
 
-  // How many historical bids to consider when deciding how much to charge for
-  // the BidTooLowPenalty
-  bidTooLowPenaltyHistoryEpochs: number
-
   // Cap of Marinade stake share in a single country
   maxMarinadeStakeConcentrationPerCountryDec: number
   // Cap of Marinade stake share with a single ASO
