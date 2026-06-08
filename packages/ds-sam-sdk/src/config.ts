@@ -47,6 +47,10 @@ export type DsSamConfig = {
   unprotectedFoundationStakeDec: number
   // How much unprotected stake do we put on a validator w.r.t the other 3-rd party delegated stake
   unprotectedDelegatedStakeDec: number
+  // How many epochs back to look for the commitment reference in the BidTooLowPenalty;
+  // also drives the auction-history fetch depth
+  bidTooLowPenaltyHistoryEpochs: number
+
   // Cap of Marinade stake share in a single country
   maxMarinadeStakeConcentrationPerCountryDec: number
   // Cap of Marinade stake share with a single ASO
@@ -138,6 +142,7 @@ export const DEFAULT_CONFIG: DsSamConfig = {
   unprotectedDelegatedStakeDec: 0,
   unprotectedFoundationStakeDec: 0,
   minUnprotectedStakeToDelegateSol: 0,
+  bidTooLowPenaltyHistoryEpochs: 3,
 
   maxMarinadeStakeConcentrationPerCountryDec: 1,
   maxMarinadeStakeConcentrationPerAsoDec: 1,

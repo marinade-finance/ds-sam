@@ -303,7 +303,13 @@ describe('processAuctions', () => {
   })
 
   it('zero-target entry does not influence winningTotalPmpe', async () => {
-    const alice = new ValidatorMockBuilder('alice', 'id-a').withEligibleDefaults()
+    const alice = new ValidatorMockBuilder('alice', 'id-a').withEligibleDefaults().withAuctionEntry({
+      epoch: 700,
+      marinadeSamTargetSol: 100,
+      totalPmpe: 20,
+      bondObligationPmpe: 5,
+      onchainDistributedPmpe: 3,
+    })
     const winner1 = new ValidatorMockBuilder('winner1', 'id-w1').auctionOnly().withAuctionEntry({
       epoch: 700,
       marinadeSamTargetSol: 100,
@@ -378,7 +384,7 @@ describe('processAuctions', () => {
     expect(epoch700?.effParticipatingBidPmpe).toBe(0)
   })
 
-  it('non-participant in an epoch gets zeros and epoch winningTotalPmpe', async () => {
+  it('non-participant in an epoch has no auction-history entry for that epoch', async () => {
     const alice = new ValidatorMockBuilder('alice', 'id-a').withEligibleDefaults().withAuctionEntry({
       epoch: 700,
       marinadeSamTargetSol: 100,
@@ -397,14 +403,10 @@ describe('processAuctions', () => {
     const dp = defaultStaticDataProviderBuilder([alice, bob])(DEFAULT_CONFIG)
     const raw = await dp.fetchSourceData()
     const agg = dp.aggregateData(raw)
-    const bobEpoch700 = agg.validators.find(v => v.voteAccount === 'bob')?.auctions.find(a => a.epoch === 700)
-    expect(bobEpoch700?.winningTotalPmpe).toBe(10)
-    expect(bobEpoch700?.effParticipatingBidPmpe).toBe(0)
-    expect(bobEpoch700?.totalPmpe).toBe(0)
-    expect(bobEpoch700?.bidPmpe).toBe(0)
-    expect(bobEpoch700?.present).toBe(false)
+    const bobAuctions = agg.validators.find(v => v.voteAccount === 'bob')?.auctions ?? []
+    expect(bobAuctions.find(a => a.epoch === 700)).toBeUndefined()
     const aliceEpoch700 = agg.validators.find(v => v.voteAccount === 'alice')?.auctions.find(a => a.epoch === 700)
-    expect(aliceEpoch700?.present).toBe(true)
+    expect(aliceEpoch700?.totalPmpe).toBe(10)
   })
 
   it('drops records of the current epoch (recompute / duplicate runs)', async () => {

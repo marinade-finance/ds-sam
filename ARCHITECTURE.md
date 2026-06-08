@@ -200,10 +200,11 @@ validator's own previous-auction offer (commissions + bid,
 reconstructed at current reward estimates), so any decommitment
 path — bid cut, commission raise — is charged equally. The
 reference is the most recent epoch where the validator actually
-has a record, looked up within the last
-`BID_TOO_LOW_PENALTY_HISTORY_EPOCHS` (3) epochs — a missing
-record (API gap) falls back to an older one instead of granting
-a free pass. Validators whose offer still clears the auction
+participated, looked up within the last
+`bidTooLowPenaltyHistoryEpochs` (3) epochs — a missing epoch
+(non-participation, API gap) falls back to an older participation
+in the window instead of granting a free pass; epochs the
+validator did not participate in have no history entry. Validators whose offer still clears the auction
 never pay; below it the penalty equals the shortfall, capped at
 `winningPmpe + effParticipatingBidPmpe`. Newcomers and validators
 without any record in the window are never charged.

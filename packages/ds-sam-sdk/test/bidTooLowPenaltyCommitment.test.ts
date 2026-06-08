@@ -11,6 +11,8 @@ import type { AuctionValidator } from '../src/types'
 const REWARDS = { inflationPmpe: 0.4, mevPmpe: 0.05, blockPmpe: 0 }
 const BID = 0.005
 const STAKE_SOL = 100000
+const EPOCH = 1000
+const HISTORY_EPOCHS = 3
 
 const revShareFor = (onchainInflationDec: number, inBondInflationDec: number | null, bidCpmpe: number): RevShare =>
   revShareForCommissions(REWARDS, onchainInflationDec, inBondInflationDec, bidCpmpe)
@@ -20,8 +22,9 @@ const pastAuction = (
   mevCommissionDec: number,
   bidPmpe: number,
   blockRewardsCommissionDec = 1,
+  epoch = EPOCH - 1,
 ) => ({
-  present: true,
+  epoch,
   bidPmpe,
   // stale estimate-based values must be ignored by the commitment reconstruction
   totalPmpe: 999,
@@ -31,20 +34,6 @@ const pastAuction = (
     inflationCommissionDec,
     mevCommissionDec,
     blockRewardsCommissionDec,
-  },
-})
-
-// placeholder fabricated by extractAuctionHistoryStats for an epoch with no record of the validator
-const absentAuction = () => ({
-  present: false,
-  bidPmpe: 0,
-  totalPmpe: 0,
-  effParticipatingBidPmpe: 0,
-  bondObligationPmpe: 0,
-  commissions: {
-    inflationCommissionDec: 1,
-    mevCommissionDec: 1,
-    blockRewardsCommissionDec: 1,
   },
 })
 
@@ -70,6 +59,8 @@ const penaltyFor = ({
   return calcBidTooLowPenalty({
     rewards,
     winningTotalPmpe,
+    epoch: EPOCH,
+    historyEpochs: HISTORY_EPOCHS,
     validator,
   })
 }
@@ -173,7 +164,7 @@ describe('calcBidTooLowPenalty (commitment formula, GEN-7037)', () => {
     expect(res.bidTooLowPenaltyPmpe).toBe(0)
   })
 
-  it('falls back to the nearest present record when the previous epoch record is missing', () => {
+  it('falls back to the nearest participation when the previous epoch is missing (still in window)', () => {
     const winningTotalPmpe = 0.45
     const revShare = revShareFor(0.05, null, BID)
     const direct = penaltyFor({
@@ -181,20 +172,22 @@ describe('calcBidTooLowPenalty (commitment formula, GEN-7037)', () => {
       winningTotalPmpe,
       prevAuctions: [pastAuction(0, 0, BID)],
     })
+    // absent in EPOCH-1 and EPOCH-2, present in EPOCH-3 (still within historyEpochs)
     const gapped = penaltyFor({
       revShare,
       winningTotalPmpe,
-      prevAuctions: [absentAuction(), absentAuction(), pastAuction(0, 0, BID)],
+      prevAuctions: [pastAuction(0, 0, BID, 1, EPOCH - HISTORY_EPOCHS)],
     })
     expect(gapped.bidTooLowPenaltyPmpe).toBeGreaterThan(0)
     expect(gapped.bidTooLowPenaltyPmpe).toBeCloseTo(direct.bidTooLowPenaltyPmpe, 12)
   })
 
-  it('does not look for a present record past the history window', () => {
+  it('does not look for a participation past the history window', () => {
     const res = penaltyFor({
       revShare: revShareFor(0.05, null, BID),
       winningTotalPmpe: 0.45,
-      prevAuctions: [absentAuction(), absentAuction(), absentAuction(), pastAuction(0, 0, BID)],
+      // last participation is EPOCH-4, just outside the historyEpochs window
+      prevAuctions: [pastAuction(0, 0, BID, 1, EPOCH - HISTORY_EPOCHS - 1)],
     })
     expect(res.bidTooLowPenalty.prevCommitmentPmpe).toBe(0)
     expect(res.bidTooLowPenaltyPmpe).toBe(0)

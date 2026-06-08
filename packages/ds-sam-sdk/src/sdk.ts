@@ -40,6 +40,11 @@ export class DsSamSDK {
         `Invalid config: bondObligationSafetyMult must be in interval [1.0, 2.0], got ${config.bondObligationSafetyMult}`,
       )
     }
+    if (!Number.isInteger(config.bidTooLowPenaltyHistoryEpochs) || config.bidTooLowPenaltyHistoryEpochs < 1) {
+      throw new Error(
+        `Invalid config: bidTooLowPenaltyHistoryEpochs must be an integer >= 1, got ${config.bidTooLowPenaltyHistoryEpochs}`,
+      )
+    }
   }
 
   getAuctionConstraints({ stakeAmounts }: AggregatedData, debug: Debug): AuctionConstraints {

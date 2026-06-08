@@ -36,6 +36,9 @@ SDK for Marinade's DS-SAM - max yield - auction evaluation tool.
   validatorsClientVersionSemverExpr: string
   // Max effective commission of a validator to be eligible
   validatorsMaxEffectiveCommissionDec: number
+  // How many epochs back to look for the commitment reference in the BidTooLowPenalty
+  // (also drives the auction-history fetch depth)
+  bidTooLowPenaltyHistoryEpochs: number
 
   // Cap of Marinade stake share in a single country
   maxMarinadeStakeConcentrationPerCountryDec: number

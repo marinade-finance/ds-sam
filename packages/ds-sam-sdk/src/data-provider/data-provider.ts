@@ -3,7 +3,7 @@ import fs from 'fs'
 import axios from 'axios'
 import Decimal from 'decimal.js'
 
-import { BID_TOO_LOW_PENALTY_HISTORY_EPOCHS, calcEffParticipatingBidPmpe } from '../calculations'
+import { calcEffParticipatingBidPmpe } from '../calculations'
 import { InputsSource } from '../config'
 import { effectiveCommissions } from '../utils'
 
@@ -88,7 +88,7 @@ export class DataProvider {
     })
   }
 
-  extractAuctionHistoryStats(auction: AuctionHistory, validator: RawValidatorDto): AuctionHistoryStats {
+  extractAuctionHistoryStats(auction: AuctionHistory, validator: RawValidatorDto): AuctionHistoryStats | null {
     const entry = auction.validators.find(({ voteAccount }) => validator.vote_account === voteAccount)
     const { revShare, values } = entry ?? {
       revShare: null,
@@ -106,22 +106,10 @@ export class DataProvider {
     }
     if (revShare == null) {
       console.log(`validator ${validator.vote_account} did not participate in auction in epoch ${auction.epoch}`)
-      return {
-        epoch: auction.epoch,
-        present: false,
-        winningTotalPmpe: auction.winningTotalPmpe,
-        auctionEffectiveBidPmpe: 0,
-        activatingStakePmpe: 0,
-        bidPmpe: 0,
-        totalPmpe: 0,
-        bondObligationPmpe: 0,
-        effParticipatingBidPmpe: 0,
-        commissions,
-      }
+      return null
     }
     return {
       epoch: auction.epoch,
-      present: true,
       winningTotalPmpe: auction.winningTotalPmpe,
       auctionEffectiveBidPmpe: revShare.auctionEffectiveBidPmpe,
       activatingStakePmpe: revShare.activatingStakePmpe,
@@ -196,7 +184,10 @@ export class DataProvider {
       const lastAuctionHistory = auctionHistoriesData
         .flatMap(auction => auction.validators)
         .find(v => v.voteAccount === validator.vote_account)
-      const auctions = auctionHistoriesData.map(auction => this.extractAuctionHistoryStats(auction, validator))
+      const auctions = auctionHistoriesData.flatMap(auction => {
+        const stats = this.extractAuctionHistoryStats(auction, validator)
+        return stats ? [stats] : []
+      })
       const bondBalanceSol = bond ? new Decimal(bond.effective_amount).div(1e9).toNumber() : null
       const claimableBondBalanceSol = bond
         ? Math.max(0, new Decimal(bond.funded_amount).sub(bond.remainining_settlement_claim_amount).div(1e9).toNumber())
@@ -367,7 +358,7 @@ export class DataProvider {
       this.fetchTvlInfo(),
       this.fetchBlacklist(),
       this.fetchRewards(),
-      this.fetchAuctions(BID_TOO_LOW_PENALTY_HISTORY_EPOCHS),
+      this.fetchAuctions(this.config.bidTooLowPenaltyHistoryEpochs),
     ])
 
     const data = {

@@ -216,10 +216,6 @@ export type BidTooLowPenaltyResult = {
   paidUndelegationSol: number
 }
 
-// How many epochs back to look for the commitment reference; a record missing for an epoch
-// (API gap, publish failure) then falls back to the nearest older record instead of a free pass
-export const BID_TOO_LOW_PENALTY_HISTORY_EPOCHS = 3
-
 /**
  * Calculates the penalty by comparing the validator's current total PMPE against their own
  * previous auction commitment (commissions + bid) reconstructed at current reward estimates,
@@ -230,16 +226,22 @@ export const BID_TOO_LOW_PENALTY_HISTORY_EPOCHS = 3
 export const calcBidTooLowPenalty = ({
   rewards,
   winningTotalPmpe,
+  epoch,
+  historyEpochs,
   validator,
 }: {
   rewards: Rewards
   winningTotalPmpe: number
+  epoch: number
+  historyEpochs: number
   validator: AuctionValidator
 }): BidTooLowPenaltyResult => {
   const { revShare, auctions } = validator
-  const prevAuction = auctions.slice(0, BID_TOO_LOW_PENALTY_HISTORY_EPOCHS).find(auction => auction.present)
-  // newcomers have no present record in the window -> commitment 0 -> never charged; missing commission
-  // history defaults to 100% commissions (extractAuctionHistoryStats) -> commitment reduced to the recorded bid
+  // most recent auction the validator participated in within the last historyEpochs epochs
+  // (auctions are sorted newest first; non-participated epochs are absent, not placeholders)
+  const prevAuction = auctions.find(auction => auction.epoch >= epoch - historyEpochs)
+  // no participation in the window -> commitment 0 -> never charged; missing commission history
+  // defaults to 100% commissions (extractAuctionHistoryStats) -> commitment reduced to the recorded bid
   const prevCommitmentPmpe =
     prevAuction == null
       ? 0

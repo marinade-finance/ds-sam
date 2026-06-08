@@ -262,6 +262,8 @@ export class Auction {
       const value = calcBidTooLowPenalty({
         rewards: this.data.rewards,
         winningTotalPmpe,
+        epoch: this.data.epoch,
+        historyEpochs: this.config.bidTooLowPenaltyHistoryEpochs,
         validator,
       })
       validator.bidTooLowPenalty = value.bidTooLowPenalty
