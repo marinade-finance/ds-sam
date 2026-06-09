@@ -5,8 +5,16 @@ import { defaultStaticDataProviderBuilder } from './helpers/static-data-provider
 import { findValidatorInResult } from './helpers/utils'
 import { ValidatorMockBuilder, generateIdentities, generateVoteAccounts } from './helpers/validator-mock-builder'
 
-import type { RevShare, Rewards } from '../src/types'
+import type { AuctionHistoryStats } from '../src/data-provider/data-provider.dto'
+import type { RevShare, Rewards, CommissionDetails } from '../src/types'
 import type { AuctionValidator } from '../src/types'
+
+type PastAuctionMock = Pick<
+  AuctionHistoryStats,
+  'epoch' | 'bidPmpe' | 'totalPmpe' | 'effParticipatingBidPmpe' | 'bondObligationPmpe'
+> & {
+  commissions: Pick<CommissionDetails, 'inflationCommissionDec' | 'mevCommissionDec' | 'blockRewardsCommissionDec'>
+}
 
 const REWARDS = { inflationPmpe: 0.4, mevPmpe: 0.05, blockPmpe: 0 }
 const BID = 0.005
@@ -23,7 +31,7 @@ const pastAuction = (
   bidPmpe: number,
   blockRewardsCommissionDec = 1,
   epoch = EPOCH - 1,
-) => ({
+): PastAuctionMock => ({
   epoch,
   bidPmpe,
   // stale estimate-based values must be ignored by the commitment reconstruction
@@ -45,7 +53,7 @@ const penaltyFor = ({
 }: {
   revShare: RevShare
   winningTotalPmpe: number
-  prevAuctions: object[]
+  prevAuctions: PastAuctionMock[]
   rewards?: Rewards
 }) => {
   revShare.effParticipatingBidPmpe = calcEffParticipatingBidPmpe(revShare, winningTotalPmpe)
