@@ -10,14 +10,14 @@
 
 import assert from 'node:assert'
 
+import { calcBondRiskFee } from '@marinade.finance/ds-sam-calc'
+
 import { DsSamSDK } from '../src'
-import { calcBondRiskFee } from '../src/calculations'
 import { defaultStaticDataProviderBuilder } from './helpers/static-data-provider-builder'
 import { findValidatorInResult } from './helpers/utils'
 import { ValidatorMockBuilder, generateIdentities, generateVoteAccounts } from './helpers/validator-mock-builder'
 
-import type { BondRiskFeeConfig } from '../src/calculations'
-import type { AuctionValidator, RevShare } from '../src/types'
+import type { BondRiskFeeConfig, AuctionValidator, RevShare } from '@marinade.finance/ds-sam-calc'
 
 const baseRevShare = {
   totalPmpe: 500,

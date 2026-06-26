@@ -1,4 +1,4 @@
-import { LogVerbosity } from './config'
+import { LogVerbosity } from '@marinade.finance/ds-sam-calc'
 
 export class Debug {
   private infos: [string, string][] = []

@@ -1,13 +1,9 @@
 import fs from 'fs'
 
+import { calcEffParticipatingBidPmpe, InputsSource, effectiveCommissions } from '@marinade.finance/ds-sam-calc'
 import axios from 'axios'
 import Decimal from 'decimal.js'
 
-import { calcEffParticipatingBidPmpe } from '../calculations'
-import { InputsSource } from '../config'
-import { effectiveCommissions } from '../utils'
-
-import type { AggregatedData, AggregatedValidator } from '../types'
 import type {
   RawBlacklistResponseDto,
   RawBondsResponseDto,
@@ -20,10 +16,14 @@ import type {
   RawScoredValidatorDto,
   SourceDataOverrides,
   AuctionHistory,
-  AuctionHistoryStats,
   RawValidatorDto,
 } from './data-provider.dto'
-import type { DsSamConfig } from '../config'
+import type {
+  AggregatedData,
+  AggregatedValidator,
+  AuctionHistoryStats,
+  DsSamConfig,
+} from '@marinade.finance/ds-sam-calc'
 
 export class DataProvider {
   constructor(

@@ -13,11 +13,10 @@
  */
 import assert from 'node:assert'
 
+import { calcBondRiskFee, AuctionConstraintType, minCapFromConstraint } from '@marinade.finance/ds-sam-calc'
+
 import { Auction } from '../src/auction'
-import { calcBondRiskFee } from '../src/calculations'
 import { Debug } from '../src/debug'
-import { AuctionConstraintType } from '../src/types'
-import { minCapFromConstraint } from '../src/utils'
 import {
   buildRevShare,
   makeAuction,
@@ -25,7 +24,7 @@ import {
   makeUnitValidator as makeValidator,
 } from './helpers/auction-test-utils'
 
-import type { AuctionConstraint } from '../src/types'
+import type { AuctionConstraint } from '@marinade.finance/ds-sam-calc'
 
 describe('clipBondStakeCap()', () => {
   const minBondBalanceSol = 1000

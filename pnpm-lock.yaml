@@ -64,8 +64,17 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
+  packages/ds-sam-calc:
+    dependencies:
+      decimal.js:
+        specifier: ^10.6.0
+        version: 10.6.0
+
   packages/ds-sam-sdk:
     dependencies:
+      '@marinade.finance/ds-sam-calc':
+        specifier: workspace:*
+        version: link:../ds-sam-calc
       axios:
         specifier: ^1.16.0
         version: 1.16.0

@@ -1,24 +1,28 @@
+import {
+  calcValidatorRevShare,
+  DEFAULT_CONFIG,
+  InputsSource,
+  ineligibleValidatorAggDefaults,
+  validatorAggDefaults,
+} from '@marinade.finance/ds-sam-calc'
 import Decimal from 'decimal.js'
 import semver from 'semver'
 
 import { Auction } from './auction'
-import { calcValidatorRevShare } from './calculations'
-import { DEFAULT_CONFIG, InputsSource } from './config'
 import { AuctionConstraints } from './constraints'
 import { DataProvider } from './data-provider/data-provider'
 import { Debug } from './debug'
-import { ineligibleValidatorAggDefaults, validatorAggDefaults } from './utils'
 
-import type { DsSamConfig } from './config'
 import type { SourceDataOverrides } from './data-provider/data-provider.dto'
 import type {
+  DsSamConfig,
   AggregatedData,
   AuctionValidator,
   AuctionData,
   ValidatorAuctionStake,
   AuctionResult,
   AuctionConstraintsConfig,
-} from './types'
+} from '@marinade.finance/ds-sam-calc'
 
 export const defaultDataProviderBuilder = (config: DsSamConfig) => new DataProvider({ ...config }, config.inputsSource)
 

@@ -86,7 +86,7 @@ bid-too-low penalties.
 ## Dev Notes
 
 - Pre-commit reformats on first run - retry commit (2 attempts)
-- Publish SDK: `cd packages/ds-sam-sdk && npm publish` (NOT pnpm)
+- Publish: `pnpm run publish:all` (builds + tests all packages, then `pnpm publish -r` + tags). Use pnpm, NOT npm — the SDK depends on `@marinade.finance/ds-sam-calc` via `workspace:*`, which only `pnpm publish` rewrites to a real version.
 - Debug: set `debugVoteAccounts` + `logVerbosity` in config
 - Cache: `--cache-inputs --cache-dir-path ./cache`
 - Helper scripts: `scripts/evaluate-auction.bash`, `evaluate-blacklist`, `simulate-auction`

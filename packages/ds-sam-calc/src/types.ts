@@ -1,4 +1,3 @@
-import type { AuctionHistoryStats } from './data-provider/data-provider.dto'
 import type Decimal from 'decimal.js'
 
 export type AuctionResult = {
@@ -111,6 +110,22 @@ export type CommissionDetails = {
   bidCpmpeInBondDec?: number | null
   bidCpmpeOverrideDec?: number
   minimalCommissionDec?: number
+}
+
+// Per-epoch auction history for a validator, derived from the scoring API.
+// Lives here (not in the SDK data-provider) so it can back AuctionValidator's
+// `auctions` field without the calc layer importing the SDK's IO module.
+export type AuctionHistoryStats = {
+  epoch: number
+  winningTotalPmpe: number
+  auctionEffectiveBidPmpe: number
+  activatingStakePmpe: number
+  effParticipatingBidPmpe: number
+  bidPmpe: number
+  totalPmpe: number
+  bondObligationPmpe: number
+  commissions: CommissionDetails
+  marinadeActivatedStakeSol?: number
 }
 
 export type Rewards = {

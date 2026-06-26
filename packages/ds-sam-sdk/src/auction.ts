@@ -1,11 +1,10 @@
 /* eslint-disable no-param-reassign */
 
-import { calcBondRiskFee, calcEffParticipatingBidPmpe, calcBidTooLowPenalty } from './calculations'
+import { calcBondRiskFee, calcEffParticipatingBidPmpe, calcBidTooLowPenalty } from '@marinade.finance/ds-sam-calc'
 
-import type { DsSamConfig } from './config'
 import type { AuctionConstraints } from './constraints'
 import type { Debug } from './debug'
-import type { AuctionData, AuctionResult, AuctionValidator } from './types'
+import type { DsSamConfig, AuctionData, AuctionResult, AuctionValidator } from '@marinade.finance/ds-sam-calc'
 
 export const EPSILON = 1e-4
 
