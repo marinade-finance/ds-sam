@@ -72,19 +72,12 @@ function computeNaturalWithdrawal(validators: AuctionValidator[], tvl: number): 
 }
 
 type RedelegationAllocation = {
-  // Greedy inflow awarded to each below-target winner, keyed by vote account.
-  inflowByVote: Map<string, number>
-  // Lowest revShare.totalPmpe among winners that received their FULL
-  // below-target delta this run. A validator must clear this to be sure of
-  // full priority allocation. null when the budget covered everyone (or
-  // there was no budget / no below-target winner) — no binding frontier.
+  greedyInflowSolByVote: Map<string, number>
+  // null when the budget covered every below-target winner — no binding frontier.
   priorityFrontierPmpe: number | null
-  // 1-based standard rank (ties share the higher position) over ALL validators
-  // sorted by revShare.totalPmpe descending — the exact order the greedy
-  // budget is handed out in.
+  // Standard competition rank by revShare.totalPmpe desc; ties share the higher position.
   rankByVote: Map<string, number>
-  // Lowest-totalPmpe in-set validator — the auction-clearing winner whose
-  // bid component sets the winningBidPmpe. null when nobody is in set.
+  // Lowest-totalPmpe in-set validator; sets winningBidPmpe. null when nobody is in set.
   marginalWinner: AuctionValidator | null
 }
 
@@ -123,7 +116,7 @@ export function allocateRedelegation(auctionResult: AuctionResult, minBondBalanc
   const rawDelta = (v: AuctionValidator) => v.auctionStake.marinadeSamTargetSol - v.marinadeActivatedStakeSol
 
   const sorted = [...validators].sort((va, vb) => (vb.revShare.totalPmpe ?? 0) - (va.revShare.totalPmpe ?? 0))
-  const inflowByVote = new Map<string, number>()
+  const greedyInflowSolByVote = new Map<string, number>()
   const rankByVote = new Map<string, number>()
   let priorityFrontierPmpe: number | null = null
   let marginalWinner: AuctionValidator | null = null
@@ -145,7 +138,7 @@ export function allocateRedelegation(auctionResult: AuctionResult, minBondBalanc
       const delta = rawDelta(v)
       if (delta > 0 && remaining > 0) {
         const alloc = Math.min(delta, remaining)
-        inflowByVote.set(v.voteAccount, (inflowByVote.get(v.voteAccount) ?? 0) + alloc)
+        greedyInflowSolByVote.set(v.voteAccount, (greedyInflowSolByVote.get(v.voteAccount) ?? 0) + alloc)
         remaining -= alloc
         if (alloc >= delta) {
           priorityFrontierPmpe = pmpe
@@ -154,7 +147,7 @@ export function allocateRedelegation(auctionResult: AuctionResult, minBondBalanc
     }
   })
   const result = {
-    inflowByVote,
+    greedyInflowSolByVote,
     priorityFrontierPmpe,
     rankByVote,
     marginalWinner,
@@ -221,8 +214,8 @@ function computeExpectedStakeChanges(
 
   const byVote = new Map(validators.map(v => [v.voteAccount, v] as const))
 
-  const { inflowByVote } = allocateRedelegation(auctionResult, minBondBalanceSol)
-  for (const [va, alloc] of inflowByVote) {
+  const { greedyInflowSolByVote } = allocateRedelegation(auctionResult, minBondBalanceSol)
+  for (const [va, alloc] of greedyInflowSolByVote) {
     const validator = byVote.get(va)
     if (validator && bondBelowMin(validator)) continue
     const entry = get(va)

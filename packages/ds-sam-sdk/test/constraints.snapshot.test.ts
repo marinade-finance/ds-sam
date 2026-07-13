@@ -1,4 +1,6 @@
-import { assert, DsSamSDK } from '../src'
+import assert from 'node:assert'
+
+import { DsSamSDK } from '../src'
 import { defaultStaticDataProviderBuilder } from './helpers/static-data-provider-builder'
 import { findValidatorInResult, prettyPrintAuctionResult } from './helpers/utils'
 import { ValidatorMockBuilder, generateIdentities, generateVoteAccounts } from './helpers/validator-mock-builder'

@@ -1,4 +1,5 @@
-import { assertNever } from './assert-never'
+import { assertNever } from '@marinade.finance/ts-common'
+
 import { blacklistPenaltySol, computeBidPenalty } from './bid-penalty'
 import { computeBondCoverage } from './bond-coverage'
 import { bondHealthFromAuction } from './bond-health'
@@ -8,7 +9,7 @@ import { AuctionConstraintType } from './types'
 
 import type { BondCoverage } from './bond-coverage'
 import type { BondHealthState } from './bond-health'
-import type { CardStatusTone } from './card-status'
+import type { CardStatusSeverity } from './card-status'
 import type { DsSamConfig } from './config'
 import type { AugmentedAuctionValidator } from './sam'
 
@@ -40,13 +41,13 @@ export interface ValidatorTip {
 // status banner all surface THIS text byte-for-byte for a given state —
 // never an independent re-wording. Each line is one short clause, sentence
 // case, no parentheses, and carries the decisive value (the SOL top-up /
-// minimum, or the fee figure when no top-up applies). `tone` is the
-// red/yellow/green severity axis the breakdown banner uses; `urgency` is
+// minimum, or the fee figure when no top-up applies). `severity` is the
+// critical/warning/good axis the breakdown banner uses; `urgency` is
 // the tip-pill axis. They agree by construction.
 export type BondAdvice = {
   text: string
   urgency: TipUrgency
-  tone: CardStatusTone
+  severity: CardStatusSeverity
 }
 
 // Two thresholds for the severity ladder, hoisted so bondAdvice can also
@@ -75,7 +76,7 @@ export function bondAdvice(
     return {
       text: `Top up bond to ${bondSol(minBondBalanceSol)} to grow stake.`,
       urgency: isCharging ? 'critical' : 'neutral',
-      tone: isCharging ? 'red' : 'grey',
+      severity: isCharging ? 'critical' : 'neutral',
     }
   }
   switch (health) {
@@ -87,7 +88,7 @@ export function bondAdvice(
       return {
         text: `Post a bond of ${bondSol(minBondBalanceSol)} to win stake.`,
         urgency: hasRealStake ? 'critical' : 'neutral',
-        tone: hasRealStake ? 'red' : 'grey',
+        severity: hasRealStake ? 'critical' : 'neutral',
       }
     }
     case 'critical': {
@@ -99,13 +100,13 @@ export function bondAdvice(
           coverage.bondRiskFeeShortfall > 0
             ? `Top up ${topUp(coverage.bondRiskFeeShortfall)} or pay ${pay(bondRiskFeeSol)} bond fee.`
             : `Bond fee ${pay(bondRiskFeeSol)} estimated next epoch.`
-        return { text, urgency: 'critical', tone: 'red' }
+        return { text, urgency: 'critical', severity: 'critical' }
       }
       if (coverage.bondRiskFeeShortfall > 0) {
         return {
           text: `Top up ${topUp(coverage.bondRiskFeeShortfall)} to avoid bond liquidation.`,
           urgency: 'critical',
-          tone: 'red',
+          severity: 'critical',
         }
       }
       // Runway ≤ minBondEpochs + BOND_URGENT_EPOCHS: no fee yet but runway
@@ -115,20 +116,20 @@ export function bondAdvice(
         return {
           text: `Top up ${topUp(coverage.topUpToKeepStake)} to keep stake.`,
           urgency: 'critical',
-          tone: 'red',
+          severity: 'critical',
         }
       }
       if (coverage.topUpToIdealKeep > 0) {
         return {
           text: `Top up ${topUp(coverage.topUpToIdealKeep)} to extend runway.`,
           urgency: 'warning',
-          tone: 'yellow',
+          severity: 'warning',
         }
       }
       return {
         text: 'Top up bond to extend runway.',
         urgency: 'warning',
-        tone: 'yellow',
+        severity: 'warning',
       }
     }
     case 'watch': {
@@ -136,27 +137,27 @@ export function bondAdvice(
         return {
           text: `Top up ${topUp(coverage.topUpToKeepStake)} to keep stake.`,
           urgency: 'warning',
-          tone: 'yellow',
+          severity: 'warning',
         }
       }
       if (coverage.topUpToIdealKeep > 0) {
         return {
           text: `Top up ${topUp(coverage.topUpToIdealKeep)} to grow stake.`,
           urgency: 'info',
-          tone: 'yellow',
+          severity: 'warning',
         }
       }
       return {
         text: 'Top up bond to extend runway.',
         urgency: 'info',
-        tone: 'yellow',
+        severity: 'warning',
       }
     }
     case 'healthy':
       return {
         text: 'Bond has enough coverage.',
         urgency: 'positive',
-        tone: 'green',
+        severity: 'good',
       }
     default:
       return assertNever(health)

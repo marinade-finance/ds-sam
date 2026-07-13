@@ -1,6 +1,5 @@
+import { assert } from '@marinade.finance/ts-common'
 import Decimal from 'decimal.js'
-
-import { assert } from './utils'
 
 import type { BidTooLowPenalty, AuctionValidator, Rewards, RevShare, CommissionDetails } from './types'
 

@@ -64,5 +64,3 @@ export const bondSol = (n: number) =>
 // is wrong. Any n > 0 yields at least "1 SOL" (never "0 SOL" / "<1 SOL").
 // Callers guard with `> 0`; n <= 0 is never displayed.
 export const topUp = (n: number) => `${Math.ceil(n)}${NBSP}SOL`
-
-export const lamportsToSol = (lamports: string) => lamports.padStart(10, '0').replace(/(.{9})$/, '.$1')

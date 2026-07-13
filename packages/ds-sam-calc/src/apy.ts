@@ -28,7 +28,7 @@ export function bondGaugeScaleMax(config: DsSamConfig): number {
 
 // Critical band covers the leftmost half (0–50%) of the scale, making the
 // danger zone prominent regardless of absolute epoch values.
-export function bondCriticalFrac(config: DsSamConfig): number {
+export function bondGaugeCriticalFrac(config: DsSamConfig): number {
   const max = bondGaugeScaleMax(config)
   return max > 0 ? (2 * config.idealBondEpochs) / max : 0.5
 }
