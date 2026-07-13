@@ -2,7 +2,7 @@ import { assertNever } from './assert-never'
 import { blacklistPenaltySol, computeBidPenalty } from './bid-penalty'
 import { computeBondCoverage } from './bond-coverage'
 import { bondHealthFromAuction } from './bond-health'
-import { pay, stake, topUp } from './format'
+import { bondSol, pay, stake, topUp } from './format'
 import { selectInSet } from './sam'
 import { AuctionConstraintType } from './types'
 
@@ -73,7 +73,7 @@ export function bondAdvice(
     // Below-min without a pending fee — grey (informational, no stake at risk).
     const isCharging = bondRiskFeeSol > 0
     return {
-      text: `Top up bond to ${stake(minBondBalanceSol)} to grow stake.`,
+      text: `Top up bond to ${bondSol(minBondBalanceSol)} to grow stake.`,
       urgency: isCharging ? 'critical' : 'neutral',
       tone: isCharging ? 'red' : 'grey',
     }
@@ -85,7 +85,7 @@ export function bondAdvice(
       // when there's real stake at risk of being pulled.
       const hasRealStake = marinadeActivatedStakeSol > NON_TRIVIAL_STAKE_SOL
       return {
-        text: `Post a bond of ${stake(minBondBalanceSol)} to win stake.`,
+        text: `Post a bond of ${bondSol(minBondBalanceSol)} to win stake.`,
         urgency: hasRealStake ? 'critical' : 'neutral',
         tone: hasRealStake ? 'red' : 'grey',
       }
@@ -254,8 +254,8 @@ function bondCta(
     const bondIsSoleBlocker = validator.revShare.totalPmpe >= winningTotalPmpe
     return tip(
       bondBalance <= 0
-        ? `Post a bond of ${stake(dsSamConfig.minBondBalanceSol)} to grow stake.`
-        : `Top up bond to ${stake(dsSamConfig.minBondBalanceSol)} to grow stake.`,
+        ? `Post a bond of ${bondSol(dsSamConfig.minBondBalanceSol)} to grow stake.`
+        : `Top up bond to ${bondSol(dsSamConfig.minBondBalanceSol)} to grow stake.`,
       bondIsSoleBlocker && isDefending(validator, delta) ? 'warning' : 'neutral',
       'bond',
       delta,

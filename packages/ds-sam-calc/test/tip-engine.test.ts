@@ -43,7 +43,7 @@ const DS_SAM_CONFIG = {
   bondRiskFeeMult: 1,
   // Tiny so the existing 0.001-SOL "critical fee" fixtures stay ABOVE the
   // SDK minimum (they pin the fee branch, not the below-min branch); large
-  // enough that stake(minBondBalanceSol) renders for the no-bond message.
+  // enough that bondSol(minBondBalanceSol) renders for the no-bond message.
   minBondBalanceSol: 0.0001,
   bidTooLowPenaltyHistoryEpochs: 10,
   bidTooLowPenaltyPermittedDeviationPmpe: 0.0001,
