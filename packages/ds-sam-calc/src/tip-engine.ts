@@ -23,6 +23,13 @@ export interface ValidatorTip {
   // this epoch. Drives the alert glyph (and pulse) — never set for plain
   // below-min / no-bond, which stay critical-red without the escalation.
   alert?: boolean
+  // Compact status label for the dense sam-table Next Step column, when the
+  // full `text` sentence would over-state a calm, EXPECTED state. Set only by
+  // bidCta for the non-defending out-of-set-below-winning row ("Bid below
+  // winning price."); its presence is also the signal to render that row
+  // muted. `text` keeps the full CTA for the detail panel. The engine owns
+  // this string — the table must never re-derive it from in-set state.
+  chip?: string
   // Signed next-epoch stake delta. Only meaningful when constraint === 'none';
   // that's the sole case whose glyph is allowed to be directional.
   delta: number
@@ -96,7 +103,7 @@ export function bondAdvice(
       }
       if (coverage.bondRiskFeeShortfall > 0) {
         return {
-          text: `Top up ${topUp(coverage.bondRiskFeeShortfall)} or face fee charges.`,
+          text: `Top up ${topUp(coverage.bondRiskFeeShortfall)} to avoid bond liquidation.`,
           urgency: 'critical',
           tone: 'red',
         }
@@ -185,8 +192,12 @@ function tip(
   constraint: TipConstraint,
   delta: number,
   alert?: boolean,
+  chip?: string,
 ): ValidatorTip {
-  return alert ? { text, urgency, constraint, delta, alert } : { text, urgency, constraint, delta }
+  const built: ValidatorTip = { text, urgency, constraint, delta }
+  if (alert) built.alert = true
+  if (chip != null) built.chip = chip
+  return built
 }
 
 // Callers must include at least one non-null candidate (in practice the
@@ -232,14 +243,20 @@ function bondCta(
       const topUpAmt = Math.max(coverage.bondRiskFeeShortfall, dsSamConfig.minBondBalanceSol - bondBalance)
       return tip(`Top up ${topUp(topUpAmt)} or pay ${pay(bondRiskFeeSol)} bond fee.`, 'critical', 'bond', delta, true)
     }
-    // Below-min, no SDK fee yet. Severity follows the global ladder:
-    //   yellow — defending (meaningful stake leaving).
-    //   grey   — eligibility-only, novelty validator with no real stake.
+    // Below-min, no SDK fee yet. The bond is a hard qualification gate, but
+    // posting it only grows stake when the validator's price already clears
+    // winning; if it's also below the winning price, the bond alone won't win
+    // it any stake, so the honest headline is the loss (deltaCta's "Losing N
+    // SOL"). Only escalate to warning — outranking the loss on the bond-lever
+    // tiebreak — when the bond is the SOLE blocker; otherwise stay neutral and
+    // let the loss show, so a big loser isn't handed a milder message than a
+    // validator shedding a few SOL.
+    const bondIsSoleBlocker = validator.revShare.totalPmpe >= winningTotalPmpe
     return tip(
       bondBalance <= 0
         ? `Post a bond of ${stake(dsSamConfig.minBondBalanceSol)} to grow stake.`
         : `Top up bond to ${stake(dsSamConfig.minBondBalanceSol)} to grow stake.`,
-      isDefending(validator, delta) ? 'warning' : 'neutral',
+      bondIsSoleBlocker && isDefending(validator, delta) ? 'warning' : 'neutral',
       'bond',
       delta,
     )
@@ -315,8 +332,20 @@ function bidCta(
   ) {
     // Bid too low — growth lever in general (raise the bid → qualify),
     // escalates to defend lever (yellow) when meaningful stake is leaving
-    // so it outranks the generic "Losing N" delta narrative.
-    return tip('Raise bid to qualify for stake.', isDefending(validator, delta) ? 'warning' : 'info', 'rank', delta)
+    // so it outranks the generic "Losing N" delta narrative. The calm
+    // (non-defending) case also carries the compact "Bid below winning
+    // price." chip the dense table renders muted; a defending row drops the
+    // chip so it keeps its warning colour and full CTA and actually stands
+    // out instead of hiding in the muted below-cutoff block.
+    const defending = isDefending(validator, delta)
+    return tip(
+      'Raise bid to qualify for stake.',
+      defending ? 'warning' : 'info',
+      'rank',
+      delta,
+      undefined,
+      defending ? undefined : 'Bid below winning price.',
+    )
   }
   return null
 }
@@ -449,6 +478,12 @@ function capCta(validator: AugmentedAuctionValidator, delta: number): ValidatorT
   return tip(text, urgency, 'cap', delta)
 }
 
+// Single string for "in-set, above winning, bid still below the priority
+// frontier" — deltaCta hits this from two different delta states (see
+// below) and used to word it differently per branch even though it's the
+// same situation and the same fix (raise the bid).
+const RAISE_TO_GROW = 'Raise bid to grow stake next epoch.'
+
 // Delta lever — the "stake trajectory" fallback. Always emits something
 // for in-set validators except when the cap lever explains the loss
 // (mutual exclusion at source so we don't have to lie with urgency).
@@ -457,12 +492,13 @@ function deltaCta(
   delta: number,
   capBinding: boolean,
   priorityFrontierPmpe = 0,
+  minMaxStakeWanted: number | null = null,
 ): ValidatorTip {
   if (delta > 0) {
     // Validator is receiving scraps from leftover budget — below the priority
     // frontier. Raising bid to clear the frontier gets them full allocation.
     if (priorityFrontierPmpe > 0 && validator.revShare.totalPmpe < priorityFrontierPmpe) {
-      return tip('Raise bid to get more stake next epoch.', 'info', 'rank', delta)
+      return tip(RAISE_TO_GROW, 'info', 'rank', delta)
     }
     return tip(`${stake(delta)} arriving next epoch.`, 'positive', 'none', delta)
   }
@@ -478,7 +514,14 @@ function deltaCta(
     const wanted = validator.maxStakeWanted
     const target = validator.auctionStake.marinadeSamTargetSol
     const active = validator.marinadeActivatedStakeSol
-    const atOwnCap = wanted != null && target >= wanted - 1e-9
+    // The validator's own cap binds ONLY when their setting is the value the
+    // auction actually clips to: max(minMaxStakeWanted, active, wanted). A
+    // setting below that floor is silently raised to it (SDK
+    // buildSamWantConstraints), so target can exceed maxStakeWanted and "at
+    // your setting" would be a lie — a 7k request under a 10k floor lands at
+    // 10k. Only claim it when their number is what's really binding.
+    const wantFloor = Math.max(minMaxStakeWanted ?? 0, active)
+    const atOwnCap = wanted != null && wanted > 0 && wanted >= wantFloor && target >= wanted - 1e-9
     const belowTarget = target > 0 && active < target * 0.99
     if (atOwnCap) {
       return tip('At your `maxStakeWanted` setting.', 'neutral', 'none', delta)
@@ -488,11 +531,16 @@ function deltaCta(
     // served sooner in the greedy allocation pass.
     // Exception: if the bid already clears the priority frontier, the bid lever
     // is exhausted — budget simply ran out; "Raise bid" would be wrong advice.
+    // NOTE: this guard is deliberately NOT the same expression as the
+    // delta>0 branch above — when priorityFrontierPmpe is unknown (0) this
+    // branch still advises raising the bid (safer default when nothing is
+    // arriving), while the delta>0 branch stays silent (the positive delta
+    // already tells the real story). Only the resulting string is shared.
     if (belowTarget && !capBinding) {
       if (priorityFrontierPmpe > 0 && validator.revShare.totalPmpe >= priorityFrontierPmpe) {
         return tip('At target stake.', 'neutral', 'none', delta)
       }
-      return tip('Raise bid to grow stake.', 'info', 'rank', delta)
+      return tip(RAISE_TO_GROW, 'info', 'rank', delta)
     }
     return tip('At target stake.', 'neutral', 'none', delta)
   }
@@ -529,6 +577,6 @@ export const getValidatorTip = (
     bidCta(validator, dsSamConfig, winningTotalPmpe, delta),
     outOfSetCta(validator, winningTotalPmpe, delta, blacklist),
     cap,
-    deltaCta(validator, delta, cap !== null, priorityFrontierPmpe),
+    deltaCta(validator, delta, cap !== null, priorityFrontierPmpe, dsSamConfig.minMaxStakeWanted),
   )
 }

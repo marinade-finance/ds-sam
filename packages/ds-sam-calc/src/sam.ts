@@ -13,8 +13,8 @@ export const selectNonBidPmpe = (v: AuctionValidator): number =>
 // AugmentedAuctionValidator: AuctionValidator with derived per-validator fields
 // pre-computed. expectedStakeChangeSol drives the next-epoch delta display and
 // decomposes into three signed components that always sum to it:
-//   paidUndelegationSol (≤0)      scheduled undelegation outflow (only when target < active)
-//   redelegationInflowSol (≥0)    inflow from the 1% rotation budget
+//   paidUndelegationSol (≤0)      scheduled undelegation outflow (only when target ≤ active)
+//   redelegationInflowSol (≥0)    inflow from the uninvested float (TVL − Σactive)
 //   naturalWithdrawalSol (≤0)     rotation outflow (over-target excess, lowest unstakePriority first)
 // cutoffRank is the dense position relative to the auction cutoff: 0 = at the
 // winning total PMPE, +1 = closest distinct tier above (ties share a rank),
@@ -40,8 +40,19 @@ type ExpectedStakeChange = {
 // Not SDK-exported; maintained here until the SDK exposes it.
 const WITHDRAWAL_FRACTION_PER_EPOCH = 0.01
 
+// Paid undelegation (bond risk fee) projection switch. OFF: the protocol
+// allocates the 1% rotation budget bottom-up by unstakePriority and does not
+// currently prioritise undelegating the paid-undelegation validators, so a
+// paid validator at target does not actually lose that stake this epoch.
+// Flip to true once the protocol prioritises these undelegations.
+const PAID_UNDELEGATION_ENABLED = false
+
+const gatedPaidUndelegationSol = (v: AuctionValidator): number =>
+  PAID_UNDELEGATION_ENABLED ? selectPaidUndelegationSol(v) : 0
+
 // 1%-TVL rotation: sorted by unstakePriority asc (lowest prio unstaked first),
 // takes each validator's over-target excess until the budget is exhausted.
+// Paid undelegation is applied first; the rotation only takes what remains.
 function computeNaturalWithdrawal(validators: AuctionValidator[], tvl: number): Map<string, number> {
   const out = new Map<string, number>()
   let remaining = WITHDRAWAL_FRACTION_PER_EPOCH * tvl
@@ -49,7 +60,8 @@ function computeNaturalWithdrawal(validators: AuctionValidator[], tvl: number): 
   const prio = (v: AuctionValidator) => (Number.isFinite(v.unstakePriority) ? v.unstakePriority : Infinity)
   const sorted = [...validators].sort((a, b) => prio(a) - prio(b))
   for (const v of sorted) {
-    const excess = Math.max(0, v.marinadeActivatedStakeSol - v.auctionStake.marinadeSamTargetSol)
+    const paid = gatedPaidUndelegationSol(v)
+    const excess = Math.max(0, v.marinadeActivatedStakeSol - paid - v.auctionStake.marinadeSamTargetSol)
     if (excess <= 0) continue
     const take = Math.min(excess, remaining)
     out.set(v.voteAccount, take)
@@ -95,15 +107,20 @@ type RedelegationAllocation = {
 // selectRedelegationPriorityFrontierPmpe, selectRedelegationPriorityRank,
 // selectWinningApyForValidator, and computeNextEpochStake — same auction
 // would otherwise run the greedy pass once per consumer per detail open.
-const allocationCache = new WeakMap<AuctionResult, RedelegationAllocation>()
+const allocationCache = new WeakMap<AuctionResult, Map<number, RedelegationAllocation>>()
 
-export function allocateRedelegation(auctionResult: AuctionResult): RedelegationAllocation {
-  const cached = allocationCache.get(auctionResult)
+export function allocateRedelegation(auctionResult: AuctionResult, minBondBalanceSol: number): RedelegationAllocation {
+  let byMin = allocationCache.get(auctionResult)
+  if (!byMin) {
+    byMin = new Map()
+    allocationCache.set(auctionResult, byMin)
+  }
+  const cached = byMin.get(minBondBalanceSol)
   if (cached) return cached
+
   const validators = auctionResult.auctionData.validators
   const budget = selectRedelegationBudget(auctionResult)
-  const effectiveActive = (v: AuctionValidator) => v.marinadeActivatedStakeSol - selectPaidUndelegationSol(v)
-  const rawDelta = (v: AuctionValidator) => v.auctionStake.marinadeSamTargetSol - effectiveActive(v)
+  const rawDelta = (v: AuctionValidator) => v.auctionStake.marinadeSamTargetSol - v.marinadeActivatedStakeSol
 
   const sorted = [...validators].sort((va, vb) => (vb.revShare.totalPmpe ?? 0) - (va.revShare.totalPmpe ?? 0))
   const inflowByVote = new Map<string, number>()
@@ -123,7 +140,8 @@ export function allocateRedelegation(auctionResult: AuctionResult): Redelegation
     if (v.auctionStake.marinadeSamTargetSol > 0) {
       marginalWinner = v
     }
-    if (budget > 0) {
+    const belowMin = (v.bondBalanceSol ?? 0) < minBondBalanceSol
+    if (budget > 0 && !belowMin) {
       const delta = rawDelta(v)
       if (delta > 0 && remaining > 0) {
         const alloc = Math.min(delta, remaining)
@@ -141,14 +159,18 @@ export function allocateRedelegation(auctionResult: AuctionResult): Redelegation
     rankByVote,
     marginalWinner,
   }
-  allocationCache.set(auctionResult, result)
+  byMin.set(minBondBalanceSol, result)
   return result
 }
 
-// paidUndelegation = SDK's paidUndelegationSol: scheduled undelegation outflow.
-// Applied as a negative only when target < active — if target ≥ active the
-// undelegation is absorbed by incoming redelegation and the net outflow is zero.
+// paidUndelegation = SDK's paidUndelegationSol (positive magnitude): bond risk
+// fee charged by undelegating stake. Only non-zero when target ≤ active —
+// when target > active the validator is receiving stake, not losing it.
+// target < active: capped at active−target so stake never projects below target.
+// target == active: shown in full as a negative; no rotation inflow offsets it.
 // Sub-min-bond validators lose all stake and are excluded from inflow/rotation.
+// Gated by PAID_UNDELEGATION_ENABLED — off by default, so paid resolves to 0
+// and this branch is inert until the protocol prioritises these undelegations.
 function computeExpectedStakeChanges(
   auctionResult: AuctionResult,
   minBondBalanceSol: number,
@@ -178,20 +200,28 @@ function computeExpectedStakeChanges(
       entry.total = -validator.marinadeActivatedStakeSol
       continue
     }
-    const paid = selectPaidUndelegationSol(validator)
-    if (paid > 0 && validator.auctionStake.marinadeSamTargetSol < validator.marinadeActivatedStakeSol) {
-      // Cap at active−target so the projected stake never undershoots target.
-      const maxUndel = validator.marinadeActivatedStakeSol - validator.auctionStake.marinadeSamTargetSol
-      const capped = Math.min(paid, maxUndel)
+    const paid = gatedPaidUndelegationSol(validator)
+    if (paid > 0) {
       const entry = get(validator.voteAccount)
-      entry.paidUndelegation = -capped
-      entry.total += -capped
+      if (validator.auctionStake.marinadeSamTargetSol < validator.marinadeActivatedStakeSol) {
+        // Cap at active−target so the projected stake never undershoots target.
+        const maxUndel = validator.marinadeActivatedStakeSol - validator.auctionStake.marinadeSamTargetSol
+        const capped = Math.min(paid, maxUndel)
+        entry.paidUndelegation = -capped
+        entry.total += -capped
+      } else {
+        // target >= active: no rotation inflow (rawDelta = target - active ≤ 0).
+        // paidUndelegation can only be non-zero when target == active (fee charged
+        // while at target); show it in full so the net expected change is correct.
+        entry.paidUndelegation = -paid
+        entry.total += -paid
+      }
     }
   }
 
   const byVote = new Map(validators.map(v => [v.voteAccount, v] as const))
 
-  const { inflowByVote } = allocateRedelegation(auctionResult)
+  const { inflowByVote } = allocateRedelegation(auctionResult, minBondBalanceSol)
   for (const [va, alloc] of inflowByVote) {
     const validator = byVote.get(va)
     if (validator && bondBelowMin(validator)) continue
@@ -200,7 +230,10 @@ function computeExpectedStakeChanges(
     entry.total += alloc
   }
 
-  const withdrawals = computeNaturalWithdrawal(validators, tvl)
+  const withdrawals = computeNaturalWithdrawal(
+    validators.filter(v => !bondBelowMin(v)),
+    tvl,
+  )
   for (const [va, w] of withdrawals) {
     const validator = byVote.get(va)
     if (validator && bondBelowMin(validator)) continue
@@ -276,59 +309,72 @@ export const selectExpectedStakeChangeBreakdown = (v: AugmentedAuctionValidator)
 
 export const selectCutoffRank = (v: AugmentedAuctionValidator): number => v.values.cutoffRank
 
-export type ConcentrationRow = {
-  key: string
-  samStakeSol: number
+export type ConcentrationContext = {
+  // The validator's own country / ASO group.
+  label: string
+  // The group's share of the auction's total SAM target stake (0..1).
   pctOfTotal: number
-  validatorCount: number
-  atCap: boolean
-  cappedValidatorCount: number
+  // Configured concentration cap for this constraint (0..1).
+  capPct: number
+  // How many validators fall in this group.
+  groupValidatorCount: number
+  // True when THIS validator's binding cap is this exact country / ASO.
+  thisValidatorCapped: boolean
 }
 
-export type ConcentrationBreakdown = {
-  countries: ConcentrationRow[]
-  asos: ConcentrationRow[]
-  countryCapPct: number
-  asoCapPct: number
+export type ValidatorConcentration = {
+  country: ConcentrationContext
+  aso: ConcentrationContext
 }
 
-export const buildConcentrationBreakdown = (
+// Per-validator concentration context: for the validator's own country and
+// ASO, how much of the auction's SAM target stake that group already holds
+// versus the configured cap, and whether this validator is itself capped by
+// that constraint. Surfaced in the detail panel so the country / ASO limits
+// stay inspectable per validator after the headline concentration tiles were
+// removed. null when the validator is not in the auction set.
+export const selectValidatorConcentration = (
   auctionResult: AuctionResult,
   config: DsSamConfig,
-): ConcentrationBreakdown => {
+  voteAccount: string,
+): ValidatorConcentration | null => {
   const validators = auctionResult.auctionData.validators
-  const aggregate = (pick: (v: AuctionValidator) => string, capType: AuctionConstraintType): ConcentrationRow[] => {
-    const by = new Map<string, { stake: number; count: number; capped: number }>()
+  const self = validators.find(v => v.voteAccount === voteAccount)
+  if (!self) return null
+
+  const context = (
+    pick: (v: AuctionValidator) => string,
+    capType: AuctionConstraintType,
+    capPct: number,
+  ): ConcentrationContext => {
+    const key = pick(self) || '—'
+    let groupStake = 0
     let total = 0
+    let groupValidatorCount = 0
     for (const v of validators) {
-      const stake = v.auctionStake.marinadeSamTargetSol
-      if (stake <= 0) continue
-      const k = pick(v) || '—'
-      const e = by.get(k) ?? { stake: 0, count: 0, capped: 0 }
-      e.stake += stake
-      e.count += 1
-      if (v.lastCapConstraint?.constraintType === capType && v.lastCapConstraint.constraintName === k) {
-        e.capped += 1
+      const stakeSol = v.auctionStake.marinadeSamTargetSol
+      if (stakeSol <= 0) continue
+      total += stakeSol
+      if ((pick(v) || '—') === key) {
+        groupStake += stakeSol
+        groupValidatorCount += 1
       }
-      by.set(k, e)
-      total += stake
     }
-    const rows: ConcentrationRow[] = [...by.entries()].map(([key, e]) => ({
-      key,
-      samStakeSol: e.stake,
-      validatorCount: e.count,
-      pctOfTotal: total > 0 ? e.stake / total : 0,
-      atCap: e.capped > 0,
-      cappedValidatorCount: e.capped,
-    }))
-    rows.sort((a, b) => b.samStakeSol - a.samStakeSol)
-    return rows
+    return {
+      label: key,
+      pctOfTotal: total > 0 ? groupStake / total : 0,
+      capPct,
+      groupValidatorCount,
+      // Match the SDK's raw constraintName (not the '—' display fallback), so
+      // an empty-named country/ASO still resolves its at-cap state correctly.
+      thisValidatorCapped:
+        self.lastCapConstraint?.constraintType === capType && self.lastCapConstraint.constraintName === pick(self),
+    }
   }
+
   return {
-    countries: aggregate(v => v.country, AuctionConstraintType.COUNTRY),
-    asos: aggregate(v => v.aso, AuctionConstraintType.ASO),
-    countryCapPct: config.maxNetworkStakeConcentrationPerCountryDec,
-    asoCapPct: config.maxNetworkStakeConcentrationPerAsoDec,
+    country: context(v => v.country, AuctionConstraintType.COUNTRY, config.maxNetworkStakeConcentrationPerCountryDec),
+    aso: context(v => v.aso, AuctionConstraintType.ASO, config.maxNetworkStakeConcentrationPerAsoDec),
   }
 }
 
@@ -347,8 +393,11 @@ export function selectRedelegationBudget(auctionResult: AuctionResult): number {
 // priority inflow next epoch must clear this. Returns 0 when the budget
 // reached everyone (or there was none / no below-target winner) — there is
 // no binding frontier, any in-set validator is already served.
-export function selectRedelegationPriorityFrontierPmpe(auctionResult: AuctionResult): number {
-  return allocateRedelegation(auctionResult).priorityFrontierPmpe ?? 0
+export function selectRedelegationPriorityFrontierPmpe(
+  auctionResult: AuctionResult,
+  minBondBalanceSol: number,
+): number {
+  return allocateRedelegation(auctionResult, minBondBalanceSol).priorityFrontierPmpe ?? 0
 }
 
 // 1-based position of this validator in the exact order the redelegation
@@ -357,6 +406,10 @@ export function selectRedelegationPriorityFrontierPmpe(auctionResult: AuctionRes
 // delegation-priority rank, not the maxApy-derived sam-table rank; the
 // greedy pass orders strictly on totalPmpe, so this is the rank that
 // decides whether the budget reaches you before it runs dry.
-export function selectRedelegationPriorityRank(v: AuctionValidator, auctionResult: AuctionResult): number | null {
-  return allocateRedelegation(auctionResult).rankByVote.get(v.voteAccount) ?? null
+export function selectRedelegationPriorityRank(
+  v: AuctionValidator,
+  auctionResult: AuctionResult,
+  minBondBalanceSol: number,
+): number | null {
+  return allocateRedelegation(auctionResult, minBondBalanceSol).rankByVote.get(v.voteAccount) ?? null
 }

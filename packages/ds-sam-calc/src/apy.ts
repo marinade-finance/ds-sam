@@ -33,6 +33,17 @@ export function bondCriticalFrac(config: DsSamConfig): number {
   return max > 0 ? (2 * config.idealBondEpochs) / max : 0.5
 }
 
+// Fraction of block rewards GIVEN to stakers = 1 − commission. Mirrors the
+// SDK's calculatePmpe zero condition exactly (null or ≥ 100% commission → the
+// validator keeps everything, so blockPmpe is 0): the returned share is > 0 iff
+// the SDK credits a non-zero blockPmpe, keeping the "N% shared" label and the
+// bar consistent. blockRewardsCommissionDec is the commission KEPT, same
+// convention as inflation/MEV — not pre-inverted in the data.
+export function blockRewardsSharedFrac(commissionDec: number | null): number {
+  if (commissionDec === null || commissionDec >= 1) return 0
+  return 1 - commissionDec
+}
+
 export function apyBreakdown(validator: AuctionValidator, epochsPerYear: number): ApyBreakdown {
   const rev = validator.revShare
   return {

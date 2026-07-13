@@ -85,7 +85,7 @@ describe('getValidatorTip', () => {
     expect(tip.text).toContain('Raise bid')
   })
 
-  it('out-of-set + above-min + critical bond, no fee yet → face-fee-charges CTA', () => {
+  it('out-of-set + above-min + critical bond, no fee yet → avoid-bond-liquidation CTA', () => {
     const validator = makeValidator({
       auctionStake: { marinadeSamTargetSol: 0 },
       bondBalanceSol: 50,
@@ -95,11 +95,11 @@ describe('getValidatorTip', () => {
     const tip = getValidatorTip(validator, DS_SAM_CONFIG, 100)
     expect(tip.urgency).toBe('critical')
     expect(tip.constraint).toBe('bond')
-    expect(tip.text).toContain('face fee charges')
+    expect(tip.text).toContain('avoid bond liquidation')
     expect(tip.alert).toBeFalsy()
   })
 
-  it('critical health, claimable below floor, no fee → "face fee charges"', () => {
+  it('critical health, claimable below floor, no fee → "avoid bond liquidation"', () => {
     const validator = makeValidator({
       bondGoodForNEpochs: 4,
       bondBalanceSol: 0.001,
@@ -109,7 +109,7 @@ describe('getValidatorTip', () => {
     const tip = getValidatorTip(validator, DS_SAM_CONFIG, 100)
     expect(tip.urgency).toBe('critical')
     expect(tip.constraint).toBe('bond')
-    expect(tip.text).toContain('face fee charges')
+    expect(tip.text).toContain('avoid bond liquidation')
     expect(tip.alert).toBeFalsy()
   })
 
@@ -128,7 +128,7 @@ describe('getValidatorTip', () => {
     expect(tip.alert).toBe(true)
   })
 
-  it('critical health (epochs > 5), claimable below floor, no fee → face-fee-charges CTA', () => {
+  it('critical health (epochs > 5), claimable below floor, no fee → avoid-bond-liquidation CTA', () => {
     const validator = makeValidator({
       bondGoodForNEpochs: 8,
       bondBalanceSol: 0.001,
@@ -138,7 +138,7 @@ describe('getValidatorTip', () => {
     const tip = getValidatorTip(validator, DS_SAM_CONFIG, 100)
     expect(tip.urgency).toBe('critical')
     expect(tip.constraint).toBe('bond')
-    expect(tip.text).toContain('face fee charges')
+    expect(tip.text).toContain('avoid bond liquidation')
     expect(tip.alert).toBeFalsy()
   })
 
@@ -176,7 +176,7 @@ describe('getValidatorTip', () => {
     const tip = getValidatorTip(validator, DS_SAM_CONFIG, 20, undefined, undefined, 50)
     expect(tip.urgency).toBe('info')
     expect(tip.constraint).toBe('rank')
-    expect(tip.text).toBe('Raise bid to get more stake next epoch.')
+    expect(tip.text).toBe('Raise bid to grow stake next epoch.')
   })
 
   it('delta > 0 + at/above priority frontier → positive arriving message', () => {
@@ -207,7 +207,7 @@ describe('getValidatorTip', () => {
     const tip = getValidatorTip(validator, DS_SAM_CONFIG, 100)
     expect(tip.urgency).toBe('info')
     expect(tip.constraint).toBe('rank')
-    expect(tip.text).toBe('Raise bid to grow stake.')
+    expect(tip.text).toBe('Raise bid to grow stake next epoch.')
   })
 
   it('delta < 0 + defending + healthy bond → warning, losing stake message', () => {
