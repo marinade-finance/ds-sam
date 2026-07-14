@@ -495,6 +495,17 @@ function deltaCta(
   priorityFrontierPmpe = 0,
   minMaxStakeWanted: number | null = null,
 ): ValidatorTip {
+  const wanted = validator.maxStakeWanted
+  const target = validator.auctionStake.marinadeSamTargetSol
+  const active = validator.marinadeActivatedStakeSol
+  // The validator's own cap binds ONLY when their setting is the value the
+  // auction actually clips to: max(minMaxStakeWanted, wanted). A setting
+  // below minMaxStakeWanted is silently raised to it (SDK
+  // buildSamWantConstraints), so "at your setting" would be a lie — a 7k
+  // request under a 10k floor lands at 10k. The cap can now pull target below
+  // current stake (SUP-188), so activated stake is not part of the floor.
+  const wantFloor = minMaxStakeWanted ?? 0
+  const atOwnCap = wanted != null && wanted > 0 && wanted >= wantFloor && target >= wanted - 1e-9
   if (delta > 0) {
     // Validator is receiving scraps from leftover budget — below the priority
     // frontier. Raising bid to clear the frontier gets them full allocation.
@@ -504,25 +515,16 @@ function deltaCta(
     return tip(`${stake(delta)} arriving next epoch.`, 'positive', 'none', delta)
   }
   // delta < 0 with a binding cap: cap owns the narrative — surface 'at
-  // target' so cap (info) isn't beaten by losing (warning).
-  if (delta === 0 || capBinding) {
+  // target' so cap (info) isn't beaten by losing (warning). atOwnCap also
+  // covers the SUP-188 rebalance-down case (delta < 0 as the WANT cap pulls
+  // target below current stake): the loss is self-inflicted, so stay neutral.
+  if (delta === 0 || capBinding || atOwnCap) {
     // Three flavours of "delta=0":
     //   a) at validator's own max-stake-wanted cap (their lever)
     //   b) active ≈ target — really at the SAM-assigned target
     //   c) active well below target — budget didn't reach this row
     // "At target stake" is only honest in (b); (c) made the message a lie on
     // budget-constrained runs (active 30k, target 72k, delta 0 -> "At target").
-    const wanted = validator.maxStakeWanted
-    const target = validator.auctionStake.marinadeSamTargetSol
-    const active = validator.marinadeActivatedStakeSol
-    // The validator's own cap binds ONLY when their setting is the value the
-    // auction actually clips to: max(minMaxStakeWanted, active, wanted). A
-    // setting below that floor is silently raised to it (SDK
-    // buildSamWantConstraints), so target can exceed maxStakeWanted and "at
-    // your setting" would be a lie — a 7k request under a 10k floor lands at
-    // 10k. Only claim it when their number is what's really binding.
-    const wantFloor = Math.max(minMaxStakeWanted ?? 0, active)
-    const atOwnCap = wanted != null && wanted > 0 && wanted >= wantFloor && target >= wanted - 1e-9
     const belowTarget = target > 0 && active < target * 0.99
     if (atOwnCap) {
       return tip('At your `maxStakeWanted` setting.', 'neutral', 'none', delta)

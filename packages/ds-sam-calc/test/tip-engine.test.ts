@@ -210,6 +210,37 @@ describe('getValidatorTip', () => {
     expect(tip.text).toBe('Raise bid to grow stake next epoch.')
   })
 
+  it('delta < 0 + at own maxStakeWanted cap (SUP-188 rebalance down) → neutral "At your maxStakeWanted setting"', () => {
+    const config = { ...DS_SAM_CONFIG, minMaxStakeWanted: 10_000 } as unknown as DsSamConfig
+    const validator = makeValidator({
+      bondBalanceSol: 400,
+      claimableBondBalanceSol: 400,
+      maxStakeWanted: 20_000,
+      marinadeActivatedStakeSol: 100_000,
+      auctionStake: { marinadeSamTargetSol: 20_000 },
+      values: { expectedStakeChangeSol: -80_000 },
+    })
+    const tip = getValidatorTip(validator, config, 100)
+    expect(tip.urgency).toBe('neutral')
+    expect(tip.constraint).toBe('none')
+    expect(tip.text).toContain('maxStakeWanted')
+  })
+
+  it('delta < 0 + maxStakeWanted below minMaxStakeWanted floor → not own cap, keeps losing message', () => {
+    const config = { ...DS_SAM_CONFIG, minMaxStakeWanted: 50_000 } as unknown as DsSamConfig
+    const validator = makeValidator({
+      bondBalanceSol: 400,
+      claimableBondBalanceSol: 400,
+      maxStakeWanted: 20_000,
+      marinadeActivatedStakeSol: 100_000,
+      auctionStake: { marinadeSamTargetSol: 50_000 },
+      values: { expectedStakeChangeSol: -50_000 },
+    })
+    const tip = getValidatorTip(validator, config, 100)
+    expect(tip.constraint).toBe('none')
+    expect(tip.text).toContain('Losing')
+  })
+
   it('delta < 0 + defending + healthy bond → warning, losing stake message', () => {
     const validator = makeValidator({
       bondBalanceSol: 400,

@@ -85,7 +85,7 @@ describe('constraints', () => {
         .withNativeStake(0)
         .withLiquidStake(0)
         .withBond({ stakeWanted: 15_000, cpmpe: 0, balance: 10_000 }),
-      // max stake wanted does not limit existing delegated stake
+      // max stake wanted caps the target even below existing delegated stake
       new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
         .withEligibleDefaults()
         .withBond({ stakeWanted: 100_000, cpmpe: 0, balance: 10_000 })
