@@ -250,6 +250,7 @@ export const bidTooLowPenaltyCoef = ({
   permittedBidDeviation: number
   isNegativeBiddingChange: boolean
 }): number => {
+  assert(permittedBidDeviation >= 0 && permittedBidDeviation <= 1, 'permittedBidDeviation has to be in [0, 1]')
   const limit = Math.min(effParticipatingBidPmpe, worstHistoricalPmpe)
   const adjustedLimit = limit * (1 - permittedBidDeviation)
   const rawCoef =
@@ -277,7 +278,6 @@ export const calcBidTooLowPenalty = ({
   validator: AuctionValidator
   permittedBidDeviation?: number
 }): BidTooLowPenaltyResult => {
-  assert(permittedBidDeviation >= 0 && permittedBidDeviation <= 1, 'permittedBidDeviation has to be in [0, 1]')
   const { revShare, auctions } = validator
   const historicalPmpe = worstHistoricalEffParticipatingBidPmpe(auctions, historyEpochs)
   const pastAuction = auctions[0]

@@ -73,7 +73,10 @@ function computeNaturalWithdrawal(validators: AuctionValidator[], tvl: number): 
 
 type RedelegationAllocation = {
   greedyInflowSolByVote: Map<string, number>
-  // null when the budget covered every below-target winner — no binding frontier.
+  // Lowest totalPmpe among below-target winners fully served this run. null only
+  // when none were fully served (no budget / no below-target winner / budget ran
+  // dry before completing even the top one) — not when the budget covered
+  // everyone, in which case it is the lowest served pmpe.
   priorityFrontierPmpe: number | null
   // Standard competition rank by revShare.totalPmpe desc; ties share the higher position.
   rankByVote: Map<string, number>
@@ -383,9 +386,10 @@ export function selectRedelegationBudget(auctionResult: AuctionResult): number {
 
 // Lowest revShare.totalPmpe among winners that got their full below-target
 // delta from this run's greedy redelegation. A validator wanting guaranteed
-// priority inflow next epoch must clear this. Returns 0 when the budget
-// reached everyone (or there was none / no below-target winner) — there is
-// no binding frontier, any in-set validator is already served.
+// priority inflow next epoch must clear this. Returns 0 only when no
+// below-target winner was fully served this run (no budget, no below-target
+// winner, or the budget ran dry before completing even the top one) — when the
+// budget covered everyone it is the lowest served pmpe, not 0.
 export function selectRedelegationPriorityFrontierPmpe(
   auctionResult: AuctionResult,
   minBondBalanceSol: number,

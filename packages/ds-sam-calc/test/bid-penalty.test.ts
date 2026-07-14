@@ -1,6 +1,7 @@
 // Tests for computeBidPenalty, bidTooLowPenaltySol, blacklistPenaltySol:
 // penalty coefficient, no-history sentinel, zero/negative bid changes, edge cases.
 import { computeBidPenalty, bidTooLowPenaltySol, blacklistPenaltySol } from '../src/bid-penalty'
+import { bidTooLowPenaltyCoef } from '../src/calculations'
 
 import type { AuctionValidator, DsSamConfig } from '../src'
 
@@ -131,6 +132,27 @@ describe('computeBidPenalty — permittedDeviation guard', () => {
     const r = computeBidPenalty(v, cfg, 10)
     expect(Number.isNaN(r.penaltySol)).toBe(false)
     expect(Number.isFinite(r.penaltySol)).toBe(true)
+  })
+})
+
+describe('bidTooLowPenaltyCoef — permittedBidDeviation guard', () => {
+  const base = {
+    effParticipatingBidPmpe: 5,
+    worstHistoricalPmpe: 5,
+    bondObligationPmpe: 0,
+    isNegativeBiddingChange: true,
+  }
+  it('throws when permittedBidDeviation is outside [0, 1]', () => {
+    expect(() => bidTooLowPenaltyCoef({ ...base, permittedBidDeviation: 1.5 })).toThrow(
+      'permittedBidDeviation has to be in [0, 1]',
+    )
+    expect(() => bidTooLowPenaltyCoef({ ...base, permittedBidDeviation: -0.1 })).toThrow(
+      'permittedBidDeviation has to be in [0, 1]',
+    )
+  })
+  it('accepts the [0, 1] boundaries', () => {
+    expect(() => bidTooLowPenaltyCoef({ ...base, permittedBidDeviation: 0 })).not.toThrow()
+    expect(() => bidTooLowPenaltyCoef({ ...base, permittedBidDeviation: 1 })).not.toThrow()
   })
 })
 
