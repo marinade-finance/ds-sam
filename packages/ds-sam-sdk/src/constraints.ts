@@ -1,9 +1,19 @@
+import {
+  AuctionConstraintType,
+  minCapFromConstraint,
+  validatorTotalAuctionStakeSol,
+  zeroStakeConcentration,
+} from '@marinade.finance/ds-sam-calc'
+
 import { EPSILON } from './auction'
-import { AuctionConstraintType } from './types'
-import { minCapFromConstraint, validatorTotalAuctionStakeSol, zeroStakeConcentration } from './utils'
 
 import type { Debug } from './debug'
-import type { AuctionConstraint, AuctionConstraintsConfig, AuctionData, AuctionValidator } from './types'
+import type {
+  AuctionConstraint,
+  AuctionConstraintsConfig,
+  AuctionData,
+  AuctionValidator,
+} from '@marinade.finance/ds-sam-calc'
 
 export class AuctionConstraints {
   private constraints: AuctionConstraint[] = []

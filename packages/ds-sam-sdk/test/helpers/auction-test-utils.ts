@@ -1,8 +1,9 @@
+import { ineligibleValidatorAggDefaults } from '@marinade.finance/ds-sam-calc'
+
 import { AuctionConstraints } from '../../src/constraints'
 import { Debug } from '../../src/debug'
-import { ineligibleValidatorAggDefaults } from '../../src/utils'
 
-import type { AuctionConstraintsConfig, AuctionData, AuctionValidator, RevShare } from '../../src/types'
+import type { AuctionConstraintsConfig, AuctionData, AuctionValidator, RevShare } from '@marinade.finance/ds-sam-calc'
 
 export const BASE_CONSTRAINTS: AuctionConstraintsConfig = {
   totalCountryStakeCapSol: Infinity,

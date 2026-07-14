@@ -10,9 +10,9 @@
  *  - bondObligationPmpe in penalty calc, >= adjustedLimit
  *  - permittedBidDeviation=1, empty auctions, missing history
  */
-import { calcBidTooLowPenalty as _nativeCalc } from '../src/calculations'
+import { calcBidTooLowPenalty as _nativeCalc } from '@marinade.finance/ds-sam-calc'
 
-import type { AuctionValidator, CommissionDetails } from '../src/types'
+import type { AuctionValidator, CommissionDetails } from '@marinade.finance/ds-sam-calc'
 
 const COEF_DEVIATION = 0.95
 

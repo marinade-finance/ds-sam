@@ -66,12 +66,6 @@ export const minCapFromConstraint = (
 export const formatLastCapConstraint = (constraint: AuctionConstraint | null) =>
   constraint ? `${constraint.constraintType} (${constraint.constraintName})` : 'NULL'
 
-export function assert(condition: boolean, message: string): asserts condition {
-  if (!condition) {
-    throw new Error(message)
-  }
-}
-
 /**
  * Determines effective commissions by applying the bond-caps-onchain rule.
  * All inputs and outputs are in decimal (0–1) scale.

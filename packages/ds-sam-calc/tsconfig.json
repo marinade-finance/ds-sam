@@ -6,6 +6,5 @@
     "tsBuildInfoFile": ".tsbuildinfo"
   },
   "include": ["src/**/*", "package.json"],
-  "exclude": ["node_modules", "dist"],
-  "references": [{ "path": "../ds-sam-calc" }]
+  "exclude": ["node_modules", "dist"]
 }

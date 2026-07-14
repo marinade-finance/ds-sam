@@ -1,8 +1,9 @@
 import assert from 'assert'
 
+import { DEFAULT_CONFIG } from '@marinade.finance/ds-sam-calc'
+
 import { DsSamSDK } from '../src'
 import { Auction } from '../src/auction'
-import { DEFAULT_CONFIG } from '../src/config'
 import { Debug } from '../src/debug'
 import { buildRevShare, makeConstraints as makeUnitConstraints, makeUnitValidator } from './helpers/auction-test-utils'
 import {
@@ -12,7 +13,7 @@ import {
 import { findValidatorInResult, prettyPrintAuctionResult, prettyPrintStakeUnstakePriorities } from './helpers/utils'
 import { ValidatorMockBuilder, generateIdentities, generateVoteAccounts } from './helpers/validator-mock-builder'
 
-import type { AuctionData } from '../src/types'
+import type { AuctionData } from '@marinade.finance/ds-sam-calc'
 
 describe('sam', () => {
   describe('distribution', () => {

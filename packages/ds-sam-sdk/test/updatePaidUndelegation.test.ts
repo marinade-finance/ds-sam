@@ -1,12 +1,12 @@
 import assert from 'node:assert'
 
+import { ineligibleValidatorAggDefaults } from '@marinade.finance/ds-sam-calc'
+
 import { Auction } from '../src/auction'
 import { Debug } from '../src/debug'
-import { ineligibleValidatorAggDefaults } from '../src/utils'
 
-import type { DsSamConfig } from '../src/config'
 import type { AuctionConstraints } from '../src/constraints'
-import type { AuctionData, AuctionValidator } from '../src/types'
+import type { DsSamConfig, AuctionData, AuctionValidator } from '@marinade.finance/ds-sam-calc'
 
 describe('Auction.updatePaidUndelegation (simplified)', () => {
   /**

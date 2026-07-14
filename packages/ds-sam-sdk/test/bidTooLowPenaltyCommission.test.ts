@@ -1,8 +1,11 @@
-import { calcBidTooLowPenalty, calcEffParticipatingBidPmpe, calcValidatorRevShare } from '../src/calculations'
-import { effectiveCommissions } from '../src/utils'
+import {
+  calcBidTooLowPenalty,
+  calcEffParticipatingBidPmpe,
+  calcValidatorRevShare,
+  effectiveCommissions,
+} from '@marinade.finance/ds-sam-calc'
 
-import type { CommissionDetails, RevShare } from '../src/types'
-import type { AuctionValidator } from '../src/types'
+import type { CommissionDetails, RevShare, AuctionValidator } from '@marinade.finance/ds-sam-calc'
 
 const REWARDS = { inflationPmpe: 0.4, mevPmpe: 0.05, blockPmpe: 0 }
 const BID = 0.005

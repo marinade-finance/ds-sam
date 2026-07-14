@@ -1,9 +1,14 @@
+import { assert } from '@marinade.finance/ts-common'
 import Decimal from 'decimal.js'
 
-import { assert } from './utils'
-
-import type { Debug } from './debug'
 import type { BidTooLowPenalty, AuctionValidator, Rewards, RevShare, CommissionDetails } from './types'
+
+// Structural subset of the SDK's Debug used here, declared locally so the calc
+// layer never imports the SDK (which owns logging/IO). The SDK's Debug class
+// satisfies this shape.
+export type DebugLike = {
+  pushInfo: (context: string, info: string) => void
+}
 
 export const calcValidatorRevShare = (
   validator: {
@@ -17,7 +22,7 @@ export const calcValidatorRevShare = (
     }
   },
   rewards: Rewards,
-  debug?: Debug,
+  debug?: DebugLike,
 ): RevShare => {
   // what the validator wants to share with stakers per 1000 SOL staked (of total, including bonds and overrides)
   const inflationPmpe = calculatePmpe(rewards.inflationPmpe, validator.inflationCommissionDec)
@@ -216,6 +221,48 @@ export type BidTooLowPenaltyResult = {
   paidUndelegationSol: number
 }
 
+// Penalty math shared by the SDK auction and the dashboard/CLI bid-penalty
+// breakdown — single source of truth for the coefficient so the two never drift.
+export const BID_TOO_LOW_TOL_COEF = 0.99999
+export const BID_TOO_LOW_SCALE_COEF = 1.5
+
+// Lowest historical effParticipatingBidPmpe over the last `historyEpochs` auctions.
+export const worstHistoricalEffParticipatingBidPmpe = (
+  auctions: { effParticipatingBidPmpe: number }[],
+  historyEpochs: number,
+): number =>
+  auctions
+    .slice(0, historyEpochs)
+    .reduce((acc, { effParticipatingBidPmpe }) => Math.min(acc, effParticipatingBidPmpe), Infinity)
+
+// The bid-too-low penalty coefficient ∈ [0, 1]. Zero unless the validator
+// lowered its bid versus last epoch (isNegativeBiddingChange).
+export const bidTooLowPenaltyCoef = ({
+  effParticipatingBidPmpe,
+  worstHistoricalPmpe,
+  bondObligationPmpe,
+  permittedBidDeviation,
+  isNegativeBiddingChange,
+}: {
+  effParticipatingBidPmpe: number
+  worstHistoricalPmpe: number
+  bondObligationPmpe: number
+  permittedBidDeviation: number
+  isNegativeBiddingChange: boolean
+}): number => {
+  assert(permittedBidDeviation >= 0 && permittedBidDeviation <= 1, 'permittedBidDeviation has to be in [0, 1]')
+  const limit = Math.min(effParticipatingBidPmpe, worstHistoricalPmpe)
+  const adjustedLimit = limit * (1 - permittedBidDeviation)
+  const rawCoef =
+    adjustedLimit > 0
+      ? Math.min(
+          1,
+          Math.sqrt(BID_TOO_LOW_SCALE_COEF * Math.max(0, (adjustedLimit - bondObligationPmpe) / adjustedLimit)),
+        )
+      : 0
+  return isNegativeBiddingChange ? rawCoef : 0
+}
+
 // Calculates the penalty for lowering the bid (considered whatever static, or dynamic commission)
 //  compared to the last epochs - i.e., penalizes validators who reduce their commitment
 // cf. https://www.notion.so/marinade/20250416-MRP-2-Stake-Auction-Marketplace-Bid-Penalty-1d7e465715a480cc80cecd86d63ce6af
@@ -231,21 +278,10 @@ export const calcBidTooLowPenalty = ({
   validator: AuctionValidator
   permittedBidDeviation?: number
 }): BidTooLowPenaltyResult => {
-  const tolCoef = 0.99999
-  const scaleCoef = 1.5
-  assert(permittedBidDeviation >= 0 && permittedBidDeviation <= 1, 'permittedBidDeviation has to be in [0, 1]')
   const { revShare, auctions } = validator
-  const historicalPmpe = auctions
-    .slice(0, historyEpochs)
-    .reduce((acc, { effParticipatingBidPmpe }) => Math.min(acc, effParticipatingBidPmpe), Infinity)
-  const limit = Math.min(revShare.effParticipatingBidPmpe, historicalPmpe)
-  const adjustedLimit = limit * (1 - permittedBidDeviation)
-  const penaltyCoef =
-    adjustedLimit > 0
-      ? Math.min(1, Math.sqrt(scaleCoef * Math.max(0, (adjustedLimit - revShare.bondObligationPmpe) / adjustedLimit)))
-      : 0
+  const historicalPmpe = worstHistoricalEffParticipatingBidPmpe(auctions, historyEpochs)
   const pastAuction = auctions[0]
-  const isNegativeBiddingChange = revShare.bidPmpe < tolCoef * (pastAuction?.bidPmpe ?? 0)
+  const isNegativeBiddingChange = revShare.bidPmpe < BID_TOO_LOW_TOL_COEF * (pastAuction?.bidPmpe ?? 0)
   // Disable commission-based penalty for now; commmissions = validator.values.commissions
   // || tolCoef * commissions.inflationCommissionDec > (pastAuction?.commissions?.inflationCommissionDec ?? Infinity) ||
   // tolCoef * commissions.mevCommissionDec > (pastAuction?.commissions?.mevCommissionDec ?? Infinity) ||
@@ -253,7 +289,13 @@ export const calcBidTooLowPenalty = ({
   const bidTooLowPenaltyValue = {
     base: winningTotalPmpe + revShare.effParticipatingBidPmpe,
     // did validator lower its bid compared to last epoch; if so how much
-    coef: isNegativeBiddingChange ? penaltyCoef : 0,
+    coef: bidTooLowPenaltyCoef({
+      effParticipatingBidPmpe: revShare.effParticipatingBidPmpe,
+      worstHistoricalPmpe: historicalPmpe,
+      bondObligationPmpe: revShare.bondObligationPmpe,
+      permittedBidDeviation,
+      isNegativeBiddingChange,
+    }),
   }
   const bidTooLowPenaltyPmpe = bidTooLowPenaltyValue.coef * bidTooLowPenaltyValue.base
   const paidUndelegationSol =

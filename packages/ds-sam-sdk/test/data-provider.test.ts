@@ -1,4 +1,5 @@
-import { DEFAULT_CONFIG } from '../src/config'
+import { DEFAULT_CONFIG } from '@marinade.finance/ds-sam-calc'
+
 import { defaultStaticDataProviderBuilder } from './helpers/static-data-provider-builder'
 import { ValidatorMockBuilder } from './helpers/validator-mock-builder'
 

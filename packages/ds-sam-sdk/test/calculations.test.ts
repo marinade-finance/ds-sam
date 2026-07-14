@@ -1,5 +1,4 @@
-import { calcValidatorRevShare } from '../src/calculations'
-import { effectiveCommissions } from '../src/utils'
+import { calcValidatorRevShare, effectiveCommissions } from '@marinade.finance/ds-sam-calc'
 
 describe('calculations', () => {
   it('effectiveCommissions: both mev null returns null', () => {

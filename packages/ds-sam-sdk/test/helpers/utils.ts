@@ -1,4 +1,4 @@
-import { formatLastCapConstraint } from '../../src/utils'
+import { formatLastCapConstraint } from '@marinade.finance/ds-sam-calc'
 
 import type { AuctionResult, AuctionValidator } from '../../src'
 

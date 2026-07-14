@@ -1,4 +1,4 @@
-import type { CommissionDetails } from '../types'
+import type { CommissionDetails } from '@marinade.finance/ds-sam-calc'
 
 export type RawScoredValidatorDto = {
   voteAccount: string
@@ -30,19 +30,6 @@ export type AuctionHistory = {
   epoch: number
   winningTotalPmpe: number
   validators: RawScoredValidatorDto[]
-}
-
-export type AuctionHistoryStats = {
-  epoch: number
-  winningTotalPmpe: number
-  auctionEffectiveBidPmpe: number
-  activatingStakePmpe: number
-  effParticipatingBidPmpe: number
-  bidPmpe: number
-  totalPmpe: number
-  bondObligationPmpe: number
-  commissions: CommissionDetails
-  marinadeActivatedStakeSol?: number
 }
 
 export type RawBlacklistResponseDto = string // csv
