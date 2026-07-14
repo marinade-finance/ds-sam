@@ -1,6 +1,6 @@
 {
   "name": "@marinade.finance/ds-sam-calc",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "author": "Marinade Finance",
   "license": "ISC",
   "main": "dist/src/index.js",
