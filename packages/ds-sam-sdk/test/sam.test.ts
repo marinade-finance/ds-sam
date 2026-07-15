@@ -656,4 +656,44 @@ describe('sam', () => {
       expect(bv.auctionStake.marinadeSamTargetSol).toBeGreaterThan(0)
     })
   })
+
+  describe('native stake target (headroom)', () => {
+    it('publishes marinadeNativeTargetSol = max(0, samTarget - liquid) per validator', async () => {
+      const voteAccounts = generateVoteAccounts()
+      const identities = generateIdentities()
+      const underLiquid = new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
+        .withGoodPerformance()
+        .withLiquidStake(10_000)
+        .withBond({ stakeWanted: 1e6, cpmpe: 0, balance: 100 })
+      const overLiquid = new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
+        .withGoodPerformance()
+        .withLiquidStake(1_000_000)
+        .withBond({ stakeWanted: 1e6, cpmpe: 0, balance: 100 })
+      const validators = [
+        new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
+          .withInflationCommission(100)
+          .withMevCommission(100)
+          .withGoodPerformance()
+          .withExternalStake(500_000_000),
+        underLiquid,
+        overLiquid,
+      ]
+      const dsSam = new DsSamSDK({}, defaultStaticDataProviderBuilder(validators))
+      const result = await dsSam.run()
+
+      for (const validator of result.auctionData.validators) {
+        expect(validator.values.marinadeNativeTargetSol).toBeCloseTo(
+          Math.max(0, validator.auctionStake.marinadeSamTargetSol - validator.values.marinadeLiquidStakeSol),
+        )
+      }
+
+      const under = findValidatorInResult(underLiquid.voteAccount, result)
+      const over = findValidatorInResult(overLiquid.voteAccount, result)
+      assert(under && over)
+      expect(under.auctionStake.marinadeSamTargetSol).toBeGreaterThan(under.values.marinadeLiquidStakeSol)
+      expect(under.values.marinadeNativeTargetSol).toBeGreaterThan(0)
+      expect(over.auctionStake.marinadeSamTargetSol).toBeLessThanOrEqual(over.values.marinadeLiquidStakeSol)
+      expect(over.values.marinadeNativeTargetSol).toBe(0)
+    })
+  })
 })

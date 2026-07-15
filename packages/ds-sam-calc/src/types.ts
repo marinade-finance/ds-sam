@@ -87,6 +87,9 @@ export type AggregatedValidator = {
 export type AuctionValidatorValues = {
   bondBalanceSol: number | null
   marinadeActivatedStakeSol: number
+  marinadeLiquidStakeSol: number
+  // finalized after the auction: max(0, marinadeSamTargetSol - marinadeLiquidStakeSol); consumed by the native delegation bot as its stake weight
+  marinadeNativeTargetSol: number
   bondRiskFeeSol: number
   paidUndelegationSol: number
   samBlacklisted: boolean

@@ -5,7 +5,9 @@ directed-stake tooling. It is the single source of truth for the auction data
 model and the per-validator math behind the PSR dashboard and the validator
 bonds CLI.
 
-- **No IO, no UI, no SDK dependency** — depends only on `decimal.js`.
+- **No IO, no UI, no SDK dependency** — depends only on `decimal.js` and
+  `@marinade.finance/ts-common` (pure helpers: `assert`, `assertNever`, epoch
+  constants).
 - Consumed by `@marinade.finance/ds-sam-sdk` (auction engine + data providers),
   the PSR dashboard, and the validator-bonds CLI.
 

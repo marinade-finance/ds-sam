@@ -197,6 +197,7 @@ export class DataProvider {
       const claimableBondBalanceSol = bond
         ? Math.max(0, new Decimal(bond.funded_amount).sub(bond.remainining_settlement_claim_amount).div(1e9).toNumber())
         : null
+      const marinadeLiquidStakeSol = new Decimal(validator.marinade_stake).div(1e9).toNumber()
       const marinadeActivatedStakeSol = new Decimal(validator.marinade_stake)
         .add(validator.marinade_native_stake)
         .div(1e9)
@@ -224,6 +225,8 @@ export class DataProvider {
         values: {
           bondBalanceSol,
           marinadeActivatedStakeSol,
+          marinadeLiquidStakeSol,
+          marinadeNativeTargetSol: 0,
           paidUndelegationSol: lastAuctionHistory?.values?.paidUndelegationSol ?? 0,
           bondRiskFeeSol: 0,
           samBlacklisted: blacklist.has(validator.vote_account),

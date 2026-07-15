@@ -876,9 +876,9 @@ describe('SAM vs backstop constraint types', () => {
 })
 
 describe('buildSamWantConstraints floors', () => {
-  it('marinadeActivatedStakeSol floor: prevents want cap from dropping below current stake', () => {
-    // maxStakeWanted=5, but marinadeActivated=100 → clipped cap = max(0, 100, 5) = 100
-    // marinadeLeftToCapSol = 100 - 0 (marinadeSamTargetSol) = 100
+  it('no activated-stake floor: maxStakeWanted caps the target even when current stake exceeds it', () => {
+    // maxStakeWanted=5, marinadeActivated=100 → clipped cap = max(0, 5) = 5
+    // marinadeLeftToCapSol = 5 - 0 (marinadeSamTargetSol) = 5
     const v = makeValidator({
       voteAccount: 'v_floor1',
       maxStakeWanted: 5,
@@ -892,12 +892,12 @@ describe('buildSamWantConstraints floors', () => {
     assert(constraints)
     const want = constraints.find(x => x.constraintType === AuctionConstraintType.WANT)
     assert(want)
-    expect(want.marinadeLeftToCapSol).toBe(100)
+    expect(want.marinadeLeftToCapSol).toBe(5)
   })
 
   it('minMaxStakeWanted floor: config minimum applies when maxStakeWanted is below it and marinadeActivated=0', () => {
     // maxStakeWanted=50, marinadeActivated=0, minMaxStakeWanted=1000
-    // clipped cap = max(1000, 0, 50) = 1000
+    // clipped cap = max(1000, 50) = 1000
     // marinadeLeftToCapSol = 1000 - 0 = 1000
     const v = makeValidator({
       voteAccount: 'v_floor2',
