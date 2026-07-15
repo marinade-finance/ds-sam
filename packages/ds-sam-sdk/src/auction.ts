@@ -411,6 +411,15 @@ export class Auction {
     }
   }
 
+  setNativeStakeTargets() {
+    for (const validator of this.data.validators) {
+      validator.values.marinadeNativeTargetSol = Math.max(
+        0,
+        validator.auctionStake.marinadeSamTargetSol - validator.values.marinadeLiquidStakeSol,
+      )
+    }
+  }
+
   evaluate(): AuctionResult {
     this.updateExpectedMaxEffBidPmpe()
     this.updatePaidUndelegation()
@@ -422,6 +431,7 @@ export class Auction {
     this.setBidTooLowPenalties(result.winningTotalPmpe)
     this.setMaxBondDelegations()
     this.setBlacklistPenalties(result.winningTotalPmpe)
+    this.setNativeStakeTargets()
     return result
   }
 
