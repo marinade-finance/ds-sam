@@ -196,8 +196,12 @@ function tip(
   chip?: string,
 ): ValidatorTip {
   const built: ValidatorTip = { text, urgency, constraint, delta }
-  if (alert) built.alert = true
-  if (chip != null) built.chip = chip
+  if (alert) {
+    built.alert = true
+  }
+  if (chip != null) {
+    built.chip = chip
+  }
   return built
 }
 
@@ -274,11 +278,10 @@ function bondCta(
   // 'watch' implies runway > minBondEpochs + BOND_URGENT_EPOCHS, so any 'watch'
   // validator is already above the fee threshold.
   const fires = health === 'critical' || (inSet && health === 'watch' && (coverage.topUpToKeepStake > 0 || delta <= 0))
-  // Bond runway looks fine — but "fine" is measured against a target the bond
-  // itself has already clamped down. If that target is pinned at the bond
-  // ceiling below the validator's maxStakeWanted, the bond is still the growth
-  // lever (see bondGrowthCta); otherwise there's nothing to say on this lever.
-  if (!fires) return inSet ? bondGrowthCta(validator, dsSamConfig.minMaxStakeWanted, delta) : null
+  // Healthy runway is measured against an already bond-clamped target, so a bond-capped winner can still need a top-up — defer to bondGrowthCta.
+  if (!fires) {
+    return inSet ? bondGrowthCta(validator, dsSamConfig.minMaxStakeWanted, delta) : null
+  }
   // WATCH + no keep-shortfall + defending: the "grow stake" advisory fires at
   // INFO, which selectTip ranks below deltaCta's WARNING. Escalate to WARNING
   // so the actionable bond advice beats the symptom message.
@@ -377,21 +380,7 @@ function isDefending(validator: AugmentedAuctionValidator, delta: number): boole
   return (validator.marinadeActivatedStakeSol ?? 0) > NON_TRIVIAL_STAKE_SOL && delta < -NON_TRIVIAL_LOSS_SOL
 }
 
-// The BOND — not the bid — is the growth lever when the auction has clipped the
-// validator's SAM target to the bond-supported ceiling while they want more
-// stake than that ceiling backs. maxBondDelegation = min(bondSamStakeCapSol,
-// per-validator TVL cap); the bond is the binding half ONLY when the bond cap
-// is the smaller term (bondSamStakeCapSol <= maxBondDelegation). When the TVL
-// cap binds instead it's the per-validator cap (not something a top-up fixes);
-// when maxStakeWanted binds the validator is already at their own setting.
-// Topping up the bond lifts the ceiling toward maxStakeWanted; raising the bid
-// does nothing for a bond-capped winner.
-//
-// Returns the bond-lever CTA for this case, or null when the bond is not what's
-// capping growth. Emitted from bondCta's healthy/non-firing path so a bond-
-// capped winner gets constraint:'bond' + info, which beats deltaCta's
-// "Raise bid to grow stake" (rank/info) on the LEVER_ORDER tiebreak. Callers
-// gate on inSet — an out-of-set bid is the bid's problem, owned by bidCta.
+// Bond (not bid) is the growth lever when the auction clamps an in-set winner's target to the bond ceiling below their maxStakeWanted; runs from bondCta's healthy path so its 'bond'/info CTA outranks deltaCta's "raise bid" on the LEVER_ORDER tiebreak.
 function bondGrowthCta(
   validator: AugmentedAuctionValidator,
   minMaxStakeWanted: number | null,
@@ -400,18 +389,23 @@ function bondGrowthCta(
   const target = validator.auctionStake.marinadeSamTargetSol
   const maxBond = validator.maxBondDelegation
   const bondCap = validator.bondSamStakeCapSol
-  // Target must sit at the ceiling (within 1%), the ceiling must be the BOND
-  // cap (not the per-validator TVL cap), and the validator must want more than
-  // the bond currently backs. A null maxStakeWanted means no self-imposed
-  // ceiling (takes as much as it can); a positive one is floored by
-  // minMaxStakeWanted (SDK raises sub-floor requests), matching deltaCta.
-  if (!(target > 0) || !Number.isFinite(maxBond) || maxBond <= 0) return null
-  if (target < maxBond * 0.99) return null
-  if (!Number.isFinite(bondCap) || bondCap > maxBond + 1e-6) return null
+  // Fire only when the bond cap — not the TVL cap or maxStakeWanted — is what holds target below what the validator wants.
+  if (!(target > 0) || !Number.isFinite(maxBond) || maxBond <= 0) {
+    return null
+  }
+  if (target < maxBond * 0.99) {
+    return null
+  }
+  if (!Number.isFinite(bondCap) || bondCap > maxBond + 1e-6) {
+    return null
+  }
   const wanted = validator.maxStakeWanted
+  // null maxStakeWanted = no self-imposed ceiling (treated as +Infinity); a set one is floored by minMaxStakeWanted, matching deltaCta.
   const wantedCeiling =
     wanted != null && wanted > 0 ? Math.max(minMaxStakeWanted ?? 0, wanted) : Number.POSITIVE_INFINITY
-  if (wantedCeiling <= maxBond + 1e-6) return null
+  if (wantedCeiling <= maxBond + 1e-6) {
+    return null
+  }
   return tip(
     wanted != null && wanted > 0 ? 'Top up bond to reach your `maxStakeWanted`.' : 'Top up bond to grow stake.',
     'info',
@@ -442,9 +436,13 @@ function outOfSetCta(
   delta: number,
   blacklist?: Set<string>,
 ): ValidatorTip | null {
-  if (selectInSet(validator)) return null
+  if (selectInSet(validator)) {
+    return null
+  }
   // Bid actually is the lever to pull → let bidCta own the message.
-  if (validator.revShare.totalPmpe < winningTotalPmpe) return null
+  if (validator.revShare.totalPmpe < winningTotalPmpe) {
+    return null
+  }
 
   // Severity ladder, applied throughout this function:
   //   red    — a real penalty is charged this epoch. Set tip.alert so the
@@ -510,7 +508,9 @@ function capCta(validator: AugmentedAuctionValidator, delta: number): ValidatorT
   // Fire for delta <= 0: losing stake (delta < 0) or blocked from growing
   // (delta === 0) by a binding cap. Skip when delta > 0 — stake is arriving,
   // cap is not the constraint this epoch.
-  if (delta > 0 || cap == null || cap.totalLeftToCapSol !== 0) return null
+  if (delta > 0 || cap == null || cap.totalLeftToCapSol !== 0) {
+    return null
+  }
   // Severity follows the global ladder:
   //   grey   — WANT cap (user-set).
   //   yellow — other cap AND defending (meaningful stake leaving).
