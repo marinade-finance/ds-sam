@@ -210,6 +210,64 @@ describe('getValidatorTip', () => {
     expect(tip.text).toBe('Raise bid to grow stake next epoch.')
   })
 
+  it('in-set, target pinned at bond ceiling below maxStakeWanted → info/bond "top up to reach maxStakeWanted" (NOT raise bid)', () => {
+    // Regression: a winning validator whose SAM target is clipped by the bond
+    // (maxBondDelegation, set by the bond cap not the TVL cap) below their
+    // maxStakeWanted. The bond runway is healthy for the clamped target, so
+    // bondCta used to return null and deltaCta wrongly advised "Raise bid to
+    // grow stake" — a higher bid can't lift a bond ceiling; a bond top-up can.
+    const validator = makeValidator({
+      bondGoodForNEpochs: 20, // healthy runway for the current (clamped) target
+      maxStakeWanted: 200_000,
+      maxBondDelegation: 100_000, // ceiling the auction pinned the target to
+      bondSamStakeCapSol: 100_000, // bond cap == ceiling → bond is the binder
+      auctionStake: { marinadeSamTargetSol: 100_000 },
+      marinadeActivatedStakeSol: 50_000, // below target → would be RAISE_TO_GROW
+      values: { expectedStakeChangeSol: 0 },
+    })
+    // priorityFrontierPmpe 50 > totalPmpe 28 → without the fix this is the
+    // "Raise bid to grow stake next epoch." branch.
+    const tip = getValidatorTip(validator, DS_SAM_CONFIG, 20, undefined, undefined, 50)
+    expect(tip.constraint).toBe('bond')
+    expect(tip.urgency).toBe('info')
+    expect(tip.text).toBe('Top up bond to reach your `maxStakeWanted`.')
+    expect(tip.text).not.toBe('Raise bid to grow stake next epoch.')
+  })
+
+  it('in-set, target at ceiling but TVL cap (not bond) is the binder → stays raise-bid, no bond CTA', () => {
+    // maxBondDelegation is set by the per-validator TVL cap here
+    // (bondSamStakeCapSol > maxBondDelegation), so a bond top-up would NOT
+    // grow stake — the growth CTA must not fire.
+    const validator = makeValidator({
+      bondGoodForNEpochs: 20,
+      maxStakeWanted: 200_000,
+      maxBondDelegation: 100_000,
+      bondSamStakeCapSol: 150_000, // bond cap ABOVE the ceiling → TVL cap binds
+      auctionStake: { marinadeSamTargetSol: 100_000 },
+      marinadeActivatedStakeSol: 50_000,
+      values: { expectedStakeChangeSol: 0 },
+    })
+    const tip = getValidatorTip(validator, DS_SAM_CONFIG, 20, undefined, undefined, 50)
+    expect(tip.constraint).not.toBe('bond')
+    expect(tip.text).toBe('Raise bid to grow stake next epoch.')
+  })
+
+  it('in-set, target at bond ceiling that equals maxStakeWanted → at own cap, no bond CTA', () => {
+    // Bond ceiling coincides with maxStakeWanted → the validator is at their
+    // own setting; topping up the bond wouldn't grow them, so no bond CTA.
+    const validator = makeValidator({
+      bondGoodForNEpochs: 20,
+      maxStakeWanted: 100_000,
+      maxBondDelegation: 100_000,
+      bondSamStakeCapSol: 100_000,
+      auctionStake: { marinadeSamTargetSol: 100_000 },
+      marinadeActivatedStakeSol: 100_000,
+      values: { expectedStakeChangeSol: 0 },
+    })
+    const tip = getValidatorTip(validator, DS_SAM_CONFIG, 20, undefined, undefined, 50)
+    expect(tip.constraint).not.toBe('bond')
+  })
+
   it('delta < 0 + at own maxStakeWanted cap (SUP-188 rebalance down) → neutral "At your maxStakeWanted setting"', () => {
     const config = { ...DS_SAM_CONFIG, minMaxStakeWanted: 10_000 } as unknown as DsSamConfig
     const validator = makeValidator({
