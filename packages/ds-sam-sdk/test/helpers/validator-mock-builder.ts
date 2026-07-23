@@ -28,7 +28,7 @@ export class ValidatorMockBuilder {
   private nativeStake = 0
   private liquidStake = 0
   private externalStake = 0
-  private version = '1.18.15'
+  private version = '4.1.0'
   private bond: BondDataType | null = null
   private country: string | null = null
   private aso: string | null = null
