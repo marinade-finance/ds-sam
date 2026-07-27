@@ -533,14 +533,14 @@ describe('sam', () => {
     }
 
     it('accepts in-range stable Firedancer version', async () => {
-      expect(await isEligible('0.909.0')).toBe(true)
+      expect(await isEligible('0.1005.40100')).toBe(true)
     })
 
-    // Regression: validators-API reports harmonic FD as 0.909.0-rc.40001.
+    // Regression: Frankendancer mainnet releases are prereleases (e.g. 0.1004.0-rc.40101).
     // node-semver excludes prereleases from ranges by default; SDK passes
-    // { includePrerelease: true } so this version is treated as in-range.
-    it('accepts in-range Firedancer prerelease (harmonic FD)', async () => {
-      expect(await isEligible('0.909.0-rc.40001')).toBe(true)
+    // { includePrerelease: true } so in-range FD prereleases stay eligible.
+    it('accepts in-range Firedancer prerelease', async () => {
+      expect(await isEligible('0.1004.0-rc.40101')).toBe(true)
     })
 
     it('rejects out-of-range version', async () => {

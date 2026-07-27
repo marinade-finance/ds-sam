@@ -54,121 +54,48 @@ describe('eligibility', () => {
     expect(findValidatorInResult(eligibleValidator.voteAccount, result)?.samEligible).toStrictEqual(true)
   })
 
-  it('considers also FD versions eligible', async () => {
+  it('enforces the client version floor across Agave and Frankendancer', async () => {
     const voteAccounts = generateVoteAccounts()
     const identities = generateIdentities()
 
-    const validators: [ValidatorMockBuilder, boolean][] = [
-      [
-        new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
-          .withEligibleDefaults()
-          .withVersion('1.18.15'),
-        true,
-      ],
-      [
-        new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
-          .withEligibleDefaults()
-          .withVersion('1.18.16'),
-        true,
-      ],
-      [
-        new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
-          .withEligibleDefaults()
-          .withVersion('1.18.14'),
-        false,
-      ],
-      [
-        new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
-          .withEligibleDefaults()
-          .withVersion('1.17.99'),
-        false,
-      ],
-      [
-        new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
-          .withEligibleDefaults()
-          .withVersion('1.19.0'),
-        true,
-      ],
-      [
-        new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
-          .withEligibleDefaults()
-          .withVersion('0.113.20007'),
-        true,
-      ],
-      [
-        new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
-          .withEligibleDefaults()
-          .withVersion('0.101.20013'),
-        true,
-      ],
-      [
-        new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
-          .withEligibleDefaults()
-          .withVersion('0.101.20014'),
-        true,
-      ],
-      [
-        new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
-          .withEligibleDefaults()
-          .withVersion('0.101.20012'),
-        false,
-      ],
-      [
-        new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
-          .withEligibleDefaults()
-          .withVersion('0.102.0'),
-        true,
-      ],
-      [
-        new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
-          .withEligibleDefaults()
-          .withVersion('0.100.99'),
-        false,
-      ],
-      [
-        new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
-          .withEligibleDefaults()
-          .withVersion('0.999.99'),
-        true,
-      ],
-      [
-        new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
-          .withEligibleDefaults()
-          .withVersion('1.0.0'),
-        false,
-      ],
-      [
-        new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
-          .withEligibleDefaults()
-          .withVersion('1.0.1'),
-        false,
-      ],
-      [
-        new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
-          .withEligibleDefaults()
-          .withVersion('1.1.0'),
-        false,
-      ],
-      [
-        new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
-          .withEligibleDefaults()
-          .withVersion('2.0.0'),
-        true,
-      ],
+    const cases: [string, boolean][] = [
+      // Agave / Jito lane (floor 4.1.0-beta.0)
+      ['1.18.15', false],
+      ['3.9.9', false],
+      ['4.0.3', false],
+      ['4.1.0-alpha.0', false],
+      ['4.1.0-beta.0', true],
+      ['4.1.0-rc.1', true],
+      ['4.1.0', true],
+      ['4.1.1', true],
+      ['5.0.0', true],
+      // reserved for full Firedancer (1.x), currently rejected
+      ['1.0.0', false],
+      ['1.1.0', false],
+      // Frankendancer lane (floor 0.1004.0-rc.40101, < 1.0.0)
+      ['0.1.1', false],
+      ['0.101.20013', false],
+      ['0.911.40002', false],
+      ['0.1004.0-rc.40100', false],
+      ['0.1004.0-rc.40101', true],
+      ['0.1004.0', true],
+      ['0.1005.40100', true],
     ]
-    const dsSam = new DsSamSDK(
-      {
-        validatorsClientVersionSemverExpr: '>=1.18.15 || >=0.101.20013 <1.0.0',
-      },
-      defaultStaticDataProviderBuilder(validators.map(([validator]) => validator)),
-    )
+
+    const validators = cases.map(([version, eligible]) => ({
+      version,
+      eligible,
+      builder: new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
+        .withEligibleDefaults()
+        .withVersion(version),
+    }))
+    // Default config floor tested, no overrides; expected values track config.ts.
+    const dsSam = new DsSamSDK({}, defaultStaticDataProviderBuilder(validators.map(v => v.builder)))
     const result = await dsSam.run()
 
-    validators.forEach(([validator, eligibility]) => {
-      const v = findValidatorInResult(validator.voteAccount, result)
-      expect(v).toBeDefined()
-      expect(v?.samEligible).toStrictEqual(eligibility)
-    })
+    const actual = validators.map(v => [v.version, findValidatorInResult(v.builder.voteAccount, result)?.samEligible])
+    const expected = validators.map(v => [v.version, v.eligible])
+    expect(actual).toStrictEqual(expected)
   })
 
   it('marks empty epochStats as ineligible', async () => {
