@@ -1,4 +1,5 @@
 import { AuctionConstraintType } from './types'
+import { validatorTotalAuctionStakeSol } from './utils'
 
 import type { DsSamConfig } from './config'
 import type { AuctionResult, AuctionValidator } from './types'
@@ -308,11 +309,19 @@ export const selectCutoffRank = (v: AugmentedAuctionValidator): number => v.valu
 export type ConcentrationContext = {
   // The validator's own country / ASO group.
   label: string
-  // The group's share of the auction's total SAM target stake (0..1).
+  // The group's share of TOTAL NETWORK stake (0..1) — the same basis the
+  // country / ASO caps are enforced on: Σ(externalActivatedSol +
+  // marinadeSamTargetSol) over the group, over stakeAmounts.networkTotalSol.
+  // Must stay on the network basis: capPct below is a network-stake cap
+  // (sdk.ts getAuctionConstraints -> totalCountryStakeCapSol /
+  // totalAsoStakeCapSol = networkTotalSol * cap), so a Marinade-TVL-relative
+  // share here would be a percentage of one quantity printed against the cap
+  // of another.
   pctOfTotal: number
-  // Configured concentration cap for this constraint (0..1).
+  // Configured concentration cap for this constraint (0..1), share of network stake.
   capPct: number
-  // How many validators fall in this group.
+  // How many validators fall in this group — every group member, not just
+  // auction winners, because they all carry network stake counted above.
   groupValidatorCount: number
   // True when THIS validator's binding cap is this exact country / ASO.
   thisValidatorCapped: boolean
@@ -324,17 +333,26 @@ export type ValidatorConcentration = {
 }
 
 // Per-validator concentration context: for the validator's own country and
-// ASO, how much of the auction's SAM target stake that group already holds
-// versus the configured cap, and whether this validator is itself capped by
-// that constraint. Surfaced in the detail panel so the country / ASO limits
-// stay inspectable per validator after the headline concentration tiles were
+// ASO, how much of TOTAL NETWORK stake that group already holds versus the
+// configured cap, and whether this validator is itself capped by that
+// constraint. Surfaced in the detail panel so the country / ASO limits stay
+// inspectable per validator after the headline concentration tiles were
 // removed. null when the validator is not in the auction set.
+//
+// The group stake mirrors buildCountry/AsoConcentrationConstraints in the SDK
+// exactly: validatorTotalAuctionStakeSol over EVERY validator of the group
+// (not only winners — a zero-target validator still holds external stake that
+// counts against the cap), divided by stakeAmounts.networkTotalSol, which is
+// the same denominator the caps are derived from.
 export const selectValidatorConcentration = (
   auctionResult: AuctionResult,
   config: DsSamConfig,
   voteAccount: string,
 ): ValidatorConcentration | null => {
-  const validators = auctionResult.auctionData.validators
+  const {
+    validators,
+    stakeAmounts: { networkTotalSol },
+  } = auctionResult.auctionData
   const self = validators.find(v => v.voteAccount === voteAccount)
   if (!self) return null
 
@@ -345,20 +363,15 @@ export const selectValidatorConcentration = (
   ): ConcentrationContext => {
     const key = pick(self) || '—'
     let groupStake = 0
-    let total = 0
     let groupValidatorCount = 0
     for (const v of validators) {
-      const stakeSol = v.auctionStake.marinadeSamTargetSol
-      if (stakeSol <= 0) continue
-      total += stakeSol
-      if ((pick(v) || '—') === key) {
-        groupStake += stakeSol
-        groupValidatorCount += 1
-      }
+      if ((pick(v) || '—') !== key) continue
+      groupStake += validatorTotalAuctionStakeSol(v)
+      groupValidatorCount += 1
     }
     return {
       label: key,
-      pctOfTotal: total > 0 ? groupStake / total : 0,
+      pctOfTotal: networkTotalSol > 0 ? groupStake / networkTotalSol : 0,
       capPct,
       groupValidatorCount,
       // Match the SDK's raw constraintName (not the '—' display fallback), so
