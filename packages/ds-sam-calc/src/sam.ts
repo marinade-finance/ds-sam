@@ -80,7 +80,9 @@ type RedelegationAllocation = {
   priorityFrontierPmpe: number | null
   // Standard competition rank by revShare.totalPmpe desc; ties share the higher position.
   rankByVote: Map<string, number>
-  // Lowest-totalPmpe in-set validator; sets winningBidPmpe. null when nobody is in set.
+  // Lowest-totalPmpe validator holding stake at or above the clearing price; sets
+  // winningBidPmpe. The floor keeps backstop stake, which lands in the same
+  // marinadeSamTargetSol field below the cutoff, out of the auction's price.
   marginalWinner: AuctionValidator | null
 }
 
@@ -101,8 +103,8 @@ type RedelegationAllocation = {
 //
 // Memoised per AuctionResult identity: called by computeExpectedStakeChanges,
 // selectRedelegationPriorityFrontierPmpe, selectRedelegationPriorityRank,
-// selectWinningApyForValidator, and computeNextEpochStake — same auction
-// would otherwise run the greedy pass once per consumer per detail open.
+// and computeNextEpochStake — same auction would otherwise run the greedy
+// pass once per consumer per detail open.
 const allocationCache = new WeakMap<AuctionResult, Map<number, RedelegationAllocation>>()
 
 export function allocateRedelegation(auctionResult: AuctionResult, minBondBalanceSol: number): RedelegationAllocation {
@@ -133,7 +135,7 @@ export function allocateRedelegation(auctionResult: AuctionResult, minBondBalanc
       prevPmpe = pmpe
     }
     rankByVote.set(v.voteAccount, groupRank)
-    if (v.auctionStake.marinadeSamTargetSol > 0) {
+    if (v.auctionStake.marinadeSamTargetSol > 0 && pmpe >= auctionResult.winningTotalPmpe) {
       marginalWinner = v
     }
     const belowMin = (v.bondBalanceSol ?? 0) < minBondBalanceSol

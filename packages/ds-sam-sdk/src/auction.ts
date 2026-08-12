@@ -68,11 +68,16 @@ export class Auction {
         for (const validator of groupValidators.values()) {
           validator.auctionStake.marinadeSamTargetSol += evenDistributionCap
           this.data.stakeAmounts.marinadeRemainingSamSol -= evenDistributionCap
-          winningTotalPmpe = validator.revShare.totalPmpe
           this.debug.pushValidatorEvent(
             validator.voteAccount,
             `received ${evenDistributionCap} SAM stake in PMPE group ${validator.revShare.totalPmpe} with ${groupValidators.size} validators`,
           )
+        }
+        // A fully cap-blocked group distributes nothing, so it must not claim the
+        // clearing price. Consumers derive the marginal winner from
+        // marinadeSamTargetSol > 0, and the two definitions have to agree.
+        if (evenDistributionCap > 0) {
+          winningTotalPmpe = group.totalPmpe
         }
 
         this.constraints.updateStateForSam(this.data)
@@ -354,7 +359,9 @@ export class Auction {
     this.debug.pushEvent('STAKE DISTRIBUTED')
 
     if (!isFinite(winningTotalPmpe)) {
-      throw new Error('winningTotalPmpe has to be finite')
+      throw new Error(
+        `winningTotalPmpe has to be finite; no PMPE group absorbed SAM stake, every eligible validator was cap-blocked # ${JSON.stringify(this.data.stakeAmounts)}`,
+      )
     }
 
     if (winningTotalPmpe <= 0) {

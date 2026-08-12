@@ -112,13 +112,17 @@ describe('eligibility', () => {
       })
 
     const goodVal = new ValidatorMockBuilder(votes.next().value, ids.next().value).withEligibleDefaults()
+    // Network stake outside goodVal's country, otherwise goodVal alone exceeds the
+    // country concentration cap and the auction can distribute nothing at all.
+    const networkBallast = new ValidatorMockBuilder(votes.next().value, ids.next().value).withExternalStake(2_000_000)
 
-    const dsSam = new DsSamSDK({}, defaultStaticDataProviderBuilder([val, goodVal]))
+    const dsSam = new DsSamSDK({}, defaultStaticDataProviderBuilder([val, goodVal, networkBallast]))
     const result = await dsSam.run()
 
     const v = findValidatorInResult(val.voteAccount, result)
     assert(v)
     expect(v.samEligible).toBe(false)
     expect(v.auctionStake.marinadeSamTargetSol).toBe(0)
+    expect(findValidatorInResult(goodVal.voteAccount, result)?.auctionStake.marinadeSamTargetSol).toBeGreaterThan(0)
   })
 })
