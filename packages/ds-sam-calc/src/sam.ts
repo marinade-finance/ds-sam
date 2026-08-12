@@ -10,6 +10,11 @@ export const selectPaidUndelegationSol = (v: AuctionValidator): number => v.valu
 export const selectNonBidPmpe = (v: AuctionValidator): number =>
   v.revShare.inflationPmpe + v.revShare.mevPmpe + (v.revShare.blockPmpe ?? 0)
 
+// Tolerance for "sits at the clearing price". Shared by the marginal winner and
+// cutoffRank so the two never disagree about who is at the cutoff when an
+// AuctionResult reaches us with winningTotalPmpe rounded elsewhere.
+const PMPE_EPS = 1e-9
+
 // AugmentedAuctionValidator: AuctionValidator with derived per-validator fields
 // pre-computed. expectedStakeChangeSol drives the next-epoch delta display and
 // decomposes into three signed components that always sum to it:
@@ -135,7 +140,7 @@ export function allocateRedelegation(auctionResult: AuctionResult, minBondBalanc
       prevPmpe = pmpe
     }
     rankByVote.set(v.voteAccount, groupRank)
-    if (v.auctionStake.marinadeSamTargetSol > 0 && pmpe >= auctionResult.winningTotalPmpe) {
+    if (selectInSet(v) && pmpe >= auctionResult.winningTotalPmpe - PMPE_EPS) {
       marginalWinner = v
     }
     const belowMin = (v.bondBalanceSol ?? 0) < minBondBalanceSol
@@ -260,11 +265,10 @@ export function augmentAuctionResult(
   // marginal winner sits at 0. Above-cutoff is +1 (closest tier above), below
   // is -1 (closest tier below). Ranking by totalPmpe (not maxApy) avoids the
   // epochs-per-year wobble — the auction clears on totalPmpe directly.
-  const eps = 1e-9
   const win = auctionResult.winningTotalPmpe
   const pmpes = validators.map(v => v.revShare.totalPmpe)
-  const above = [...new Set(pmpes.filter(p => p > win + eps))].sort((a, b) => a - b)
-  const below = [...new Set(pmpes.filter(p => p < win - eps))].sort((a, b) => b - a)
+  const above = [...new Set(pmpes.filter(p => p > win + PMPE_EPS))].sort((a, b) => a - b)
+  const below = [...new Set(pmpes.filter(p => p < win - PMPE_EPS))].sort((a, b) => b - a)
   const aboveRank = new Map<number, number>()
   above.forEach((p, i) => aboveRank.set(p, 1 + i))
   const belowRank = new Map<number, number>()
@@ -272,7 +276,7 @@ export function augmentAuctionResult(
   const cutoffRanks = new Map<string, number>()
   for (const v of validators) {
     const p = v.revShare.totalPmpe
-    const rank = Math.abs(p - win) < eps ? 0 : p > win ? (aboveRank.get(p) ?? 0) : (belowRank.get(p) ?? 0)
+    const rank = Math.abs(p - win) < PMPE_EPS ? 0 : p > win ? (aboveRank.get(p) ?? 0) : (belowRank.get(p) ?? 0)
     cutoffRanks.set(v.voteAccount, rank)
   }
 

@@ -101,7 +101,9 @@ describe('marginal winner', () => {
     const blocked = result.auctionData.validators.find(v => v.voteAccount === capBlocked.voteAccount)
     expect(blocked?.samEligible).toStrictEqual(true)
     expect(blocked?.auctionStake.marinadeSamTargetSol).toStrictEqual(0)
-    expect(result.auctionData.stakeAmounts.marinadeRemainingSamSol).toBeGreaterThan(0)
+    // Far above EPSILON, or distributeSamStake would stop before descending into the
+    // cap-blocked group and these tests would pass with the fix reverted.
+    expect(result.auctionData.stakeAmounts.marinadeRemainingSamSol).toBeGreaterThan(100_000)
 
     assertMarginalWinnerIsMarginal(result)
   })

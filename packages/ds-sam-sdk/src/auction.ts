@@ -73,10 +73,10 @@ export class Auction {
             `received ${evenDistributionCap} SAM stake in PMPE group ${validator.revShare.totalPmpe} with ${groupValidators.size} validators`,
           )
         }
-        // A fully cap-blocked group distributes nothing, so it must not claim the
-        // clearing price. Consumers derive the marginal winner from
-        // marinadeSamTargetSol > 0, and the two definitions have to agree.
-        if (evenDistributionCap > 0) {
+        // A group that absorbs less than EPSILON has not cleared anything, so it must
+        // not claim the clearing price - otherwise a cap-blocked group, or a crumb of
+        // leftover TVL, drags the price a whole tier below what winners actually paid.
+        if (evenDistributionCap >= EPSILON) {
           winningTotalPmpe = group.totalPmpe
         }
 
