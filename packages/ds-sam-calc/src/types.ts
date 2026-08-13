@@ -19,8 +19,17 @@ export type AggregatedData = {
   epoch: number
   validators: AggregatedValidator[]
   rewards: Rewards
+  slotParams: SlotParams
   stakeAmounts: StakeAmounts
   blacklist: Set<string>
+}
+
+// Provenance for re-rendering a stored auction's APY; the auction itself never reads these.
+export type SlotParams = {
+  // Protocol nominal, drives per-epoch inflation magnitude — never a measurement.
+  slotsPerYear: number
+  // Measured wall clock, the exponent for annualizing PMPE into APY.
+  epochsPerYear: number
 }
 
 export type EpochStats = {

@@ -70,10 +70,12 @@ export type RawMevInfoResponseDto = {
 }
 
 export type RawRewardsRecordDto = [number, number] // [epoch, SOL]
+export type RawSlotsPerYearRecordDto = [number, number] // [epoch, nominal slots per year]
 export type RawRewardsResponseDto = {
   rewards_mev: RawRewardsRecordDto[]
   rewards_inflation_est: RawRewardsRecordDto[]
   rewards_block: RawRewardsRecordDto[]
+  slots_per_year: RawSlotsPerYearRecordDto[]
 }
 
 export type RawEpochStatDto = {

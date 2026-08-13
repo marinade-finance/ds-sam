@@ -11,6 +11,11 @@ const infiniteGenerator = function* (prefix: string, padding: number) {
 export const generateVoteAccounts = (label = '') => infiniteGenerator(`vote-acc-${label}-`, 10)
 export const generateIdentities = () => infiniteGenerator('identity-', 10)
 
+// Fixed anchor, never `Date.now()`, so mock epoch_end_at stays snapshot-stable.
+const EPOCH_END_ANCHOR_MS = Date.parse('2026-01-01T00:00:00.000Z')
+// Realistic measured length, not the nominal 48h, so no fixture resembles the retired constant.
+export const MOCK_EPOCH_DURATION_SECONDS = 50.6 * 3600
+
 export type BondDataType = {
   stakeWanted: number
   cpmpe: number
@@ -238,7 +243,8 @@ export class ValidatorMockBuilder {
         version: this.version,
         commission_advertised: inflationCommission,
         credits: credits,
-        epoch_end_at: e === 0 ? null : 'TODO',
+        epoch_end_at:
+          e === 0 ? null : new Date(EPOCH_END_ANCHOR_MS - (e - 1) * MOCK_EPOCH_DURATION_SECONDS * 1000).toISOString(),
       })),
       self_stake: '0',
       foundation_stake: '0',

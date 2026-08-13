@@ -5,7 +5,12 @@ import { DEFAULT_CONFIG } from '@marinade.finance/ds-sam-calc'
 import { DsSamSDK } from '../src'
 import { Auction } from '../src/auction'
 import { Debug } from '../src/debug'
-import { buildRevShare, makeConstraints as makeUnitConstraints, makeUnitValidator } from './helpers/auction-test-utils'
+import {
+  BASE_SLOT_PARAMS,
+  buildRevShare,
+  makeConstraints as makeUnitConstraints,
+  makeUnitValidator,
+} from './helpers/auction-test-utils'
 import {
   blockRewardsStaticDataProviderBuilder,
   defaultStaticDataProviderBuilder,
@@ -575,6 +580,7 @@ describe('sam', () => {
           mevPmpe: 5,
           blockPmpe: 0,
         },
+        slotParams: BASE_SLOT_PARAMS,
         stakeAmounts: {
           networkTotalSol: 1e6,
           marinadeSamTvlSol: 1000,
@@ -605,6 +611,7 @@ describe('sam', () => {
           mevPmpe: 5,
           blockPmpe: 0,
         },
+        slotParams: BASE_SLOT_PARAMS,
         stakeAmounts: {
           networkTotalSol: 1e6,
           marinadeSamTvlSol: 1000,

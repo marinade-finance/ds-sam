@@ -1,9 +1,23 @@
 import { ineligibleValidatorAggDefaults } from '@marinade.finance/ds-sam-calc'
+import { epochsPerYearFromDuration } from '@marinade.finance/ts-common'
 
+import { BASELINE_SLOTS_PER_YEAR } from './static-data-provider'
+import { MOCK_EPOCH_DURATION_SECONDS } from './validator-mock-builder'
 import { AuctionConstraints } from '../../src/constraints'
 import { Debug } from '../../src/debug'
 
-import type { AuctionConstraintsConfig, AuctionData, AuctionValidator, RevShare } from '@marinade.finance/ds-sam-calc'
+import type {
+  AuctionConstraintsConfig,
+  AuctionData,
+  AuctionValidator,
+  RevShare,
+  SlotParams,
+} from '@marinade.finance/ds-sam-calc'
+
+export const BASE_SLOT_PARAMS: SlotParams = {
+  slotsPerYear: BASELINE_SLOTS_PER_YEAR,
+  epochsPerYear: epochsPerYearFromDuration(MOCK_EPOCH_DURATION_SECONDS),
+}
 
 export const BASE_CONSTRAINTS: AuctionConstraintsConfig = {
   totalCountryStakeCapSol: Infinity,
@@ -89,6 +103,7 @@ export function makeAuction(overrides: Partial<AuctionData> = {}): AuctionData {
       marinadeRemainingSamSol: 0,
     },
     rewards: { inflationPmpe: 0, mevPmpe: 0, blockPmpe: 0 },
+    slotParams: BASE_SLOT_PARAMS,
     blacklist: new Set<string>(),
     ...overrides,
   }

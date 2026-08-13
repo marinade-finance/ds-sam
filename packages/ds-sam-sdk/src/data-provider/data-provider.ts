@@ -1,6 +1,7 @@
 import fs from 'fs'
 
 import { calcEffParticipatingBidPmpe, InputsSource, effectiveCommissions } from '@marinade.finance/ds-sam-calc'
+import { epochsPerYearFromDuration } from '@marinade.finance/ts-common'
 import axios from 'axios'
 import Decimal from 'decimal.js'
 
@@ -10,6 +11,7 @@ import type {
   RawMevInfoResponseDto,
   RawRewardsRecordDto,
   RawRewardsResponseDto,
+  RawSlotsPerYearRecordDto,
   RawSourceData,
   RawTvlResponseDto,
   RawValidatorsResponseDto,
@@ -23,6 +25,7 @@ import type {
   AggregatedValidator,
   AuctionHistoryStats,
   DsSamConfig,
+  SlotParams,
 } from '@marinade.finance/ds-sam-calc'
 
 export class DataProvider {
@@ -73,6 +76,51 @@ export class DataProvider {
     )
 
     return rewardsTotal.total.div(rewardsTotal.epochs).toNumber()
+  }
+
+  // Nominal and measured diverge (~182.6 vs ~173 epochs/year) and neither may substitute for the other.
+  private aggregateSlotParams(data: RawSourceData): SlotParams {
+    const latest = data.rewards.slots_per_year.reduce<RawSlotsPerYearRecordDto | null>(
+      (acc, record) => (acc === null || record[0] > acc[0] ? record : acc),
+      null,
+    )
+    if (latest === null) {
+      throw new Error('Missing slots_per_year in rewards data')
+    }
+    return {
+      slotsPerYear: latest[1],
+      epochsPerYear: epochsPerYearFromDuration(this.measureEpochDurationSeconds(data.validators)),
+    }
+  }
+
+  private measureEpochDurationSeconds({ validators }: RawValidatorsResponseDto): number {
+    const endTimes = new Map<number, number>()
+    validators.forEach(({ epoch_stats }) =>
+      epoch_stats.forEach(({ epoch, epoch_end_at }) => {
+        if (!epoch_end_at || endTimes.has(epoch)) {
+          return
+        }
+        const endTime = Date.parse(epoch_end_at)
+        if (Number.isNaN(endTime)) {
+          throw new Error(`Unparseable epoch_end_at "${epoch_end_at}" for epoch ${epoch}`)
+        }
+        endTimes.set(epoch, endTime)
+      }),
+    )
+
+    // Only adjacent epochs bound exactly one epoch; a gap would span several.
+    const durations = [...endTimes.entries()].flatMap(([epoch, endTime]) => {
+      const previousEnd = endTimes.get(epoch - 1)
+      return previousEnd === undefined ? [] : [new Decimal(endTime).sub(previousEnd)]
+    })
+    if (durations.length === 0) {
+      throw new Error('Cannot measure epoch duration: no two consecutive epochs carry epoch_end_at')
+    }
+
+    return Decimal.sum(...durations)
+      .div(durations.length)
+      .div(1000)
+      .toNumber()
   }
 
   private processAuctions(input: RawScoredValidatorDto[]): AuctionHistory[] {
@@ -296,6 +344,7 @@ export class DataProvider {
           ? this.aggregateRewardsRecords(activatedStakePerEpochs, data.rewards.rewards_block)
           : 0,
       },
+      slotParams: this.aggregateSlotParams(data),
       stakeAmounts: {
         networkTotalSol: externalStakeTotal.div(1e9).add(tvlSol).toNumber(),
         marinadeSamTvlSol: tvlSol,

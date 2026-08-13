@@ -12,9 +12,13 @@ import type {
   RawRewardsRecordDto,
   RawRewardsResponseDto,
   RawScoredValidatorDto,
+  RawSlotsPerYearRecordDto,
   RawTvlResponseDto,
   RawValidatorsResponseDto,
 } from '../../src'
+
+// agave LEGACY_SLOT_PARAMS.slots_per_year — the 400ms baseline every collected epoch ran under.
+export const BASELINE_SLOTS_PER_YEAR = 78892314.984
 
 export type StaticDataProviderConfig = {
   validatorMockBuilders: ValidatorMockBuilder[]
@@ -98,10 +102,16 @@ export class StaticDataProvider extends DataProvider {
       ],
     )
 
+    const slotsPerYear = Array.from(
+      { length: epochs },
+      (_, i): RawSlotsPerYearRecordDto => [this.staticDataProviderConfig.currentEpoch - i - 1, BASELINE_SLOTS_PER_YEAR],
+    )
+
     return Promise.resolve({
       rewards_mev: rewardsMev,
       rewards_inflation_est: rewardsInflationEst,
       rewards_block: rewardsBlock,
+      slots_per_year: slotsPerYear,
     })
   }
 
