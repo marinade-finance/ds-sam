@@ -1,6 +1,5 @@
-import { DEFAULT_CONFIG } from '@marinade.finance/ds-sam-calc'
+import { BASELINE_SLOTS_PER_YEAR, DEFAULT_CONFIG, InputsSource } from '@marinade.finance/ds-sam-calc'
 
-import { BASELINE_SLOTS_PER_YEAR } from './helpers/static-data-provider'
 import { defaultStaticDataProviderBuilder } from './helpers/static-data-provider-builder'
 import { ValidatorMockBuilder } from './helpers/validator-mock-builder'
 
@@ -438,61 +437,39 @@ describe('processAuctions', () => {
 
 describe('slotParams provenance', () => {
   const SLOTS_PER_YEAR_350MS = 90162645.696
-  // MOCK_EPOCH_DURATION_SECONDS (50.6h) annualised — measured, distinct from the retired 182.625.
-  const MEASURED_EPOCHS_PER_YEAR = 173.2411
+  const RUNNING_EPOCH = 1000
+
+  const providerFor = (config: Partial<typeof DEFAULT_CONFIG> = {}) =>
+    defaultStaticDataProviderBuilder([new ValidatorMockBuilder('alice', 'id-a').withEligibleDefaults()])({
+      ...DEFAULT_CONFIG,
+      ...config,
+    })
 
   const fetchRaw = async () => {
-    const dp = defaultStaticDataProviderBuilder([new ValidatorMockBuilder('alice', 'id-a').withEligibleDefaults()])(
-      DEFAULT_CONFIG,
-    )
+    const dp = providerFor()
     return { dp, raw: await dp.fetchSourceData() }
   }
 
-  const overrideEpochEndTimes = (raw: RawSourceData, overrides: Map<number, string | null>) =>
-    raw.validators.validators.forEach(v =>
-      v.epoch_stats.forEach(es => {
-        if (overrides.has(es.epoch)) {
-          es.epoch_end_at = overrides.get(es.epoch) ?? null
-        }
-      }),
-    )
-
-  it('records the protocol nominal and the measured epoch length side by side', async () => {
+  it('records the nominal together with the epoch it belongs to', async () => {
     const { dp, raw } = await fetchRaw()
     const agg = dp.aggregateData(raw)
-    expect(agg.slotParams.slotsPerYear).toBe(BASELINE_SLOTS_PER_YEAR)
-    expect(agg.slotParams.epochsPerYear).toBeCloseTo(MEASURED_EPOCHS_PER_YEAR, 4)
+    expect(agg.slotParams).toEqual({ slotsPerYear: BASELINE_SLOTS_PER_YEAR, epoch: RUNNING_EPOCH })
+    expect(agg.slotParams.epoch).toBe(agg.epoch)
   })
 
   it('nominal comes from the latest epoch when the rewards window spans a slot-time change', async () => {
     const { dp, raw } = await fetchRaw()
+    const transitioned = raw.rewards.slots_per_year.map(([epoch, recorded]): [number, number] => [
+      epoch,
+      epoch === RUNNING_EPOCH ? SLOTS_PER_YEAR_350MS : recorded,
+    ])
     // deliberately unordered — the latest epoch must win, not the first or last entry
-    raw.rewards.slots_per_year = [
-      [997, BASELINE_SLOTS_PER_YEAR],
-      [999, SLOTS_PER_YEAR_350MS],
-      [998, SLOTS_PER_YEAR_350MS],
-    ]
-    expect(dp.aggregateData(raw).slotParams.slotsPerYear).toBe(SLOTS_PER_YEAR_350MS)
-  })
+    raw.rewards.slots_per_year = [...transitioned.slice(1), ...transitioned.slice(0, 1)]
 
-  it('measures only adjacent epochs, so a gap cannot be read as one epoch', async () => {
-    const { dp, raw } = await fetchRaw()
-    overrideEpochEndTimes(
-      raw,
-      new Map([
-        [999, '2026-03-02T00:00:00.000Z'],
-        [998, '2026-03-01T00:00:00.000Z'],
-        [997, null],
-        [996, null],
-        [995, '2026-02-01T00:00:00.000Z'],
-        [994, null],
-        [993, null],
-        [992, null],
-        [991, null],
-      ]),
-    )
-    // only the 998→999 pair bounds an epoch: 24h ⇒ 365.25/year; the isolated 995 must not count.
-    expect(dp.aggregateData(raw).slotParams.epochsPerYear).toBeCloseTo(365.25, 6)
+    expect(dp.aggregateData(raw).slotParams).toEqual({
+      slotsPerYear: SLOTS_PER_YEAR_350MS,
+      epoch: RUNNING_EPOCH,
+    })
   })
 
   it('fails loudly when the nominal is absent rather than assuming a slot time', async () => {
@@ -501,15 +478,61 @@ describe('slotParams provenance', () => {
     expect(() => dp.aggregateData(raw)).toThrow('Missing slots_per_year')
   })
 
-  it('fails loudly on an unparseable epoch_end_at', async () => {
+  it('falls back to the baseline for inputs cached before the API published the nominal', async () => {
+    const { raw } = await fetchRaw()
+    const legacy = providerFor({ inputsSource: InputsSource.FILES, inputsCacheDirPath: '/dev/null' })
+    raw.rewards.slots_per_year = undefined as unknown as RawSourceData['rewards']['slots_per_year']
+
+    const agg = legacy.aggregateData(raw)
+    expect(agg.slotParams).toEqual({ slotsPerYear: BASELINE_SLOTS_PER_YEAR, epoch: RUNNING_EPOCH })
+  })
+})
+
+describe('inflation normalization across a slot-time change', () => {
+  const SLOTS_PER_YEAR_350MS = 90162645.696
+  const RUNNING_EPOCH = 1000
+
+  const fetchRaw = async (config: Partial<typeof DEFAULT_CONFIG> = {}) => {
+    const dp = defaultStaticDataProviderBuilder([new ValidatorMockBuilder('alice', 'id-a').withEligibleDefaults()])({
+      ...DEFAULT_CONFIG,
+      ...config,
+    })
+    return { dp, raw: await dp.fetchSourceData() }
+  }
+
+  it('does not move a window that spans no regime change', async () => {
     const { dp, raw } = await fetchRaw()
-    overrideEpochEndTimes(raw, new Map([[998, 'not-a-date']]))
-    expect(() => dp.aggregateData(raw)).toThrow('Unparseable epoch_end_at')
+    const normalized = dp.aggregateData(raw).rewards.inflationPmpe
+
+    // The legacy path skips normalization entirely, so it is the pre-change reference value.
+    const { dp: legacyDp, raw: legacyRaw } = await fetchRaw({
+      inputsSource: InputsSource.FILES,
+      inputsCacheDirPath: '/dev/null',
+    })
+    legacyRaw.rewards.slots_per_year = []
+    const unnormalized = legacyDp.aggregateData(legacyRaw).rewards.inflationPmpe
+
+    expect(normalized).toBe(unnormalized)
   })
 
-  it('fails loudly when no two consecutive epochs carry epoch_end_at', async () => {
+  // Without this the auction for the first faster epoch reads a whole window of slower-epoch issuance.
+  it('rescales a window of baseline epochs onto the running faster regime', async () => {
     const { dp, raw } = await fetchRaw()
-    overrideEpochEndTimes(raw, new Map(Array.from({ length: 10 }, (_, i): [number, null] => [1000 - i, null])))
-    expect(() => dp.aggregateData(raw)).toThrow('Cannot measure epoch duration')
+    const beforeTransition = dp.aggregateData(raw).rewards.inflationPmpe
+
+    const { dp: transitionDp, raw: transitionRaw } = await fetchRaw()
+    transitionRaw.rewards.slots_per_year = transitionRaw.rewards.slots_per_year.map(([epoch, recorded]) => [
+      epoch,
+      epoch === RUNNING_EPOCH ? SLOTS_PER_YEAR_350MS : recorded,
+    ])
+    const atTransition = transitionDp.aggregateData(transitionRaw).rewards.inflationPmpe
+
+    expect(atTransition / beforeTransition).toBeCloseTo(350 / 400, 12)
+  })
+
+  it('refuses to average an epoch whose regime is unknown', async () => {
+    const { dp, raw } = await fetchRaw()
+    raw.rewards.slots_per_year = raw.rewards.slots_per_year.filter(([epoch]) => epoch !== 995)
+    expect(() => dp.aggregateData(raw)).toThrow('Missing slots_per_year for epoch 995')
   })
 })

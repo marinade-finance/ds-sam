@@ -1,8 +1,5 @@
-import { ineligibleValidatorAggDefaults } from '@marinade.finance/ds-sam-calc'
-import { epochsPerYearFromDuration } from '@marinade.finance/ts-common'
+import { BASELINE_SLOTS_PER_YEAR, ineligibleValidatorAggDefaults } from '@marinade.finance/ds-sam-calc'
 
-import { BASELINE_SLOTS_PER_YEAR } from './static-data-provider'
-import { MOCK_EPOCH_DURATION_SECONDS } from './validator-mock-builder'
 import { AuctionConstraints } from '../../src/constraints'
 import { Debug } from '../../src/debug'
 
@@ -16,7 +13,7 @@ import type {
 
 export const BASE_SLOT_PARAMS: SlotParams = {
   slotsPerYear: BASELINE_SLOTS_PER_YEAR,
-  epochsPerYear: epochsPerYearFromDuration(MOCK_EPOCH_DURATION_SECONDS),
+  epoch: 1000,
 }
 
 export const BASE_CONSTRAINTS: AuctionConstraintsConfig = {

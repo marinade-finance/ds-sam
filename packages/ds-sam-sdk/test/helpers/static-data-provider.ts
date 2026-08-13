@@ -1,3 +1,4 @@
+import { BASELINE_SLOTS_PER_YEAR } from '@marinade.finance/ds-sam-calc'
 import Decimal from 'decimal.js'
 
 import { isNotNull } from './utils'
@@ -16,9 +17,6 @@ import type {
   RawTvlResponseDto,
   RawValidatorsResponseDto,
 } from '../../src'
-
-// agave LEGACY_SLOT_PARAMS.slots_per_year — the 400ms baseline every collected epoch ran under.
-export const BASELINE_SLOTS_PER_YEAR = 78892314.984
 
 export type StaticDataProviderConfig = {
   validatorMockBuilders: ValidatorMockBuilder[]
@@ -102,9 +100,10 @@ export class StaticDataProvider extends DataProvider {
       ],
     )
 
+    // One entry longer than the rewards window: the API also reports the running epoch, which has no estimate yet.
     const slotsPerYear = Array.from(
-      { length: epochs },
-      (_, i): RawSlotsPerYearRecordDto => [this.staticDataProviderConfig.currentEpoch - i - 1, BASELINE_SLOTS_PER_YEAR],
+      { length: epochs + 1 },
+      (_, i): RawSlotsPerYearRecordDto => [this.staticDataProviderConfig.currentEpoch - i, BASELINE_SLOTS_PER_YEAR],
     )
 
     return Promise.resolve({

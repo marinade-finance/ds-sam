@@ -1,7 +1,11 @@
 import fs from 'fs'
 
-import { calcEffParticipatingBidPmpe, InputsSource, effectiveCommissions } from '@marinade.finance/ds-sam-calc'
-import { epochsPerYearFromDuration } from '@marinade.finance/ts-common'
+import {
+  BASELINE_SLOTS_PER_YEAR,
+  calcEffParticipatingBidPmpe,
+  InputsSource,
+  effectiveCommissions,
+} from '@marinade.finance/ds-sam-calc'
 import axios from 'axios'
 import Decimal from 'decimal.js'
 
@@ -78,49 +82,46 @@ export class DataProvider {
     return rewardsTotal.total.div(rewardsTotal.epochs).toNumber()
   }
 
-  // Nominal and measured diverge (~182.6 vs ~173 epochs/year) and neither may substitute for the other.
-  private aggregateSlotParams(data: RawSourceData): SlotParams {
-    const latest = data.rewards.slots_per_year.reduce<RawSlotsPerYearRecordDto | null>(
+  private resolveSlotParams(rewards: RawRewardsResponseDto, epoch: number): SlotParams {
+    const latest = (rewards.slots_per_year ?? []).reduce<RawSlotsPerYearRecordDto | null>(
       (acc, record) => (acc === null || record[0] > acc[0] ? record : acc),
       null,
     )
     if (latest === null) {
-      throw new Error('Missing slots_per_year in rewards data')
+      if (this.dataSource === InputsSource.APIS) {
+        throw new Error('Missing slots_per_year in rewards data')
+      }
+      // Inputs cached before the API published the nominal can only hold pre-SIMD-0525 epochs.
+      console.warn(`Cached rewards carry no slots_per_year, assuming the baseline for epoch ${epoch}`)
+      return { slotsPerYear: BASELINE_SLOTS_PER_YEAR, epoch }
     }
-    return {
-      slotsPerYear: latest[1],
-      epochsPerYear: epochsPerYearFromDuration(this.measureEpochDurationSeconds(data.validators)),
-    }
+    return { slotsPerYear: latest[1], epoch: latest[0] }
   }
 
-  private measureEpochDurationSeconds({ validators }: RawValidatorsResponseDto): number {
-    const endTimes = new Map<number, number>()
-    validators.forEach(({ epoch_stats }) =>
-      epoch_stats.forEach(({ epoch, epoch_end_at }) => {
-        if (!epoch_end_at || endTimes.has(epoch)) {
-          return
-        }
-        const endTime = Date.parse(epoch_end_at)
-        if (Number.isNaN(endTime)) {
-          throw new Error(`Unparseable epoch_end_at "${epoch_end_at}" for epoch ${epoch}`)
-        }
-        endTimes.set(epoch, endTime)
-      }),
-    )
-
-    // Only adjacent epochs bound exactly one epoch; a gap would span several.
-    const durations = [...endTimes.entries()].flatMap(([epoch, endTime]) => {
-      const previousEnd = endTimes.get(epoch - 1)
-      return previousEnd === undefined ? [] : [new Decimal(endTime).sub(previousEnd)]
-    })
-    if (durations.length === 0) {
-      throw new Error('Cannot measure epoch duration: no two consecutive epochs carry epoch_end_at')
+  // Per-epoch issuance scales with 1/slots_per_year, so a window spanning a slot-time change
+  // averages two regimes and lags the current one by up to the window length unless normalised.
+  private aggregateInflationRecords(
+    activatedStakePerEpochs: Map<number, Decimal>,
+    rewards: RawRewardsResponseDto,
+    targetSlotsPerYear: number,
+  ): number {
+    const slotsPerYearByEpoch = new Map(rewards.slots_per_year ?? [])
+    if (slotsPerYearByEpoch.size === 0) {
+      return this.aggregateRewardsRecords(activatedStakePerEpochs, rewards.rewards_inflation_est)
     }
 
-    return Decimal.sum(...durations)
-      .div(durations.length)
-      .div(1000)
-      .toNumber()
+    const normalized = rewards.rewards_inflation_est.map(([epoch, amount]): RawRewardsRecordDto => {
+      const slotsPerYear = slotsPerYearByEpoch.get(epoch)
+      if (slotsPerYear === undefined) {
+        throw new Error(`Missing slots_per_year for epoch ${epoch}, which has an inflation estimate`)
+      }
+      // Exact identity rather than a 1.0 factor, so a window without a transition cannot move at all.
+      return slotsPerYear === targetSlotsPerYear
+        ? [epoch, amount]
+        : [epoch, new Decimal(amount).mul(slotsPerYear).div(targetSlotsPerYear).toNumber()]
+    })
+
+    return this.aggregateRewardsRecords(activatedStakePerEpochs, normalized)
   }
 
   private processAuctions(input: RawScoredValidatorDto[]): AuctionHistory[] {
@@ -332,19 +333,20 @@ export class DataProvider {
     )
 
     const epoch = data.rewards.rewards_inflation_est.reduce((epoch, entry) => Math.max(epoch, entry[0]), 0) + 1
+    const slotParams = this.resolveSlotParams(data.rewards, epoch)
 
     console.log('tvl', tvlSol)
     return {
       epoch,
       validators: this.aggregateValidators(data, blacklist, dataOverrides),
       rewards: {
-        inflationPmpe: this.aggregateRewardsRecords(activatedStakePerEpochs, data.rewards.rewards_inflation_est),
+        inflationPmpe: this.aggregateInflationRecords(activatedStakePerEpochs, data.rewards, slotParams.slotsPerYear),
         mevPmpe: this.aggregateRewardsRecords(activatedStakePerEpochs, data.rewards.rewards_mev),
         blockPmpe: data.rewards.rewards_block
           ? this.aggregateRewardsRecords(activatedStakePerEpochs, data.rewards.rewards_block)
           : 0,
       },
-      slotParams: this.aggregateSlotParams(data),
+      slotParams,
       stakeAmounts: {
         networkTotalSol: externalStakeTotal.div(1e9).add(tvlSol).toNumber(),
         marinadeSamTvlSol: tvlSol,
