@@ -1,5 +1,6 @@
+import { pmpeToSol } from '@marinade.finance/ts-common'
+
 import { BID_TOO_LOW_TOL_COEF, bidTooLowPenaltyCoef } from './calculations'
-import { pmpeToSol } from './constants'
 import { finite } from './format'
 
 import type { DsSamConfig } from './config'
@@ -61,7 +62,7 @@ export function computeBidPenalty(v: AuctionValidator, dsSamConfig: DsSamConfig,
 
   const base = winningTotalPmpe + effParticipatingBidPmpe
   const penaltyPmpe = penaltyCoef * base
-  const penaltySol = pmpeToSol(penaltyPmpe, v.marinadeActivatedStakeSol)
+  const penaltySol = pmpeToSol(penaltyPmpe, v.marinadeActivatedStakeSol).toNumber()
 
   return {
     historyEpochs,
@@ -101,5 +102,5 @@ export function bidTooLowPenaltySol(v: AuctionValidator, dsSamConfig: DsSamConfi
 
 // Blacklist penalty in SOL against the validator's active Marinade stake.
 export function blacklistPenaltySol(v: AuctionValidator): number {
-  return pmpeToSol(v.revShare.blacklistPenaltyPmpe, v.marinadeActivatedStakeSol)
+  return pmpeToSol(v.revShare.blacklistPenaltyPmpe, v.marinadeActivatedStakeSol).toNumber()
 }

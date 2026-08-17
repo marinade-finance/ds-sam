@@ -26,6 +26,19 @@ export function bondUtilizationPct(v: AuctionValidator, minBondEpochs: number): 
   return Math.max(0, Math.min(100, used * 100))
 }
 
+// Gauge scale: 4 × idealBondEpochs — ideal runway lands at 25% fill,
+// the critical+watch zone occupies the leftmost quarter.
+export function bondGaugeScaleMax(config: DsSamConfig): number {
+  return 4 * config.idealBondEpochs
+}
+
+// Critical band covers the leftmost half (0–50%) of the scale, making the
+// danger zone prominent regardless of absolute epoch values.
+export function bondGaugeCriticalFrac(config: DsSamConfig): number {
+  const max = bondGaugeScaleMax(config)
+  return max > 0 ? (2 * config.idealBondEpochs) / max : 0.5
+}
+
 // Four tiers driving the bond chip color and the page-level CTA:
 //   no-bond  → no bond posted at all (red)
 //   critical → fee charging now, coverage shortfall, OR runway ≤ minBondEpochs + BOND_URGENT_EPOCHS (red)

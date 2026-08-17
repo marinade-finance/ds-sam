@@ -116,6 +116,13 @@ const calculatePmpe = (pmpe: number | null, commissionDec: number | null): numbe
   return result.toNumber()
 }
 
+// Takes the commission KEPT and mirrors calculatePmpe's zero condition, so a shared-share label cannot
+// contradict the blockPmpe the auction credited.
+export function blockRewardsSharedFrac(commissionDec: number | null): number {
+  if (commissionDec === null || commissionDec >= 1) return 0
+  return 1 - commissionDec
+}
+
 // cf. https://www.notion.so/marinade/20250527-MRP-4-Stake-Auction-Marketplace-Re-balance-Dynamics-1e4e465715a480589819c33ab013c697
 export type BondRiskFeeConfig = {
   minBondEpochs: number
