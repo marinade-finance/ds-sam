@@ -40,6 +40,7 @@ export function computeBidPenalty(v: AuctionValidator, dsSamConfig: DsSamConfig,
   const threshold = BID_TOO_LOW_TOL_COEF * lastEpochBidPmpe
   const isNegativeBiddingChange = thisEpochBidPmpe < threshold
 
+  const marinadeActivatedStakeSol = finite(v.marinadeActivatedStakeSol)
   const effParticipatingBidPmpe = finite(v.revShare.effParticipatingBidPmpe)
   // ?? not ||, so a real 0 stays 0 (only missing values fall back to Infinity).
   const worstHistoricalPmpe = auctions
@@ -62,7 +63,7 @@ export function computeBidPenalty(v: AuctionValidator, dsSamConfig: DsSamConfig,
 
   const base = winningTotalPmpe + effParticipatingBidPmpe
   const penaltyPmpe = penaltyCoef * base
-  const penaltySol = pmpeToSol(penaltyPmpe, v.marinadeActivatedStakeSol).toNumber()
+  const penaltySol = pmpeToSol(penaltyPmpe, marinadeActivatedStakeSol).toNumber()
 
   return {
     historyEpochs,
@@ -83,7 +84,7 @@ export function computeBidPenalty(v: AuctionValidator, dsSamConfig: DsSamConfig,
     base,
     penaltyPmpe,
     penaltySol,
-    marinadeActivatedStakeSol: v.marinadeActivatedStakeSol,
+    marinadeActivatedStakeSol,
     winningTotalPmpe,
   }
 }
@@ -102,5 +103,5 @@ export function bidTooLowPenaltySol(v: AuctionValidator, dsSamConfig: DsSamConfi
 
 // Blacklist penalty in SOL against the validator's active Marinade stake.
 export function blacklistPenaltySol(v: AuctionValidator): number {
-  return pmpeToSol(v.revShare.blacklistPenaltyPmpe, v.marinadeActivatedStakeSol).toNumber()
+  return pmpeToSol(finite(v.revShare.blacklistPenaltyPmpe), finite(v.marinadeActivatedStakeSol)).toNumber()
 }

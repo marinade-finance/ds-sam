@@ -15,7 +15,6 @@ import type {
   RawMevInfoResponseDto,
   RawRewardsRecordDto,
   RawRewardsResponseDto,
-  RawSlotsPerYearRecordDto,
   RawSourceData,
   RawTvlResponseDto,
   RawValidatorsResponseDto,
@@ -82,20 +81,22 @@ export class DataProvider {
     return rewardsTotal.total.div(rewardsTotal.epochs).toNumber()
   }
 
-  private resolveSlotParams(rewards: RawRewardsResponseDto, epoch: number): SlotParams {
-    const latest = (rewards.slots_per_year ?? []).reduce<RawSlotsPerYearRecordDto | null>(
-      (acc, record) => (acc === null || record[0] > acc[0] ? record : acc),
-      null,
-    )
-    if (latest === null) {
+  private resolveSlotsPerYear(rewards: RawRewardsResponseDto, epoch: number): number {
+    const records = rewards.slots_per_year ?? []
+    if (records.length === 0) {
       if (this.dataSource === InputsSource.APIS) {
         throw new Error('Missing slots_per_year in rewards data')
       }
       // Inputs cached before the API published the nominal can only hold pre-SIMD-0525 epochs.
       console.warn(`Cached rewards carry no slots_per_year, assuming the baseline for epoch ${epoch}`)
-      return { slotsPerYear: BASELINE_SLOTS_PER_YEAR, epoch }
+      return BASELINE_SLOTS_PER_YEAR
     }
-    return { slotsPerYear: latest[1], epoch: latest[0] }
+    // The API reports the running epoch too, so the auction's own regime is always available.
+    const record = records.find(([recordEpoch]) => recordEpoch === epoch)
+    if (record === undefined) {
+      throw new Error(`Missing slots_per_year for the auction epoch ${epoch}`)
+    }
+    return record[1]
   }
 
   // Per-epoch issuance scales with 1/slots_per_year, so a window spanning a slot-time change
@@ -110,16 +111,20 @@ export class DataProvider {
       return this.aggregateRewardsRecords(activatedStakePerEpochs, rewards.rewards_inflation_est)
     }
 
-    const normalized = rewards.rewards_inflation_est.map(([epoch, amount]): RawRewardsRecordDto => {
-      const slotsPerYear = slotsPerYearByEpoch.get(epoch)
-      if (slotsPerYear === undefined) {
-        throw new Error(`Missing slots_per_year for epoch ${epoch}, which has an inflation estimate`)
-      }
-      // Exact identity rather than a 1.0 factor, so a window without a transition cannot move at all.
-      return slotsPerYear === targetSlotsPerYear
-        ? [epoch, amount]
-        : [epoch, new Decimal(amount).mul(slotsPerYear).div(targetSlotsPerYear).toNumber()]
-    })
+    const normalized = rewards.rewards_inflation_est
+      // aggregateRewardsRecords drops epochs with no stake, so requiring a regime for them would
+      // abort the run over a record that never reaches the average.
+      .filter(([epoch]) => activatedStakePerEpochs.has(epoch))
+      .map(([epoch, amount]): RawRewardsRecordDto => {
+        const slotsPerYear = slotsPerYearByEpoch.get(epoch)
+        if (slotsPerYear === undefined) {
+          throw new Error(`Missing slots_per_year for epoch ${epoch}, which has an inflation estimate`)
+        }
+        // Exact identity rather than a 1.0 factor, so a window without a transition cannot move at all.
+        return slotsPerYear === targetSlotsPerYear
+          ? [epoch, amount]
+          : [epoch, new Decimal(amount).mul(slotsPerYear).div(targetSlotsPerYear).toNumber()]
+      })
 
     return this.aggregateRewardsRecords(activatedStakePerEpochs, normalized)
   }
@@ -333,7 +338,7 @@ export class DataProvider {
     )
 
     const epoch = data.rewards.rewards_inflation_est.reduce((epoch, entry) => Math.max(epoch, entry[0]), 0) + 1
-    const slotParams = this.resolveSlotParams(data.rewards, epoch)
+    const slotParams: SlotParams = { slotsPerYear: this.resolveSlotsPerYear(data.rewards, epoch), epoch }
 
     console.log('tvl', tvlSol)
     return {

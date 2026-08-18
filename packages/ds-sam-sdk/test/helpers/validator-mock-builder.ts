@@ -13,8 +13,8 @@ export const generateIdentities = () => infiniteGenerator('identity-', 10)
 
 // Fixed anchor, never `Date.now()`, so mock epoch_end_at stays snapshot-stable.
 const EPOCH_END_ANCHOR_MS = Date.parse('2026-01-01T00:00:00.000Z')
-// Realistic measured length, not the nominal 48h, so no fixture resembles the retired constant.
-export const MOCK_EPOCH_DURATION_SECONDS = 50.6 * 3600
+// Off the 48h nominal on purpose, so nothing can pass by assuming a fixed epoch length.
+const MOCK_EPOCH_DURATION_SECONDS = 50.6 * 3600
 
 export type BondDataType = {
   stakeWanted: number

@@ -3,7 +3,7 @@ import { BASELINE_SLOTS_PER_YEAR, DEFAULT_CONFIG, InputsSource } from '@marinade
 import { defaultStaticDataProviderBuilder } from './helpers/static-data-provider-builder'
 import { ValidatorMockBuilder } from './helpers/validator-mock-builder'
 
-import type { RawSourceData, SourceDataOverrides } from '../src/data-provider/data-provider.dto'
+import type { RawSlotsPerYearRecordDto, SourceDataOverrides } from '../src/data-provider/data-provider.dto'
 
 type HistoryEntry = { voteAccount: string; values: { samBlacklisted: boolean } }
 
@@ -447,24 +447,29 @@ describe('slotParams provenance', () => {
 
   const fetchRaw = async () => {
     const dp = providerFor()
-    return { dp, raw: await dp.fetchSourceData() }
+    const raw = await dp.fetchSourceData()
+    return { dp, raw, slotsPerYear: raw.rewards.slots_per_year ?? [] }
   }
 
-  it('records the nominal together with the epoch it belongs to', async () => {
+  it('records the auction epoch and the regime that epoch runs under', async () => {
     const { dp, raw } = await fetchRaw()
     const agg = dp.aggregateData(raw)
+    expect(agg.epoch).toBe(RUNNING_EPOCH)
     expect(agg.slotParams).toEqual({ slotsPerYear: BASELINE_SLOTS_PER_YEAR, epoch: RUNNING_EPOCH })
-    expect(agg.slotParams.epoch).toBe(agg.epoch)
   })
 
-  it('nominal comes from the latest epoch when the rewards window spans a slot-time change', async () => {
-    const { dp, raw } = await fetchRaw()
-    const transitioned = raw.rewards.slots_per_year.map(([epoch, recorded]): [number, number] => [
-      epoch,
-      epoch === RUNNING_EPOCH ? SLOTS_PER_YEAR_350MS : recorded,
-    ])
-    // deliberately unordered — the latest epoch must win, not the first or last entry
-    raw.rewards.slots_per_year = [...transitioned.slice(1), ...transitioned.slice(0, 1)]
+  it('takes the auction epoch nominal, not the one the rewards window ends on', async () => {
+    const { dp, raw, slotsPerYear } = await fetchRaw()
+    const transitioned = slotsPerYear.map(
+      ([epoch, recorded]): RawSlotsPerYearRecordDto => [
+        epoch,
+        epoch === RUNNING_EPOCH ? SLOTS_PER_YEAR_350MS : recorded,
+      ],
+    )
+    const others = transitioned.filter(([epoch]) => epoch !== RUNNING_EPOCH)
+    const target = transitioned.filter(([epoch]) => epoch === RUNNING_EPOCH)
+    // auction epoch sits mid-array, so neither position nor recency can decide the pick
+    raw.rewards.slots_per_year = [...others.slice(0, 2), ...target, ...others.slice(2)]
 
     expect(dp.aggregateData(raw).slotParams).toEqual({
       slotsPerYear: SLOTS_PER_YEAR_350MS,
@@ -472,16 +477,22 @@ describe('slotParams provenance', () => {
     })
   })
 
+  it('refuses to guess when the window does not cover the auction epoch', async () => {
+    const { dp, raw, slotsPerYear } = await fetchRaw()
+    raw.rewards.slots_per_year = slotsPerYear.filter(([epoch]) => epoch !== RUNNING_EPOCH)
+    expect(() => dp.aggregateData(raw)).toThrow(`Missing slots_per_year for the auction epoch ${RUNNING_EPOCH}`)
+  })
+
   it('fails loudly when the nominal is absent rather than assuming a slot time', async () => {
     const { dp, raw } = await fetchRaw()
     raw.rewards.slots_per_year = []
-    expect(() => dp.aggregateData(raw)).toThrow('Missing slots_per_year')
+    expect(() => dp.aggregateData(raw)).toThrow('Missing slots_per_year in rewards data')
   })
 
   it('falls back to the baseline for inputs cached before the API published the nominal', async () => {
     const { raw } = await fetchRaw()
     const legacy = providerFor({ inputsSource: InputsSource.FILES, inputsCacheDirPath: '/dev/null' })
-    raw.rewards.slots_per_year = undefined as unknown as RawSourceData['rewards']['slots_per_year']
+    delete raw.rewards.slots_per_year
 
     const agg = legacy.aggregateData(raw)
     expect(agg.slotParams).toEqual({ slotsPerYear: BASELINE_SLOTS_PER_YEAR, epoch: RUNNING_EPOCH })
@@ -491,13 +502,16 @@ describe('slotParams provenance', () => {
 describe('inflation normalization across a slot-time change', () => {
   const SLOTS_PER_YEAR_350MS = 90162645.696
   const RUNNING_EPOCH = 1000
+  // oldest rewards epoch: the mock's stake window is one epoch shorter, so this one never reaches the average
+  const STAKELESS_REWARDS_EPOCH = 990
 
   const fetchRaw = async (config: Partial<typeof DEFAULT_CONFIG> = {}) => {
     const dp = defaultStaticDataProviderBuilder([new ValidatorMockBuilder('alice', 'id-a').withEligibleDefaults()])({
       ...DEFAULT_CONFIG,
       ...config,
     })
-    return { dp, raw: await dp.fetchSourceData() }
+    const raw = await dp.fetchSourceData()
+    return { dp, raw, slotsPerYear: raw.rewards.slots_per_year ?? [] }
   }
 
   it('does not move a window that spans no regime change', async () => {
@@ -520,19 +534,32 @@ describe('inflation normalization across a slot-time change', () => {
     const { dp, raw } = await fetchRaw()
     const beforeTransition = dp.aggregateData(raw).rewards.inflationPmpe
 
-    const { dp: transitionDp, raw: transitionRaw } = await fetchRaw()
-    transitionRaw.rewards.slots_per_year = transitionRaw.rewards.slots_per_year.map(([epoch, recorded]) => [
-      epoch,
-      epoch === RUNNING_EPOCH ? SLOTS_PER_YEAR_350MS : recorded,
-    ])
+    const { dp: transitionDp, raw: transitionRaw, slotsPerYear } = await fetchRaw()
+    transitionRaw.rewards.slots_per_year = slotsPerYear.map(
+      ([epoch, recorded]): RawSlotsPerYearRecordDto => [
+        epoch,
+        epoch === RUNNING_EPOCH ? SLOTS_PER_YEAR_350MS : recorded,
+      ],
+    )
     const atTransition = transitionDp.aggregateData(transitionRaw).rewards.inflationPmpe
 
     expect(atTransition / beforeTransition).toBeCloseTo(350 / 400, 12)
   })
 
   it('refuses to average an epoch whose regime is unknown', async () => {
-    const { dp, raw } = await fetchRaw()
-    raw.rewards.slots_per_year = raw.rewards.slots_per_year.filter(([epoch]) => epoch !== 995)
+    const { dp, raw, slotsPerYear } = await fetchRaw()
+    raw.rewards.slots_per_year = slotsPerYear.filter(([epoch]) => epoch !== 995)
     expect(() => dp.aggregateData(raw)).toThrow('Missing slots_per_year for epoch 995')
+  })
+
+  it('does not demand a regime for an epoch the average discards', async () => {
+    const { dp, raw } = await fetchRaw()
+    expect(raw.rewards.rewards_inflation_est.map(([epoch]) => epoch)).toContain(STAKELESS_REWARDS_EPOCH)
+    const fullWindow = dp.aggregateData(raw).rewards.inflationPmpe
+
+    const { dp: trimmedDp, raw: trimmedRaw, slotsPerYear } = await fetchRaw()
+    trimmedRaw.rewards.slots_per_year = slotsPerYear.filter(([epoch]) => epoch !== STAKELESS_REWARDS_EPOCH)
+
+    expect(trimmedDp.aggregateData(trimmedRaw).rewards.inflationPmpe).toBe(fullWindow)
   })
 })

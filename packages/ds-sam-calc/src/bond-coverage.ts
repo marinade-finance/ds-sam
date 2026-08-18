@@ -44,7 +44,7 @@ export type BondCoverage = {
 export function computeBondCoverage(v: AuctionValidator, config: DsSamConfig, winningTotalPmpe: number): BondCoverage {
   const bondBalanceSol = v.bondBalanceSol ?? 0
   const claimableBondBalanceSol = v.claimableBondBalanceSol ?? 0
-  const marinadeActivatedStakeSol = v.marinadeActivatedStakeSol
+  const marinadeActivatedStakeSol = finite(v.marinadeActivatedStakeSol)
   const paidUndelegationSol = selectPaidUndelegationSol(v)
   const expectedMaxEffBidPmpe = finite(v.revShare.expectedMaxEffBidPmpe)
   const onchainDistributedPmpe = finite(v.revShare.onchainDistributedPmpe)

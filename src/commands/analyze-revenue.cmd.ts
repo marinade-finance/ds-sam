@@ -175,9 +175,11 @@ export class AnalyzeRevenuesCommand extends CommandRunner {
 
     const dsSam = new DsSamSDK({ ...config })
     const auctionDataCalculatedFromFixtures = await dsSam.run()
-    const auctionDataParsedFromFixtures: AuctionResult = JSON.parse(
+    // Narrow on purpose: archived results predate several AuctionResult members, so only the field
+    // actually read may be asserted here.
+    const auctionDataParsedFromFixtures = JSON.parse(
       fs.readFileSync(options.samResultsFixtureFilePath).toString(),
-    ) as AuctionResult
+    ) as Pick<AuctionResult, 'winningTotalPmpe'>
     console.log('Winning Total PMPE parsed from static results:', auctionDataParsedFromFixtures.winningTotalPmpe)
     console.log(
       'Winning Total PMPE calculated from static results:',

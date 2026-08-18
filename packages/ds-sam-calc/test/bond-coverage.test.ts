@@ -187,3 +187,15 @@ describe('computeBondCoverage — minBondEpochs / idealBondEpochs derivation', (
     expect(cov.idealBondEpochs).toBe(1 + CONFIG.idealBondEpochs)
   })
 })
+
+describe('computeBondCoverage — non-finite stake', () => {
+  it('NaN marinadeActivatedStakeSol collapses the stake bases instead of throwing', () => {
+    const v = makeValidator({ marinadeActivatedStakeSol: NaN, minBondPmpe: 10, idealBondPmpe: 60 })
+    const cov = computeBondCoverage(v, CONFIG, 10)
+    expect(cov.marinadeActivatedStakeSol).toBe(0)
+    expect(cov.currentExposedStakeSol).toBe(0)
+    expect(cov.projectedExposedStakeSol).toBe(0)
+    expect(cov.stakeKeepFloor).toBe(0)
+    expect(cov.bondRiskFeeFloor).toBe(0)
+  })
+})
