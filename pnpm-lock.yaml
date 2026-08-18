@@ -67,8 +67,8 @@ importers:
   packages/ds-sam-calc:
     dependencies:
       '@marinade.finance/ts-common':
-        specifier: ^5.0.2
-        version: 5.0.2
+        specifier: ^5.1.0
+        version: 5.1.0
       decimal.js:
         specifier: ^10.6.0
         version: 10.6.0
@@ -78,9 +78,6 @@ importers:
       '@marinade.finance/ds-sam-calc':
         specifier: workspace:*
         version: link:../ds-sam-calc
-      '@marinade.finance/ts-common':
-        specifier: ^5.0.2
-        version: 5.0.2
       axios:
         specifier: ^1.18.0
         version: 1.18.0
@@ -641,8 +638,8 @@ packages:
       eslint: '>=9.0.0'
       typescript: '>=4.0.0'
 
-  '@marinade.finance/ts-common@5.0.2':
-    resolution: {integrity: sha512-dBGL3IqzpojBq/aHcdqfMQ0GGgNr2GGVNrsgHxXDeVIhOHj1OQjORjDXA19eZZIRqTGLdGzGqNWCyUw5J/CkZA==}
+  '@marinade.finance/ts-common@5.1.0':
+    resolution: {integrity: sha512-wmFvgjUCHChM0/12iTu+VHqJlGw68zzZ19nUksLvFPzg6Bsj9VloEpAImujJEUcO3HqigG+nhJ5ePjS1L6H+Yg==}
     engines: {node: '>=14'}
 
   '@napi-rs/wasm-runtime@0.2.12':
@@ -4235,7 +4232,7 @@ snapshots:
       - prettier
       - supports-color
 
-  '@marinade.finance/ts-common@5.0.2':
+  '@marinade.finance/ts-common@5.1.0':
     dependencies:
       async-retry: 1.3.3
       decimal.js: 10.6.0
