@@ -206,4 +206,24 @@ describe('computeBondCoverage — non-finite stake', () => {
     expect(cov.stakeKeepFloor).toBe(0)
     expect(cov.bondRiskFeeFloor).toBe(0)
   })
+
+  it.each([
+    ['unprotectedStakeSol', { unprotectedStakeSol: NaN }],
+    ['values.paidUndelegationSol', { values: { paidUndelegationSol: NaN, bondRiskFeeSol: 0 } }],
+    ['bondForcedUndelegation.value', { bondForcedUndelegation: { value: NaN, coef: 0, base: 0 } }],
+  ])('NaN %s leaves every returned figure finite', (_field, overrides) => {
+    const v = makeValidator({ minBondPmpe: 10, idealBondPmpe: 60, ...overrides })
+    const cov = computeBondCoverage(v, CONFIG, 10)
+    expect(Object.entries(cov).filter(([, n]) => !Number.isFinite(n))).toEqual([])
+    expect(cov.currentExposedStakeSol).toBe(10000)
+  })
+
+  it('NaN claimableBondBalanceSol reads as no bond rather than poisoning the top-up advice', () => {
+    const v = makeValidator({ claimableBondBalanceSol: NaN, minBondPmpe: 10, idealBondPmpe: 60 })
+    const cov = computeBondCoverage(v, CONFIG, 10)
+    expect(cov.claimableBondBalanceSol).toBe(0)
+    expect(cov.topUpToKeepStake).toBe(cov.stakeKeepFloor)
+    expect(cov.topUpToIdealKeep).toBe(cov.stakeIdealFloor)
+    expect(cov.bondRiskFeeShortfall).toBe(cov.bondRiskFeeFloor)
+  })
 })
