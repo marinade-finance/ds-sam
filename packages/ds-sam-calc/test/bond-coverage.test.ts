@@ -188,6 +188,14 @@ describe('computeBondCoverage — minBondEpochs / idealBondEpochs derivation', (
   })
 })
 
+describe('computeBondCoverage — non-finite winningTotalPmpe', () => {
+  it.each([Infinity, -Infinity, NaN])('rejects %p instead of cascading NaN into the bond floors', winningTotalPmpe => {
+    expect(() => computeBondCoverage(makeValidator(), CONFIG, winningTotalPmpe)).toThrow(
+      'computeBondCoverage: winningTotalPmpe has to be finite',
+    )
+  })
+})
+
 describe('computeBondCoverage — non-finite stake', () => {
   it('NaN marinadeActivatedStakeSol collapses the stake bases instead of throwing', () => {
     const v = makeValidator({ marinadeActivatedStakeSol: NaN, minBondPmpe: 10, idealBondPmpe: 60 })

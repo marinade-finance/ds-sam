@@ -1,5 +1,9 @@
 import type { AuctionValidator, AuctionConstraint, AuctionConstraintType } from './types'
 
+// Coercion for validator data that may be absent on rehydrated objects. Not for caller-supplied
+// invariants — those assert instead, so a wiring bug cannot read as a confident 0.
+export const finite = (x: number | null | undefined): number => (typeof x === 'number' && Number.isFinite(x) ? x : 0)
+
 export const ineligibleValidatorAggDefaults = () => ({
   samEligible: false,
   backstopEligible: false,

@@ -468,8 +468,9 @@ describe('slotParams provenance', () => {
     )
     const others = transitioned.filter(([epoch]) => epoch !== RUNNING_EPOCH)
     const target = transitioned.filter(([epoch]) => epoch === RUNNING_EPOCH)
-    // auction epoch sits mid-array, so neither position nor recency can decide the pick
-    raw.rewards.slots_per_year = [...others.slice(0, 2), ...target, ...others.slice(2)]
+    // decoy newer row plus the auction epoch mid-array, so neither recency nor position can decide the pick
+    const decoy: RawSlotsPerYearRecordDto = [RUNNING_EPOCH + 1, BASELINE_SLOTS_PER_YEAR]
+    raw.rewards.slots_per_year = [...others.slice(0, 2), ...target, ...others.slice(2), decoy]
 
     expect(dp.aggregateData(raw).slotParams).toEqual({
       slotsPerYear: SLOTS_PER_YEAR_350MS,
@@ -481,6 +482,24 @@ describe('slotParams provenance', () => {
     const { dp, raw, slotsPerYear } = await fetchRaw()
     raw.rewards.slots_per_year = slotsPerYear.filter(([epoch]) => epoch !== RUNNING_EPOCH)
     expect(() => dp.aggregateData(raw)).toThrow(`Missing slots_per_year for the auction epoch ${RUNNING_EPOCH}`)
+  })
+
+  it('replays a cache whose window stops short of the auction epoch', async () => {
+    const { raw, slotsPerYear } = await fetchRaw()
+    const legacy = providerFor({ inputsSource: InputsSource.FILES, inputsCacheDirPath: '/dev/null' })
+    raw.rewards.slots_per_year = slotsPerYear
+      .filter(([epoch]) => epoch !== RUNNING_EPOCH)
+      .map(
+        ([epoch, recorded]): RawSlotsPerYearRecordDto => [
+          epoch,
+          epoch === RUNNING_EPOCH - 1 ? SLOTS_PER_YEAR_350MS : recorded,
+        ],
+      )
+
+    expect(legacy.aggregateData(raw).slotParams).toEqual({
+      slotsPerYear: SLOTS_PER_YEAR_350MS,
+      epoch: RUNNING_EPOCH,
+    })
   })
 
   it('fails loudly when the nominal is absent rather than assuming a slot time', async () => {

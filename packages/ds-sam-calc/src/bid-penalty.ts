@@ -1,7 +1,7 @@
 import { pmpeToSol } from '@marinade.finance/ts-common'
 
 import { BID_TOO_LOW_TOL_COEF, bidTooLowPenaltyCoef } from './calculations'
-import { finite } from './format'
+import { finite } from './utils'
 
 import type { DsSamConfig } from './config'
 import type { AuctionValidator } from './types'
@@ -26,6 +26,11 @@ export type BidPenalty = {
 }
 
 export function computeBidPenalty(v: AuctionValidator, dsSamConfig: DsSamConfig, winningTotalPmpe: number): BidPenalty {
+  // Caller-supplied invariant, not validator data — the SDK already guarantees it (auction.js
+  // evaluate), so a non-finite value is a wiring bug that must not read as a confident 0 SOL.
+  if (!Number.isFinite(winningTotalPmpe)) {
+    throw new Error(`computeBidPenalty: winningTotalPmpe has to be finite, got ${winningTotalPmpe}`)
+  }
   const historyEpochs = dsSamConfig.bidTooLowPenaltyHistoryEpochs
   // SDK auction.js:202 passes this field as permittedBidDeviation ∈ [0,1].
   // Falls back to 0 if missing — the SDK's `calcBidTooLowPenalty` defaults

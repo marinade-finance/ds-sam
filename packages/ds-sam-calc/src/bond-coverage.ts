@@ -1,8 +1,8 @@
 import { pmpeToSol } from '@marinade.finance/ts-common'
 
 import { computeBidPenalty } from './bid-penalty'
-import { finite } from './format'
 import { selectPaidUndelegationSol } from './sam'
+import { finite } from './utils'
 
 import type { DsSamConfig } from './config'
 import type { AuctionValidator } from './types'
@@ -42,6 +42,9 @@ export type BondCoverage = {
 }
 
 export function computeBondCoverage(v: AuctionValidator, config: DsSamConfig, winningTotalPmpe: number): BondCoverage {
+  if (!Number.isFinite(winningTotalPmpe)) {
+    throw new Error(`computeBondCoverage: winningTotalPmpe has to be finite, got ${winningTotalPmpe}`)
+  }
   const bondBalanceSol = v.bondBalanceSol ?? 0
   const claimableBondBalanceSol = v.claimableBondBalanceSol ?? 0
   const marinadeActivatedStakeSol = finite(v.marinadeActivatedStakeSol)

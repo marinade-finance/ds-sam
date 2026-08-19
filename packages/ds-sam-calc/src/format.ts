@@ -3,6 +3,8 @@
 // `toLocaleString` and `toFixed` both round half-away-from-zero, which is what
 // we want for monetary display.
 
+import { finite } from './utils'
+
 // Non-breaking space (U+00A0) between a number and its "SOL" unit so
 // "19,866 SOL" never wraps across a line break. Applied to every "<n> SOL"
 // output below.
@@ -25,8 +27,6 @@ export const pct = (amount: number, fractionDigits: number = 2, maxValue: number
   }
   return pctString(n, fractionDigits)
 }
-
-export const finite = (x: number | null | undefined): number => (typeof x === 'number' && Number.isFinite(x) ? x : 0)
 
 export const pmpe = (x: number) => x.toFixed(5)
 export const stake = (n: number) => `${sol(n, 0)}${NBSP}SOL`

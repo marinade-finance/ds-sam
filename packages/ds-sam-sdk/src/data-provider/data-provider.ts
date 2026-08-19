@@ -91,12 +91,19 @@ export class DataProvider {
       console.warn(`Cached rewards carry no slots_per_year, assuming the baseline for epoch ${epoch}`)
       return BASELINE_SLOTS_PER_YEAR
     }
-    // The API reports the running epoch too, so the auction's own regime is always available.
+    // The API reports the running epoch too, so the auction's own regime is always available there.
     const record = records.find(([recordEpoch]) => recordEpoch === epoch)
-    if (record === undefined) {
+    if (record !== undefined) {
+      return record[1]
+    }
+    if (this.dataSource === InputsSource.APIS) {
       throw new Error(`Missing slots_per_year for the auction epoch ${epoch}`)
     }
-    return record[1]
+    // Caches taken before the producer emitted the running-epoch row stop one short of the auction
+    // epoch; the newest regime they carry is the closest thing to it, and replay must not die on it.
+    const latest = records.reduce((acc, r) => (r[0] > acc[0] ? r : acc))
+    console.warn(`Cached rewards stop at epoch ${latest[0]}, using its nominal for auction epoch ${epoch}`)
+    return latest[1]
   }
 
   // Per-epoch issuance scales with 1/slots_per_year, so a window spanning a slot-time change

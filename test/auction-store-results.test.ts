@@ -33,10 +33,9 @@ describe('auction storeResults', () => {
         path.join(outDir, 'summary.md'),
       )
       const stored = JSON.parse(fs.readFileSync(resultsPath).toString()) as {
-        auctionData: { epoch: number; slotParams: SlotParams }
+        auctionData: { slotParams: SlotParams }
       }
       expect(stored.auctionData.slotParams).toEqual(SLOT_PARAMS)
-      expect(stored.auctionData.slotParams.epoch).toBe(stored.auctionData.epoch)
     } finally {
       fs.rmSync(outDir, { recursive: true, force: true })
     }

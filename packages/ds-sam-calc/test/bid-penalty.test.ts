@@ -226,7 +226,20 @@ describe('blacklistPenaltySol', () => {
   })
 })
 
-describe('non-finite inputs degrade instead of throwing', () => {
+describe('non-finite winningTotalPmpe throws', () => {
+  it.each([Infinity, -Infinity, NaN])('rejects %p rather than pricing a penalty off it', winningTotalPmpe => {
+    const v = makeValidator()
+    expect(() => computeBidPenalty(v, CONFIG, winningTotalPmpe)).toThrow(
+      'computeBidPenalty: winningTotalPmpe has to be finite',
+    )
+  })
+
+  it('a real 0 is still accepted', () => {
+    expect(() => computeBidPenalty(makeValidator(), CONFIG, 0)).not.toThrow()
+  })
+})
+
+describe('non-finite validator data degrades instead of throwing', () => {
   it('missing blacklistPenaltyPmpe → 0 SOL', () => {
     const v = makeValidator({ revShare: { bidPmpe: 5, effParticipatingBidPmpe: 5, bondObligationPmpe: 3 } })
     expect(blacklistPenaltySol(v)).toBe(0)
