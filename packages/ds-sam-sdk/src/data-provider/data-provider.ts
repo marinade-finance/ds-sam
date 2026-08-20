@@ -1,6 +1,11 @@
 import fs from 'fs'
 
-import { calcEffParticipatingBidPmpe, InputsSource, effectiveCommissions } from '@marinade.finance/ds-sam-calc'
+import {
+  BASELINE_SLOTS_PER_YEAR,
+  calcEffParticipatingBidPmpe,
+  InputsSource,
+  effectiveCommissions,
+} from '@marinade.finance/ds-sam-calc'
 import axios from 'axios'
 import Decimal from 'decimal.js'
 
@@ -23,6 +28,7 @@ import type {
   AggregatedValidator,
   AuctionHistoryStats,
   DsSamConfig,
+  SlotParams,
 } from '@marinade.finance/ds-sam-calc'
 
 export class DataProvider {
@@ -73,6 +79,61 @@ export class DataProvider {
     )
 
     return rewardsTotal.total.div(rewardsTotal.epochs).toNumber()
+  }
+
+  private resolveSlotsPerYear(rewards: RawRewardsResponseDto, epoch: number): number {
+    const records = rewards.slots_per_year ?? []
+    if (records.length === 0) {
+      if (this.dataSource === InputsSource.APIS) {
+        throw new Error('Missing slots_per_year in rewards data')
+      }
+      // Inputs cached before the API published the nominal can only hold pre-SIMD-0525 epochs.
+      console.warn(`Cached rewards carry no slots_per_year, assuming the baseline for epoch ${epoch}`)
+      return BASELINE_SLOTS_PER_YEAR
+    }
+    // The API reports the running epoch too, so the auction's own regime is always available there.
+    const record = records.find(([recordEpoch]) => recordEpoch === epoch)
+    if (record !== undefined) {
+      return record[1]
+    }
+    if (this.dataSource === InputsSource.APIS) {
+      throw new Error(`Missing slots_per_year for the auction epoch ${epoch}`)
+    }
+    // Caches taken before the producer emitted the running-epoch row stop one short of the auction
+    // epoch; the newest regime they carry is the closest thing to it, and replay must not die on it.
+    const latest = records.reduce((acc, r) => (r[0] > acc[0] ? r : acc))
+    console.warn(`Cached rewards stop at epoch ${latest[0]}, using its nominal for auction epoch ${epoch}`)
+    return latest[1]
+  }
+
+  // Per-epoch issuance scales with 1/slots_per_year, so a window spanning a slot-time change
+  // averages two regimes and lags the current one by up to the window length unless normalised.
+  private aggregateInflationRecords(
+    activatedStakePerEpochs: Map<number, Decimal>,
+    rewards: RawRewardsResponseDto,
+    targetSlotsPerYear: number,
+  ): number {
+    const slotsPerYearByEpoch = new Map(rewards.slots_per_year ?? [])
+    if (slotsPerYearByEpoch.size === 0) {
+      return this.aggregateRewardsRecords(activatedStakePerEpochs, rewards.rewards_inflation_est)
+    }
+
+    const normalized = rewards.rewards_inflation_est
+      // aggregateRewardsRecords drops epochs with no stake, so requiring a regime for them would
+      // abort the run over a record that never reaches the average.
+      .filter(([epoch]) => activatedStakePerEpochs.has(epoch))
+      .map(([epoch, amount]): RawRewardsRecordDto => {
+        const slotsPerYear = slotsPerYearByEpoch.get(epoch)
+        if (slotsPerYear === undefined) {
+          throw new Error(`Missing slots_per_year for epoch ${epoch}, which has an inflation estimate`)
+        }
+        // Exact identity rather than a 1.0 factor, so a window without a transition cannot move at all.
+        return slotsPerYear === targetSlotsPerYear
+          ? [epoch, amount]
+          : [epoch, new Decimal(amount).mul(slotsPerYear).div(targetSlotsPerYear).toNumber()]
+      })
+
+    return this.aggregateRewardsRecords(activatedStakePerEpochs, normalized)
   }
 
   private processAuctions(input: RawScoredValidatorDto[]): AuctionHistory[] {
@@ -284,18 +345,20 @@ export class DataProvider {
     )
 
     const epoch = data.rewards.rewards_inflation_est.reduce((epoch, entry) => Math.max(epoch, entry[0]), 0) + 1
+    const slotParams: SlotParams = { slotsPerYear: this.resolveSlotsPerYear(data.rewards, epoch), epoch }
 
     console.log('tvl', tvlSol)
     return {
       epoch,
       validators: this.aggregateValidators(data, blacklist, dataOverrides),
       rewards: {
-        inflationPmpe: this.aggregateRewardsRecords(activatedStakePerEpochs, data.rewards.rewards_inflation_est),
+        inflationPmpe: this.aggregateInflationRecords(activatedStakePerEpochs, data.rewards, slotParams.slotsPerYear),
         mevPmpe: this.aggregateRewardsRecords(activatedStakePerEpochs, data.rewards.rewards_mev),
         blockPmpe: data.rewards.rewards_block
           ? this.aggregateRewardsRecords(activatedStakePerEpochs, data.rewards.rewards_block)
           : 0,
       },
+      slotParams,
       stakeAmounts: {
         networkTotalSol: externalStakeTotal.div(1e9).add(tvlSol).toNumber(),
         marinadeSamTvlSol: tvlSol,
