@@ -120,6 +120,14 @@ export type DsSamConfig = {
   // may slightly underbid the winning bid without being penalized. Permitted interval is [0, 1.0].
   bidTooLowPenaltyPermittedDeviationPmpe: number
 
+  // Cost-benefit ratio A for the redelegation budget algorithm.
+  // Budget growth stops when the best validator's totalPmpe < A * worst validator's totalPmpe.
+  // Reasonable values: 0.2 to 1.0.
+  redelegationBudgetCostBenefitA: number
+
+  // Hard cap on total undelegations per epoch as a fraction of marinadeSamTvlSol.
+  unstakeCapRatioDec: number
+
   // Validator vote accounts to collect debug info for
   debugVoteAccounts: string[]
 
@@ -169,6 +177,9 @@ export const DEFAULT_CONFIG: DsSamConfig = {
   bondSamHealthMult: 1.1,
   bidTooLowPenaltyPermittedDeviationPmpe: 0.05,
   minimalCommission: -2.0,
+
+  redelegationBudgetCostBenefitA: 0.5,
+  unstakeCapRatioDec: 0.1,
 
   debugVoteAccounts: [],
   logVerbosity: LogVerbosity.DEBUG,

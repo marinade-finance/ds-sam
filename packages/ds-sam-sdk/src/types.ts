@@ -1,9 +1,16 @@
 import type { AuctionHistoryStats } from './data-provider/data-provider.dto'
 import type Decimal from 'decimal.js'
 
+// Auction-level computed values — analogous to AuctionValidatorValues for validators.
+// Stored as an opaque JSON blob by downstream services; add new fields freely.
+export type AuctionValues = {
+  unstakeCapSol: number
+}
+
 export type AuctionResult = {
   auctionData: AuctionData
   winningTotalPmpe: number
+  auctionValues: AuctionValues
 }
 
 export type AuctionData = Omit<AggregatedData, 'validators'> & {

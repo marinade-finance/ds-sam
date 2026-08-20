@@ -345,7 +345,7 @@ export class Auction {
     }
   }
 
-  evaluateOne(): AuctionResult {
+  evaluateOne(): Omit<AuctionResult, 'auctionValues'> {
     this.debug.log('EVALUATING new auction ----------------------------------------')
     this.debug.pushInfo('start amounts', JSON.stringify(this.data.stakeAmounts))
 
@@ -412,6 +412,55 @@ export class Auction {
     }
   }
 
+  // Computes the total SOL budget available for economic redelegations this epoch.
+  // Pairs best validators (by stakePriority asc) with worst validators (by unstakePriority asc,
+  // excluding priority=0 forced undelegations) and accumulates how much stake can profitably move.
+  // Stops when bestValidator.totalPmpe < A * worstValidator.totalPmpe.
+  // Result is capped at unstakeCapRatioDec * marinadeSamTvlSol.
+  calcRedelegationBudget(): number {
+    const A = this.config.redelegationBudgetCostBenefitA
+    const hardCap = this.data.stakeAmounts.marinadeSamTvlSol * this.config.unstakeCapRatioDec
+
+    const bestValidators = this.data.validators
+      .filter(v => !isNaN(v.stakePriority) && v.auctionStake.marinadeSamTargetSol > v.marinadeActivatedStakeSol)
+      .sort((a, b) => a.stakePriority - b.stakePriority)
+
+    // Exclude priority=0 (forced undelegations — handled separately by the bot) and only
+    // include validators whose overstake exceeds what paidUndelegation already covers.
+    const worstValidators = this.data.validators
+      .filter(v => !isNaN(v.unstakePriority) && v.unstakePriority > 0)
+      .filter(v => v.marinadeActivatedStakeSol - v.auctionStake.marinadeSamTargetSol > v.values.paidUndelegationSol)
+      .sort((a, b) => a.unstakePriority - b.unstakePriority)
+
+    const bestRemaining = bestValidators.map(
+      v => v.auctionStake.marinadeSamTargetSol - v.marinadeActivatedStakeSol,
+    )
+    const worstRemaining = worstValidators.map(
+      v => v.marinadeActivatedStakeSol - v.auctionStake.marinadeSamTargetSol - v.values.paidUndelegationSol,
+    )
+
+    let budget = 0
+    let bi = 0
+    let wi = 0
+
+    while (bi < bestValidators.length && wi < worstValidators.length) {
+      const best = bestValidators[bi]!
+      const worst = worstValidators[wi]!
+
+      if (best.revShare.totalPmpe < A * worst.revShare.totalPmpe) break
+
+      const stakeToMove = Math.min(bestRemaining[bi]!, worstRemaining[wi]!)
+      budget += stakeToMove
+      bestRemaining[bi]! -= stakeToMove
+      worstRemaining[wi]! -= stakeToMove
+
+      if (bestRemaining[bi]! < EPSILON) bi++
+      if (worstRemaining[wi]! < EPSILON) wi++
+    }
+
+    return Math.min(budget, hardCap)
+  }
+
   evaluate(): AuctionResult {
     this.updateExpectedMaxEffBidPmpe()
     this.updatePaidUndelegation()
@@ -423,7 +472,8 @@ export class Auction {
     this.setBidTooLowPenalties(result.winningTotalPmpe)
     this.setMaxBondDelegations()
     this.setBlacklistPenalties(result.winningTotalPmpe)
-    return result
+    const unstakeCapSol = this.calcRedelegationBudget()
+    return { ...result, auctionValues: { unstakeCapSol } }
   }
 
   findNextPmpeGroup(totalPmpe: number): { totalPmpe: number; validators: AuctionValidator[] } | null {
