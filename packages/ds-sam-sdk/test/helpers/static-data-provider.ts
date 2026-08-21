@@ -1,3 +1,4 @@
+import { BASELINE_SLOTS_PER_YEAR } from '@marinade.finance/ds-sam-calc'
 import Decimal from 'decimal.js'
 
 import { isNotNull } from './utils'
@@ -12,6 +13,7 @@ import type {
   RawRewardsRecordDto,
   RawRewardsResponseDto,
   RawScoredValidatorDto,
+  RawSlotsPerYearRecordDto,
   RawTvlResponseDto,
   RawValidatorsResponseDto,
 } from '../../src'
@@ -98,10 +100,17 @@ export class StaticDataProvider extends DataProvider {
       ],
     )
 
+    // One entry longer than the rewards window: the API also reports the running epoch, which has no estimate yet.
+    const slotsPerYear = Array.from(
+      { length: epochs + 1 },
+      (_, i): RawSlotsPerYearRecordDto => [this.staticDataProviderConfig.currentEpoch - i, BASELINE_SLOTS_PER_YEAR],
+    )
+
     return Promise.resolve({
       rewards_mev: rewardsMev,
       rewards_inflation_est: rewardsInflationEst,
       rewards_block: rewardsBlock,
+      slots_per_year: slotsPerYear,
     })
   }
 

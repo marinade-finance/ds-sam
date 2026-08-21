@@ -225,3 +225,41 @@ describe('blacklistPenaltySol', () => {
     expect(blacklistPenaltySol(v)).toBeCloseTo(50, 9)
   })
 })
+
+describe('non-finite winningTotalPmpe throws', () => {
+  it.each([Infinity, -Infinity, NaN])('rejects %p rather than pricing a penalty off it', winningTotalPmpe => {
+    const v = makeValidator()
+    expect(() => computeBidPenalty(v, CONFIG, winningTotalPmpe)).toThrow(
+      'computeBidPenalty: winningTotalPmpe has to be finite',
+    )
+  })
+
+  it('a real 0 is still accepted', () => {
+    expect(() => computeBidPenalty(makeValidator(), CONFIG, 0)).not.toThrow()
+  })
+})
+
+describe('non-finite validator data degrades instead of throwing', () => {
+  it('missing blacklistPenaltyPmpe → 0 SOL', () => {
+    const v = makeValidator({ revShare: { bidPmpe: 5, effParticipatingBidPmpe: 5, bondObligationPmpe: 3 } })
+    expect(blacklistPenaltySol(v)).toBe(0)
+  })
+
+  it('NaN marinadeActivatedStakeSol → 0 SOL on both penalties', () => {
+    const v = makeValidator({
+      marinadeActivatedStakeSol: NaN,
+      revShare: {
+        bidPmpe: 1,
+        effParticipatingBidPmpe: 5,
+        bondObligationPmpe: 0,
+        blacklistPenaltyPmpe: 10,
+      },
+      auctions: [{ bidPmpe: 10, effParticipatingBidPmpe: 5 }],
+    })
+    const r = computeBidPenalty(v, CONFIG, 10)
+    expect(r.penaltyCoef).toBeGreaterThan(0)
+    expect(r.marinadeActivatedStakeSol).toBe(0)
+    expect(r.penaltySol).toBe(0)
+    expect(blacklistPenaltySol(v)).toBe(0)
+  })
+})

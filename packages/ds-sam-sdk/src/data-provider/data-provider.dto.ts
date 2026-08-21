@@ -70,10 +70,13 @@ export type RawMevInfoResponseDto = {
 }
 
 export type RawRewardsRecordDto = [number, number] // [epoch, SOL]
+export type RawSlotsPerYearRecordDto = [number, number] // [epoch, nominal slots per year]
 export type RawRewardsResponseDto = {
   rewards_mev: RawRewardsRecordDto[]
   rewards_inflation_est: RawRewardsRecordDto[]
   rewards_block: RawRewardsRecordDto[]
+  // Absent in artifacts archived before the API published the nominal.
+  slots_per_year?: RawSlotsPerYearRecordDto[]
 }
 
 export type RawEpochStatDto = {

@@ -2,6 +2,7 @@ import assert from 'node:assert'
 
 import { ineligibleValidatorAggDefaults } from '@marinade.finance/ds-sam-calc'
 
+import { BASE_SLOT_PARAMS } from './helpers/auction-test-utils'
 import { Auction } from '../src/auction'
 import { Debug } from '../src/debug'
 
@@ -39,6 +40,7 @@ describe('Auction.updatePaidUndelegation (simplified)', () => {
         marinadeRemainingSamSol: NaN,
       },
       rewards: { inflationPmpe: NaN, mevPmpe: NaN, blockPmpe: NaN },
+      slotParams: BASE_SLOT_PARAMS,
       blacklist: new Set<string>(),
     }
     const auction = new Auction(
