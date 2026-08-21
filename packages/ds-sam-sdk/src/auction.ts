@@ -1,12 +1,15 @@
 /* eslint-disable no-param-reassign */
 
-import { calcBondRiskFee, calcEffParticipatingBidPmpe, calcBidTooLowPenalty } from '@marinade.finance/ds-sam-calc'
+import {
+  calcBondRiskFee,
+  calcEffParticipatingBidPmpe,
+  calcBidTooLowPenalty,
+  EPSILON,
+} from '@marinade.finance/ds-sam-calc'
 
 import type { AuctionConstraints } from './constraints'
 import type { Debug } from './debug'
 import type { DsSamConfig, AuctionData, AuctionResult, AuctionValidator } from '@marinade.finance/ds-sam-calc'
-
-export const EPSILON = 1e-4
 
 const LOG_TO_EVERY_VALIDATOR = 'to every validator in the group'
 const LOG_CAP_REACHED = 'from the group because the cap has been reached'

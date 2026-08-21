@@ -1,11 +1,10 @@
 import {
   AuctionConstraintType,
+  EPSILON,
   minCapFromConstraint,
   validatorTotalAuctionStakeSol,
   zeroStakeConcentration,
 } from '@marinade.finance/ds-sam-calc'
-
-import { EPSILON } from './auction'
 
 import type { Debug } from './debug'
 import type {
@@ -66,6 +65,10 @@ export class AuctionConstraints {
         validator.voteAccount,
         `reached cap due to ${constraint.constraintType} (${constraint.constraintName}) constraint`,
       )
+    } else {
+      // Clear rather than leave the previous binding in place: SAM and backstop both call this
+      // against different constraint sets, and a stale entry would blame the wrong pass.
+      validator.lastCapConstraint = null
     }
     return cap
   }
