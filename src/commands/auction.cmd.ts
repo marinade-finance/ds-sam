@@ -179,6 +179,15 @@ export class AuctionCommand extends CommandRunner {
   parseOptBlacklistApiBaseUrl(val: string) {
     return val
   }
+
+  @Option({
+    flags: '--blacklist-file <string>',
+    name: 'blacklistFilePath',
+    description: 'SDK param `blacklistFilePath` (read blacklist from a local file instead of fetching)',
+  })
+  parseOptBlacklistFilePath(val: string) {
+    return val
+  }
   @Option({
     flags: '--snapshots-url <string>',
     name: 'snapshotsApiBaseUrl',

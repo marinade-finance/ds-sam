@@ -423,6 +423,9 @@ export class DataProvider {
   }
 
   async fetchBlacklist(): Promise<RawBlacklistResponseDto> {
+    if (this.config.blacklistFilePath) {
+      return fs.readFileSync(this.config.blacklistFilePath).toString()
+    }
     const url = `${this.config.blacklistApiBaseUrl}/blacklist.csv`
     const response = await axios.get<RawBlacklistResponseDto>(url)
     return response.data
