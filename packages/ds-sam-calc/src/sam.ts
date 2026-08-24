@@ -358,12 +358,8 @@ export const selectValidatorConcentration = (
     leftToCapSol: Math.max(0, capPct * basisSol - stakeSol),
   })
 
-  const context = (
-    pick: (v: AuctionValidator) => string,
-    capType: AuctionConstraintType,
-    networkCapPct: number,
-    marinadeCapPct: number,
-  ): ConcentrationContext => {
+  const context = (pick: (v: AuctionValidator) => string, capType: AuctionConstraintType): ConcentrationContext => {
+    const isCountry = capType === AuctionConstraintType.COUNTRY
     const key = pick(self) || '—'
     let networkStakeSol = 0
     let marinadeStakeSol = 0
@@ -374,8 +370,16 @@ export const selectValidatorConcentration = (
       marinadeStakeSol += finite(v.auctionStake.marinadeSamTargetSol)
       groupValidatorCount += 1
     }
-    const network = dimension(networkStakeSol, networkTotalSol, networkCapPct)
-    const marinade = dimension(marinadeStakeSol, marinadeSamTvlSol, marinadeCapPct)
+    const network = dimension(
+      networkStakeSol,
+      networkTotalSol,
+      isCountry ? config.maxNetworkStakeConcentrationPerCountryDec : config.maxNetworkStakeConcentrationPerAsoDec,
+    )
+    const marinade = dimension(
+      marinadeStakeSol,
+      marinadeSamTvlSol,
+      isCountry ? config.maxMarinadeStakeConcentrationPerCountryDec : config.maxMarinadeStakeConcentrationPerAsoDec,
+    )
     return {
       label: key,
       groupValidatorCount,
@@ -390,18 +394,8 @@ export const selectValidatorConcentration = (
   }
 
   return {
-    country: context(
-      v => v.country,
-      AuctionConstraintType.COUNTRY,
-      config.maxNetworkStakeConcentrationPerCountryDec,
-      config.maxMarinadeStakeConcentrationPerCountryDec,
-    ),
-    aso: context(
-      v => v.aso,
-      AuctionConstraintType.ASO,
-      config.maxNetworkStakeConcentrationPerAsoDec,
-      config.maxMarinadeStakeConcentrationPerAsoDec,
-    ),
+    country: context(v => v.country, AuctionConstraintType.COUNTRY),
+    aso: context(v => v.aso, AuctionConstraintType.ASO),
   }
 }
 
