@@ -183,7 +183,8 @@ export class AuctionCommand extends CommandRunner {
   @Option({
     flags: '--blacklist-file <string>',
     name: 'blacklistFilePath',
-    description: 'SDK param `blacklistFilePath` (read blacklist from a local file instead of fetching)',
+    description:
+      'SDK param `blacklistFilePath` (local CSV with a `vote_account,code` header row; the first line is dropped as the header)',
   })
   parseOptBlacklistFilePath(val: string) {
     return val
