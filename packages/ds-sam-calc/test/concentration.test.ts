@@ -98,6 +98,17 @@ describe('selectValidatorConcentration', () => {
     expect(c.country.binding).toBe('marinade')
   })
 
+  it('binds on raw headroom when both ledgers floor to zero left-to-cap', () => {
+    // US network 400 of a 400 cap (headroom 0), Marinade 60 of a 50 cap
+    // (headroom -10): both leftToCapSol floor to 0, Marinade is more over.
+    const c = selectValidatorConcentration(result, cfg, 'A')
+    if (!c) throw new Error('expected concentration for A')
+
+    expect(c.country.network.leftToCapSol).toBe(0)
+    expect(c.country.marinade.leftToCapSol).toBe(0)
+    expect(c.country.binding).toBe('marinade')
+  })
+
   it('reports zero shares when a basis is zero', () => {
     const c = selectValidatorConcentration(makeResult(validators, 0, 0), cfg, 'A')
     if (!c) throw new Error('expected concentration for A')

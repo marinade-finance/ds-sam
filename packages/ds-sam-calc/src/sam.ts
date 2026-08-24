@@ -380,6 +380,9 @@ export const selectValidatorConcentration = (
       marinadeSamTvlSol,
       isCountry ? config.maxMarinadeStakeConcentrationPerCountryDec : config.maxMarinadeStakeConcentrationPerAsoDec,
     )
+    // Raw headroom, not the 0-floored leftToCapSol, so two past-cap ledgers don't tie at 0.
+    const networkHeadroomSol = network.capPct * network.basisSol - network.stakeSol
+    const marinadeHeadroomSol = marinade.capPct * marinade.basisSol - marinade.stakeSol
     return {
       label: key,
       groupValidatorCount,
@@ -389,7 +392,7 @@ export const selectValidatorConcentration = (
         self.lastCapConstraint?.constraintType === capType && self.lastCapConstraint.constraintName === pick(self),
       network,
       marinade,
-      binding: marinade.leftToCapSol < network.leftToCapSol ? 'marinade' : 'network',
+      binding: marinadeHeadroomSol < networkHeadroomSol ? 'marinade' : 'network',
     }
   }
 
