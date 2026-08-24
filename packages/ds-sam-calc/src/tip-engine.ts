@@ -445,8 +445,6 @@ export function outOfSetGate(
   if (validator.samBlocked) {
     return { kind: 'blocked' }
   }
-  // Gate on === false so an undefined samEligible (SDK pre-auction state)
-  // doesn't route through the "not eligible" fallback by accident.
   if (validator.samEligible === false) {
     return blacklist?.has(validator.voteAccount) ? { kind: 'blacklisted' } : { kind: 'ineligible' }
   }
