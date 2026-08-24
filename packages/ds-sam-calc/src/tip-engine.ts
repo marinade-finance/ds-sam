@@ -3,6 +3,7 @@ import { assertNever } from '@marinade.finance/ts-common'
 import { blacklistPenaltySol, computeBidPenalty } from './bid-penalty'
 import { computeBondCoverage } from './bond-coverage'
 import { bondHealthFromAuction } from './bond-health'
+import { EPSILON } from './constants'
 import { bondSol, pay, stake, topUp } from './format'
 import { selectInSet } from './sam'
 import { AuctionConstraintType } from './types'
@@ -12,6 +13,7 @@ import type { BondHealthState } from './bond-health'
 import type { CardStatusSeverity } from './card-status'
 import type { DsSamConfig } from './config'
 import type { AugmentedAuctionValidator } from './sam'
+import type { AuctionConstraint } from './types'
 
 export type TipUrgency = 'critical' | 'warning' | 'info' | 'positive' | 'neutral'
 export type TipConstraint = 'rank' | 'bond' | 'bid' | 'cap' | 'none'
@@ -206,10 +208,9 @@ function tip(
 }
 
 // Callers must include at least one non-null candidate (in practice the
-// always-non-null deltaCta sits at the tail). The signature relies on
-// that — if every candidate is null, indexing into the empty array would
-// return `undefined` and the cast would mask it.
-function selectTip(...candidates: [...(ValidatorTip | null)[], ValidatorTip]): ValidatorTip {
+// always-non-null deltaCta sits at the tail); an all-null call is a wiring
+// bug and throws rather than returning a silently wrong tip.
+function selectTip(...candidates: (ValidatorTip | null)[]): ValidatorTip {
   const live = candidates.filter((c): c is ValidatorTip => c !== null)
   live.sort(
     (a, b) =>
@@ -368,6 +369,10 @@ function capCauseLine(type: AuctionConstraintType | undefined, name: string | un
       return 'At per-validator cap'
     case AuctionConstraintType.WANT:
       return 'At your `maxStakeWanted` setting'
+    case AuctionConstraintType.BOND:
+      return 'At your bond cap'
+    case AuctionConstraintType.RISK:
+      return 'At the risk cap'
     default:
       return 'At a concentration cap'
   }
@@ -414,33 +419,89 @@ function bondGrowthCta(
   )
 }
 
+export type OutOfSetGate =
+  | { kind: 'blocked' }
+  | { kind: 'blacklisted' }
+  | { kind: 'ineligible' }
+  | { kind: 'bondBelowMin' }
+  | { kind: 'cap'; constraint: AuctionConstraint }
+
+// Which gate holds an out-of-set validator out — the "why" behind the
+// membership badge, for callers that need a cause rather than a CTA.
+// Price-agnostic on purpose: standing is the caller's own test, and null is
+// a real answer ("no gate we can identify"), not a failure.
+//
+// Gate order mirrors the SDK's: eligibility is a pre-auction filter, the
+// bond clip happens inside the auction (clipBondStakeCap), caps bind during
+// allocation. Keep it in step with outOfSetCta, which consumes this.
+export function outOfSetGate(
+  validator: AugmentedAuctionValidator,
+  dsSamConfig: DsSamConfig,
+  blacklist?: Set<string>,
+): OutOfSetGate | null {
+  if (selectInSet(validator)) {
+    return null
+  }
+  if (validator.samBlocked) {
+    return { kind: 'blocked' }
+  }
+  if (validator.samEligible === false) {
+    return blacklist?.has(validator.voteAccount) ? { kind: 'blacklisted' } : { kind: 'ineligible' }
+  }
+  // The clipped cap, not the raw balance: clipBondStakeCap only zeroes the
+  // cap below 0.8 × the minimum, so a balance inside that hysteresis band
+  // still carries stake and must not be blamed for someone else's cap.
+  if (validator.bondSamStakeCapSol < EPSILON && (validator.bondBalanceSol ?? 0) < dsSamConfig.minBondBalanceSol) {
+    return { kind: 'bondBelowMin' }
+  }
+  return validator.lastCapConstraint ? { kind: 'cap', constraint: validator.lastCapConstraint } : null
+}
+
+// Caption fragments, not CTAs: sentence-case, no trailing period, no
+// imperative — so the CTA format rules do not apply here.
+export function outOfSetGateLabel(gate: OutOfSetGate, dsSamConfig: DsSamConfig): string {
+  switch (gate.kind) {
+    case 'blocked':
+      return 'Blocked from SAM'
+    case 'blacklisted':
+      return 'Blacklisted'
+    case 'ineligible':
+      return 'Not eligible'
+    case 'bondBelowMin':
+      return `Bond below ${bondSol(dsSamConfig.minBondBalanceSol)} minimum`
+    case 'cap':
+      return capCauseLine(gate.constraint.constraintType, gate.constraint.constraintName)
+    default:
+      return assertNever(gate)
+  }
+}
+
 // Out-of-set despite a high enough totalPmpe. The bid isn't the lever —
 // some other constraint binds. Names the actual reason so the user knows
 // what to investigate (or accept) instead of seeing the deltaCta's
 // misleading "Losing N SOL" symptom.
 //
-// Reasons in priority order (most specific first):
-//   - samBlocked: hard block during auction (penalty escalation, etc.)
-//   - maxStakeWanted === 0: validator opted out of stake entirely
-//   - samEligible === false: failed pre-auction gate — narrowed down by
-//     inspecting bondBalanceSol / blacklist where we can; falls back to
-//     a "check the usual suspects" hint otherwise
-//   - lastCapConstraint binding: concentration / want cap
-//   - default: generic "constraint binds, investigate"
+// Gating and wording both come from outOfSetGate, so whenever this CTA is the
+// one selectTip picks it names the same cause as the badge caption. A
+// higher-severity lever (bond fee, bid penalty) may still outrank it — that is
+// the severity ladder working, not drift. bondBelowMin is skipped here —
+// bondCta owns that lever, and getValidatorTip lets it win.
 //
 // Severity tracks ACTIVE STAKE — > 10k means real stake at risk so the
 // tip goes critical-red; otherwise grey/neutral.
 function outOfSetCta(
   validator: AugmentedAuctionValidator,
+  dsSamConfig: DsSamConfig,
   winningTotalPmpe: number,
   delta: number,
   blacklist?: Set<string>,
 ): ValidatorTip | null {
-  if (selectInSet(validator)) {
-    return null
-  }
   // Bid actually is the lever to pull → let bidCta own the message.
   if (validator.revShare.totalPmpe < winningTotalPmpe) {
+    return null
+  }
+  const gate = outOfSetGate(validator, dsSamConfig, blacklist)
+  if (gate === null) {
     return null
   }
 
@@ -453,22 +514,13 @@ function outOfSetCta(
   //   grey   — user's own choice / informational.
   const defending = isDefending(validator, delta)
 
-  if (validator.samBlocked) {
-    // Testing-only state — production traffic shouldn't reach here. Kept
-    // red + octagon as a loud "this should never ship live" signal; not
-    // worth the conditional-severity logic the other branches need.
-    return tip('Blocked from SAM this epoch.', 'critical', 'none', delta, true)
-  }
-
-  // Gate on === false so an undefined samEligible (SDK pre-auction state)
-  // doesn't route through the "not eligible" fallback by accident.
-  if (validator.samEligible === false) {
-    // Narrow the eligibility failure to the most actionable specific cause
-    // we can detect from data we have. Bond + blacklist are cheap checks;
-    // client-version semver matching and per-epoch vote-credit thresholds
-    // need the SDK's internal computation — fall through to a hint that
-    // names the remaining suspects.
-    if (blacklist?.has(validator.voteAccount)) {
+  switch (gate.kind) {
+    case 'blocked':
+      // Testing-only state — production traffic shouldn't reach here. Kept
+      // red + octagon as a loud "this should never ship live" signal; not
+      // worth the conditional-severity logic the other branches need.
+      return tip('Blocked from SAM this epoch.', 'critical', 'none', delta, true)
+    case 'blacklisted': {
       // Red ONLY when the blacklist penalty is actively charging this
       // epoch (revShare.blacklistPenaltyPmpe > 0) — real money, octagon.
       // Otherwise it's informational ("flagged but no charge this epoch")
@@ -481,42 +533,52 @@ function outOfSetCta(
       // Yellow when defending so this message outranks deltaCta's symptom.
       return tip('Blacklisted.', defending ? 'warning' : 'neutral', 'none', delta)
     }
-    // Growth lever — fix the eligibility checks and you can qualify.
-    // Escalate to yellow when defending so this names the cause instead of
-    // letting deltaCta's "Losing N SOL" win the severity sort.
-    return tip('Not eligible — check client version and vote credits.', defending ? 'warning' : 'info', 'none', delta)
+    case 'ineligible':
+      // Growth lever — fix the eligibility checks and you can qualify.
+      // Escalate to yellow when defending so this names the cause instead of
+      // letting deltaCta's "Losing N SOL" win the severity sort.
+      return tip('Not eligible — check client version and vote credits.', defending ? 'warning' : 'info', 'none', delta)
+    case 'bondBelowMin':
+      return null
+    case 'cap': {
+      // WANT cap = user-set → grey (their choice).
+      // Other caps: yellow when stake is actively leaving in meaningful
+      // amounts, else violet (informational, no immediate loss).
+      const { constraintType, constraintName } = gate.constraint
+      const capUrgency = constraintType === AuctionConstraintType.WANT ? 'neutral' : defending ? 'warning' : 'info'
+      return tip(`${capCauseLine(constraintType, constraintName)}.`, capUrgency, 'cap', delta)
+    }
+    default:
+      return assertNever(gate)
   }
-  const cap = validator.lastCapConstraint
-  if (cap && cap.totalLeftToCapSol === 0) {
-    // WANT cap = user-set → grey (their choice).
-    // Other caps: yellow when stake is actively leaving in meaningful
-    // amounts, else violet (informational, no immediate loss).
-    const capUrgency = cap.constraintType === AuctionConstraintType.WANT ? 'neutral' : defending ? 'warning' : 'info'
-    return tip(`${capCauseLine(cap.constraintType, cap.constraintName)}.`, capUrgency, 'cap', delta)
-  }
-  return null
 }
 
-// Cap lever. In-set + losing stake + a binding concentration cap
-// (totalLeftToCapSol === 0). Non-actionable explanation — the validator
-// can't unilaterally clear an ASO/country cap. Urgency:info keeps the
-// chip distinct from warning-yellow (which implies "act"); cap outranks
-// the generic delta-losing message via mutual exclusion in deltaCta, not
-// by lying about urgency.
+// Cap lever for validators the auction DID seat, and only for the caps they cannot
+// clear themselves — hence the "until cap frees" wording, which is a promise that
+// waiting works. Urgency:info keeps the chip distinct from warning-yellow (which
+// implies "act"); cap outranks the generic delta-losing message via mutual exclusion
+// in deltaCta, not by lying about urgency.
 function capCta(validator: AugmentedAuctionValidator, delta: number): ValidatorTip | null {
   const cap = validator.lastCapConstraint
   // Fire for delta <= 0: losing stake (delta < 0) or blocked from growing
   // (delta === 0) by a binding cap. Skip when delta > 0 — stake is arriving,
-  // cap is not the constraint this epoch.
-  if (delta > 0 || cap == null || cap.totalLeftToCapSol !== 0) {
+  // cap is not the constraint this epoch. Out-of-set rows belong to outOfSetCta,
+  // which reads the same constraint through outOfSetGate; firing here too lets the
+  // two disagree about the cause on one row. WANT and BOND are the validator's own
+  // levers and never free on their own: deltaCta's atOwnCap owns the first (and
+  // guards the case where minMaxStakeWanted, not the setting, is what binds),
+  // bondCta/bondGrowthCta the second.
+  if (
+    delta > 0 ||
+    cap == null ||
+    !selectInSet(validator) ||
+    cap.constraintType === AuctionConstraintType.WANT ||
+    cap.constraintType === AuctionConstraintType.BOND
+  ) {
     return null
   }
-  // Severity follows the global ladder:
-  //   grey   — WANT cap (user-set).
-  //   yellow — other cap AND defending (meaningful stake leaving).
-  //   violet — other cap, no meaningful loss (informational).
-  const urgency =
-    cap.constraintType === AuctionConstraintType.WANT ? 'neutral' : isDefending(validator, delta) ? 'warning' : 'info'
+  // Yellow when defending (meaningful stake leaving), else violet (informational).
+  const urgency = isDefending(validator, delta) ? 'warning' : 'info'
   const cause = capCauseLine(cap.constraintType, cap.constraintName)
   // Two-line when actively losing stake; single line when just blocked.
   const text =
@@ -622,11 +684,23 @@ export const getValidatorTip = (
 ): ValidatorTip => {
   const delta = validator.values.expectedStakeChangeSol
   const cap = capCta(validator, delta)
+  const bond = bondCta(validator, dsSamConfig, winningTotalPmpe, delta, precomputedCoverage)
+  const bid = bidCta(validator, dsSamConfig, winningTotalPmpe, delta)
+  const gate = outOfSetCta(validator, dsSamConfig, winningTotalPmpe, delta, blacklist)
+  const causes = [bond, bid, gate, cap]
+  // Out of set at a price that already clears: the loss IS the gate's effect,
+  // so a lever CTA must headline even when its severity deliberately reads
+  // lower (a calm low-bond row stays neutral to keep the banner grey). Below
+  // the winning price the loss is the honest headline and this must not fire.
+  if (
+    !selectInSet(validator) &&
+    validator.revShare.totalPmpe >= winningTotalPmpe &&
+    causes.some(cause => cause !== null)
+  ) {
+    return selectTip(...causes)
+  }
   return selectTip(
-    bondCta(validator, dsSamConfig, winningTotalPmpe, delta, precomputedCoverage),
-    bidCta(validator, dsSamConfig, winningTotalPmpe, delta),
-    outOfSetCta(validator, winningTotalPmpe, delta, blacklist),
-    cap,
+    ...causes,
     deltaCta(validator, delta, cap !== null, priorityFrontierPmpe, dsSamConfig.minMaxStakeWanted),
   )
 }

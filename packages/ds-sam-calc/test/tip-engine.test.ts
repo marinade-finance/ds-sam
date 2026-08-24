@@ -4,7 +4,7 @@
 // nextStakeDeltaCell/getApyBreakdown) stay in the dashboard.
 import { computeBondCoverage } from '../src/bond-coverage'
 import { bondHealthFromAuction } from '../src/bond-health'
-import { getValidatorTip, bondAdvice } from '../src/tip-engine'
+import { getValidatorTip, bondAdvice, outOfSetGate, outOfSetGateLabel } from '../src/tip-engine'
 
 import type { DsSamConfig } from '../src'
 import type { AugmentedAuctionValidator } from '../src/sam'
@@ -381,7 +381,9 @@ describe('getValidatorTip', () => {
     expect(tip.text).toContain("can't grow")
   })
 
-  it('lastCapConstraint with headroom (totalLeftToCapSol > 0) → no cap CTA', () => {
+  it('binding on the marinade side only (totalLeftToCapSol > 0) → still a cap CTA', () => {
+    // findCapForValidator records lastCapConstraint on min(total, marinade) < EPSILON,
+    // so the marinade side alone is enough — totalLeftToCapSol says nothing here.
     const validator = makeValidator({
       values: { expectedStakeChangeSol: -5000 },
       lastCapConstraint: {
@@ -390,13 +392,89 @@ describe('getValidatorTip', () => {
         totalStakeSol: 1_000_000,
         totalLeftToCapSol: 50_000,
         marinadeStakeSol: 1_000_000,
-        marinadeLeftToCapSol: 50_000,
+        marinadeLeftToCapSol: 0,
         validators: [],
       },
     })
     const tip = getValidatorTip(validator, DS_SAM_CONFIG, 100)
-    expect(tip.constraint).toBe('none')
-    expect(tip.text).toContain('Losing')
+    expect(tip.constraint).toBe('cap')
+    expect(tip.text).toContain('Hetzner Online GmbH at ASO cap')
+  })
+
+  it('out of set → capCta stays silent, outOfSetCta owns the cap narrative', () => {
+    const validator = makeValidator({
+      auctionStake: { marinadeSamTargetSol: 0 },
+      samEligible: true,
+      samBlocked: false,
+      bondSamStakeCapSol: 250_000,
+      values: { expectedStakeChangeSol: -5000 },
+      lastCapConstraint: {
+        constraintType: 'ASO',
+        constraintName: 'Hetzner Online GmbH',
+        totalStakeSol: 1_000_000,
+        totalLeftToCapSol: 0,
+        marinadeStakeSol: 1_000_000,
+        marinadeLeftToCapSol: 0,
+        validators: [],
+      },
+    })
+    const tip = getValidatorTip(validator, DS_SAM_CONFIG, 10)
+    expect(tip.constraint).toBe('cap')
+    expect(tip.text).toBe('Hetzner Online GmbH at ASO cap.')
+  })
+
+  // "until cap frees" is a promise that waiting works, so capCta must stay off the two
+  // caps the validator clears themselves. Their owners word it as a lever instead.
+  const selfClearableCap = (constraintType: string) => ({
+    constraintType,
+    constraintName: 'test',
+    totalStakeSol: 1_000_000,
+    totalLeftToCapSol: Infinity,
+    marinadeStakeSol: 1_000_000,
+    marinadeLeftToCapSol: 0,
+    validators: [],
+  })
+
+  it('WANT cap on an in-set row → deltaCta owns it, no "until cap frees"', () => {
+    const validator = makeValidator({
+      maxStakeWanted: 50_000,
+      auctionStake: { marinadeSamTargetSol: 50_000 },
+      marinadeActivatedStakeSol: 50_000,
+      values: { expectedStakeChangeSol: -5000 },
+      lastCapConstraint: selfClearableCap('WANT'),
+    })
+    const tip = getValidatorTip(validator, DS_SAM_CONFIG, 10)
+    expect(tip.constraint).not.toBe('cap')
+    expect(tip.text).toBe('At your `maxStakeWanted` setting.')
+  })
+
+  it('BOND cap on an in-set row → bondGrowthCta owns it, no "until cap frees"', () => {
+    const validator = makeValidator({
+      maxStakeWanted: 80_000,
+      auctionStake: { marinadeSamTargetSol: 50_000 },
+      marinadeActivatedStakeSol: 5_000,
+      maxBondDelegation: 50_000,
+      bondSamStakeCapSol: 50_000,
+      values: { expectedStakeChangeSol: -5000 },
+      lastCapConstraint: selfClearableCap('BOND'),
+    })
+    const tip = getValidatorTip(validator, DS_SAM_CONFIG, 10)
+    expect(tip.constraint).toBe('bond')
+    expect(tip.text).toBe('Top up bond to reach your `maxStakeWanted`.')
+  })
+
+  // The auction silently raises a sub-floor maxStakeWanted to minMaxStakeWanted, so
+  // "your setting" would be a lie — deltaCta's atOwnCap guard is what catches it.
+  it('WANT cap below the minMaxStakeWanted floor → never blamed on the setting', () => {
+    const validator = makeValidator({
+      maxStakeWanted: 7_000,
+      auctionStake: { marinadeSamTargetSol: 10_000 },
+      marinadeActivatedStakeSol: 50_000,
+      values: { expectedStakeChangeSol: -5000 },
+      lastCapConstraint: selfClearableCap('WANT'),
+    })
+    const tip = getValidatorTip(validator, { ...DS_SAM_CONFIG, minMaxStakeWanted: 10_000 }, 10)
+    expect(tip.text).not.toContain('maxStakeWanted')
   })
 
   it('delta > 0 + binding cap → cap branch does not displace positive', () => {
@@ -605,5 +683,203 @@ describe('getValidatorTip out-of-set bond top-up rounding', () => {
     const tip = getValidatorTip(validator, DS_SAM_CONFIG, 100)
     // topUp ceils, so a tiny shortfall advises at least 1 SOL — never "0 SOL".
     expect(tip.text).not.toMatch(/Top up 0 SOL/)
+  })
+})
+
+const MIN_BOND_CONFIG = { ...DS_SAM_CONFIG, minBondBalanceSol: 5 } as unknown as DsSamConfig
+
+const BOND_CAP_CONSTRAINT = {
+  constraintType: 'BOND',
+  constraintName: 'test',
+  totalStakeSol: 500_008,
+  // Every per-validator constraint the SDK builds carries Infinity here —
+  // the shape the old totalLeftToCapSol === 0 gate silently dropped.
+  totalLeftToCapSol: Infinity,
+  marinadeStakeSol: 0,
+  marinadeLeftToCapSol: 0,
+  validators: [],
+}
+
+const COUNTRY_CAP_CONSTRAINT = {
+  constraintType: 'COUNTRY',
+  constraintName: 'Germany',
+  totalStakeSol: 2_000_000,
+  totalLeftToCapSol: 0,
+  marinadeStakeSol: 2_000_000,
+  marinadeLeftToCapSol: 0,
+  validators: [],
+}
+
+// Out-of-set fixture whose price clears: totalPmpe 28 against the 10 passed
+// as winningTotalPmpe below, so bidCta's rank branch stays silent.
+function makeOutOfSet(overrides: Record<string, unknown> = {}): AugmentedAuctionValidator {
+  return makeValidator({
+    auctionStake: { marinadeSamTargetSol: 0 },
+    samEligible: true,
+    samBlocked: false,
+    bondSamStakeCapSol: 250_000,
+    lastCapConstraint: null,
+    marinadeActivatedStakeSol: 8,
+    values: { expectedStakeChangeSol: -8 },
+    ...overrides,
+  })
+}
+
+function labelFor(validator: AugmentedAuctionValidator, blacklist?: Set<string>): string {
+  const gate = outOfSetGate(validator, MIN_BOND_CONFIG, blacklist)
+  if (gate === null) {
+    throw new Error('expected an identifiable gate')
+  }
+  return outOfSetGateLabel(gate, MIN_BOND_CONFIG)
+}
+
+describe('outOfSetGate', () => {
+  it('in set → null', () => {
+    expect(outOfSetGate(makeValidator(), MIN_BOND_CONFIG)).toBeNull()
+  })
+
+  it('samBlocked → blocked', () => {
+    const validator = makeOutOfSet({ samBlocked: true })
+    expect(outOfSetGate(validator, MIN_BOND_CONFIG)).toEqual({ kind: 'blocked' })
+    expect(labelFor(validator)).toBe('Blocked from SAM')
+  })
+
+  it('samEligible false + on the blacklist → blacklisted', () => {
+    const validator = makeOutOfSet({ samEligible: false })
+    const blacklist = new Set(['test'])
+    expect(outOfSetGate(validator, MIN_BOND_CONFIG, blacklist)).toEqual({ kind: 'blacklisted' })
+    expect(labelFor(validator, blacklist)).toBe('Blacklisted')
+  })
+
+  it('samEligible false + not on the blacklist → ineligible', () => {
+    const validator = makeOutOfSet({ samEligible: false })
+    const blacklist = new Set(['other'])
+    expect(outOfSetGate(validator, MIN_BOND_CONFIG, blacklist)).toEqual({ kind: 'ineligible' })
+    expect(labelFor(validator, blacklist)).toBe('Not eligible')
+  })
+
+  it('bond clipped to zero + below min → bondBelowMin, label carries the minimum', () => {
+    const validator = makeOutOfSet({
+      bondBalanceSol: 2,
+      claimableBondBalanceSol: 2,
+      bondSamStakeCapSol: 0,
+      lastCapConstraint: BOND_CAP_CONSTRAINT,
+    })
+    expect(outOfSetGate(validator, MIN_BOND_CONFIG)).toEqual({ kind: 'bondBelowMin' })
+    expect(labelFor(validator)).toMatch(/^Bond below 5\.0.SOL minimum$/)
+  })
+
+  it('bond below min but INSIDE the hysteresis band → the real cap is blamed, not the bond', () => {
+    // clipBondStakeCap only zeroes the cap below 0.8 × min, so a 4.5 SOL bond
+    // against a 5 SOL minimum still carries stake — the country cap is what
+    // actually holds this validator out, and the label must say so.
+    const validator = makeOutOfSet({
+      bondBalanceSol: 4.5,
+      claimableBondBalanceSol: 4.5,
+      bondSamStakeCapSol: 4_500,
+      lastCapConstraint: COUNTRY_CAP_CONSTRAINT,
+    })
+    expect(outOfSetGate(validator, MIN_BOND_CONFIG)?.kind).toBe('cap')
+    expect(labelFor(validator)).toBe('Germany at country cap')
+  })
+
+  it('BOND cap with adequate bond → cap, "At your bond cap"', () => {
+    const validator = makeOutOfSet({ bondSamStakeCapSol: 0, lastCapConstraint: BOND_CAP_CONSTRAINT })
+    expect(outOfSetGate(validator, MIN_BOND_CONFIG)?.kind).toBe('cap')
+    expect(labelFor(validator)).toBe('At your bond cap')
+  })
+
+  it('RISK cap → cap, "At the risk cap"', () => {
+    const validator = makeOutOfSet({
+      lastCapConstraint: { ...BOND_CAP_CONSTRAINT, constraintType: 'RISK' },
+    })
+    expect(labelFor(validator)).toBe('At the risk cap')
+  })
+
+  it('COUNTRY cap binding on the marinade side only → cap, names the country', () => {
+    const validator = makeOutOfSet({
+      lastCapConstraint: { ...COUNTRY_CAP_CONSTRAINT, totalLeftToCapSol: 5_000 },
+    })
+    expect(outOfSetGate(validator, MIN_BOND_CONFIG)?.kind).toBe('cap')
+    expect(labelFor(validator)).toBe('Germany at country cap')
+  })
+
+  it('eligible + bond fine + no cap recorded → null, generic fallthrough survives', () => {
+    expect(outOfSetGate(makeOutOfSet(), MIN_BOND_CONFIG)).toBeNull()
+  })
+})
+
+describe('outOfSetGate / outOfSetCta agreement', () => {
+  // Anti-drift: the caption label and the CTA sentence must name one gate.
+  // bondBelowMin is absent by design — outOfSetCta defers it to bondCta.
+  const cases: Array<[string, Record<string, unknown>]> = [
+    ['blocked', { samBlocked: true }],
+    ['ineligible', { samEligible: false }],
+    ['country cap', { lastCapConstraint: COUNTRY_CAP_CONSTRAINT }],
+    ['bond cap', { bondSamStakeCapSol: 0, lastCapConstraint: BOND_CAP_CONSTRAINT }],
+  ]
+
+  it.each(cases)('%s: the CTA sentence opens with the caption label', (_name, overrides) => {
+    const validator = makeOutOfSet(overrides)
+    const tip = getValidatorTip(validator, MIN_BOND_CONFIG, 10)
+    expect(tip.text.startsWith(labelFor(validator))).toBe(true)
+  })
+})
+
+describe('getValidatorTip cause beats symptom when the price already clears', () => {
+  it.each([
+    ['bond cap recorded', BOND_CAP_CONSTRAINT],
+    // A zeroed bond cap and a saturated country cap both yield 0, and
+    // getMinCapForEvenDistribution keeps the first on a tie — COUNTRY is ordered
+    // ahead of BOND, so this pairing is what the SDK actually records.
+    ['country cap recorded', COUNTRY_CAP_CONSTRAINT],
+  ])(
+    'out of set + price clears + bond below min + calm (%s) → bond lever headlines, stays neutral',
+    (_name, lastCapConstraint) => {
+      const validator = makeOutOfSet({
+        bondBalanceSol: 2,
+        claimableBondBalanceSol: 2,
+        bondSamStakeCapSol: 0,
+        lastCapConstraint,
+      })
+      const tip = getValidatorTip(validator, MIN_BOND_CONFIG, 10)
+      expect(tip.constraint).toBe('bond')
+      // Neutral is load-bearing: tipBannerSeverity keeps bond + neutral grey, so
+      // a validator with 8 SOL at risk never gets a critical-red banner.
+      expect(tip.urgency).toBe('neutral')
+      expect(tip.text).toContain('grow stake')
+      expect(tip.text).not.toContain('Losing')
+    },
+  )
+
+  it('out of set + price BELOW winning + bond below min + defending → the loss still headlines', () => {
+    const validator = makeOutOfSet({
+      bondBalanceSol: 2,
+      claimableBondBalanceSol: 2,
+      bondSamStakeCapSol: 0,
+      lastCapConstraint: BOND_CAP_CONSTRAINT,
+      marinadeActivatedStakeSol: 50_000,
+      values: { expectedStakeChangeSol: -30_000 },
+    })
+    const tip = getValidatorTip(validator, MIN_BOND_CONFIG, 100)
+    expect(tip.constraint).toBe('none')
+    expect(tip.urgency).toBe('warning')
+    expect(tip.text).toContain('Losing')
+  })
+
+  it('out of set + price clears + no identifiable gate → delta fallback survives', () => {
+    const tip = getValidatorTip(makeOutOfSet(), MIN_BOND_CONFIG, 10)
+    expect(tip.constraint).toBe('none')
+    expect(tip.text).toContain('Losing')
+  })
+
+  it('in set + losing stake → untouched by the out-of-set precedence rule', () => {
+    const validator = makeValidator({
+      marinadeActivatedStakeSol: 50_000,
+      values: { expectedStakeChangeSol: -5_000 },
+    })
+    const tip = getValidatorTip(validator, MIN_BOND_CONFIG, 10)
+    expect(tip.constraint).toBe('none')
+    expect(tip.text).toContain('Losing')
   })
 })

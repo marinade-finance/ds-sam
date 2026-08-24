@@ -17,9 +17,9 @@ bonds CLI.
   `AuctionConstraintType`, …
 - **Pure formulas** — revenue share, bid-too-low penalty, bond risk fee,
   effective participating bid.
-- **Decisions / CTA** — `getValidatorTip`, `computeBondCoverage`,
-  `bondHealthFromAuction`, `computeBidPenalty`, expected-stake-change /
-  redelegation projection.
+- **Decisions / CTA** — `getValidatorTip`, `outOfSetGate` /
+  `outOfSetGateLabel`, `computeBondCoverage`, `bondHealthFromAuction`,
+  `computeBidPenalty`, expected-stake-change / redelegation projection.
 - **Primitives** — `pmpeToSol`, SOL formatters, APY compounding.
 
 The auction orchestration (`DsSamSDK.run()`, constraints engine, data fetching)
