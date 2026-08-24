@@ -37,7 +37,7 @@ export const validatorAggDefaults = () => ({
 })
 
 export const validatorTotalAuctionStakeSol = (validator: AuctionValidator): number =>
-  finite(validator.auctionStake.externalActivatedSol) + finite(validator.auctionStake.marinadeSamTargetSol)
+  validator.auctionStake.externalActivatedSol + validator.auctionStake.marinadeSamTargetSol
 
 export const zeroStakeConcentration = (
   type: AuctionConstraintType,
