@@ -582,3 +582,32 @@ describe('inflation normalization across a slot-time change', () => {
     expect(trimmedDp.aggregateData(trimmedRaw).rewards.inflationPmpe).toBe(fullWindow)
   })
 })
+
+describe('blacklistFilePath validation', () => {
+  const build = (config: Partial<typeof DEFAULT_CONFIG>) =>
+    defaultStaticDataProviderBuilder([new ValidatorMockBuilder('alice', 'id-a').withEligibleDefaults()])({
+      ...DEFAULT_CONFIG,
+      ...config,
+    })
+
+  it('rejects a local blacklist file in FILES mode, where it is never read', () => {
+    expect(() =>
+      build({ inputsSource: InputsSource.FILES, inputsCacheDirPath: '/dev/null', blacklistFilePath: './b.csv' }),
+    ).toThrow('--blacklist-file is not read for inputs source')
+  })
+
+  it('rejects caching a local blacklist file, which would look like an API snapshot', () => {
+    expect(() =>
+      build({
+        inputsSource: InputsSource.APIS,
+        cacheInputs: true,
+        inputsCacheDirPath: '/dev/null',
+        blacklistFilePath: './b.csv',
+      }),
+    ).toThrow('Cannot cache inputs while reading the blacklist from a local file')
+  })
+
+  it('accepts a local blacklist file for a live APIS run', () => {
+    expect(() => build({ inputsSource: InputsSource.APIS, blacklistFilePath: './b.csv' })).not.toThrow()
+  })
+})

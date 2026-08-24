@@ -179,6 +179,16 @@ export class AuctionCommand extends CommandRunner {
   parseOptBlacklistApiBaseUrl(val: string) {
     return val
   }
+
+  @Option({
+    flags: '--blacklist-file <string>',
+    name: 'blacklistFilePath',
+    description:
+      'SDK param `blacklistFilePath` (local CSV with a `vote_account,code` header row; the first line is dropped as the header)',
+  })
+  parseOptBlacklistFilePath(val: string) {
+    return val
+  }
   @Option({
     flags: '--snapshots-url <string>',
     name: 'snapshotsApiBaseUrl',
