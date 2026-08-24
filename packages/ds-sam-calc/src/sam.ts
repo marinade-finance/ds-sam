@@ -1,4 +1,5 @@
 import { AuctionConstraintType } from './types'
+import { finite, validatorTotalAuctionStakeSol } from './utils'
 
 import type { DsSamConfig } from './config'
 import type { AuctionResult, AuctionValidator } from './types'
@@ -311,17 +312,23 @@ export const selectExpectedStakeChangeBreakdown = (v: AugmentedAuctionValidator)
 
 export const selectCutoffRank = (v: AugmentedAuctionValidator): number => v.values.cutoffRank
 
-export type ConcentrationContext = {
-  // The validator's own country / ASO group.
-  label: string
-  // The group's share of the auction's total SAM target stake (0..1).
+// leftToCapSol = capPct * basisSol - stakeSol, floored at 0.
+export type ConcentrationDimension = {
+  stakeSol: number
+  basisSol: number
   pctOfTotal: number
-  // Configured concentration cap for this constraint (0..1).
   capPct: number
-  // How many validators fall in this group.
+  leftToCapSol: number
+}
+
+export type ConcentrationContext = {
+  label: string
   groupValidatorCount: number
-  // True when THIS validator's binding cap is this exact country / ASO.
   thisValidatorCapped: boolean
+  network: ConcentrationDimension
+  marinade: ConcentrationDimension
+  // Whichever ledger has less SOL headroom binds first.
+  binding: 'network' | 'marinade'
 }
 
 export type ValidatorConcentration = {
@@ -329,12 +336,9 @@ export type ValidatorConcentration = {
   aso: ConcentrationContext
 }
 
-// Per-validator concentration context: for the validator's own country and
-// ASO, how much of the auction's SAM target stake that group already holds
-// versus the configured cap, and whether this validator is itself capped by
-// that constraint. Surfaced in the detail panel so the country / ASO limits
-// stay inspectable per validator after the headline concentration tiles were
-// removed. null when the validator is not in the auction set.
+// Mirrors buildCountry/AsoConcentrationConstraints: the network ledger counts
+// external + SAM target over every group member, the Marinade ledger counts
+// SAM target only. null when the validator is not in the auction data.
 export const selectValidatorConcentration = (
   auctionResult: AuctionResult,
   config: DsSamConfig,
@@ -344,39 +348,57 @@ export const selectValidatorConcentration = (
   const self = validators.find(v => v.voteAccount === voteAccount)
   if (!self) return null
 
-  const context = (
-    pick: (v: AuctionValidator) => string,
-    capType: AuctionConstraintType,
-    capPct: number,
-  ): ConcentrationContext => {
+  const { networkTotalSol, marinadeSamTvlSol } = auctionResult.auctionData.stakeAmounts
+
+  const dimension = (stakeSol: number, basisSol: number, capPct: number): ConcentrationDimension => ({
+    stakeSol,
+    basisSol,
+    pctOfTotal: basisSol > 0 ? stakeSol / basisSol : 0,
+    capPct,
+    leftToCapSol: Math.max(0, capPct * basisSol - stakeSol),
+  })
+
+  const context = (pick: (v: AuctionValidator) => string, capType: AuctionConstraintType): ConcentrationContext => {
+    const isCountry = capType === AuctionConstraintType.COUNTRY
     const key = pick(self) || '—'
-    let groupStake = 0
-    let total = 0
+    let networkStakeSol = 0
+    let marinadeStakeSol = 0
     let groupValidatorCount = 0
     for (const v of validators) {
-      const stakeSol = v.auctionStake.marinadeSamTargetSol
-      if (stakeSol <= 0) continue
-      total += stakeSol
-      if ((pick(v) || '—') === key) {
-        groupStake += stakeSol
-        groupValidatorCount += 1
-      }
+      if ((pick(v) || '—') !== key) continue
+      networkStakeSol += validatorTotalAuctionStakeSol(v)
+      marinadeStakeSol += finite(v.auctionStake.marinadeSamTargetSol)
+      groupValidatorCount += 1
     }
+    const network = dimension(
+      networkStakeSol,
+      networkTotalSol,
+      isCountry ? config.maxNetworkStakeConcentrationPerCountryDec : config.maxNetworkStakeConcentrationPerAsoDec,
+    )
+    const marinade = dimension(
+      marinadeStakeSol,
+      marinadeSamTvlSol,
+      isCountry ? config.maxMarinadeStakeConcentrationPerCountryDec : config.maxMarinadeStakeConcentrationPerAsoDec,
+    )
+    // Raw headroom, not the 0-floored leftToCapSol, so two past-cap ledgers don't tie at 0.
+    const networkHeadroomSol = network.capPct * network.basisSol - network.stakeSol
+    const marinadeHeadroomSol = marinade.capPct * marinade.basisSol - marinade.stakeSol
     return {
       label: key,
-      pctOfTotal: total > 0 ? groupStake / total : 0,
-      capPct,
       groupValidatorCount,
       // Match the SDK's raw constraintName (not the '—' display fallback), so
       // an empty-named country/ASO still resolves its at-cap state correctly.
       thisValidatorCapped:
         self.lastCapConstraint?.constraintType === capType && self.lastCapConstraint.constraintName === pick(self),
+      network,
+      marinade,
+      binding: marinadeHeadroomSol < networkHeadroomSol ? 'marinade' : 'network',
     }
   }
 
   return {
-    country: context(v => v.country, AuctionConstraintType.COUNTRY, config.maxNetworkStakeConcentrationPerCountryDec),
-    aso: context(v => v.aso, AuctionConstraintType.ASO, config.maxNetworkStakeConcentrationPerAsoDec),
+    country: context(v => v.country, AuctionConstraintType.COUNTRY),
+    aso: context(v => v.aso, AuctionConstraintType.ASO),
   }
 }
 
