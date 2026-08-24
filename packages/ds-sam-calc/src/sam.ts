@@ -312,36 +312,22 @@ export const selectExpectedStakeChangeBreakdown = (v: AugmentedAuctionValidator)
 
 export const selectCutoffRank = (v: AugmentedAuctionValidator): number => v.values.cutoffRank
 
-// One of the two ledgers a country / ASO group is capped on. Each is
-// self-contained: the stake that ledger counts, the total the cap multiplies,
-// and the resulting headroom.
+// leftToCapSol = capPct * basisSol - stakeSol, floored at 0.
 export type ConcentrationDimension = {
-  // Group stake this ledger draws its cap down by, in SOL.
   stakeSol: number
-  // Total the cap is a fraction of: network stake / Marinade SAM TVL.
   basisSol: number
-  // stakeSol / basisSol (0..1); 0 when the basis is 0.
   pctOfTotal: number
-  // Configured concentration cap on this basis (0..1).
   capPct: number
-  // capPct * basisSol - stakeSol, floored at 0.
   leftToCapSol: number
 }
 
 export type ConcentrationContext = {
-  // The validator's own country / ASO group.
   label: string
-  // How many validators fall in this group, in the auction set or not — the
-  // cap draw-down counts every one of them.
   groupValidatorCount: number
-  // True when THIS validator's binding cap is this exact country / ASO.
   thisValidatorCapped: boolean
-  // Share of total network stake vs maxNetworkStakeConcentrationPer{Country,Aso}Dec.
   network: ConcentrationDimension
-  // Share of Marinade's own TVL vs maxMarinadeStakeConcentrationPer{Country,Aso}Dec.
   marinade: ConcentrationDimension
-  // Ledger with less SOL headroom — the one that binds first, matching how
-  // minCapFromConstraint takes the min of the two.
+  // Whichever ledger has less SOL headroom binds first.
   binding: 'network' | 'marinade'
 }
 
@@ -350,13 +336,9 @@ export type ValidatorConcentration = {
   aso: ConcentrationContext
 }
 
-// Per-validator concentration context: for the validator's own country and
-// ASO, how much stake that group already holds against each of the two caps
-// the auction enforces on it, and whether this validator is itself capped by
-// that constraint. Mirrors buildCountry/AsoConcentrationConstraints: the
-// network ledger counts external + SAM target over every group member, the
-// Marinade ledger counts SAM target only, and the tighter of the two binds.
-// null when the validator is not in the auction data.
+// Mirrors buildCountry/AsoConcentrationConstraints: the network ledger counts
+// external + SAM target over every group member, the Marinade ledger counts
+// SAM target only. null when the validator is not in the auction data.
 export const selectValidatorConcentration = (
   auctionResult: AuctionResult,
   config: DsSamConfig,

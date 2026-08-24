@@ -1,7 +1,3 @@
-// selectValidatorConcentration must report both ledgers the auction caps a
-// country / ASO on, each with its own numerator, basis and cap: network stake
-// (external + SAM target over networkTotalSol) and Marinade stake (SAM target
-// over marinadeSamTvlSol).
 import { selectValidatorConcentration } from '../src/sam'
 import { AuctionConstraintType } from '../src/types'
 
