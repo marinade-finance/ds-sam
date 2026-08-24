@@ -26,6 +26,9 @@ export type DsSamConfig = {
   tvlInfoApiBaseUrl: string
   // Base URL of the API to get blacklist from
   blacklistApiBaseUrl: string
+  // Optional local file to read the blacklist from instead of fetching it;
+  // other inputs are still fetched normally in APIS mode.
+  blacklistFilePath?: string
   // Base URL of the scoring API
   scoringApiBaseUrl: string
 
