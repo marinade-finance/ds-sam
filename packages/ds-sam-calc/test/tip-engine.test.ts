@@ -883,3 +883,97 @@ describe('getValidatorTip cause beats symptom when the price already clears', ()
     expect(tip.text).toContain('Losing')
   })
 })
+
+// In set AND below the bond minimum is a real state, not an impossible one:
+// sam.ts undelegates the whole active stake for it, so the bond is the only
+// lever the operator has and the CTA must name it.
+function makeInSetBelowMinBond(overrides: Record<string, unknown> = {}): AugmentedAuctionValidator {
+  return makeValidator({
+    auctionStake: { marinadeSamTargetSol: 1_547 },
+    marinadeActivatedStakeSol: 1_547,
+    values: { expectedStakeChangeSol: -1_547 },
+    bondBalanceSol: 2,
+    claimableBondBalanceSol: 2,
+    samEligible: true,
+    samBlocked: false,
+    lastCapConstraint: null,
+    ...overrides,
+  })
+}
+
+describe('getValidatorTip in set + below the bond minimum', () => {
+  it('losing the entire stake under the isDefending floor → bond lever headlines at warning', () => {
+    const tip = getValidatorTip(makeInSetBelowMinBond(), MIN_BOND_CONFIG, 10)
+    expect(tip.constraint).toBe('bond')
+    expect(tip.urgency).toBe('warning')
+    expect(tip.text).toContain('Top up bond')
+    expect(tip.text).not.toContain('Losing')
+  })
+
+  it('calm below-min row → stays neutral (eligibility, not urgency)', () => {
+    const validator = makeInSetBelowMinBond({ values: { expectedStakeChangeSol: 0 } })
+    const tip = getValidatorTip(validator, MIN_BOND_CONFIG, 10)
+    expect(tip.constraint).toBe('bond')
+    expect(tip.urgency).toBe('neutral')
+  })
+
+  it.each([
+    ['whole stake', -50_000],
+    ['part of it', -30_000],
+  ])('large row losing %s → isDefending still owns the escalation', (_name, expectedStakeChangeSol) => {
+    const validator = makeInSetBelowMinBond({
+      auctionStake: { marinadeSamTargetSol: 50_000 },
+      marinadeActivatedStakeSol: 50_000,
+      maxStakeWanted: 200_000,
+      values: { expectedStakeChangeSol },
+    })
+    const tip = getValidatorTip(validator, MIN_BOND_CONFIG, 10)
+    expect(tip.constraint).toBe('bond')
+    expect(tip.urgency).toBe('warning')
+  })
+
+  it('dust row under the loss floor → no escalation, the loss keeps the headline', () => {
+    const validator = makeInSetBelowMinBond({
+      auctionStake: { marinadeSamTargetSol: 900 },
+      marinadeActivatedStakeSol: 900,
+      values: { expectedStakeChangeSol: -900 },
+    })
+    const tip = getValidatorTip(validator, MIN_BOND_CONFIG, 10)
+    expect(tip.constraint).toBe('none')
+    expect(tip.urgency).toBe('info')
+  })
+})
+
+// The whole-stake escalation is in-set only. makeOutOfSet's 8-SOL fixture sits
+// under the loss floor, so these pin the 1k-10k band where the escalation would
+// otherwise outrank the CTA naming the gate that actually holds the row out.
+describe('getValidatorTip out of set + below the bond minimum keeps naming the real gate', () => {
+  it('ineligible → eligibility CTA headlines, not the bond', () => {
+    const validator = makeOutOfSet({
+      samEligible: false,
+      bondBalanceSol: 2,
+      claimableBondBalanceSol: 2,
+      bondSamStakeCapSol: 0,
+      marinadeActivatedStakeSol: 5_000,
+      values: { expectedStakeChangeSol: -5_000 },
+    })
+    const tip = getValidatorTip(validator, MIN_BOND_CONFIG, 10)
+    expect(tip.constraint).toBe('none')
+    expect(tip.text).toContain('Not eligible')
+    expect(tip.text).not.toContain('bond')
+  })
+
+  it('country cap → cap CTA headlines, not the bond', () => {
+    const validator = makeOutOfSet({
+      bondBalanceSol: 2,
+      claimableBondBalanceSol: 2,
+      bondSamStakeCapSol: 1_000,
+      lastCapConstraint: COUNTRY_CAP_CONSTRAINT,
+      marinadeActivatedStakeSol: 5_000,
+      values: { expectedStakeChangeSol: -5_000 },
+    })
+    const tip = getValidatorTip(validator, MIN_BOND_CONFIG, 10)
+    expect(tip.constraint).toBe('cap')
+    expect(tip.text).toContain('country cap')
+  })
+})

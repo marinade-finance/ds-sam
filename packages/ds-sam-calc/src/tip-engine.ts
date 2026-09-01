@@ -45,7 +45,9 @@ export interface ValidatorTip {
 // case, no parentheses, and carries the decisive value (the SOL top-up /
 // minimum, or the fee figure when no top-up applies). `severity` is the
 // critical/warning/good axis the breakdown banner uses; `urgency` is
-// the tip-pill axis. They agree by construction.
+// the tip-pill axis. They agree by construction on every state this function
+// owns; bondCta's below-min branch returns before reaching here and sets its
+// own urgency, because only it has the delta the escalation turns on.
 export type BondAdvice = {
   text: string
   urgency: TipUrgency
@@ -239,10 +241,10 @@ function bondCta(
   const bondRiskFeeSol = validator.values.bondRiskFeeSol
   const coverage = precomputedCoverage ?? computeBondCoverage(validator, dsSamConfig, winningTotalPmpe)
 
-  // Below-min: the SDK qualification gate (clipBondStakeCap → 0). Only
-  // realistic for out-of-set validators (in-set with sub-min is impossible).
-  // Wording carries the "qualify" / "re-qualify" framing the in-set CTA
-  // doesn't need.
+  // Below-min: the SDK qualification gate. Reachable in set too — clipBondStakeCap
+  // zeroes the cap only below 0.8 × the minimum, so a balance inside that band keeps
+  // a positive target. Wording carries the "qualify" / "re-qualify" framing the
+  // in-set CTA doesn't need.
   if (bondBalance < dsSamConfig.minBondBalanceSol) {
     if (bondRiskFeeSol > 0) {
       // Need to clear both the penalty shortfall and the below-min block.
@@ -262,7 +264,7 @@ function bondCta(
       bondBalance <= 0
         ? `Post a bond of ${bondSol(dsSamConfig.minBondBalanceSol)} to grow stake.`
         : `Top up bond to ${bondSol(dsSamConfig.minBondBalanceSol)} to grow stake.`,
-      bondIsSoleBlocker && isDefending(validator, delta) ? 'warning' : 'neutral',
+      bondIsSoleBlocker && isDefendingBelowMinBond(validator, delta) ? 'warning' : 'neutral',
       'bond',
       delta,
     )
@@ -383,6 +385,15 @@ function capCauseLine(type: AuctionConstraintType | undefined, name: string | un
 // vs INFO/NEUTRAL don't drift apart.
 function isDefending(validator: AugmentedAuctionValidator, delta: number): boolean {
   return (validator.marinadeActivatedStakeSol ?? 0) > NON_TRIVIAL_STAKE_SOL && delta < -NON_TRIVIAL_LOSS_SOL
+}
+
+// Defend-lever predicate for the below-min branch. In set the bond is the only
+// lever, so the loss floor alone decides — dropping isDefending's 10k stake
+// floor, which hid long-tail rows shedding most of what they hold. Out of set
+// the bond is one gate among several, and escalating past NEUTRAL would outrank
+// the ineligible/blacklisted/cap CTA that names the real blocker.
+function isDefendingBelowMinBond(validator: AugmentedAuctionValidator, delta: number): boolean {
+  return isDefending(validator, delta) || (selectInSet(validator) && delta < -NON_TRIVIAL_LOSS_SOL)
 }
 
 // Bond (not bid) is the growth lever when the auction clamps an in-set winner's target to the bond ceiling below their maxStakeWanted; runs from bondCta's healthy path so its 'bond'/info CTA outranks deltaCta's "raise bid" on the LEVER_ORDER tiebreak.
