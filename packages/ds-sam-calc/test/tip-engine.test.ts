@@ -944,18 +944,21 @@ describe('getValidatorTip in set + below the bond minimum', () => {
   })
 })
 
-// The whole-stake escalation is in-set only. makeOutOfSet's 8-SOL fixture sits
-// under the loss floor, so these pin the 1k-10k band where the escalation would
-// otherwise outrank the CTA naming the gate that actually holds the row out.
+// Both stake bands matter and fail for different reasons: under 10k the in-set
+// term must not fire, over 10k isDefending is true as well, so only the
+// bondBelowMin gate test keeps the bond CTA from outranking the real blocker.
 describe('getValidatorTip out of set + below the bond minimum keeps naming the real gate', () => {
-  it('ineligible → eligibility CTA headlines, not the bond', () => {
+  it.each([
+    ['under the isDefending stake floor', 5_000],
+    ['over it, where isDefending also fires', 50_000],
+  ])('ineligible %s → eligibility CTA headlines, not the bond', (_name, stake) => {
     const validator = makeOutOfSet({
       samEligible: false,
       bondBalanceSol: 2,
       claimableBondBalanceSol: 2,
       bondSamStakeCapSol: 0,
-      marinadeActivatedStakeSol: 5_000,
-      values: { expectedStakeChangeSol: -5_000 },
+      marinadeActivatedStakeSol: stake,
+      values: { expectedStakeChangeSol: -stake },
     })
     const tip = getValidatorTip(validator, MIN_BOND_CONFIG, 10)
     expect(tip.constraint).toBe('none')
@@ -963,17 +966,33 @@ describe('getValidatorTip out of set + below the bond minimum keeps naming the r
     expect(tip.text).not.toContain('bond')
   })
 
-  it('country cap → cap CTA headlines, not the bond', () => {
+  it.each([
+    ['under the isDefending stake floor', 5_000],
+    ['over it, where isDefending also fires', 50_000],
+  ])('country cap %s → cap CTA headlines, not the bond', (_name, stake) => {
     const validator = makeOutOfSet({
       bondBalanceSol: 2,
       claimableBondBalanceSol: 2,
       bondSamStakeCapSol: 1_000,
       lastCapConstraint: COUNTRY_CAP_CONSTRAINT,
-      marinadeActivatedStakeSol: 5_000,
-      values: { expectedStakeChangeSol: -5_000 },
+      marinadeActivatedStakeSol: stake,
+      values: { expectedStakeChangeSol: -stake },
     })
     const tip = getValidatorTip(validator, MIN_BOND_CONFIG, 10)
     expect(tip.constraint).toBe('cap')
     expect(tip.text).toContain('country cap')
+  })
+
+  it('bond is the sole gate → keeps the warning it had before the in-set escalation', () => {
+    const validator = makeOutOfSet({
+      bondBalanceSol: 2,
+      claimableBondBalanceSol: 2,
+      bondSamStakeCapSol: 0,
+      marinadeActivatedStakeSol: 50_000,
+      values: { expectedStakeChangeSol: -50_000 },
+    })
+    const tip = getValidatorTip(validator, MIN_BOND_CONFIG, 10)
+    expect(tip.constraint).toBe('bond')
+    expect(tip.urgency).toBe('warning')
   })
 })

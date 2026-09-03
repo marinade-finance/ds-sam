@@ -264,7 +264,7 @@ function bondCta(
       bondBalance <= 0
         ? `Post a bond of ${bondSol(dsSamConfig.minBondBalanceSol)} to grow stake.`
         : `Top up bond to ${bondSol(dsSamConfig.minBondBalanceSol)} to grow stake.`,
-      bondIsSoleBlocker && isDefendingBelowMinBond(validator, delta) ? 'warning' : 'neutral',
+      bondIsSoleBlocker && isDefendingBelowMinBond(validator, dsSamConfig, delta) ? 'warning' : 'neutral',
       'bond',
       delta,
     )
@@ -390,10 +390,20 @@ function isDefending(validator: AugmentedAuctionValidator, delta: number): boole
 // Defend-lever predicate for the below-min branch. In set the bond is the only
 // lever, so the loss floor alone decides — dropping isDefending's 10k stake
 // floor, which hid long-tail rows shedding most of what they hold. Out of set
-// the bond is one gate among several, and escalating past NEUTRAL would outrank
-// the ineligible/blacklisted/cap CTA that names the real blocker.
-function isDefendingBelowMinBond(validator: AugmentedAuctionValidator, delta: number): boolean {
-  return isDefending(validator, delta) || (selectInSet(validator) && delta < -NON_TRIVIAL_LOSS_SOL)
+// the bond is one gate among several, so escalate only when it is the gate that
+// actually holds the row out; otherwise WARNING would outrank the
+// ineligible/blacklisted/cap CTA on the bond-lever tiebreak. blacklist is not
+// needed here — it only splits blacklisted from ineligible, neither of which is
+// bondBelowMin.
+function isDefendingBelowMinBond(
+  validator: AugmentedAuctionValidator,
+  dsSamConfig: DsSamConfig,
+  delta: number,
+): boolean {
+  if (selectInSet(validator)) {
+    return delta < -NON_TRIVIAL_LOSS_SOL
+  }
+  return outOfSetGate(validator, dsSamConfig)?.kind === 'bondBelowMin' && isDefending(validator, delta)
 }
 
 // Bond (not bid) is the growth lever when the auction clamps an in-set winner's target to the bond ceiling below their maxStakeWanted; runs from bondCta's healthy path so its 'bond'/info CTA outranks deltaCta's "raise bid" on the LEVER_ORDER tiebreak.
