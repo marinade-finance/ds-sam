@@ -1,3 +1,4 @@
+import { EPSILON } from './constants'
 import { AuctionConstraintType } from './types'
 import { finite, validatorTotalAuctionStakeSol } from './utils'
 
@@ -172,7 +173,10 @@ export function allocateRedelegation(auctionResult: AuctionResult, minBondBalanc
 // when target > active the validator is receiving stake, not losing it.
 // target < active: capped at active−target so stake never projects below target.
 // target == active: shown in full as a negative; no rotation inflow offsets it.
-// Sub-min-bond validators lose all stake and are excluded from inflow/rotation.
+// Only validators the SDK actually zeroed lose all stake and are excluded from
+// inflow/rotation — clipBondStakeCap keeps a positive cap inside the 0.8×
+// hysteresis band, and both delegation bots stake to that cap, so a sub-min
+// balance alone must not project a total loss.
 // Gated by PAID_UNDELEGATION_ENABLED — off by default, so paid resolves to 0
 // and this branch is inert until the protocol prioritises these undelegations.
 function computeExpectedStakeChanges(
@@ -181,7 +185,10 @@ function computeExpectedStakeChanges(
 ): Map<string, ExpectedStakeChange> {
   const validators = auctionResult.auctionData.validators
   const tvl = auctionResult.auctionData.stakeAmounts.marinadeSamTvlSol
-  const bondBelowMin = (v: AuctionValidator) => (v.bondBalanceSol ?? 0) < minBondBalanceSol
+  // Negated so a cap the SDK never computed (NaN default) keeps the old
+  // balance-only verdict instead of silently cancelling the projected loss.
+  const bondBelowMin = (v: AuctionValidator) =>
+    (v.bondBalanceSol ?? 0) < minBondBalanceSol && !(v.bondSamStakeCapSol >= EPSILON)
   const result = new Map<string, ExpectedStakeChange>()
   const get = (va: string): ExpectedStakeChange => {
     let entry = result.get(va)
