@@ -22,6 +22,7 @@ const commissionsFor = (onchainInflationDec: number, inBondInflationDec: number 
     inflationCommissionInBondDec: inBondInflationDec,
     mevCommissionOnchainDec: 0,
     mevCommissionInBondDec: null,
+    blockRewardsCommissionOnchainDec: null,
     blockRewardsCommissionInBondDec: null,
   }
 }

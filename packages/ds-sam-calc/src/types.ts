@@ -80,7 +80,7 @@ export type AggregatedValidator = {
   marinadeActivatedStakeSol: number
   lastMarinadeActivatedStakeSol: number | null
   lastSamBlacklisted: boolean | null
-  inflationCommissionDec: number
+  inflationCommissionDec: number | null
   mevCommissionDec: number | null
   blockRewardsCommissionDec: number | null
   bidCpmpe: number | null
@@ -106,16 +106,19 @@ export type AuctionValidatorValues = {
 
 export type CommissionDetails = {
   // values used to calculate total PMPE
-  inflationCommissionDec: number
+  inflationCommissionDec: number | null
   mevCommissionDec: number
   blockRewardsCommissionDec: number
   // detailed breakdown of commission settings
-  inflationCommissionOnchainDec: number
+  inflationCommissionOnchainDec: number | null
   inflationCommissionInBondDec: number | null
   inflationCommissionOverrideDec?: number
   mevCommissionOnchainDec: number | null
   mevCommissionInBondDec: number | null
   mevCommissionOverrideDec?: number
+  // No on-chain source until SIMD-0123 gives block revenue its own rate; null means the whole
+  // block share is still a bond obligation rather than something already distributed on chain.
+  blockRewardsCommissionOnchainDec: number | null
   blockRewardsCommissionInBondDec: number | null
   blockRewardsCommissionOverrideDec?: number
   bidCpmpeInBondDec?: number | null

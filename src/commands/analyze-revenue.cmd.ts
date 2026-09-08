@@ -29,6 +29,8 @@ type AnalyzeRevenuesCommandOptions = {
 export type SnapshotValidatorMeta = {
   vote_account: string
   commission: number
+  // Vote state holds bps since SIMD-0291; `commission` is the u8 percent that truncates it
+  commission_bps?: number
   mev_commission?: number
   stake: number
   credits: number
@@ -78,7 +80,8 @@ export const loadSnapshotValidatorsCollection = (path: string): SnapshotValidato
   JSON.parse(fs.readFileSync(path).toString()) as SnapshotValidatorsCollection
 
 export const snapshotOnchainCommissions = (validatorMeta: SnapshotValidatorMeta): PastValidatorCommissions => ({
-  inflation: validatorMeta.commission / 100,
+  inflation:
+    validatorMeta.commission_bps != null ? validatorMeta.commission_bps / 10_000 : validatorMeta.commission / 100,
   // mev_commission is validator_commission_bps from Jito TipDistributionAccount
   mev: validatorMeta.mev_commission != null ? validatorMeta.mev_commission / 10_000 : null,
 })
@@ -94,6 +97,15 @@ export const getValidatorOverrides = (
 
   const bondsByVoteAccount = new Map(bonds.bonds.map(b => [b.vote_account, b]))
 
+  const { validator_metas: validatorMetas } = snapshotValidatorsCollection
+  const u8CommissionCount = validatorMetas.filter(({ commission_bps }) => commission_bps == null).length
+  if (u8CommissionCount > 0) {
+    console.warn(
+      `Snapshot carries no commission_bps for ${u8CommissionCount} of ${validatorMetas.length} validators; ` +
+        'the u8 percent fallback truncates any rate that is not a whole percent',
+    )
+  }
+
   for (const validatorMeta of snapshotValidatorsCollection.validator_metas) {
     const bond = bondsByVoteAccount.get(validatorMeta.vote_account)
 
@@ -104,6 +116,7 @@ export const getValidatorOverrides = (
 
     const effective = effectiveCommissions(onchain.inflation, inflationBondDec, onchain.mev, mevBondDec)
 
+    assert(effective.inflationDec != null, `Snapshot carries no inflation commission for ${validatorMeta.vote_account}`)
     inflationCommissionsDec.set(validatorMeta.vote_account, effective.inflationDec)
     mevCommissionsDec.set(validatorMeta.vote_account, effective.mevDec ?? undefined)
   }
@@ -275,6 +288,12 @@ export class AnalyzeRevenuesCommand extends CommandRunner {
           })
         }
       }
+
+      // validator-bonds settles on these numbers; an unknown rate must stop the run, never ship as a 0 or a 100%
+      assert(
+        validatorBefore.inflationCommissionDec != null && validatorAfter.inflationCommissionDec != null,
+        `No resolvable inflation commission for ${validatorBefore.voteAccount}`,
+      )
 
       evaluation.push({
         voteAccount: validatorBefore.voteAccount,

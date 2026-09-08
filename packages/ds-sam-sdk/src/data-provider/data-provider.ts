@@ -175,6 +175,7 @@ export class DataProvider {
       inflationCommissionInBondDec: null,
       mevCommissionOnchainDec: null,
       mevCommissionInBondDec: null,
+      blockRewardsCommissionOnchainDec: null,
       blockRewardsCommissionInBondDec: null,
     }
     if (revShare == null) {
@@ -227,8 +228,13 @@ export class DataProvider {
       const blockRewardsCommissionInBondDec =
         bond?.block_commission_bps != null ? Number(bond.block_commission_bps) / 10_000 : null
 
+      // No default: a missing rate must stay unknown, never collapse to 100% and silently zero the staker share
       const inflationCommissionOnchainDec =
-        (validator.commission_effective ?? validator.commission_advertised ?? 100) / 100
+        validator.commission_effective != null
+          ? validator.commission_effective / 100
+          : validator.commission_advertised != null
+            ? validator.commission_advertised / 100
+            : null
       const mevCommissionOnchainDec = mev ? mev.mev_commission_bps / 10_000 : null
 
       // data to be applied in calculation of rev share as it considers the overrides and bond commissions (note: it can be negative)
@@ -248,7 +254,7 @@ export class DataProvider {
       // safeguard against validator accidentally overly low commission to pay overly more than 100% of rewards
       let minimalCommissionDec: number | undefined = undefined
       if (this.config.minimalCommission != null) {
-        if (inflationCommissionDec < this.config.minimalCommission) {
+        if (inflationCommissionDec != null && inflationCommissionDec < this.config.minimalCommission) {
           minimalCommissionDec = this.config.minimalCommission
           inflationCommissionDec = this.config.minimalCommission
         }
@@ -309,6 +315,8 @@ export class DataProvider {
             blockRewardsCommissionDec: blockRewardsCommissionDec ?? 1,
             inflationCommissionOnchainDec,
             mevCommissionOnchainDec,
+            // SIMD-0123 will give this a real rate; until then block revenue is shared through bonds only
+            blockRewardsCommissionOnchainDec: null,
             inflationCommissionInBondDec,
             mevCommissionInBondDec,
             blockRewardsCommissionInBondDec,
