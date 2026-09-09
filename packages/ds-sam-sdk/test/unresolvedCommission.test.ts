@@ -107,7 +107,39 @@ describe('unresolved on-chain inflation commission', () => {
 
     const validator = findValidatorInResult(fallbackVal.voteAccount, result)
     expect(validator?.values.commissions.inflationCommissionOnchainDec).toStrictEqual(0.05)
+    expect(validator?.values.commissions.inflationCommissionOnchainSource).toStrictEqual('advertised')
     expect(validator?.samEligible).toStrictEqual(true)
     expect(validator?.revShare.onchainDistributedPmpe).toBeGreaterThan(0)
+  })
+
+  it('records which API field supplied the on-chain rate', async () => {
+    const voteAccounts = generateVoteAccounts('commission-source')
+    const identities = generateIdentities()
+
+    const effectiveVal = new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
+      .withEligibleDefaults()
+      .withInflationCommissionSources({ effective: 4, advertised: 9 })
+      .withBond({ stakeWanted: 150_000, cpmpe: 1, balance: 100 })
+    const unresolvedVal = new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
+      .withEligibleDefaults()
+      .withInflationCommissionSources(NO_COMMISSION_SOURCES)
+      .withNativeStake(0)
+      .withLiquidStake(0)
+      .withBond({ stakeWanted: 150_000, cpmpe: 1, balance: 100 })
+    const networkBallast = new ValidatorMockBuilder(
+      voteAccounts.next().value,
+      identities.next().value,
+    ).withExternalStake(2_000_000)
+
+    const dsSam = new DsSamSDK({}, defaultStaticDataProviderBuilder([effectiveVal, unresolvedVal, networkBallast]))
+    const result = await dsSam.run()
+
+    const effective = findValidatorInResult(effectiveVal.voteAccount, result)
+    expect(effective?.values.commissions.inflationCommissionOnchainSource).toStrictEqual('effective')
+    expect(effective?.values.commissions.inflationCommissionOnchainDec).toStrictEqual(0.04)
+
+    const unresolved = findValidatorInResult(unresolvedVal.voteAccount, result)
+    expect(unresolved?.values.commissions.inflationCommissionOnchainSource).toBeUndefined()
+    expect(unresolved?.values.commissions.inflationCommissionOnchainDec).toBeNull()
   })
 })

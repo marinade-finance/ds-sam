@@ -116,11 +116,12 @@ export const calcValidatorRevShare = (
  *                       When null, it is treated as 100% commission (i.e., all rewards are gained by validator).
  *  @returns the portion of the rewards that goes to stakers after deducting the commission.
  */
-const calculatePmpe = (pmpe: number | null, commissionDec: number | null): number => {
+const calculatePmpe = (pmpe: number | null, commissionDec: number | null | undefined): number => {
   if (pmpe === null || pmpe <= 0) {
     return 0
   }
-  if (commissionDec === null || commissionDec >= 1) {
+  // Loose on purpose: a commission absent from a rehydrated object is undefined, and Decimal throws on it
+  if (commissionDec == null || commissionDec >= 1) {
     return 0
   }
   // Negative commission means validator subsidizes stakers

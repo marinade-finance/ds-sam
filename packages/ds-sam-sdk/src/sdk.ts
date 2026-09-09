@@ -186,12 +186,10 @@ export class DsSamSDK {
           ...ineligibleValidatorAggDefaults(),
         }
       }
-      // Both sides must span the same revenue streams, or a validator sharing block revenue clears the
-      // zero-commission bar without running zero commission
-      const zeroCommissionPmpe = Math.max(0, rewards.inflationPmpe + rewards.mevPmpe + rewards.blockPmpe)
+      // Block revenue is off both sides: it is shareable only through a bond, and the backstop admits bondless validators
+      const zeroCommissionPmpe = Math.max(0, rewards.inflationPmpe + rewards.mevPmpe)
       const backstopEligible =
-        this.config.enableZeroCommissionBackstop &&
-        revShare.inflationPmpe + revShare.mevPmpe + revShare.blockPmpe >= zeroCommissionPmpe
+        this.config.enableZeroCommissionBackstop && revShare.inflationPmpe + revShare.mevPmpe >= zeroCommissionPmpe
       if (validator.bondBalanceSol === null) {
         return {
           ...validator,

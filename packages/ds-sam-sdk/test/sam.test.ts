@@ -532,6 +532,37 @@ describe('sam', () => {
       expect(backStopValidator.revShare.totalPmpe).toBeGreaterThan(result.winningTotalPmpe)
       expect(goodValidator2.revShare.totalPmpe).toBeGreaterThan(result.winningTotalPmpe)
     })
+
+    it('keeps a bondless zero-commission validator backstop eligible when block rewards are non-zero', async () => {
+      const voteAccounts = generateVoteAccounts('bondless-backstop')
+      const identities = generateIdentities()
+
+      const bondlessZeroCommission = new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
+        .withGoodPerformance()
+        .withInflationCommission(0)
+        .withMevCommission(0)
+        .withExternalStake(100_000)
+      const samWinner = new ValidatorMockBuilder(
+        voteAccounts.next().value,
+        identities.next().value,
+      ).withEligibleDefaults()
+      const networkBallast = new ValidatorMockBuilder(
+        voteAccounts.next().value,
+        identities.next().value,
+      ).withExternalStake(2_000_000)
+
+      const result = await new DsSamSDK(
+        { enableZeroCommissionBackstop: true },
+        blockRewardsStaticDataProviderBuilder([bondlessZeroCommission, samWinner, networkBallast]),
+      ).run()
+
+      const validator = result.auctionData.validators.find(v => v.voteAccount === bondlessZeroCommission.voteAccount)
+      assert(validator, 'Bondless zero-commission validator not found in results')
+      expect(result.auctionData.rewards.blockPmpe).toBeGreaterThan(0)
+      expect(validator.bondBalanceSol).toBeNull()
+      expect(validator.revShare.blockPmpe).toEqual(0)
+      expect(validator.backstopEligible).toBe(true)
+    })
   })
 
   describe('client version gate', () => {

@@ -111,14 +111,15 @@ export type CommissionDetails = {
   blockRewardsCommissionDec: number
   // detailed breakdown of commission settings
   inflationCommissionOnchainDec: number | null
+  // Recorded because the two API fields have different derivations and have swapped fleet-wide unnoticed
+  inflationCommissionOnchainSource?: 'effective' | 'advertised'
   inflationCommissionInBondDec: number | null
   inflationCommissionOverrideDec?: number
   mevCommissionOnchainDec: number | null
   mevCommissionInBondDec: number | null
   mevCommissionOverrideDec?: number
-  // No on-chain source until SIMD-0123 gives block revenue its own rate; null means the whole
-  // block share is still a bond obligation rather than something already distributed on chain.
-  blockRewardsCommissionOnchainDec: number | null
+  // Absent until SIMD-0123 gives block revenue its own rate; optional so objects serialized before it still type-check
+  blockRewardsCommissionOnchainDec?: number | null
   blockRewardsCommissionInBondDec: number | null
   blockRewardsCommissionOverrideDec?: number
   bidCpmpeInBondDec?: number | null

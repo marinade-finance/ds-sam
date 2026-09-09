@@ -229,12 +229,13 @@ export class DataProvider {
         bond?.block_commission_bps != null ? Number(bond.block_commission_bps) / 10_000 : null
 
       // No default: a missing rate must stay unknown, never collapse to 100% and silently zero the staker share
-      const inflationCommissionOnchainDec =
+      const onchainCommission =
         validator.commission_effective != null
-          ? validator.commission_effective / 100
+          ? { percent: validator.commission_effective, source: 'effective' as const }
           : validator.commission_advertised != null
-            ? validator.commission_advertised / 100
+            ? { percent: validator.commission_advertised, source: 'advertised' as const }
             : null
+      const inflationCommissionOnchainDec = onchainCommission != null ? onchainCommission.percent / 100 : null
       const mevCommissionOnchainDec = mev ? mev.mev_commission_bps / 10_000 : null
 
       // data to be applied in calculation of rev share as it considers the overrides and bond commissions (note: it can be negative)
@@ -314,6 +315,7 @@ export class DataProvider {
             mevCommissionDec: mevCommissionDec ?? 1,
             blockRewardsCommissionDec: blockRewardsCommissionDec ?? 1,
             inflationCommissionOnchainDec,
+            inflationCommissionOnchainSource: onchainCommission?.source,
             mevCommissionOnchainDec,
             // SIMD-0123 will give this a real rate; until then block revenue is shared through bonds only
             blockRewardsCommissionOnchainDec: null,

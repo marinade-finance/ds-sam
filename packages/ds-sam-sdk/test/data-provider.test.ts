@@ -178,6 +178,7 @@ describe('Data Provider Testing Setup', () => {
         mevCommissionDec: 0.2,
         blockRewardsCommissionDec: -0.2,
         inflationCommissionOnchainDec: 0.1,
+        inflationCommissionOnchainSource: 'effective',
         inflationCommissionInBondDec: 0.3,
         mevCommissionOnchainDec: 0.2,
         mevCommissionInBondDec: 0.4,
@@ -219,6 +220,7 @@ describe('Data Provider Testing Setup', () => {
         mevCommissionDec: 0.4, // override not applied as above minimal
         blockRewardsCommissionDec: 0.4, // override not applied as above minimal
         inflationCommissionOnchainDec: 0.1,
+        inflationCommissionOnchainSource: 'effective',
         inflationCommissionInBondDec: 0.3,
         mevCommissionOnchainDec: 0.2,
         mevCommissionInBondDec: 0.4,
