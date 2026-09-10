@@ -56,7 +56,10 @@ export const calcValidatorRevShare = (
     : Math.max(0, bondInflationPmpe - onchainDistributedInflationPmpe)
   const bondMevPmpe = calculatePmpe(rewards.mevPmpe, commissions.mevCommissionInBondDec)
   const bondsMevPmpeDiff = Math.max(0, bondMevPmpe - onchainDistributedMevPmpe)
-  const onchainDistributedBlockPmpe = calculatePmpe(rewards.blockPmpe, commissions.blockRewardsCommissionOnchainDec)
+  const onchainDistributedBlockPmpe =
+    commissions.blockRewardsCommissionOverrideDec != null
+      ? blockPmpe
+      : calculatePmpe(rewards.blockPmpe, commissions.blockRewardsCommissionOnchainDec)
   const bondsBlockPmpeDiff = Math.max(0, blockPmpe - onchainDistributedBlockPmpe)
 
   const totalPmpe = inflationPmpe + mevPmpe + bidPmpe + blockPmpe
@@ -120,7 +123,7 @@ const calculatePmpe = (pmpe: number | null, commissionDec: number | null | undef
   if (pmpe === null || pmpe <= 0) {
     return 0
   }
-  // Loose on purpose: a commission absent from a rehydrated object is undefined, and Decimal throws on it
+  // == on purpose: an external caller's CommissionDetails parsed from an archive predating a field arrives undefined
   if (commissionDec == null || commissionDec >= 1) {
     return 0
   }
