@@ -100,6 +100,7 @@ export type RawValidatorDto = {
   dc_asn: number | null
   dc_aso: string | null
   version: string | null
+  // effective is measured from the epoch's distributed inflation rewards; advertised is the vote account's own u8
   commission_effective: number | null
   commission_advertised: number | null
   credits: number
