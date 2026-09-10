@@ -1,4 +1,9 @@
-import type { AuctionValidator, AuctionConstraint, AuctionConstraintType } from './types'
+import type { AuctionValidator, AuctionConstraint, AuctionConstraintType, CommissionDetails } from './types'
+
+// "Not known", as opposed to "keeps everything": nothing on chain resolved and no override supplied a rate.
+// Single source of truth so the auction gate and the bond-obligation math cannot disagree.
+export const isInflationCommissionUnresolved = (commissions: CommissionDetails): boolean =>
+  commissions.inflationCommissionOnchainDec == null && commissions.inflationCommissionOverrideDec == null
 
 // Coercion for validator data that may be absent on rehydrated objects. Not for caller-supplied
 // invariants — those assert instead, so a wiring bug cannot read as a confident 0.
@@ -78,12 +83,14 @@ export const formatLastCapConstraint = (constraint: AuctionConstraint | null) =>
  * MEV: bond wins only when strictly less than on-chain.
  */
 export function effectiveCommissions(
-  inflationOnchainDec: number,
+  inflationOnchainDec: number | null,
   inflationBondDec: number | null,
   mevOnchainDec: number | null,
   mevBondDec: number | null,
-): { inflationDec: number; mevDec: number | null } {
-  const inflationDec = inflationBondDec != null ? Math.min(inflationBondDec, inflationOnchainDec) : inflationOnchainDec
+): { inflationDec: number | null; mevDec: number | null } {
+  // null is "not known", never "keeps everything" — a rate that is absent must not cap the other one
+  const inflationCandidates = [inflationOnchainDec, inflationBondDec].filter((dec): dec is number => dec != null)
+  const inflationDec = inflationCandidates.length > 0 ? Math.min(...inflationCandidates) : null
 
   const mevDec = mevBondDec != null && mevBondDec < (mevOnchainDec ?? 1) ? mevBondDec : mevOnchainDec
 

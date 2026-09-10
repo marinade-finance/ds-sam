@@ -2,6 +2,7 @@ import {
   calcValidatorRevShare,
   DEFAULT_CONFIG,
   InputsSource,
+  isInflationCommissionUnresolved,
   ineligibleValidatorAggDefaults,
   validatorAggDefaults,
 } from '@marinade.finance/ds-sam-calc'
@@ -121,6 +122,23 @@ export class DsSamSDK {
     this.debug.pushInfo('min effective rev share', minEffectiveRevSharePmpe.toString())
     this.debug.pushInfo('estimated rewards', JSON.stringify(rewards))
 
+    const unresolvedCommission = validators.filter(validator =>
+      isInflationCommissionUnresolved(validator.values.commissions),
+    )
+    // Stake already delegated makes the bond obligation a real charge, and it cannot be derived without the rate
+    const stakedUnresolvedCommission = unresolvedCommission.filter(
+      ({ marinadeActivatedStakeSol }) => marinadeActivatedStakeSol > 0,
+    )
+    if (stakedUnresolvedCommission.length > 0) {
+      throw new Error(
+        `No resolvable on-chain inflation commission for ${stakedUnresolvedCommission.length} validator(s) holding Marinade stake: ` +
+          stakedUnresolvedCommission
+            .map(({ voteAccount, marinadeActivatedStakeSol }) => `${voteAccount} (${marinadeActivatedStakeSol} SOL)`)
+            .join(', '),
+      )
+    }
+    this.debug.pushInfo('validators with unresolved on-chain inflation commission', String(unresolvedCommission.length))
+
     return validators.map((validator): AuctionValidator => {
       const revShare = calcValidatorRevShare(validator, rewards, this.debug)
       this.debug.pushValidatorInfo(validator.voteAccount, 'revenue share', JSON.stringify(revShare))
@@ -160,10 +178,18 @@ export class DsSamSDK {
           }
         }
       }
+      if (isInflationCommissionUnresolved(validator.values.commissions)) {
+        return {
+          ...validator,
+          revShare,
+          auctionStake,
+          ...ineligibleValidatorAggDefaults(),
+        }
+      }
+      // Block revenue is off both sides: it is shareable only through a bond, and the backstop admits bondless validators
       const zeroCommissionPmpe = Math.max(0, rewards.inflationPmpe + rewards.mevPmpe)
       const backstopEligible =
-        this.config.enableZeroCommissionBackstop &&
-        revShare.inflationPmpe + revShare.mevPmpe + revShare.blockPmpe >= zeroCommissionPmpe
+        this.config.enableZeroCommissionBackstop && revShare.inflationPmpe + revShare.mevPmpe >= zeroCommissionPmpe
       if (validator.bondBalanceSol === null) {
         return {
           ...validator,

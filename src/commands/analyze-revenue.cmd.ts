@@ -29,6 +29,8 @@ type AnalyzeRevenuesCommandOptions = {
 export type SnapshotValidatorMeta = {
   vote_account: string
   commission: number
+  // Vote state holds bps since SIMD-0291; `commission` is the u8 percent that truncates it
+  commission_bps?: number
   mev_commission?: number
   stake: number
   credits: number
@@ -77,11 +79,36 @@ export type RevenueExpectation = {
 export const loadSnapshotValidatorsCollection = (path: string): SnapshotValidatorsCollection =>
   JSON.parse(fs.readFileSync(path).toString()) as SnapshotValidatorsCollection
 
-export const snapshotOnchainCommissions = (validatorMeta: SnapshotValidatorMeta): PastValidatorCommissions => ({
-  inflation: validatorMeta.commission / 100,
-  // mev_commission is validator_commission_bps from Jito TipDistributionAccount
-  mev: validatorMeta.mev_commission != null ? validatorMeta.mev_commission / 10_000 : null,
-})
+export const snapshotOnchainCommissions = (validatorMeta: SnapshotValidatorMeta): PastValidatorCommissions => {
+  const { commission_bps: bps, commission, vote_account: voteAccount } = validatorMeta
+  assert(
+    bps == null || (Number.isInteger(bps) && bps >= 0 && bps <= 10_000),
+    `Snapshot commission_bps out of range for ${voteAccount}: ${bps}`,
+  )
+  return {
+    inflation: bps != null ? bps / 10_000 : commission / 100,
+    // mev_commission is validator_commission_bps from Jito TipDistributionAccount
+    mev: validatorMeta.mev_commission != null ? validatorMeta.mev_commission / 10_000 : null,
+  }
+}
+
+const warnOnCommissionSourceGaps = (validatorMetas: SnapshotValidatorMeta[], source: string): void => {
+  const missingBps = validatorMetas.filter(({ commission_bps }) => commission_bps == null).length
+  if (missingBps > 0) {
+    console.warn(
+      `${source} carries no commission_bps for ${missingBps} of ${validatorMetas.length} validators; ` +
+        'the u8 percent fallback truncates any rate that is not a whole percent',
+    )
+  }
+  const disagreeing = validatorMetas.filter(
+    ({ commission_bps, commission }) => commission_bps != null && Math.floor(commission_bps / 100) !== commission,
+  ).length
+  if (disagreeing > 0) {
+    console.warn(
+      `${source}: commission_bps disagrees with the u8 percent for ${disagreeing} of ${validatorMetas.length} validators`,
+    )
+  }
+}
 
 export const getValidatorOverrides = (
   snapshotValidatorsCollection: SnapshotValidatorsCollection,
@@ -94,6 +121,8 @@ export const getValidatorOverrides = (
 
   const bondsByVoteAccount = new Map(bonds.bonds.map(b => [b.vote_account, b]))
 
+  warnOnCommissionSourceGaps(snapshotValidatorsCollection.validator_metas, 'Snapshot')
+
   for (const validatorMeta of snapshotValidatorsCollection.validator_metas) {
     const bond = bondsByVoteAccount.get(validatorMeta.vote_account)
 
@@ -104,6 +133,10 @@ export const getValidatorOverrides = (
 
     const effective = effectiveCommissions(onchain.inflation, inflationBondDec, onchain.mev, mevBondDec)
 
+    assert(
+      effective.inflationDec != null && Number.isFinite(effective.inflationDec),
+      `Snapshot carries no usable inflation commission for ${validatorMeta.vote_account}: ${effective.inflationDec}`,
+    )
     inflationCommissionsDec.set(validatorMeta.vote_account, effective.inflationDec)
     mevCommissionsDec.set(validatorMeta.vote_account, effective.mevDec ?? undefined)
   }
@@ -211,6 +244,7 @@ export class AnalyzeRevenuesCommand extends CommandRunner {
     if (pastValidatorCollection == null) {
       return commissionMap
     }
+    warnOnCommissionSourceGaps(pastValidatorCollection.validator_metas, 'Past snapshot')
 
     for (const validatorMeta of pastValidatorCollection.validator_metas) {
       commissionMap.set(validatorMeta.vote_account, snapshotOnchainCommissions(validatorMeta))
@@ -274,6 +308,15 @@ export class AnalyzeRevenuesCommand extends CommandRunner {
             validatorTotalPmpe: validatorBefore.revShare.totalPmpe,
           })
         }
+      }
+
+      // validator-bonds settles on these numbers, so an unknown rate must not ship as a 0 or a 100%
+      if (validatorBefore.inflationCommissionDec == null || validatorAfter.inflationCommissionDec == null) {
+        this.logger.warn('No resolvable inflation commission, skipping validator', {
+          voteAccount: validatorBefore.voteAccount,
+          marinadeActivatedStakeSol: validatorBefore.marinadeActivatedStakeSol,
+        })
+        continue
       }
 
       evaluation.push({

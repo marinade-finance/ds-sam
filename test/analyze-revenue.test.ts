@@ -138,4 +138,21 @@ describe('analyze-revenues getPastValidatorCommissions', () => {
   it('returns empty map without past collection', () => {
     expect(cmd.getPastValidatorCommissions(null).size).toBe(0)
   })
+
+  it('prefers commission_bps over the truncating u8 percent', () => {
+    const collection = {
+      epoch: 100,
+      validator_metas: [{ vote_account: 'bps', commission: 7, commission_bps: 750, stake: 0, credits: 0 }],
+    } as SnapshotValidatorsCollection
+    const map = cmd.getPastValidatorCommissions(collection)
+    expect(map.get('bps')?.inflation).toBe(0.075)
+  })
+
+  it('falls back to the u8 percent when commission_bps is absent', () => {
+    const collection = {
+      epoch: 100,
+      validator_metas: [{ vote_account: 'u8', commission: 7, stake: 0, credits: 0 }],
+    } as SnapshotValidatorsCollection
+    expect(cmd.getPastValidatorCommissions(collection).get('u8')?.inflation).toBe(0.07)
+  })
 })

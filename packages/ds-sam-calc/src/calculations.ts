@@ -1,6 +1,8 @@
 import { assert } from '@marinade.finance/ts-common'
 import Decimal from 'decimal.js'
 
+import { isInflationCommissionUnresolved } from './utils'
+
 import type { BidTooLowPenalty, AuctionValidator, Rewards, RevShare, CommissionDetails } from './types'
 
 // Structural subset of the SDK's Debug used here, declared locally so the calc
@@ -10,10 +12,13 @@ export type DebugLike = {
   pushInfo: (context: string, info: string) => void
 }
 
+// Inflation, MEV and block revenue keep their own rates here and are never blended into one effective
+// commission: blending is only ever needed by the single-rate eligibility gates in the SDK, and doing it
+// this deep would lose which stream a shortfall came from — the bond top-up is charged per stream.
 export const calcValidatorRevShare = (
   validator: {
     voteAccount: string
-    inflationCommissionDec: number
+    inflationCommissionDec: number | null
     mevCommissionDec: number | null
     blockRewardsCommissionDec: number | null
     bidCpmpe: number | null
@@ -44,9 +49,15 @@ export const calcValidatorRevShare = (
 
   // here we need to calculate what the validator needs to pay on top of on-chain commissions from bonds claim
   const bondInflationPmpe = calculatePmpe(rewards.inflationPmpe, commissions.inflationCommissionInBondDec)
-  const bondsInflationPmpeDiff = Math.max(0, bondInflationPmpe - onchainDistributedInflationPmpe)
+  // Nothing to measure the bond top-up against; charging the difference would bill the whole bond amount
+  // a second time on top of what the validator already distributed on chain.
+  const bondsInflationPmpeDiff = isInflationCommissionUnresolved(commissions)
+    ? 0
+    : Math.max(0, bondInflationPmpe - onchainDistributedInflationPmpe)
   const bondMevPmpe = calculatePmpe(rewards.mevPmpe, commissions.mevCommissionInBondDec)
   const bondsMevPmpeDiff = Math.max(0, bondMevPmpe - onchainDistributedMevPmpe)
+  const onchainDistributedBlockPmpe = calculatePmpe(rewards.blockPmpe, commissions.blockRewardsCommissionOnchainDec)
+  const bondsBlockPmpeDiff = Math.max(0, blockPmpe - onchainDistributedBlockPmpe)
 
   const totalPmpe = inflationPmpe + mevPmpe + bidPmpe + blockPmpe
   assert(totalPmpe >= 0, 'Total PMPE cannot be negative')
@@ -66,8 +77,10 @@ export const calcValidatorRevShare = (
         bondMevPmpe,
         bondsInflationPmpeDiff,
         bondsMevPmpeDiff,
+        bondsBlockPmpeDiff,
         onchainDistributedInflationPmpe,
         onchainDistributedMevPmpe,
+        onchainDistributedBlockPmpe,
         totalPmpe,
       }),
     )
@@ -81,9 +94,9 @@ export const calcValidatorRevShare = (
     bidPmpe,
     blockPmpe,
     // what has already been shared via commissions with stakers on-chain
-    onchainDistributedPmpe: onchainDistributedInflationPmpe + onchainDistributedMevPmpe,
+    onchainDistributedPmpe: onchainDistributedInflationPmpe + onchainDistributedMevPmpe + onchainDistributedBlockPmpe,
     // what the validator wants to share through bonds
-    bondObligationPmpe: bidPmpe + blockPmpe + bondsInflationPmpeDiff + bondsMevPmpeDiff,
+    bondObligationPmpe: bidPmpe + bondsBlockPmpeDiff + bondsInflationPmpeDiff + bondsMevPmpeDiff,
     auctionEffectiveStaticBidPmpe: NaN,
     auctionEffectiveBidPmpe: NaN,
     activatingStakePmpe: NaN,
@@ -103,11 +116,12 @@ export const calcValidatorRevShare = (
  *                       When null, it is treated as 100% commission (i.e., all rewards are gained by validator).
  *  @returns the portion of the rewards that goes to stakers after deducting the commission.
  */
-const calculatePmpe = (pmpe: number | null, commissionDec: number | null): number => {
+const calculatePmpe = (pmpe: number | null, commissionDec: number | null | undefined): number => {
   if (pmpe === null || pmpe <= 0) {
     return 0
   }
-  if (commissionDec === null || commissionDec >= 1) {
+  // Loose on purpose: a commission absent from a rehydrated object is undefined, and Decimal throws on it
+  if (commissionDec == null || commissionDec >= 1) {
     return 0
   }
   // Negative commission means validator subsidizes stakers

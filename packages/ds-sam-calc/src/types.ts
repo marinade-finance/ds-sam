@@ -80,7 +80,7 @@ export type AggregatedValidator = {
   marinadeActivatedStakeSol: number
   lastMarinadeActivatedStakeSol: number | null
   lastSamBlacklisted: boolean | null
-  inflationCommissionDec: number
+  inflationCommissionDec: number | null
   mevCommissionDec: number | null
   blockRewardsCommissionDec: number | null
   bidCpmpe: number | null
@@ -106,16 +106,20 @@ export type AuctionValidatorValues = {
 
 export type CommissionDetails = {
   // values used to calculate total PMPE
-  inflationCommissionDec: number
+  inflationCommissionDec: number | null
   mevCommissionDec: number
   blockRewardsCommissionDec: number
   // detailed breakdown of commission settings
-  inflationCommissionOnchainDec: number
+  inflationCommissionOnchainDec: number | null
+  // Recorded because the two API fields have different derivations and have swapped fleet-wide unnoticed
+  inflationCommissionOnchainSource?: 'effective' | 'advertised'
   inflationCommissionInBondDec: number | null
   inflationCommissionOverrideDec?: number
   mevCommissionOnchainDec: number | null
   mevCommissionInBondDec: number | null
   mevCommissionOverrideDec?: number
+  // Absent until SIMD-0123 gives block revenue its own rate; optional so objects serialized before it still type-check
+  blockRewardsCommissionOnchainDec?: number | null
   blockRewardsCommissionInBondDec: number | null
   blockRewardsCommissionOverrideDec?: number
   bidCpmpeInBondDec?: number | null

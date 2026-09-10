@@ -175,6 +175,7 @@ export class DataProvider {
       inflationCommissionInBondDec: null,
       mevCommissionOnchainDec: null,
       mevCommissionInBondDec: null,
+      blockRewardsCommissionOnchainDec: null,
       blockRewardsCommissionInBondDec: null,
     }
     if (revShare == null) {
@@ -227,8 +228,14 @@ export class DataProvider {
       const blockRewardsCommissionInBondDec =
         bond?.block_commission_bps != null ? Number(bond.block_commission_bps) / 10_000 : null
 
-      const inflationCommissionOnchainDec =
-        (validator.commission_effective ?? validator.commission_advertised ?? 100) / 100
+      // No default: a missing rate must stay unknown, never collapse to 100% and silently zero the staker share
+      const onchainCommission =
+        validator.commission_effective != null
+          ? { percent: validator.commission_effective, source: 'effective' as const }
+          : validator.commission_advertised != null
+            ? { percent: validator.commission_advertised, source: 'advertised' as const }
+            : null
+      const inflationCommissionOnchainDec = onchainCommission != null ? onchainCommission.percent / 100 : null
       const mevCommissionOnchainDec = mev ? mev.mev_commission_bps / 10_000 : null
 
       // data to be applied in calculation of rev share as it considers the overrides and bond commissions (note: it can be negative)
@@ -248,7 +255,7 @@ export class DataProvider {
       // safeguard against validator accidentally overly low commission to pay overly more than 100% of rewards
       let minimalCommissionDec: number | undefined = undefined
       if (this.config.minimalCommission != null) {
-        if (inflationCommissionDec < this.config.minimalCommission) {
+        if (inflationCommissionDec != null && inflationCommissionDec < this.config.minimalCommission) {
           minimalCommissionDec = this.config.minimalCommission
           inflationCommissionDec = this.config.minimalCommission
         }
@@ -308,7 +315,10 @@ export class DataProvider {
             mevCommissionDec: mevCommissionDec ?? 1,
             blockRewardsCommissionDec: blockRewardsCommissionDec ?? 1,
             inflationCommissionOnchainDec,
+            inflationCommissionOnchainSource: onchainCommission?.source,
             mevCommissionOnchainDec,
+            // SIMD-0123 will give this a real rate; until then block revenue is shared through bonds only
+            blockRewardsCommissionOnchainDec: null,
             inflationCommissionInBondDec,
             mevCommissionInBondDec,
             blockRewardsCommissionInBondDec,

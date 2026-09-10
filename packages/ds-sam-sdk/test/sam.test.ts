@@ -434,7 +434,15 @@ describe('sam', () => {
       const ineligibleValidators = result.auctionData.validators.filter(v => !v.samEligible)
       expect(ineligibleValidators.length).toEqual(4)
       const backstopValidators = result.auctionData.validators.filter(v => v.backstopEligible)
-      expect(backstopValidators.length).toEqual(2) // including 1 eligible + 1 zero commission
+      expect(backstopValidators.length).toEqual(1)
+      // validator2Good shares 80% of its block revenue but keeps 5% inflation and 10% MEV, which used to be
+      // enough to clear the zero-commission bar because the bar itself omitted block revenue
+      const validator2Result = result.auctionData.validators.find(v => v.voteAccount === validator2Good.voteAccount)
+      expect(validator2Result?.backstopEligible).toBe(false)
+      expect(validator2Result?.values.commissions.inflationCommissionDec).toEqual(0.05)
+      expect(validator2Result?.values.commissions.mevCommissionDec).toEqual(0.1)
+      expect(validator2Result?.revShare.blockPmpe).toBeGreaterThan(0)
+      expect(backstopValidators[0]?.voteAccount).toEqual(validator7BackStop.voteAccount)
 
       result.auctionData.validators.forEach(validator => {
         expect(validator.revShare).toBeDefined()
@@ -523,6 +531,37 @@ describe('sam', () => {
       expect(goodValidator1.revShare.totalPmpe).toEqual(result.winningTotalPmpe)
       expect(backStopValidator.revShare.totalPmpe).toBeGreaterThan(result.winningTotalPmpe)
       expect(goodValidator2.revShare.totalPmpe).toBeGreaterThan(result.winningTotalPmpe)
+    })
+
+    it('keeps a bondless zero-commission validator backstop eligible when block rewards are non-zero', async () => {
+      const voteAccounts = generateVoteAccounts('bondless-backstop')
+      const identities = generateIdentities()
+
+      const bondlessZeroCommission = new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
+        .withGoodPerformance()
+        .withInflationCommission(0)
+        .withMevCommission(0)
+        .withExternalStake(100_000)
+      const samWinner = new ValidatorMockBuilder(
+        voteAccounts.next().value,
+        identities.next().value,
+      ).withEligibleDefaults()
+      const networkBallast = new ValidatorMockBuilder(
+        voteAccounts.next().value,
+        identities.next().value,
+      ).withExternalStake(2_000_000)
+
+      const result = await new DsSamSDK(
+        { enableZeroCommissionBackstop: true },
+        blockRewardsStaticDataProviderBuilder([bondlessZeroCommission, samWinner, networkBallast]),
+      ).run()
+
+      const validator = result.auctionData.validators.find(v => v.voteAccount === bondlessZeroCommission.voteAccount)
+      assert(validator, 'Bondless zero-commission validator not found in results')
+      expect(result.auctionData.rewards.blockPmpe).toBeGreaterThan(0)
+      expect(validator.bondBalanceSol).toBeNull()
+      expect(validator.revShare.blockPmpe).toEqual(0)
+      expect(validator.backstopEligible).toBe(true)
     })
   })
 
