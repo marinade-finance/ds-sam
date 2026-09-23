@@ -1,7 +1,10 @@
 import assert from 'node:assert'
 
 import { DsSamSDK } from '../src'
-import { defaultStaticDataProviderBuilder } from './helpers/static-data-provider-builder'
+import {
+  blockRewardsStaticDataProviderBuilder,
+  defaultStaticDataProviderBuilder,
+} from './helpers/static-data-provider-builder'
 import { assertValidatorIneligible, findValidatorInResult } from './helpers/utils'
 import { ValidatorMockBuilder, generateIdentities, generateVoteAccounts } from './helpers/validator-mock-builder'
 
@@ -96,6 +99,45 @@ describe('eligibility', () => {
     const actual = validators.map(v => [v.version, findValidatorInResult(v.builder.voteAccount, result)?.samEligible])
     const expected = validators.map(v => [v.version, v.eligible])
     expect(actual).toStrictEqual(expected)
+  })
+
+  it('admits 0/0 validators keeping all block rewards without a bid', async () => {
+    const voteAccounts = generateVoteAccounts('block-floor')
+    const identities = generateIdentities()
+    const bond = { stakeWanted: 150_000, cpmpe: 0, balance: 1000, bondBlockCommission: null }
+
+    const zeroZeroVal = new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
+      .withEligibleDefaults()
+      .withInflationCommission(0)
+      .withMevCommission(0)
+      .withBond(bond)
+    const belowZeroZeroVal = new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
+      .withEligibleDefaults()
+      .withInflationCommission(1)
+      .withMevCommission(0)
+      .withBond(bond)
+    const highBidVal = new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
+      .withEligibleDefaults()
+      .withBond({ ...bond, cpmpe: 1000 })
+    const networkBallast = new ValidatorMockBuilder(
+      voteAccounts.next().value,
+      identities.next().value,
+    ).withExternalStake(2_000_000)
+
+    const result = await new DsSamSDK(
+      { minEligibleFeePmpe: 0 },
+      blockRewardsStaticDataProviderBuilder([zeroZeroVal, belowZeroZeroVal, highBidVal, networkBallast]),
+    ).run()
+
+    const { rewards } = result.auctionData
+    expect(rewards.blockPmpe).toBeGreaterThan(0)
+    const zeroZero = findValidatorInResult(zeroZeroVal.voteAccount, result)
+    assert(zeroZero)
+    expect(zeroZero.revShare.blockPmpe).toStrictEqual(0)
+    expect(zeroZero.revShare.bidPmpe).toStrictEqual(0)
+    expect(zeroZero.revShare.totalPmpe).toStrictEqual(rewards.inflationPmpe + rewards.mevPmpe)
+    expect(zeroZero.samEligible).toStrictEqual(true)
+    expect(findValidatorInResult(belowZeroZeroVal.voteAccount, result)?.samEligible).toStrictEqual(false)
   })
 
   it('marks empty epochStats as ineligible', async () => {
