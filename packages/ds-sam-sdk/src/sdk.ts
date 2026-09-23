@@ -114,7 +114,7 @@ export class DsSamSDK {
     )
     const minSamRevSharePmpe = Math.max(
       0,
-      rewards.inflationPmpe + rewards.mevPmpe + rewards.blockPmpe + (this.config.minEligibleFeePmpe ?? -Infinity),
+      rewards.inflationPmpe + rewards.mevPmpe + (this.config.minEligibleFeePmpe ?? -Infinity),
     )
     this.debug.log('min rev share PMPE', minEffectiveRevSharePmpe)
     this.debug.log('rewards', rewards)
