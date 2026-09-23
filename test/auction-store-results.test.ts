@@ -17,7 +17,7 @@ const auctionResult = {
     validators: [],
     rewards: { inflationPmpe: 0.4, mevPmpe: 0.05, blockPmpe: 0 },
     slotParams: SLOT_PARAMS,
-    stakeAmounts: { networkTotalSol: 1e6, marinadeSamTvlSol: 1000, marinadeRemainingSamSol: 1000 },
+    stakeAmounts: { networkTotalSol: 1e6, marinadeSamTvlSol: 1000, marinadeRemainingSamSol: 250.5 },
     blacklist: new Set<string>(),
   },
 } as unknown as AuctionResult
@@ -39,5 +39,23 @@ describe('auction storeResults', () => {
     } finally {
       fs.rmSync(outDir, { recursive: true, force: true })
     }
+  })
+
+  it('warns about unallocated SAM stake in the summary', () => {
+    const summary = new AuctionCommand(new CliUtilityService()).formatResultSummary(auctionResult)
+    expect(summary).toContain(`  - ⚠ Unallocated SAM stake (no auction target) = \`${(250.5).toLocaleString()}\` SOL`)
+  })
+
+  it('reports fully allocated SAM stake without a warning', () => {
+    const fullyAllocated = {
+      ...auctionResult,
+      auctionData: {
+        ...auctionResult.auctionData,
+        stakeAmounts: { ...auctionResult.auctionData.stakeAmounts, marinadeRemainingSamSol: 0 },
+      },
+    } as AuctionResult
+    const summary = new AuctionCommand(new CliUtilityService()).formatResultSummary(fullyAllocated)
+    expect(summary).toContain('  - Unallocated SAM stake (no auction target) = `0` SOL')
+    expect(summary).not.toContain('⚠')
   })
 })
