@@ -4,7 +4,7 @@ import type { AuctionValidatorValues, RevShare } from '@marinade.finance/ds-sam-
 export type ValidatorEpochStats = {
   epoch: number
   credits: number
-  commission_advertised: number
+  commission_advertised: number | null
   activated_stake: string
   marinade_stake: string
   marinade_native_stake: string
@@ -17,9 +17,6 @@ export type ValidatorWithEpochs = {
   marinade_native_stake: string
   epoch_stats: ValidatorEpochStats[]
 }
-
-// One validators-API `/rewards` entry: `[epoch, rewardsSol, ...]`.
-export type EpochRewards = [number, number, ...unknown[]]
 
 // Penalty fields of an auction validator; both `AuctionValidator` and a scoring-API row satisfy it.
 export type AuctionPenaltyInput = {
@@ -39,16 +36,30 @@ export type SettlementMeta = {
 
 export type ProtectedEventCommissionSamIncrease = {
   vote_account: string
-  actual_inflation_commission: number
   expected_inflation_commission: number
-  actual_mev_commission: number
-  expected_mev_commission: number
+  actual_inflation_commission: number
+  past_inflation_commission: number
+  expected_mev_commission: number | null
+  actual_mev_commission: number | null
+  past_mev_commission: number | null
+  before_sam_commission_increase_pmpe: number
   expected_epr: number
   actual_epr: number
   epr_loss_bps: number
   stake: number
 }
 
+export type ProtectedEventDowntimeRevenueImpact = {
+  vote_account: string
+  actual_credits: number
+  expected_credits: number
+  expected_epr: number
+  actual_epr: number
+  epr_loss_bps: number
+  stake: number
+}
+
+// V1, parse-only: validator-bonds no longer produces CommissionIncrease or LowCredits
 export type ProtectedEventCommissionIncrease = {
   vote_account: string
   previous_commission: number
@@ -73,21 +84,22 @@ export type ProtectedEventLowCredits = {
 export type ProtectedEventReason =
   | { CommissionIncrease: ProtectedEventCommissionIncrease }
   | { LowCredits: ProtectedEventLowCredits }
-  | { DowntimeRevenueImpact: ProtectedEventLowCredits }
+  | { DowntimeRevenueImpact: ProtectedEventDowntimeRevenueImpact }
   | { CommissionSamIncrease: ProtectedEventCommissionSamIncrease }
 
 export type ProtectedEventSettlement = {
   ProtectedEvent: ProtectedEventReason
 }
 
-export type SettlementReason =
-  | ProtectedEventSettlement
+export type KnownSettlementReason =
   | 'Bidding'
   | 'PriorityFee'
   | 'BidTooLowPenalty'
   | 'BlacklistPenalty'
   | 'BondRiskFee'
   | 'InstitutionalPayout'
+
+export type SettlementReason = ProtectedEventSettlement | KnownSettlementReason | (string & {})
 
 // A bonds-API `/v1/protected-events` row, or a locally built estimate of one; `amount` is in lamports.
 export type ProtectedEvent = {

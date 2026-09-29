@@ -1,6 +1,6 @@
 {
-  "name": "@marinade.finance/ds-sam-psr",
-  "version": "0.4.0",
+  "name": "@marinade.finance/ds-sam-estimator",
+  "version": "0.4.1",
   "author": "Marinade Finance",
   "license": "ISC",
   "main": "dist/src/index.js",
@@ -22,6 +22,6 @@
   ],
   "dependencies": {
     "@marinade.finance/ds-sam-calc": "workspace:*",
-    "@marinade.finance/ts-common": "^5.1.1"
+    "decimal.js": "^10.6.0"
   }
 }
