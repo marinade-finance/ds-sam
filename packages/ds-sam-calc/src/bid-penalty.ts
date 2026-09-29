@@ -1,4 +1,4 @@
-import { pmpeToSol } from '@marinade.finance/ts-common'
+import { pmpeToSol } from '@marinade.finance/ts-common/dist/src/browser'
 
 import { BID_TOO_LOW_TOL_COEF, bidTooLowPenaltyCoef } from './calculations'
 import { finite } from './utils'

@@ -1,0 +1,47 @@
+{
+  "epoch": 649,
+  "slot": 281231999,
+  "capitalization": 581338487770791014,
+  "epoch_duration_in_years": 0.005475818526653871,
+  "validator_rate": 0.05122228175838054,
+  "validator_rewards": 163056097565475,
+  "validator_metas": [
+    {
+      "vote_account": "12pVREJSt8d5AV4aBzGFf3QZn3qo8DWmwBQu3wQ5RAZ9",
+      "commission": 0,
+      "stake": 33260091632707,
+      "credits": 413613,
+      "inflation_rewards_commission_bps": 0
+    },
+    {
+      "vote_account": "137Hw29uc3HsYkz1YtdG8AheS3a55UKiaAfBWSn28vxA",
+      "commission": 0,
+      "mev_commission": 0,
+      "stake": 31863650873811,
+      "credits": 413627,
+      "inflation_rewards_commission_bps": 0
+    },
+    {
+      "vote_account": "137MRxQWHC47fFiT1F6vDsTBzEuZJb9SwTt2rm3nHLYM",
+      "commission": 0,
+      "stake": 31236686330113,
+      "credits": 398287,
+      "inflation_rewards_commission_bps": 0
+    },
+    {
+      "vote_account": "14YCghb1uYPreALx6arirtPAnoGghoPH2Ac6gCmNQdq7",
+      "commission": 0,
+      "mev_commission": 0,
+      "stake": 38336204735297,
+      "credits": 413790,
+      "inflation_rewards_commission_bps": 0
+    },
+    {
+      "vote_account": "1M5USfamd1N4i1z6UZeECrWeu2VfrxjYMBSXThu6TqB",
+      "commission": 0,
+      "stake": 17310879774405,
+      "credits": 413793,
+      "inflation_rewards_commission_bps": 0
+    }
+  ]
+}
