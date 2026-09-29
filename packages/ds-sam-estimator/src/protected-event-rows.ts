@@ -11,9 +11,6 @@ import type {
   ValidatorWithEpochs,
 } from './types'
 
-// Last epoch whose settled protected events were still emitted in dry-run.
-export const LAST_DRYRUN_EPOCH = 608
-
 export type AuctionPenaltyEstimatesInput = {
   validators: ValidatorWithEpochs[]
   scoring: ScoringEntry[]
@@ -28,8 +25,8 @@ const penaltyEvents = (
   entry: AuctionPenaltyInput,
 ): ProtectedEvent[] => {
   const penalties: [number, SettlementReason][] = [
-    [(stakeLamports * entry.revShare.bidTooLowPenaltyPmpe) / 1000, 'BidTooLowPenalty'],
-    [(stakeLamports * entry.revShare.blacklistPenaltyPmpe) / 1000, 'BlacklistPenalty'],
+    [Math.round((stakeLamports * entry.revShare.bidTooLowPenaltyPmpe) / 1000), 'BidTooLowPenalty'],
+    [Math.round((stakeLamports * entry.revShare.blacklistPenaltyPmpe) / 1000), 'BlacklistPenalty'],
     [Math.round(LAMPORTS_PER_SOL * (entry.values?.bondRiskFeeSol ?? 0)), 'BondRiskFee'],
   ]
   return penalties
@@ -65,10 +62,11 @@ export const estimateAuctionPenalties = ({
   }
 
   const events: ProtectedEvent[] = []
-  const auctionCoversCurrentEpoch = maxStatsEpoch >= maxScoredEpoch
+  const auctionCoversCurrentEpoch =
+    auctionValidators.length > 0 && maxStatsEpoch >= maxScoredEpoch && maxStatsEpoch > latestProcessedEpoch
   for (const entry of scoring) {
     if (entry.epoch <= latestProcessedEpoch) continue
-    if (auctionCoversCurrentEpoch && entry.epoch === maxScoredEpoch) continue
+    if (auctionCoversCurrentEpoch && entry.epoch === maxStatsEpoch) continue
     const epochStats = validatorsMap.get(entry.voteAccount)?.epoch_stats.find(({ epoch }) => epoch === entry.epoch)
     if (epochStats == null) continue
     const stake = Number(epochStats.marinade_native_stake) + Number(epochStats.marinade_stake)
@@ -92,6 +90,7 @@ export type ProtectedEventRowsInput<V extends ValidatorWithEpochs> = {
   estimates: ProtectedEvent[]
   scoring: ScoringEntry[]
   auctionValidators: AuctionPenaltyInput[]
+  lastDryrunEpoch: number // live bonds pipeline: 608
 }
 
 // Settled facts, then unsettled estimates, then auction penalty estimates, each joined to its validator.
@@ -101,13 +100,14 @@ export const buildProtectedEventRows = <V extends ValidatorWithEpochs>({
   estimates,
   scoring,
   auctionValidators,
+  lastDryrunEpoch,
 }: ProtectedEventRowsInput<V>): ProtectedEventRow<V>[] => {
   const validatorsMap = new Map(validators.map(v => [v.vote_account, v]))
   const withValidator = (protectedEvent: ProtectedEvent) => validatorsMap.get(protectedEvent.vote_account) ?? null
   const latestProcessedEpoch = selectLatestProcessedEpoch(settlements)
 
   const rows: ProtectedEventRow<V>[] = settlements.map(protectedEvent => ({
-    status: protectedEvent.epoch > LAST_DRYRUN_EPOCH ? 'fact' : 'dryrun',
+    status: protectedEvent.epoch > lastDryrunEpoch ? 'fact' : 'dryrun',
     protectedEvent,
     validator: withValidator(protectedEvent),
   }))

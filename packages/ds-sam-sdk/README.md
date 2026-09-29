@@ -70,6 +70,26 @@ SDK for Marinade's DS-SAM - max yield - auction evaluation tool.
   debugVoteAccounts: string[]
 
   // Whether and how verbose to print logs during auction processing
-  logVerbosity: 'DEBUG' | 'INFO' | 'WARN' | 'ERROR
+  logVerbosity: 'DEBUG' | 'INFO' | 'WARN' | 'ERROR'
 }
 ```
+
+## Rerunning without a fetch
+
+`DsSamSDK.prepareAuctionData()` returns the pre-evaluation `AuctionData`, the same data `auction()` builds before
+`new Auction(...)`. A consumer can rerun the auction from it (e.g. with edited inputs) without fetching or
+re-aggregating. `evaluate()` mutates its inputs, so clone the data first if you keep the original around.
+`structuredClone` throws on the `Decimal` values in `validators[].epochStats`; drop that field, which `Auction` never
+reads, or clone it with `new Decimal(value)`.
+
+## Eligibility helpers
+
+`computeSamEligibilityThresholds`, `samIneligibilityGate`, `samPmpeThreshold` and `isBackstopEligible` (exported from
+the package root and from `./eligibility`) expose the SAM eligibility rule as pure functions, so a consumer can
+recompute a single validator's eligibility (e.g. after an override) with the SDK's own logic.
+
+## Browser-safe entry
+
+`dist/src/engine.js` re-exports `Auction`, `AuctionConstraints`, `Debug`, `buildAuctionConstraintsConfig`, the
+eligibility helpers and `LogVerbosity`, without `sdk.ts`'s `fs`/`axios` data provider. Import it by its deep path,
+e.g. `@marinade.finance/ds-sam-sdk/dist/src/engine.js`.

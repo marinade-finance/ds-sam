@@ -21,6 +21,8 @@ bonds CLI.
   `outOfSetGateLabel`, `computeBondCoverage`, `bondHealthFromAuction`,
   `computeBidPenalty`, expected-stake-change / redelegation projection.
 - **Primitives** — `pmpeToSol`, SOL formatters, APY compounding.
+- `isConstraintBinding` — whether a single `AuctionConstraint` is at its cap.
+- `isCapBinding` — whether a validator's `lastCapConstraint` is at its cap.
 
 The auction orchestration (`DsSamSDK.run()`, constraints engine, data fetching)
 stays in `@marinade.finance/ds-sam-sdk`; UI styling stays in the consumers.
