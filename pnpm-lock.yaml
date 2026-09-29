@@ -73,6 +73,15 @@ importers:
         specifier: ^10.6.0
         version: 10.6.0
 
+  packages/ds-sam-psr:
+    dependencies:
+      '@marinade.finance/ds-sam-calc':
+        specifier: workspace:*
+        version: link:../ds-sam-calc
+      '@marinade.finance/ts-common':
+        specifier: ^5.1.1
+        version: 5.1.1
+
   packages/ds-sam-sdk:
     dependencies:
       '@marinade.finance/ds-sam-calc':

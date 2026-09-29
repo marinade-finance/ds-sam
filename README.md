@@ -6,6 +6,7 @@ Marinade's Stake Auction for Solana validators.
 | -------------| ------------ |
 | ds-sam-sdk   | <a href="https://www.npmjs.com/package/@marinade.finance/ds-sam-sdk"><img src="https://img.shields.io/npm/v/%40marinade.finance%2Fds-sam-sdk?logo=npm&color=377CC0" /></a> |
 | ds-sam-calc  | <a href="https://www.npmjs.com/package/@marinade.finance/ds-sam-calc"><img src="https://img.shields.io/npm/v/%40marinade.finance%2Fds-sam-calc?logo=npm&color=377CC0" /></a> |
+| ds-sam-psr   | <a href="https://www.npmjs.com/package/@marinade.finance/ds-sam-psr"><img src="https://img.shields.io/npm/v/%40marinade.finance%2Fds-sam-psr?logo=npm&color=377CC0" /></a> |
 
 Validators bid PMPE (per mille per epoch) to receive Marinade
 stake. Allocation proceeds highest to lowest PMPE until stake

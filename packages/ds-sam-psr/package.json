@@ -1,0 +1,27 @@
+{
+  "name": "@marinade.finance/ds-sam-psr",
+  "version": "0.4.0",
+  "author": "Marinade Finance",
+  "license": "ISC",
+  "main": "dist/src/index.js",
+  "types": "dist/src/index.d.ts",
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc --build",
+    "test": "pnpm jest --config ../../jest.config.js --testPathPatterns=\"$(pwd)\""
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "keywords": [
+    "solana",
+    "marinade.finance"
+  ],
+  "dependencies": {
+    "@marinade.finance/ds-sam-calc": "workspace:*",
+    "@marinade.finance/ts-common": "^5.1.1"
+  }
+}
