@@ -231,11 +231,17 @@ export class DataProvider {
       // No default: a missing rate must stay unknown, never collapse to 100% and silently zero the staker share
       const onchainCommission =
         validator.commission_effective != null
-          ? { percent: validator.commission_effective, source: 'effective' as const }
+          ? {
+              dec:
+                validator.commission_effective_bps != null
+                  ? validator.commission_effective_bps / 10_000
+                  : validator.commission_effective / 100,
+              source: 'effective' as const,
+            }
           : validator.commission_advertised != null
-            ? { percent: validator.commission_advertised, source: 'advertised' as const }
+            ? { dec: validator.commission_advertised / 100, source: 'advertised' as const }
             : null
-      const inflationCommissionOnchainDec = onchainCommission != null ? onchainCommission.percent / 100 : null
+      const inflationCommissionOnchainDec = onchainCommission?.dec ?? null
       const mevCommissionOnchainDec = mev ? mev.mev_commission_bps / 10_000 : null
 
       // data to be applied in calculation of rev share as it considers the overrides and bond commissions (note: it can be negative)
