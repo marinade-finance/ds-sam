@@ -46,12 +46,12 @@ describe('auction storeResults', () => {
     expect(summary).toContain(`  - ⚠ Unallocated SAM stake (no auction target) = \`${(250.5).toLocaleString()}\` SOL`)
   })
 
-  it('reports fully allocated SAM stake without a warning', () => {
+  it.each([0, 1e-9, -1e-9])('reports fully allocated SAM stake (remaining %p) without a warning', remaining => {
     const fullyAllocated = {
       ...auctionResult,
       auctionData: {
         ...auctionResult.auctionData,
-        stakeAmounts: { ...auctionResult.auctionData.stakeAmounts, marinadeRemainingSamSol: 0 },
+        stakeAmounts: { ...auctionResult.auctionData.stakeAmounts, marinadeRemainingSamSol: remaining },
       },
     } as AuctionResult
     const summary = new AuctionCommand(new CliUtilityService()).formatResultSummary(fullyAllocated)
