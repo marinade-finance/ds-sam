@@ -7,6 +7,7 @@ import {
   AuctionResult,
   DsSamConfig,
   DsSamSDK,
+  EPSILON,
   InputsSource,
   formatLastCapConstraint,
 } from '@marinade.finance/ds-sam-sdk'
@@ -84,18 +85,20 @@ export class AuctionCommand extends CommandRunner {
   formatResultSummary(result: AuctionResult): string {
     const {
       validators,
-      stakeAmounts: { networkTotalSol, marinadeSamTvlSol },
+      stakeAmounts: { networkTotalSol, marinadeSamTvlSol, marinadeRemainingSamSol },
     } = result.auctionData
     const eligibleValidators = validators.filter(({ samEligible }) => samEligible).length
     const stakedValidators = validators.filter(
       ({ auctionStake: { marinadeSamTargetSol } }) => marinadeSamTargetSol > 0,
     ).length
+    const unallocatedSamSol = marinadeRemainingSamSol < EPSILON ? 0 : marinadeRemainingSamSol
     return [
       '## Auction summary',
       '\n### Stake amounts',
       `- Total network stake = \`${networkTotalSol.toLocaleString()}\` SOL`,
       `- Total Marinade stake = \`${marinadeSamTvlSol.toLocaleString()}\` SOL`,
       `  - SAM stake = \`${marinadeSamTvlSol.toLocaleString()}\` SOL`,
+      `  - ${unallocatedSamSol > 0 ? '⚠ ' : ''}Unallocated SAM stake (no auction target) = \`${unallocatedSamSol.toLocaleString(undefined, { maximumFractionDigits: 4 })}\` SOL`,
       '\n### Results stats',
       `- Auction winning rev share = \`${result.winningTotalPmpe}\` PMPE`,
       `- Eligible validators count = \`${eligibleValidators.toLocaleString()}\``,
