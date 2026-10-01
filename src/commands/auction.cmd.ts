@@ -98,7 +98,7 @@ export class AuctionCommand extends CommandRunner {
       `- Total network stake = \`${networkTotalSol.toLocaleString()}\` SOL`,
       `- Total Marinade stake = \`${marinadeSamTvlSol.toLocaleString()}\` SOL`,
       `  - SAM stake = \`${marinadeSamTvlSol.toLocaleString()}\` SOL`,
-      `  - ${unallocatedSamSol > 0 ? '⚠ ' : ''}Unallocated SAM stake (no auction target) = \`${unallocatedSamSol.toLocaleString()}\` SOL`,
+      `  - ${unallocatedSamSol > 0 ? '⚠ ' : ''}Unallocated SAM stake (no auction target) = \`${unallocatedSamSol.toLocaleString(undefined, { maximumFractionDigits: 4 })}\` SOL`,
       '\n### Results stats',
       `- Auction winning rev share = \`${result.winningTotalPmpe}\` PMPE`,
       `- Eligible validators count = \`${eligibleValidators.toLocaleString()}\``,

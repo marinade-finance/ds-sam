@@ -4,6 +4,8 @@ import path from 'path'
 
 import { CliUtilityService } from 'nest-commander'
 
+import { EPSILON } from '@marinade.finance/ds-sam-sdk'
+
 import { AuctionCommand } from '../src/commands/auction.cmd'
 
 import type { AuctionResult, SlotParams } from '@marinade.finance/ds-sam-sdk'
@@ -44,6 +46,21 @@ describe('auction storeResults', () => {
   it('warns about unallocated SAM stake in the summary', () => {
     const summary = new AuctionCommand(new CliUtilityService()).formatResultSummary(auctionResult)
     expect(summary).toContain(`  - ⚠ Unallocated SAM stake (no auction target) = \`${(250.5).toLocaleString()}\` SOL`)
+  })
+
+  it('warns about SAM stake remaining exactly at EPSILON without rounding it to zero', () => {
+    const atEpsilon = {
+      ...auctionResult,
+      auctionData: {
+        ...auctionResult.auctionData,
+        stakeAmounts: { ...auctionResult.auctionData.stakeAmounts, marinadeRemainingSamSol: EPSILON },
+      },
+    } as AuctionResult
+    const summary = new AuctionCommand(new CliUtilityService()).formatResultSummary(atEpsilon)
+    expect(summary).toContain(
+      `  - ⚠ Unallocated SAM stake (no auction target) = \`${(0.0001).toLocaleString(undefined, { maximumFractionDigits: 4 })}\` SOL`,
+    )
+    expect(summary).not.toContain('= `0` SOL')
   })
 
   it.each([0, 1e-9, -1e-9])('reports fully allocated SAM stake (remaining %p) without a warning', remaining => {
