@@ -68,15 +68,14 @@ export const estimateAuctionPenalties = ({
     if (entry.epoch <= latestProcessedEpoch) continue
     if (auctionCoversCurrentEpoch && entry.epoch === maxStatsEpoch) continue
     const epochStats = validatorsMap.get(entry.voteAccount)?.epoch_stats.find(({ epoch }) => epoch === entry.epoch)
-    if (epochStats == null) continue
-    const stake = Number(epochStats.marinade_native_stake) + Number(epochStats.marinade_stake)
+    const stake = epochStats ? Number(epochStats.marinade_native_stake) + Number(epochStats.marinade_stake) : 0
     events.push(...penaltyEvents(entry.voteAccount, entry.epoch, stake, entry))
   }
 
   if (auctionCoversCurrentEpoch) {
     for (const entry of auctionValidators) {
       const v = validatorsMap.get(entry.voteAccount)
-      const stake = Number(v?.marinade_native_stake) + Number(v?.marinade_stake)
+      const stake = v ? Number(v.marinade_native_stake) + Number(v.marinade_stake) : 0
       events.push(...penaltyEvents(entry.voteAccount, maxStatsEpoch, stake, entry))
     }
   }

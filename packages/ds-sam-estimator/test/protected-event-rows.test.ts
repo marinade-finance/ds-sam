@@ -191,6 +191,30 @@ describe('buildProtectedEventRows settled-epoch guard', () => {
     ])
   })
 
+  it('keeps the scoring BondRiskFee for a validator with no stats for that epoch', () => {
+    const result = buildProtectedEventRows({
+      validators: [makeValidator([1010, 1008])],
+      settlements: [makeEvent(1008)],
+      estimates: [],
+      scoring: [
+        {
+          epoch: 1009,
+          voteAccount: VOTE,
+          revShare: { bidTooLowPenaltyPmpe: 2, blacklistPenaltyPmpe: 1 },
+          values: { bondRiskFeeSol: 0.5 },
+        },
+      ],
+      auctionValidators: [],
+      lastDryrunEpoch: LAST_DRYRUN_EPOCH,
+    })
+
+    expect(
+      result
+        .filter(r => r.status === 'estimate')
+        .map(r => [r.protectedEvent.epoch, r.protectedEvent.reason, r.protectedEvent.amount]),
+    ).toEqual([[1009, 'BondRiskFee', 500_000_000]])
+  })
+
   it('rounds a non-integer bid-too-low penalty to an integer lamport amount', () => {
     const result = buildProtectedEventRows({
       validators: [
