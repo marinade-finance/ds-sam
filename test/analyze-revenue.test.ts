@@ -1,7 +1,7 @@
-import { AnalyzeRevenuesCommand } from '../src/commands/analyze-revenue.cmd'
+import { AnalyzeRevenuesCommand, getValidatorOverrides } from '../src/commands/analyze-revenue.cmd'
 
 import type { SnapshotValidatorsCollection } from '../src/commands/analyze-revenue.cmd'
-import type { AuctionResult, AuctionValidator, Rewards } from '@marinade.finance/ds-sam-sdk'
+import type { AuctionResult, AuctionValidator, RawBondsResponseDto, Rewards } from '@marinade.finance/ds-sam-sdk'
 
 const REWARDS: Rewards = { inflationPmpe: 0.4, mevPmpe: 0.05, blockPmpe: 0 }
 const WINNING_TOTAL_PMPE = 0.45
@@ -109,6 +109,18 @@ describe('analyze-revenues beforeSamCommissionIncreasePmpe', () => {
     expect(result[0]?.beforeSamCommissionIncreasePmpe).toBe(0)
   })
 
+  it('does not charge when the auction priced the rate the past epoch applied, whatever the live u8 says', () => {
+    // past snapshot applied 5% (epoch_stakes vintage) though the live u8 already reads 0%; SAM priced 5% too
+    const past = cmd.getPastValidatorCommissions({
+      epoch: 100,
+      validator_metas: [
+        { vote_account: VOTE_ACCOUNT, commission: 0, inflation_rewards_commission_bps: 500, stake: 0, credits: 0 },
+      ],
+    } as SnapshotValidatorsCollection)
+    const res = evaluate(0.38, 0.05, LOSING_TOTAL_PMPE, past)
+    expect(res.beforeSamCommissionIncreasePmpe).toBeCloseTo(0, 12)
+  })
+
   it('does not charge without past snapshot data', () => {
     const res = evaluate(0.38, 0.045, LOSING_TOTAL_PMPE, new Map())
     expect(res.beforeSamCommissionIncreasePmpe).toBe(0)
@@ -139,20 +151,57 @@ describe('analyze-revenues getPastValidatorCommissions', () => {
     expect(cmd.getPastValidatorCommissions(null).size).toBe(0)
   })
 
-  it('prefers commission_bps over the truncating u8 percent', () => {
+  it('prefers inflation_rewards_commission_bps over the truncating u8 percent', () => {
     const collection = {
       epoch: 100,
-      validator_metas: [{ vote_account: 'bps', commission: 7, commission_bps: 750, stake: 0, credits: 0 }],
+      validator_metas: [
+        { vote_account: 'bps', commission: 7, inflation_rewards_commission_bps: 750, stake: 0, credits: 0 },
+      ],
     } as SnapshotValidatorsCollection
     const map = cmd.getPastValidatorCommissions(collection)
     expect(map.get('bps')?.inflation).toBe(0.075)
   })
 
-  it('falls back to the u8 percent when commission_bps is absent', () => {
+  it('reads the applied rate, not the live u8, when a raise is still inside the anti-rug window', () => {
+    const collection = {
+      epoch: 1046,
+      validator_metas: [
+        { vote_account: 'raised', commission: 99, inflation_rewards_commission_bps: 0, stake: 0, credits: 0 },
+      ],
+    } as SnapshotValidatorsCollection
+    expect(cmd.getPastValidatorCommissions(collection).get('raised')?.inflation).toBe(0)
+  })
+
+  it('falls back to the u8 percent when inflation_rewards_commission_bps is absent', () => {
     const collection = {
       epoch: 100,
       validator_metas: [{ vote_account: 'u8', commission: 7, stake: 0, credits: 0 }],
     } as SnapshotValidatorsCollection
     expect(cmd.getPastValidatorCommissions(collection).get('u8')?.inflation).toBe(0.07)
+  })
+})
+
+describe('analyze-revenues getValidatorOverrides', () => {
+  const bond = (vote_account: string, inflation_commission_bps: string | null) => ({
+    vote_account,
+    inflation_commission_bps,
+    mev_commission_bps: null,
+    block_commission_bps: null,
+  })
+
+  it('overrides with the applied snapshot rate and still caps it by the bond', () => {
+    const snapshot = {
+      epoch: 1046,
+      validator_metas: [
+        { vote_account: 'raised', commission: 99, inflation_rewards_commission_bps: 0, stake: 0, credits: 0 },
+        { vote_account: 'capped', commission: 10, inflation_rewards_commission_bps: 1000, stake: 0, credits: 0 },
+        { vote_account: 'old-snapshot', commission: 7, stake: 0, credits: 0 },
+      ],
+    } as SnapshotValidatorsCollection
+    const bonds = { bonds: [bond('capped', '500')] } as unknown as RawBondsResponseDto
+    const overrides = getValidatorOverrides(snapshot, bonds)
+    expect(overrides.inflationCommissionsDec.get('raised')).toBe(0)
+    expect(overrides.inflationCommissionsDec.get('capped')).toBe(0.05)
+    expect(overrides.inflationCommissionsDec.get('old-snapshot')).toBe(0.07)
   })
 })

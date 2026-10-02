@@ -28,9 +28,10 @@ type AnalyzeRevenuesCommandOptions = {
 
 export type SnapshotValidatorMeta = {
   vote_account: string
+  // Live u8 percent at the snapshot slot; a change inside the anti-rug window is not what agave applied
   commission: number
-  // Vote state holds bps since SIMD-0291; `commission` is the u8 percent that truncates it
-  commission_bps?: number
+  // Read from epoch_stakes(E), the rate agave applied to the snapshot epoch; absent in older snapshots
+  inflation_rewards_commission_bps?: number | null
   mev_commission?: number
   stake: number
   credits: number
@@ -80,10 +81,10 @@ export const loadSnapshotValidatorsCollection = (path: string): SnapshotValidato
   JSON.parse(fs.readFileSync(path).toString()) as SnapshotValidatorsCollection
 
 export const snapshotOnchainCommissions = (validatorMeta: SnapshotValidatorMeta): PastValidatorCommissions => {
-  const { commission_bps: bps, commission, vote_account: voteAccount } = validatorMeta
+  const { inflation_rewards_commission_bps: bps, commission, vote_account: voteAccount } = validatorMeta
   assert(
     bps == null || (Number.isInteger(bps) && bps >= 0 && bps <= 10_000),
-    `Snapshot commission_bps out of range for ${voteAccount}: ${bps}`,
+    `Snapshot inflation_rewards_commission_bps out of range for ${voteAccount}: ${bps}`,
   )
   return {
     inflation: bps != null ? bps / 10_000 : commission / 100,
@@ -93,19 +94,22 @@ export const snapshotOnchainCommissions = (validatorMeta: SnapshotValidatorMeta)
 }
 
 const warnOnCommissionSourceGaps = (validatorMetas: SnapshotValidatorMeta[], source: string): void => {
-  const missingBps = validatorMetas.filter(({ commission_bps }) => commission_bps == null).length
+  const missingBps = validatorMetas.filter(
+    ({ inflation_rewards_commission_bps }) => inflation_rewards_commission_bps == null,
+  ).length
   if (missingBps > 0) {
     console.warn(
-      `${source} carries no commission_bps for ${missingBps} of ${validatorMetas.length} validators; ` +
-        'the u8 percent fallback truncates any rate that is not a whole percent',
+      `${source} carries no inflation_rewards_commission_bps for ${missingBps} of ${validatorMetas.length} validators; ` +
+        'the live u8 percent fallback is not the applied rate and truncates any rate that is not a whole percent',
     )
   }
   const disagreeing = validatorMetas.filter(
-    ({ commission_bps, commission }) => commission_bps != null && Math.floor(commission_bps / 100) !== commission,
+    ({ inflation_rewards_commission_bps: bps, commission }) => bps != null && Math.floor(bps / 100) !== commission,
   ).length
   if (disagreeing > 0) {
     console.warn(
-      `${source}: commission_bps disagrees with the u8 percent for ${disagreeing} of ${validatorMetas.length} validators`,
+      `${source}: the live u8 percent differs from the applied inflation_rewards_commission_bps for ` +
+        `${disagreeing} of ${validatorMetas.length} validators, a change still inside the anti-rug window`,
     )
   }
 }
