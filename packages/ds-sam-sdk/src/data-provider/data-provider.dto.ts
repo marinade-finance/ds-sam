@@ -102,6 +102,8 @@ export type RawValidatorDto = {
   version: string | null
   // effective is measured from the epoch's distributed inflation rewards; advertised is the vote account's own u8
   commission_effective: number | null
+  // The bps behind commission_effective, which rounds it up to a whole percent; absent in older API responses
+  commission_effective_bps?: number | null
   commission_advertised: number | null
   credits: number
   epoch_stats: RawEpochStatDto[]

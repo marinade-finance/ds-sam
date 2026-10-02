@@ -28,6 +28,7 @@ export type BondDataType = {
 export class ValidatorMockBuilder {
   private inflationCommission = 0
   private inflationCommissionSources: { effective: number | null; advertised: number | null } | null = null
+  private commissionEffectiveBps: number | null = null
   private mevCommission: number | null = null
   private isBlacklisted = false
   private credits: number[] = []
@@ -90,6 +91,11 @@ export class ValidatorMockBuilder {
   // The API serves the two fields independently; only setting them apart can produce the "unknown rate" case
   withInflationCommissionSources(sources: { effective: number | null; advertised: number | null }): this {
     this.inflationCommissionSources = sources
+    return this
+  }
+
+  withCommissionEffectiveBps(bps: number | null): this {
+    this.commissionEffectiveBps = bps
     return this
   }
 
@@ -243,6 +249,7 @@ export class ValidatorMockBuilder {
       commission_effective: this.inflationCommissionSources
         ? this.inflationCommissionSources.effective
         : inflationCommission,
+      commission_effective_bps: this.commissionEffectiveBps,
       commission_advertised: this.inflationCommissionSources
         ? this.inflationCommissionSources.advertised
         : inflationCommission,

@@ -142,4 +142,47 @@ describe('unresolved on-chain inflation commission', () => {
     expect(unresolved?.values.commissions.inflationCommissionOnchainSource).toBeUndefined()
     expect(unresolved?.values.commissions.inflationCommissionOnchainDec).toBeNull()
   })
+
+  it('reads the effective rate from its bps, keeping the whole percent as the fallback', async () => {
+    const voteAccounts = generateVoteAccounts('effective-bps')
+    const identities = generateIdentities()
+
+    const fractionalVal = new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
+      .withEligibleDefaults()
+      .withInflationCommissionSources({ effective: 7, advertised: 9 })
+      .withCommissionEffectiveBps(650)
+      .withBond({ stakeWanted: 150_000, cpmpe: 1, balance: 100 })
+    const noBpsVal = new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
+      .withEligibleDefaults()
+      .withInflationCommissionSources({ effective: 7, advertised: 9 })
+      .withBond({ stakeWanted: 150_000, cpmpe: 1, balance: 100 })
+    // DS2 never pairs bps with a null effective rate; if it did, the advertised fallback must still win
+    const advertisedVal = new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
+      .withEligibleDefaults()
+      .withInflationCommissionSources({ effective: null, advertised: 9 })
+      .withCommissionEffectiveBps(650)
+      .withBond({ stakeWanted: 150_000, cpmpe: 1, balance: 100 })
+    const networkBallast = new ValidatorMockBuilder(
+      voteAccounts.next().value,
+      identities.next().value,
+    ).withExternalStake(2_000_000)
+
+    const dsSam = new DsSamSDK(
+      {},
+      defaultStaticDataProviderBuilder([fractionalVal, noBpsVal, advertisedVal, networkBallast]),
+    )
+    const result = await dsSam.run()
+
+    const fractional = findValidatorInResult(fractionalVal.voteAccount, result)
+    expect(fractional?.values.commissions.inflationCommissionOnchainDec).toStrictEqual(0.065)
+    expect(fractional?.values.commissions.inflationCommissionOnchainSource).toStrictEqual('effective')
+
+    const noBps = findValidatorInResult(noBpsVal.voteAccount, result)
+    expect(noBps?.values.commissions.inflationCommissionOnchainDec).toStrictEqual(0.07)
+    expect(noBps?.values.commissions.inflationCommissionOnchainSource).toStrictEqual('effective')
+
+    const advertised = findValidatorInResult(advertisedVal.voteAccount, result)
+    expect(advertised?.values.commissions.inflationCommissionOnchainDec).toStrictEqual(0.09)
+    expect(advertised?.values.commissions.inflationCommissionOnchainSource).toStrictEqual('advertised')
+  })
 })
