@@ -19,6 +19,10 @@ describe('pay', () => {
     expect(pay(1.2)).toBe(`2${NBSP}SOL`)
   })
 
+  it('pay(-1.2) → -1 SOL (ceil, toward +∞)', () => {
+    expect(pay(-1.2)).toBe(`-1${NBSP}SOL`)
+  })
+
   it('pay(0) → 0 SOL', () => {
     expect(pay(0)).toBe(`0${NBSP}SOL`)
   })

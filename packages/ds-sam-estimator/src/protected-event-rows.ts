@@ -76,7 +76,7 @@ export const estimateAuctionPenalties = ({
   if (auctionCoversCurrentEpoch) {
     for (const entry of auctionValidators) {
       const v = validatorsMap.get(entry.voteAccount)
-      const stake = Number(v?.marinade_native_stake) + Number(v?.marinade_stake)
+      const stake = v ? Number(v.marinade_native_stake) + Number(v.marinade_stake) : 0
       events.push(...penaltyEvents(entry.voteAccount, maxStatsEpoch, stake, entry))
     }
   }

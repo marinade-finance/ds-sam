@@ -36,7 +36,7 @@ export const stake = (n: number) => `${sol(n, 0)}${NBSP}SOL`
 // amount is never less than what will actually be charged. Defaults to 0
 // decimals (tip-pill style); pass digits for receipt-precision rendering.
 export const pay = (n: number, digits: number = 0) => {
-  const rounded = new Decimal(finite(n)).toDecimalPlaces(digits, Decimal.ROUND_UP).toNumber()
+  const rounded = new Decimal(finite(n)).toDecimalPlaces(digits, Decimal.ROUND_CEIL).toNumber()
   return `${sol(rounded, digits)}${NBSP}SOL`
 }
 export const penalty = (n: number) => `${sol(n, 3)}${NBSP}SOL`
