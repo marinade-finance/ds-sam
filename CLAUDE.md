@@ -19,6 +19,7 @@ packages/ds-sam-sdk/src/
   data-provider/
     data-provider.ts      # DataProvider - fetch/cache/aggregate source data
     data-provider.dto.ts  # Raw API response types (RawValidatorsResponseDto, etc.)
+packages/ds-sam-estimator/  # pure PSR settlement estimator (src/, test/)
 src/
   commands/auction.cmd.ts          # Main CLI command
   commands/analyze-revenue.cmd.ts  # Revenue analysis

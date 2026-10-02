@@ -73,6 +73,15 @@ importers:
         specifier: ^10.6.0
         version: 10.6.0
 
+  packages/ds-sam-estimator:
+    dependencies:
+      '@marinade.finance/ds-sam-calc':
+        specifier: workspace:*
+        version: link:../ds-sam-calc
+      decimal.js:
+        specifier: ^10.6.0
+        version: 10.6.0
+
   packages/ds-sam-sdk:
     dependencies:
       '@marinade.finance/ds-sam-calc':
