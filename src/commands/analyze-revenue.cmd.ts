@@ -83,11 +83,12 @@ export const loadSnapshotValidatorsCollection = (path: string): SnapshotValidato
 export const snapshotOnchainCommissions = (validatorMeta: SnapshotValidatorMeta): PastValidatorCommissions => {
   const { inflation_rewards_commission_bps: bps, commission, vote_account: voteAccount } = validatorMeta
   assert(
-    bps == null || (Number.isInteger(bps) && bps >= 0 && bps <= 10_000),
-    `Snapshot inflation_rewards_commission_bps out of range for ${voteAccount}: ${bps}`,
+    bps == null || (Number.isInteger(bps) && bps >= 0),
+    `Snapshot inflation_rewards_commission_bps invalid for ${voteAccount}: ${bps}`,
   )
   return {
-    inflation: bps != null ? bps / 10_000 : commission / 100,
+    // The vote program stores any u16 and agave's commission_split clamps it to 100% when paying
+    inflation: bps != null ? Math.min(bps, 10_000) / 10_000 : commission / 100,
     // mev_commission is validator_commission_bps from Jito TipDistributionAccount
     mev: validatorMeta.mev_commission != null ? validatorMeta.mev_commission / 10_000 : null,
   }

@@ -10,7 +10,7 @@
 #
 # Options:
 #   -d, --data-dir PATH      ds-sam-pipeline auctions directory (required)
-#   -s, --epoch-start NUM    first epoch (default: the latest archived epoch)
+#   -s, --epoch-start NUM    first epoch (default: the latest settled epoch, newest archived - 1)
 #   -e, --epoch-end NUM      last epoch (default: --epoch-start)
 #   -o, --output-dir PATH    output directory (default: /tmp/revenue-test-outputs)
 #   --skip-build             do not install and build first
@@ -18,7 +18,8 @@
 #
 # Needs gcloud access to the bucket. Per epoch it writes evaluation.json, a per-validator
 # evaluation.diff and an events.diff, where an event is what validator-bonds turns into a
-# CommissionSamIncrease settlement: actualNonBidPmpe < expectedNonBidPmpe + beforeSamCommissionIncreasePmpe.
+# CommissionSamIncrease settlement: a staked validator with
+# actualNonBidPmpe < expectedNonBidPmpe + beforeSamCommissionIncreasePmpe.
 
 set -euo pipefail
 
@@ -49,7 +50,8 @@ done
 [[ -n "$DATA_DIR" && -d "$DATA_DIR" ]] || { echo "Missing or invalid --data-dir" >&2; usage; exit 1; }
 DATA_DIR="$(cd "$DATA_DIR" && pwd)"
 if [[ -z "$EPOCH_START" ]]; then
-  EPOCH_START=$(ls -1 "$DATA_DIR" | grep -E '^[0-9]+\.' | cut -d. -f1 | sort -n | tail -1)
+  # The newest archived auction is the running epoch, which production has not settled yet.
+  EPOCH_START=$(( $(ls -1 "$DATA_DIR" | grep -E '^[0-9]+\.' | cut -d. -f1 | sort -n | tail -1) - 1 ))
 fi
 EPOCH_END="${EPOCH_END:-$EPOCH_START}"
 
@@ -67,8 +69,12 @@ per_validator() {
     " nonBidPmpe expected=\(.expectedNonBidPmpe) actual=\(.actualNonBidPmpe) beforeSam=\(.beforeSamCommissionIncreasePmpe)"' "$1"
 }
 
+# validator-bonds only settles validators that hold stake in the epoch's validators.json.
 events() {
-  jq -r '.revenueExpectations[] |
+  jq -r --slurpfile metas "$2" '
+    ($metas[0].validator_metas | map(select(.stake > 0) | .vote_account) | INDEX(.)) as $staked |
+    .revenueExpectations[] |
+    select($staked[.voteAccount] != null) |
     select(.actualNonBidPmpe < .expectedNonBidPmpe + .beforeSamCommissionIncreasePmpe) | .voteAccount' "$1" | sort
 }
 
@@ -81,18 +87,21 @@ for epoch in $(seq "$EPOCH_START" "$EPOCH_END"); do
   fi
   out="$OUT_DIR/$epoch"
   mkdir -p "$out"
-  gcloud storage cp -q "$BUCKET/$epoch/validators.json" "$out/validators.json"
+  if ! gcloud storage cp -q "$BUCKET/$epoch/validators.json" "$out/validators.json" \
+      || ! gcloud storage cp -q "$BUCKET/$epoch/bid-psr-distribution-evaluation.json" "$out/production-evaluation.json"; then
+    echo "epoch $epoch: no production data yet, skipping" >&2
+    continue
+  fi
   past_args=()
   if gcloud storage cp -q "$BUCKET/$epoch/past-validators.json" "$out/past-validators.json" 2>/dev/null; then
     past_args=(--snapshot-past-validators-file-path "$out/past-validators.json")
   fi
-  gcloud storage cp -q "$BUCKET/$epoch/bid-psr-distribution-evaluation.json" "$out/production-evaluation.json"
 
   if ! pnpm run cli -- analyze-revenues \
       --cache-dir-path "$DATA_DIR/$folder/inputs" \
       --sam-results-fixture-file-path "$DATA_DIR/$folder/outputs/results.json" \
       --snapshot-validators-file-path "$out/validators.json" \
-      "${past_args[@]}" \
+      ${past_args[@]+"${past_args[@]}"} \
       --results-file-path "$out/evaluation.json" > "$out/analyze-revenues.log" 2>&1; then
     echo "epoch $epoch ($folder): analyze-revenues failed, see $out/analyze-revenues.log" >&2
     failed=$((failed + 1))
@@ -102,8 +111,8 @@ for epoch in $(seq "$EPOCH_START" "$EPOCH_END"); do
   per_validator "$out/production-evaluation.json" > "$out/production.txt"
   per_validator "$out/evaluation.json" > "$out/replay.txt"
   diff -u "$out/production.txt" "$out/replay.txt" > "$out/evaluation.diff" || true
-  events "$out/production-evaluation.json" > "$out/production-events.txt"
-  events "$out/evaluation.json" > "$out/replay-events.txt"
+  events "$out/production-evaluation.json" "$out/validators.json" > "$out/production-events.txt"
+  events "$out/evaluation.json" "$out/validators.json" > "$out/replay-events.txt"
   diff -u "$out/production-events.txt" "$out/replay-events.txt" > "$out/events.diff" || true
 
   changed=$(grep -c '^+[^+]' "$out/evaluation.diff" || true)

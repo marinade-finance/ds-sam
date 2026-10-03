@@ -172,6 +172,16 @@ describe('analyze-revenues getPastValidatorCommissions', () => {
     expect(cmd.getPastValidatorCommissions(collection).get('raised')?.inflation).toBe(0)
   })
 
+  it('clamps a rate above 10000 bps to 100% as agave applies it', () => {
+    const collection = {
+      epoch: 1046,
+      validator_metas: [
+        { vote_account: 'over', commission: 100, inflation_rewards_commission_bps: 25_600, stake: 0, credits: 0 },
+      ],
+    } as SnapshotValidatorsCollection
+    expect(cmd.getPastValidatorCommissions(collection).get('over')?.inflation).toBe(1)
+  })
+
   it('falls back to the u8 percent when inflation_rewards_commission_bps is absent', () => {
     const collection = {
       epoch: 100,
