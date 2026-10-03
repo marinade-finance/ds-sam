@@ -36,7 +36,7 @@ scripts/evaluate-auction.bash -h
 Other scripts:
 - `evaluate-blacklist`: blacklist impact comparison
 - `simulate-auction <epoch>`: historical revenue from GCP snapshots
-- `evaluate-revenue-changes.bash`: revenue impact from production
+- `evaluate-revenue-changes.bash -d ../ds-sam-pipeline/auctions -s <epoch> [-e <epoch>]`: replays analyze-revenues and diffs it, and the PSR commission events, against the evaluation production settled on
 
 ## Configuration
 
