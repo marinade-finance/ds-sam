@@ -33,7 +33,7 @@ export type SnapshotValidatorMeta = {
   commission_bps?: number
   mev_commission?: number
   stake: number
-  credits: number
+  credits: number | null
 }
 
 export type SnapshotValidatorsCollection = {

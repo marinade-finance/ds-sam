@@ -167,4 +167,41 @@ describe('eligibility', () => {
     expect(v.auctionStake.marinadeSamTargetSol).toBe(0)
     expect(findValidatorInResult(goodVal.voteAccount, result)?.auctionStake.marinadeSamTargetSol).toBeGreaterThan(0)
   })
+
+  it('makes a small validator with full uptime eligible in Alpenglow epochs', async () => {
+    const votes = generateVoteAccounts('alpenglow')
+    const ids = generateIdentities()
+    const epochs = 10
+    // The reward follows stake and assigned leader slots, so uptime is 1 at any stake
+    const alpenglow = (builder: ValidatorMockBuilder, stake: number, rewardShare = 1) =>
+      builder
+        .withCredits(...Array.from({ length: epochs }, () => null))
+        .withVoteRewards(...Array.from({ length: epochs }, () => stake * rewardShare))
+        .withLeaderSlots(stake / 10_000)
+
+    // Under the tower rule, 'small' falls far below 0.8 x the stake-weighted mean
+    const small = alpenglow(
+      new ValidatorMockBuilder(votes.next().value, ids.next().value).withEligibleDefaults(),
+      350_000,
+    )
+    const large = alpenglow(
+      new ValidatorMockBuilder(votes.next().value, ids.next().value)
+        .withEligibleDefaults()
+        .withExternalStake(2_950_000),
+      3_100_000,
+    )
+    const skipper = alpenglow(
+      new ValidatorMockBuilder(votes.next().value, ids.next().value).withEligibleDefaults(),
+      350_000,
+      0.5,
+    )
+    const networkBallast = new ValidatorMockBuilder(votes.next().value, ids.next().value).withExternalStake(2_000_000)
+
+    const dsSam = new DsSamSDK({}, defaultStaticDataProviderBuilder([small, large, skipper, networkBallast]))
+    const result = await dsSam.run()
+
+    expect(findValidatorInResult(small.voteAccount, result)?.samEligible).toBe(true)
+    expect(findValidatorInResult(large.voteAccount, result)?.samEligible).toBe(true)
+    assertValidatorIneligible(findValidatorInResult(skipper.voteAccount, result))
+  })
 })

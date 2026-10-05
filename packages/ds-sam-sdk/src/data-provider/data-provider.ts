@@ -345,6 +345,8 @@ export class DataProvider {
             totalActivatedStake: new Decimal(es.activated_stake),
             marinadeActivatedStake: new Decimal(es.marinade_stake).add(es.marinade_native_stake),
             voteCredits: es.credits,
+            voteRewardLamports: es.vote_reward_lamports ?? null,
+            leaderSlots: es.leader_slots ?? 0,
           })),
         auctions,
       }
@@ -497,7 +499,9 @@ export class DataProvider {
     const response = await axios.get<RawValidatorsResponseDto>(url)
 
     // Prevent delinquent validators from being processed and appearing in results
-    const validators = response.data.validators.filter(v => v.epoch_stats.slice(0, 3).some(es => es.credits > 0))
+    const validators = response.data.validators.filter(v =>
+      v.epoch_stats.slice(0, 3).some(es => (es.credits ?? 0) > 0 || (es.vote_reward_lamports ?? 0) > 0),
+    )
     return { ...response.data, validators }
   }
 

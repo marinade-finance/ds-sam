@@ -31,7 +31,9 @@ export class ValidatorMockBuilder {
   private commissionEffectiveBps: number | null = null
   private mevCommission: number | null = null
   private isBlacklisted = false
-  private credits: number[] = []
+  private credits: (number | null)[] = []
+  private voteRewards: (number | null)[] = []
+  private leaderSlots = 0
   private nativeStake = 0
   private liquidStake = 0
   private externalStake = 0
@@ -119,8 +121,19 @@ export class ValidatorMockBuilder {
     return this
   }
 
-  withCredits(...credits: number[]): this {
+  withCredits(...credits: (number | null)[]): this {
     this.credits = credits
+    return this
+  }
+
+  // Index 0 is the current epoch, as in `withCredits`
+  withVoteRewards(...voteRewards: (number | null)[]): this {
+    this.voteRewards = voteRewards
+    return this
+  }
+
+  withLeaderSlots(leaderSlots: number): this {
+    this.leaderSlots = leaderSlots
     return this
   }
 
@@ -262,6 +275,8 @@ export class ValidatorMockBuilder {
         version: this.version,
         commission_advertised: inflationCommission,
         credits: credits,
+        vote_reward_lamports: this.voteRewards[e] ?? null,
+        leader_slots: this.leaderSlots,
         epoch_end_at:
           e === 0 ? null : new Date(EPOCH_END_ANCHOR_MS - (e - 1) * MOCK_EPOCH_DURATION_SECONDS * 1000).toISOString(),
       })),

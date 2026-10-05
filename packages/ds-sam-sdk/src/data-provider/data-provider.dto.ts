@@ -86,7 +86,12 @@ export type RawEpochStatDto = {
   marinade_native_stake: string
   version: string | null
   commission_advertised: number | null
-  credits: number
+  // null in an Alpenglow epoch, and when the collector has no data
+  credits: number | null
+  // null in a tower epoch; absent in older API responses
+  vote_reward_lamports?: number | null
+  // assigned leader slots, not produced blocks
+  leader_slots?: number
   epoch_end_at: string | null
   // Other properties ignored
 }
@@ -105,7 +110,7 @@ export type RawValidatorDto = {
   // The bps behind commission_effective, which rounds it up to a whole percent; absent in older API responses
   commission_effective_bps?: number | null
   commission_advertised: number | null
-  credits: number
+  credits: number | null
   epoch_stats: RawEpochStatDto[]
   foundation_stake: string
   self_stake: string
