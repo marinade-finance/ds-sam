@@ -37,7 +37,8 @@ export class StaticDataProvider extends DataProvider {
     config: DsSamConfig,
     private readonly staticDataProviderConfig: StaticDataProviderConfig,
   ) {
-    super(config, config.inputsSource)
+    // Never called: fetchAlpenglowGenesis is overridden
+    super({ ...config, rpcUrl: 'http://static-data-provider.invalid' }, config.inputsSource)
     this.validatorMockBuilders = staticDataProviderConfig.validatorMockBuilders
   }
 

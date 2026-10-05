@@ -48,6 +48,9 @@ export class DataProvider {
         if (this.config.cacheInputs && !this.config.inputsCacheDirPath) {
           throw new Error('Cannot cache inputs without cache directory path configured')
         }
+        if (!this.config.rpcUrl) {
+          throw new Error('Missing rpcUrl: APIS inputs need a Solana RPC (config `rpcUrl` or CLI `--rpc-url`)')
+        }
         if (this.config.cacheInputs && this.config.blacklistFilePath) {
           throw new Error(
             'Cannot cache inputs while reading the blacklist from a local file: ' +
@@ -510,6 +513,9 @@ export class DataProvider {
   }
 
   fetchAlpenglowGenesis(): Promise<RawAlpenglowGenesisDto> {
+    if (!this.config.rpcUrl) {
+      throw new Error('Missing rpcUrl: APIS inputs need a Solana RPC (config `rpcUrl` or CLI `--rpc-url`)')
+    }
     return fetchAlpenglowGenesis(this.config.rpcUrl)
   }
 

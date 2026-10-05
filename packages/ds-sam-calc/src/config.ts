@@ -31,8 +31,8 @@ export type DsSamConfig = {
   blacklistFilePath?: string
   // Base URL of the scoring API
   scoringApiBaseUrl: string
-  // Solana JSON-RPC; must serve `getAgGenesisCert` (Agave 4.3+)
-  rpcUrl: string
+  // Solana JSON-RPC; must serve `getAgGenesisCert` (Agave 4.3+). Required for APIS inputs, no default.
+  rpcUrl?: string
 
   // Use zero-commission validators for backstop
   enableZeroCommissionBackstop: boolean
@@ -142,7 +142,6 @@ export const DEFAULT_CONFIG: DsSamConfig = {
   // marinade proxy cache API, pointing to raw gh: 'https://raw.githubusercontent.com/marinade-finance/delegation-strategy-2/master'
   blacklistApiBaseUrl: 'https://thru.marinade.finance/marinade-finance/delegation-strategy-2/master',
   scoringApiBaseUrl: 'https://scoring.marinade.finance',
-  rpcUrl: 'https://api.mainnet-beta.solana.com',
 
   enableZeroCommissionBackstop: false,
   rewardsEpochsCount: 10,

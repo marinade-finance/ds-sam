@@ -1,6 +1,8 @@
+import { DEFAULT_CONFIG, InputsSource } from '@marinade.finance/ds-sam-calc'
 import axios from 'axios'
 
 import { alpenglowMigration, fetchAlpenglowGenesis } from '../src/data-provider/alpenglow-genesis'
+import { DataProvider } from '../src/data-provider/data-provider'
 
 const RPC_URL = 'http://rpc.test'
 
@@ -93,5 +95,15 @@ describe('alpenglow genesis', () => {
         first_normal_slot: 0,
       }),
     ).toBeNull()
+  })
+
+  it('refuses APIS inputs without an RPC URL, and has no default', () => {
+    expect(DEFAULT_CONFIG.rpcUrl).toBeUndefined()
+    expect(() => new DataProvider({ ...DEFAULT_CONFIG }, InputsSource.APIS)).toThrow('Missing rpcUrl')
+    expect(() => new DataProvider({ ...DEFAULT_CONFIG, rpcUrl: RPC_URL }, InputsSource.APIS)).not.toThrow()
+  })
+
+  it('accepts FILES inputs without an RPC URL', () => {
+    expect(() => new DataProvider({ ...DEFAULT_CONFIG, inputsCacheDirPath: '/tmp' }, InputsSource.FILES)).not.toThrow()
   })
 })
