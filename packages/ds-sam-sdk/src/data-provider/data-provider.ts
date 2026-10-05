@@ -9,7 +9,10 @@ import {
 import axios from 'axios'
 import Decimal from 'decimal.js'
 
+import { alpenglowMigration, fetchAlpenglowGenesis } from './alpenglow-genesis'
+
 import type {
+  RawAlpenglowGenesisDto,
   RawBlacklistResponseDto,
   RawBondsResponseDto,
   RawMevInfoResponseDto,
@@ -395,6 +398,7 @@ export class DataProvider {
         marinadeRemainingSamSol: tvlSol,
       },
       blacklist,
+      alpenglowMigration: data.alpenglowGenesis === null ? undefined : alpenglowMigration(data.alpenglowGenesis),
     }
   }
 
@@ -409,6 +413,12 @@ export class DataProvider {
     fs.writeFileSync(`${this.config.inputsCacheDirPath}/blacklist.csv`, data.blacklist)
     fs.writeFileSync(`${this.config.inputsCacheDirPath}/rewards.json`, JSON.stringify(data.rewards, null, 2))
     fs.writeFileSync(`${this.config.inputsCacheDirPath}/auctions.json`, JSON.stringify(data.auctions, null, 2))
+    if (data.alpenglowGenesis !== null) {
+      fs.writeFileSync(
+        `${this.config.inputsCacheDirPath}/alpenglow-genesis.json`,
+        JSON.stringify(data.alpenglowGenesis, null, 2),
+      )
+    }
   }
 
   parseCachedSourceData(): RawSourceData {
@@ -440,6 +450,11 @@ export class DataProvider {
       : []
     this.fixRawScoredValidatorsDto(auctions)
 
+    const alpenglowGenesisFile = `${this.config.inputsCacheDirPath}/alpenglow-genesis.json`
+    const alpenglowGenesis: RawAlpenglowGenesisDto | null = fs.existsSync(alpenglowGenesisFile)
+      ? (JSON.parse(fs.readFileSync(alpenglowGenesisFile).toString()) as RawAlpenglowGenesisDto)
+      : null
+
     return {
       validators,
       mevInfo,
@@ -448,11 +463,12 @@ export class DataProvider {
       rewards,
       blacklist,
       auctions,
+      alpenglowGenesis,
     }
   }
 
   async fetchSourceData(): Promise<RawSourceData> {
-    const [validators, mevInfo, bonds, tvlInfo, blacklist, rewards, auctions] = await Promise.all([
+    const [validators, mevInfo, bonds, tvlInfo, blacklist, rewards, auctions, alpenglowGenesis] = await Promise.all([
       this.fetchValidators(),
       this.fetchMevInfo(),
       this.fetchBonds(),
@@ -460,6 +476,7 @@ export class DataProvider {
       this.fetchBlacklist(),
       this.fetchRewards(),
       this.fetchAuctions(this.config.bidTooLowPenaltyHistoryEpochs),
+      this.fetchAlpenglowGenesis(),
     ])
 
     const data = {
@@ -470,6 +487,7 @@ export class DataProvider {
       blacklist,
       rewards,
       auctions,
+      alpenglowGenesis,
     }
     if (this.config.cacheInputs) {
       this.cacheSourceData(data)
@@ -489,6 +507,10 @@ export class DataProvider {
         onchainDistributedPmpe: v.revShare.onchainDistributedPmpe ?? v.revShare.inflationPmpe + v.revShare.mevPmpe,
       }
     })
+  }
+
+  fetchAlpenglowGenesis(): Promise<RawAlpenglowGenesisDto> {
+    return fetchAlpenglowGenesis(this.config.rpcUrl)
   }
 
   async fetchValidators(): Promise<RawValidatorsResponseDto> {

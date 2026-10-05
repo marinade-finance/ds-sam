@@ -77,13 +77,19 @@ export class DsSamSDK {
     return new AuctionConstraints(constraints, debug)
   }
 
-  transformValidators({ validators, rewards, blacklist }: AggregatedData): AuctionValidator[] {
+  transformValidators({ validators, rewards, blacklist, alpenglowMigration }: AggregatedData): AuctionValidator[] {
     const maxEpoch = validators.reduce(
       (max, { epochStats }) => epochStats.reduce((m, { epoch }) => Math.max(m, epoch), max),
       0,
     )
     const minEpoch = maxEpoch - this.config.validatorsUptimeEpochsCount + 1
-    const uptimeEpochs = epochUptimes(validators, minEpoch, maxEpoch, this.config.validatorsUptimeThresholdDec)
+    const uptimeEpochs = epochUptimes(
+      validators,
+      minEpoch,
+      maxEpoch,
+      this.config.validatorsUptimeThresholdDec,
+      alpenglowMigration,
+    )
 
     const minEffectiveRevSharePmpe = Math.max(
       0,
@@ -95,6 +101,7 @@ export class DsSamSDK {
     )
     this.debug.log('min rev share PMPE', minEffectiveRevSharePmpe)
     this.debug.log('rewards', rewards)
+    this.debug.log('alpenglow migration', alpenglowMigration)
     this.debug.log(
       'uptime epochs',
       uptimeEpochs.map(e => (e.type === EpochUptimeType.TOWER ? e : { epoch: e.epoch, type: e.type })),

@@ -7,6 +7,7 @@ import { DataProvider } from '../../src/data-provider/data-provider'
 import type { ValidatorMockBuilder } from './validator-mock-builder'
 import type {
   DsSamConfig,
+  RawAlpenglowGenesisDto,
   RawBlacklistResponseDto,
   RawBondsResponseDto,
   RawMevInfoResponseDto,
@@ -24,7 +25,10 @@ export type StaticDataProviderConfig = {
   mevRewardsPerEpoch: number
   blockRewardsPerEpoch: number
   currentEpoch: number
+  alpenglowGenesisSlot: number | null
 }
+
+export const MOCK_SLOTS_PER_EPOCH = 432_000
 
 export class StaticDataProvider extends DataProvider {
   private validatorMockBuilders: ValidatorMockBuilder[] = []
@@ -35,6 +39,15 @@ export class StaticDataProvider extends DataProvider {
   ) {
     super(config, config.inputsSource)
     this.validatorMockBuilders = staticDataProviderConfig.validatorMockBuilders
+  }
+
+  override fetchAlpenglowGenesis(): Promise<RawAlpenglowGenesisDto> {
+    return Promise.resolve({
+      genesis_cert_slot: this.staticDataProviderConfig.alpenglowGenesisSlot,
+      slots_per_epoch: MOCK_SLOTS_PER_EPOCH,
+      first_normal_epoch: 0,
+      first_normal_slot: 0,
+    })
   }
 
   override fetchValidators(): Promise<RawValidatorsResponseDto> {

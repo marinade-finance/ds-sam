@@ -1,9 +1,11 @@
 import assert from 'node:assert'
 
 import { DsSamSDK } from '../src'
+import { MOCK_SLOTS_PER_EPOCH } from './helpers/static-data-provider'
 import {
   blockRewardsStaticDataProviderBuilder,
   defaultStaticDataProviderBuilder,
+  StaticDataProviderBuilder,
 } from './helpers/static-data-provider-builder'
 import { assertValidatorIneligible, findValidatorInResult } from './helpers/utils'
 import { ValidatorMockBuilder, generateIdentities, generateVoteAccounts } from './helpers/validator-mock-builder'
@@ -197,7 +199,16 @@ describe('eligibility', () => {
     )
     const networkBallast = new ValidatorMockBuilder(votes.next().value, ids.next().value).withExternalStake(2_000_000)
 
-    const dsSam = new DsSamSDK({}, defaultStaticDataProviderBuilder([small, large, skipper, networkBallast]))
+    // The mock epochs run from 991 to 1000; the migration is in 980, before all of them
+    const dataProvider = new StaticDataProviderBuilder()
+      .withCurrentEpoch(1000)
+      .withInflationRewardsPerEpoch(200000)
+      .withMevRewardsPerEpoch(50000)
+      .withBlockRewardsPerEpoch(0)
+      .withAlpenglowGenesisSlot(980 * MOCK_SLOTS_PER_EPOCH + 5_000)
+      .withValidators([small, large, skipper, networkBallast])
+      .build()
+    const dsSam = new DsSamSDK({}, dataProvider)
     const result = await dsSam.run()
 
     expect(findValidatorInResult(small.voteAccount, result)?.samEligible).toBe(true)
