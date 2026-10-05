@@ -79,6 +79,7 @@ events() {
 }
 
 failed=0
+compared=0
 for epoch in $(seq "$EPOCH_START" "$EPOCH_END"); do
   folder=$(ls -1 "$DATA_DIR" | grep -E "^${epoch}\." | sort -t. -k2,2n | tail -1 || true)
   if [[ -z "$folder" ]]; then
@@ -89,12 +90,14 @@ for epoch in $(seq "$EPOCH_START" "$EPOCH_END"); do
   mkdir -p "$out"
   if ! gcloud storage cp -q "$BUCKET/$epoch/validators.json" "$out/validators.json" \
       || ! gcloud storage cp -q "$BUCKET/$epoch/bid-psr-distribution-evaluation.json" "$out/production-evaluation.json"; then
-    echo "epoch $epoch: no production data yet, skipping" >&2
+    echo "epoch $epoch: production data not downloaded (missing or gcloud error above), skipping" >&2
     continue
   fi
   past_args=()
-  if gcloud storage cp -q "$BUCKET/$epoch/past-validators.json" "$out/past-validators.json" 2>/dev/null; then
+  if gcloud storage cp -q "$BUCKET/$epoch/past-validators.json" "$out/past-validators.json"; then
     past_args=(--snapshot-past-validators-file-path "$out/past-validators.json")
+  else
+    echo "epoch $epoch: past-validators.json not downloaded, replaying without it" >&2
   fi
 
   if ! pnpm run cli -- analyze-revenues \
@@ -114,6 +117,7 @@ for epoch in $(seq "$EPOCH_START" "$EPOCH_END"); do
   events "$out/production-evaluation.json" "$out/validators.json" > "$out/production-events.txt"
   events "$out/evaluation.json" "$out/validators.json" > "$out/replay-events.txt"
   diff -u "$out/production-events.txt" "$out/replay-events.txt" > "$out/events.diff" || true
+  compared=$((compared + 1))
 
   changed=$(grep -c '^+[^+]' "$out/evaluation.diff" || true)
   added=$(grep '^+[^+]' "$out/events.diff" | cut -c2- | paste -sd' ' || true)
@@ -123,5 +127,9 @@ for epoch in $(seq "$EPOCH_START" "$EPOCH_END"); do
     "${added:+| added: $added}${removed:+ | removed: $removed}"
 done
 
+if [[ "$compared" -eq 0 ]]; then
+  echo "No epoch was compared" >&2
+  exit 1
+fi
 echo "Outputs in $OUT_DIR/<epoch>/ (evaluation.diff, events.diff)"
 [[ "$failed" -eq 0 ]]
