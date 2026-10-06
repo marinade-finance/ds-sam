@@ -4,9 +4,9 @@ import type {
   CommissionSamIncreaseSettlementConfig,
   DowntimeRevenueImpactSettlementConfig,
   PsrValidatorMeta,
-  RevenueExpectation,
   SettlementConfig,
 } from '../src'
+import type { PastValidatorCommissions, RevenueValidatorInput } from '@marinade.finance/ds-sam-calc'
 
 const STAKE = 100_000_000_000n // 100 SOL, the stake of the validator-bonds generators tests.rs vectors
 
@@ -43,25 +43,43 @@ const meta = (vote_account: string, credits: bigint, overrides: Partial<PsrValid
   ...overrides,
 })
 
-const expectation = (voteAccount: string, overrides: Partial<RevenueExpectation> = {}): RevenueExpectation => ({
+const WINNING_TOTAL_PMPE = 2
+const REWARDS = { inflationPmpe: 1, mevPmpe: 0.25 }
+const PAST: PastValidatorCommissions = { inflation: 0.03, mev: 0.03 }
+
+// all non-bid PMPE sits in inflationPmpe, so expected/actual non-bid PMPE are the literal nonBidPmpe values
+const validator = (
+  voteAccount: string,
+  {
+    nonBidPmpe = 1,
+    totalPmpe = WINNING_TOTAL_PMPE,
+    ...overrides
+  }: Partial<RevenueValidatorInput> & {
+    nonBidPmpe?: number
+    totalPmpe?: number
+  } = {},
+): RevenueValidatorInput => ({
   voteAccount,
-  expectedInflationCommission: 0.05,
-  actualInflationCommission: 0.05,
-  pastInflationCommission: 0.03,
-  expectedMevCommission: 0.05,
-  actualMevCommission: 0.05,
-  pastMevCommission: 0.03,
-  expectedNonBidPmpe: 1,
-  actualNonBidPmpe: 1,
-  beforeSamCommissionIncreasePmpe: 0,
+  inflationCommissionDec: 0.05,
+  mevCommissionDec: 0.05,
+  maxStakeWanted: null,
+  revShare: { inflationPmpe: nonBidPmpe, mevPmpe: 0, totalPmpe, auctionEffectiveBidPmpe: 0 },
   ...overrides,
+})
+
+// a winner at SAM time, so the past commissions only fill the payload
+const revenue = (before: RevenueValidatorInput[], after: RevenueValidatorInput[] = before) => ({
+  samRun: { winningTotalPmpe: WINNING_TOTAL_PMPE, validators: before },
+  currentValidators: after,
+  pastCommissions: new Map(before.map(v => [v.voteAccount, PAST])),
+  rewards: REWARDS,
 })
 
 // 'down' earns 5000 credits against a stake-weighted mean of 10000, so uptime is 0.5
 const downtimeInput = (settlementConfigs: SettlementConfig[], marinadeStake = STAKE) => ({
   epoch: 100,
   validatorMetas: [meta('down', 5000n), meta('peer', 15000n)],
-  revenueExpectations: [expectation('down'), expectation('peer')],
+  ...revenue([validator('down'), validator('peer')]),
   marinadeStakeLamports: new Map([['down', marinadeStake]]),
   settlementConfigs,
 })
@@ -120,9 +138,7 @@ describe('calculateProtectedEventEstimates — DowntimeRevenueImpact', () => {
         validatorMetas: [meta('down', 5000n, { commission: 100 }), meta('peer', 15000n)],
       }),
     ).toEqual([])
-    expect(calculateProtectedEventEstimates({ ...downtimeInput([downtimeConfig()]), revenueExpectations: [] })).toEqual(
-      [],
-    )
+    expect(calculateProtectedEventEstimates({ ...downtimeInput([downtimeConfig()]), ...revenue([]) })).toEqual([])
   })
 
   it('settles nothing without Marinade stake', () => {
@@ -131,10 +147,14 @@ describe('calculateProtectedEventEstimates — DowntimeRevenueImpact', () => {
   })
 })
 
-const commissionInput = (actual: Partial<RevenueExpectation>, settlementConfigs: SettlementConfig[]) => ({
+const commissionInput = (
+  after: Parameters<typeof validator>[1],
+  settlementConfigs: SettlementConfig[],
+  before = validator('rug'),
+) => ({
   epoch: 100,
   validatorMetas: [meta('rug', 10000n)],
-  revenueExpectations: [expectation('rug', { actualNonBidPmpe: 0.8, ...actual })],
+  ...revenue([before], [validator('rug', { nonBidPmpe: 0.8, ...after })]),
   marinadeStakeLamports: new Map([['rug', STAKE]]),
   settlementConfigs,
 })
@@ -170,22 +190,23 @@ describe('calculateProtectedEventEstimates — CommissionSamIncrease', () => {
   })
 
   it('applies the penalty markup when a commission exceeds the threshold', () => {
-    const [event] = calculateProtectedEventEstimates(
-      commissionInput({ actualMevCommission: 0.6 }, [commissionConfig()]),
-    )
+    const [event] = calculateProtectedEventEstimates(commissionInput({ mevCommissionDec: 0.6 }, [commissionConfig()]))
     expect(event?.amount).toBe(24_000_000)
   })
 
   it('adds the before-SAM commission increase to the expected PMPE', () => {
-    const [event] = calculateProtectedEventEstimates(
-      commissionInput({ actualNonBidPmpe: 1, beforeSamCommissionIncreasePmpe: 0.25 }, [commissionConfig()]),
-    )
+    // lost at SAM time with 0% past commissions: rewards 1 + 0.25 against the SAM-time 1 gives a 0.25 before-SAM increase
+    const input = commissionInput({ nonBidPmpe: 1 }, [commissionConfig()], validator('rug', { totalPmpe: 1 }))
+    const [event] = calculateProtectedEventEstimates({
+      ...input,
+      pastCommissions: new Map([['rug', { inflation: 0, mev: 0 }]]),
+    })
     // expected_epr 0.00125, loss 0.00025 * 1.1 markup * 100 SOL
     expect(event?.amount).toBe(27_500_000)
   })
 
   it('emits nothing when actual non-bid PMPE is not below expected', () => {
-    expect(calculateProtectedEventEstimates(commissionInput({ actualNonBidPmpe: 1 }, [commissionConfig()]))).toEqual([])
+    expect(calculateProtectedEventEstimates(commissionInput({ nonBidPmpe: 1 }, [commissionConfig()]))).toEqual([])
   })
 
   it('never matches a commission event against a downtime config', () => {
@@ -210,7 +231,7 @@ describe('calculateProtectedEventEstimates — live settlement-config.yaml', () 
     const events = calculateProtectedEventEstimates({
       epoch: 100,
       validatorMetas: [meta('down', 5000n), meta('peer', 15000n)],
-      revenueExpectations: [expectation('down', { actualNonBidPmpe: 0.8 }), expectation('peer')],
+      ...revenue([validator('down'), validator('peer')], [validator('down', { nonBidPmpe: 0.8 }), validator('peer')]),
       marinadeStakeLamports: new Map([['down', 10n * STAKE]]),
       settlementConfigs: LIVE,
     })

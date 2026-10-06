@@ -1,3 +1,4 @@
+import { evaluateRevenueExpectations } from '@marinade.finance/ds-sam-calc'
 import Decimal from 'decimal.js'
 
 import type {
@@ -6,6 +7,12 @@ import type {
   ProtectedEventDowntimeRevenueImpact,
   SettlementMeta,
 } from './types'
+import type {
+  PastValidatorCommissions,
+  RevenueExpectation,
+  RevenueValidatorInput,
+  Rewards,
+} from '@marinade.finance/ds-sam-calc'
 
 // validator-bonds protected_events.rs / psr_events.rs use rust_decimal: 28 significant digits, half-even
 const Dec = Decimal.clone({ precision: 28, rounding: Decimal.ROUND_HALF_EVEN })
@@ -40,24 +47,16 @@ export type PsrValidatorMeta = {
   credits: bigint
 }
 
-// The `revenueExpectations[]` fields of ds-sam's `analyze-revenues` evaluation.json that validator-bonds reads for PSR
-export type RevenueExpectation = {
-  voteAccount: string
-  expectedInflationCommission: number
-  actualInflationCommission: number
-  pastInflationCommission: number
-  expectedMevCommission: number | null
-  actualMevCommission: number | null
-  pastMevCommission: number | null
-  expectedNonBidPmpe: number
-  actualNonBidPmpe: number
-  beforeSamCommissionIncreasePmpe: number
-}
-
 export type ProtectedEventEstimatesInput = {
   epoch: number
   validatorMetas: PsrValidatorMeta[]
-  revenueExpectations: RevenueExpectation[]
+  // the epoch's SAM run, before any commission change after it
+  samRun: { winningTotalPmpe: number; validators: RevenueValidatorInput[] }
+  // current state, priced on the same rewards window as the SAM run
+  currentValidators: RevenueValidatorInput[]
+  // on-chain rates applied in the previous epoch
+  pastCommissions: ReadonlyMap<string, PastValidatorCommissions>
+  rewards: Pick<Rewards, 'inflationPmpe' | 'mevPmpe'>
   // voteAccount → Marinade stake lamports; stands in for the per-staker groups validator-bonds sums claims over
   marinadeStakeLamports: Map<string, bigint>
   settlementConfigs: readonly SettlementConfig[]
@@ -186,10 +185,20 @@ const claimAmountInLossRange = (event: PsrEvent, config: SettlementConfig, stake
 export const calculateProtectedEventEstimates = ({
   epoch,
   validatorMetas,
-  revenueExpectations,
+  samRun,
+  currentValidators,
+  pastCommissions,
+  rewards,
   marinadeStakeLamports,
   settlementConfigs,
 }: ProtectedEventEstimatesInput): ProtectedEvent[] => {
+  const revenueExpectations = evaluateRevenueExpectations(
+    samRun.validators,
+    currentValidators,
+    samRun.winningTotalPmpe,
+    pastCommissions,
+    rewards,
+  )
   const expectations = new Map(revenueExpectations.map(e => [e.voteAccount, e]))
   const events = [
     ...commissionIncreaseEvents(validatorMetas, expectations),
