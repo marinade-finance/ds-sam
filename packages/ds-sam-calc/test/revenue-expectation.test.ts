@@ -1,4 +1,4 @@
-import { evaluateRevenueExpectations } from '../src'
+import { evaluateRevenueExpectations, winningTotalPmpeOf } from '../src'
 
 import type { PastValidatorCommissions, RevenueExpectationLogger, RevenueValidatorInput, Rewards } from '../src'
 
@@ -151,5 +151,18 @@ describe('evaluateRevenueExpectations skips and logging', () => {
     expect(res?.actualNonBidPmpe).toBeCloseTo(0.4, 12)
     expect(res?.lossPerStake).toBeCloseTo(0.03 / 1000, 15)
     expect(res?.samStakeShare).toBe(1)
+  })
+})
+
+describe('winningTotalPmpeOf', () => {
+  const row = (marinadeSamTargetSol: number, totalPmpe: number) => ({ marinadeSamTargetSol, revShare: { totalPmpe } })
+
+  it('takes the lowest totalPmpe among validators that received SAM stake', () => {
+    expect(winningTotalPmpeOf([row(100, 0.5), row(0, 0.1), row(50, 0.3)])).toBe(0.3)
+  })
+
+  it('is Infinity when nobody won', () => {
+    expect(winningTotalPmpeOf([row(0, 0.1)])).toBe(Infinity)
+    expect(winningTotalPmpeOf([])).toBe(Infinity)
   })
 })

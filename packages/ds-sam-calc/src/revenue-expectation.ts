@@ -36,6 +36,12 @@ export type RevenueExpectationLogger = {
   debug: (message: string, context: object) => void
 }
 
+// The scoring API stores per-validator rows only, so a past run's clearing price is rebuilt from its winners
+export const winningTotalPmpeOf = (rows: { marinadeSamTargetSol: number; revShare: { totalPmpe: number } }[]): number =>
+  rows
+    .filter(entry => entry.marinadeSamTargetSol > 0)
+    .reduce((min, entry) => Math.min(min, entry.revShare.totalPmpe), Infinity)
+
 export const evaluateRevenueExpectations = (
   validatorsBefore: RevenueValidatorInput[],
   validatorsAfter: RevenueValidatorInput[],

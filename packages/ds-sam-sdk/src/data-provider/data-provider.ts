@@ -5,6 +5,7 @@ import {
   calcEffParticipatingBidPmpe,
   InputsSource,
   effectiveCommissions,
+  winningTotalPmpeOf,
 } from '@marinade.finance/ds-sam-calc'
 import axios from 'axios'
 import Decimal from 'decimal.js'
@@ -152,10 +153,9 @@ export class DataProvider {
     const epochs = [...new Set(input.map(e => e.epoch))].sort((a, b) => b - a)
     return epochs.map(epoch => {
       const validators = input.filter(entry => entry.epoch === epoch)
-      const winners = validators.filter(entry => entry.marinadeSamTargetSol > 0)
       return {
         epoch,
-        winningTotalPmpe: winners.reduce((min, entry) => Math.min(min, entry.revShare.totalPmpe), Infinity),
+        winningTotalPmpe: winningTotalPmpeOf(validators),
         validators,
       }
     })
