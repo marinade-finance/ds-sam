@@ -27,4 +27,21 @@ describe('analyze-revenues golden output', () => {
     const golden = fs.readFileSync(path.join(SAM_RUN, 'outputs', 'evaluation.golden.json')).toString()
     expect(JSON.stringify(collection, null, 2) === golden).toBe(true)
   })
+
+  it('serializes the past-snapshot collection byte-identically', async () => {
+    const cmd = await resolveCommand()
+    const collection = await cmd.getRevenueExpectationCollection({
+      inputsCacheDirPath: path.join(SAM_RUN, 'inputs'),
+      samResultsFixtureFilePath: path.join(SAM_RUN, 'outputs', 'results.json'),
+      snapshotValidatorsFilePath: path.join(FIXTURES, '650_validators.json'),
+      snapshotPastValidatorsFilePath: path.join(FIXTURES, '649_past_validators.json'),
+    })
+    const golden = fs.readFileSync(path.join(SAM_RUN, 'outputs', 'evaluation-past.golden.json')).toString()
+    expect(JSON.stringify(collection, null, 2) === golden).toBe(true)
+
+    // 649_past_validators.json lowers the commission of five auction losers, three of them without MEV info
+    const increased = collection.revenueExpectations.filter(e => e.beforeSamCommissionIncreasePmpe > 0)
+    expect(increased).toHaveLength(5)
+    expect(increased.filter(e => e.pastMevCommission === null)).toHaveLength(3)
+  })
 })
