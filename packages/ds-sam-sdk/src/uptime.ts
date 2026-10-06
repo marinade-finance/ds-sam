@@ -18,11 +18,11 @@ export type EpochUptime =
 const findEpochStats = ({ epochStats }: AggregatedValidator, epoch: number): EpochStats | undefined =>
   epochStats.find(es => es.epoch === epoch)
 
-// Migration epoch: the one epoch with both tower credits and vote rewards
 export function epochUptimeType(validators: AggregatedValidator[], epoch: number): EpochUptimeType {
   const stats = validators.map(v => findEpochStats(v, epoch))
   const hasCredits = stats.some(es => es?.voteCredits != null)
   const hasRewards = stats.some(es => es?.voteRewardLamports != null)
+  // Only the migration epoch has both
   if (hasCredits && hasRewards) {
     return EpochUptimeType.MIGRATION
   }
@@ -49,8 +49,8 @@ function meanTowerCredits(validators: AggregatedValidator[], epoch: number): Dec
   return weightedCredits.div(weight)
 }
 
-// GEN-8948: w = stake/S + leader_slots/N, uptime = (reward/w) / (Σreward/Σw), over validators with a vote reward
 function alpenglowScores(validators: AggregatedValidator[], epoch: number): Map<string, number> {
+  // S and N sum only over validators with a vote reward
   const admitted = validators.flatMap(validator => {
     const es = findEpochStats(validator, epoch)
     return es?.voteRewardLamports != null
@@ -66,6 +66,7 @@ function alpenglowScores(validators: AggregatedValidator[], epoch: number): Map<
   })
   const totalStake = Decimal.sum(0, ...admitted.map(({ stake }) => stake))
   const totalLeaderSlots = admitted.reduce((sum, { leaderSlots }) => sum + leaderSlots, 0)
+  // w = stake/S + leader_slots/N
   const weighted = admitted.map(entry => {
     const stakeShare = totalStake.isZero() ? new Decimal(0) : entry.stake.div(totalStake)
     const leaderShare = totalLeaderSlots === 0 ? 0 : entry.leaderSlots / totalLeaderSlots
@@ -78,6 +79,7 @@ function alpenglowScores(validators: AggregatedValidator[], epoch: number): Map<
   }
   const meanRewardPerWeight = totalReward.div(totalWeight)
   const scores = new Map<string, number>()
+  // uptime = (reward/w) / (Σreward/Σw)
   for (const { voteAccount, reward, weight } of weighted) {
     if (!weight.isZero()) {
       scores.set(voteAccount, new Decimal(reward).div(weight).div(meanRewardPerWeight).toNumber())
@@ -107,7 +109,6 @@ export function epochUptimes(
   return result
 }
 
-// GEN-8947: a null value is unknown and skips the epoch; a missing epoch record still fails
 export function passesUptime(validator: AggregatedValidator, epochs: EpochUptime[], thresholdDec: number): boolean {
   return epochs.every(epochUptime => {
     if (epochUptime.type === EpochUptimeType.MIGRATION) {
@@ -118,10 +119,12 @@ export function passesUptime(validator: AggregatedValidator, epochs: EpochUptime
       return false
     }
     if (epochUptime.type === EpochUptimeType.TOWER) {
+      // Null credits: no data, the epoch is skipped
       return (
         es.voteCredits == null || (!!epochUptime.creditsThreshold && es.voteCredits >= epochUptime.creditsThreshold)
       )
     }
+    // No score: null vote reward, no data, the epoch is skipped
     const score = epochUptime.scores.get(validator.voteAccount)
     return score === undefined || score >= thresholdDec
   })
