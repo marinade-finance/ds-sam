@@ -1,7 +1,6 @@
 import assert from 'node:assert'
 
 import { DsSamSDK } from '../src'
-import { MOCK_SLOTS_PER_EPOCH } from './helpers/static-data-provider'
 import {
   blockRewardsStaticDataProviderBuilder,
   defaultStaticDataProviderBuilder,
@@ -199,13 +198,11 @@ describe('eligibility', () => {
     )
     const networkBallast = new ValidatorMockBuilder(votes.next().value, ids.next().value).withExternalStake(2_000_000)
 
-    // The mock epochs run from 991 to 1000; the migration is in 980, before all of them
     const dataProvider = new StaticDataProviderBuilder()
       .withCurrentEpoch(1000)
       .withInflationRewardsPerEpoch(200000)
       .withMevRewardsPerEpoch(50000)
       .withBlockRewardsPerEpoch(0)
-      .withAlpenglowGenesisSlot(980 * MOCK_SLOTS_PER_EPOCH + 5_000)
       .withValidators([small, large, skipper, networkBallast])
       .build()
     const dsSam = new DsSamSDK({}, dataProvider)

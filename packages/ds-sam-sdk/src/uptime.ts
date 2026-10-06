@@ -1,6 +1,6 @@
 import Decimal from 'decimal.js'
 
-import type { AggregatedValidator, AlpenglowMigration, EpochStats } from '@marinade.finance/ds-sam-calc'
+import type { AggregatedValidator, EpochStats } from '@marinade.finance/ds-sam-calc'
 
 export enum EpochUptimeType {
   TOWER = 'TOWER',
@@ -10,42 +10,29 @@ export enum EpochUptimeType {
 
 export type EpochUptime =
   | { epoch: number; type: EpochUptimeType.TOWER; creditsThreshold: number }
+  // No uptime check: every validator passes
+  | { epoch: number; type: EpochUptimeType.MIGRATION }
   // Only validators with a known score are keyed; a score is relative to the cluster, 1 = on par
-  | { epoch: number; type: EpochUptimeType.MIGRATION | EpochUptimeType.ALPENGLOW; scores: Map<string, number> }
+  | { epoch: number; type: EpochUptimeType.ALPENGLOW; scores: Map<string, number> }
 
 const findEpochStats = ({ epochStats }: AggregatedValidator, epoch: number): EpochStats | undefined =>
   epochStats.find(es => es.epoch === epoch)
 
-export function epochUptimeType(
-  validators: AggregatedValidator[],
-  epoch: number,
-  migration: AlpenglowMigration | null | undefined,
-): EpochUptimeType {
+// Migration epoch: the one epoch with both tower credits and vote rewards
+export function epochUptimeType(validators: AggregatedValidator[], epoch: number): EpochUptimeType {
   const stats = validators.map(v => findEpochStats(v, epoch))
   const hasCredits = stats.some(es => es?.voteCredits != null)
   const hasRewards = stats.some(es => es?.voteRewardLamports != null)
-  if (migration === undefined && hasRewards) {
-    throw new Error(`Epoch ${epoch} has vote rewards, but the inputs do not record the Alpenglow migration slot`)
+  if (hasCredits && hasRewards) {
+    return EpochUptimeType.MIGRATION
   }
-  const type =
-    !migration || epoch < migration.epoch
-      ? EpochUptimeType.TOWER
-      : epoch === migration.epoch
-        ? EpochUptimeType.MIGRATION
-        : EpochUptimeType.ALPENGLOW
-  if (type === EpochUptimeType.TOWER && hasRewards) {
-    throw new Error(`Epoch ${epoch} is a tower epoch, but validators have vote rewards`)
+  if (hasRewards) {
+    return EpochUptimeType.ALPENGLOW
   }
-  if (type === EpochUptimeType.ALPENGLOW && hasCredits) {
-    throw new Error(`Epoch ${epoch} is an Alpenglow epoch, but validators have tower credits`)
+  if (hasCredits) {
+    return EpochUptimeType.TOWER
   }
-  if (type !== EpochUptimeType.ALPENGLOW && !hasCredits) {
-    throw new Error(`Validator credits data for epoch ${epoch} not available`)
-  }
-  if (type !== EpochUptimeType.TOWER && !hasRewards) {
-    throw new Error(`Validator vote rewards data for epoch ${epoch} not available`)
-  }
-  return type
+  throw new Error(`Validator credits and vote rewards data for epoch ${epoch} not available`)
 }
 
 function meanTowerCredits(validators: AggregatedValidator[], epoch: number): Decimal {
@@ -60,22 +47,6 @@ function meanTowerCredits(validators: AggregatedValidator[], epoch: number): Dec
     weight = weight.add(es.totalActivatedStake)
   }
   return weightedCredits.div(weight)
-}
-
-// credits / stake-weighted mean credits
-function towerScores(validators: AggregatedValidator[], epoch: number): Map<string, number> {
-  const mean = meanTowerCredits(validators, epoch)
-  const scores = new Map<string, number>()
-  if (!mean.isFinite() || mean.isZero()) {
-    return scores
-  }
-  for (const validator of validators) {
-    const credits = findEpochStats(validator, epoch)?.voteCredits
-    if (credits != null) {
-      scores.set(validator.voteAccount, new Decimal(credits).div(mean).toNumber())
-    }
-  }
-  return scores
 }
 
 // GEN-8948: w = stake/S + leader_slots/N, uptime = (reward/w) / (Σreward/Σw), over validators with a vote reward
@@ -115,47 +86,20 @@ function alpenglowScores(validators: AggregatedValidator[], epoch: number): Map<
   return scores
 }
 
-// Each half scored by its own rule, weighted by its share of the epoch's slots
-function migrationScores(
-  validators: AggregatedValidator[],
-  epoch: number,
-  towerEpochShareDec: number,
-): Map<string, number> {
-  const tower = towerScores(validators, epoch)
-  const alpenglow = alpenglowScores(validators, epoch)
-  const scores = new Map<string, number>()
-  for (const { voteAccount } of validators) {
-    const towerScore = tower.get(voteAccount)
-    const alpenglowScore = alpenglow.get(voteAccount)
-    if (towerScore !== undefined && alpenglowScore !== undefined) {
-      scores.set(voteAccount, towerEpochShareDec * towerScore + (1 - towerEpochShareDec) * alpenglowScore)
-    } else if (towerScore !== undefined) {
-      scores.set(voteAccount, towerScore)
-    } else if (alpenglowScore !== undefined) {
-      scores.set(voteAccount, alpenglowScore)
-    }
-  }
-  return scores
-}
-
 export function epochUptimes(
   validators: AggregatedValidator[],
   minEpoch: number,
   maxEpoch: number,
   thresholdDec: number,
-  migration: AlpenglowMigration | null | undefined,
 ): EpochUptime[] {
   const result: EpochUptime[] = []
   for (let epoch = minEpoch; epoch <= maxEpoch; epoch++) {
-    const type = epochUptimeType(validators, epoch, migration)
+    const type = epochUptimeType(validators, epoch)
     if (type === EpochUptimeType.TOWER) {
       const creditsThreshold = meanTowerCredits(validators, epoch).mul(thresholdDec).toNumber()
       result.push({ epoch, type, creditsThreshold })
     } else if (type === EpochUptimeType.MIGRATION) {
-      if (!migration) {
-        throw new Error(`Epoch ${epoch} is the migration epoch, but the migration slot is unknown`)
-      }
-      result.push({ epoch, type, scores: migrationScores(validators, epoch, migration.towerEpochShareDec) })
+      result.push({ epoch, type })
     } else {
       result.push({ epoch, type, scores: alpenglowScores(validators, epoch) })
     }
@@ -166,6 +110,9 @@ export function epochUptimes(
 // GEN-8947: a null value is unknown and skips the epoch; a missing epoch record still fails
 export function passesUptime(validator: AggregatedValidator, epochs: EpochUptime[], thresholdDec: number): boolean {
   return epochs.every(epochUptime => {
+    if (epochUptime.type === EpochUptimeType.MIGRATION) {
+      return true
+    }
     const es = findEpochStats(validator, epochUptime.epoch)
     if (!es) {
       return false

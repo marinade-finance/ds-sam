@@ -9,7 +9,6 @@ export class StaticDataProviderBuilder {
   private mevRewardsPerEpoch: number | null = null
   private blockRewardsPerEpoch: number | null = null
   private currentEpoch: number | null = null
-  private alpenglowGenesisSlot: number | null = null
 
   withValidators(validatorMockBuilders: ValidatorMockBuilder[]) {
     this.validatorMockBuilders = validatorMockBuilders
@@ -33,11 +32,6 @@ export class StaticDataProviderBuilder {
 
   withCurrentEpoch(epoch: number) {
     this.currentEpoch = epoch
-    return this
-  }
-
-  withAlpenglowGenesisSlot(slot: number | null) {
-    this.alpenglowGenesisSlot = slot
     return this
   }
 
@@ -67,7 +61,6 @@ export class StaticDataProviderBuilder {
         mevRewardsPerEpoch,
         blockRewardsPerEpoch,
         currentEpoch,
-        alpenglowGenesisSlot: this.alpenglowGenesisSlot,
       })
   }
 }

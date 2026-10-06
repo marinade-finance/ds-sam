@@ -22,14 +22,6 @@ export type AggregatedData = {
   slotParams: SlotParams
   stakeAmounts: StakeAmounts
   blacklist: Set<string>
-  // null: the cluster runs tower; undefined: not recorded (inputs cached before the RPC lookup existed)
-  alpenglowMigration?: AlpenglowMigration | null
-}
-
-export type AlpenglowMigration = {
-  epoch: number
-  // Share of the migration epoch's slots that ran tower, in 0–1: (first Alpenglow slot − epoch first slot) / slots per epoch
-  towerEpochShareDec: number
 }
 
 // The slot-time regime the inflation input was normalised to, and the epoch that regime belongs to.

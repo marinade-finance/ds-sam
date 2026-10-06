@@ -31,8 +31,6 @@ export type DsSamConfig = {
   blacklistFilePath?: string
   // Base URL of the scoring API
   scoringApiBaseUrl: string
-  // Solana JSON-RPC; must serve `getAgGenesisCert` (Agave 4.3+). Required for APIS inputs, no default.
-  rpcUrl?: string
 
   // Use zero-commission validators for backstop
   enableZeroCommissionBackstop: boolean

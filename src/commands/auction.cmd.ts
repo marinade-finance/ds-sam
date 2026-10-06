@@ -159,14 +159,6 @@ export class AuctionCommand extends CommandRunner {
     return val
   }
   @Option({
-    flags: '--rpc-url <string>',
-    name: 'rpcUrl',
-    description: 'SDK param `rpcUrl`',
-  })
-  parseOptRpcUrl(val: string) {
-    return val
-  }
-  @Option({
     flags: '--bonds-url <string>',
     name: 'bondsApiBaseUrl',
     description: 'SDK param `bondsApiBaseUrl`',

@@ -121,15 +121,6 @@ export type RawValidatorsResponseDto = {
   // Other properties ignored
 }
 
-// From the RPC calls `getAgGenesisCert` and `getEpochSchedule`
-export type RawAlpenglowGenesisDto = {
-  // Slot of the first Alpenglow block; null until the cluster migrates
-  genesis_cert_slot: number | null
-  slots_per_epoch: number
-  first_normal_epoch: number
-  first_normal_slot: number
-}
-
 export type RawSourceData = {
   validators: RawValidatorsResponseDto
   mevInfo: RawMevInfoResponseDto
@@ -138,8 +129,6 @@ export type RawSourceData = {
   blacklist: RawBlacklistResponseDto
   rewards: RawRewardsResponseDto
   auctions: RawScoredValidatorDto[]
-  // null only for cached inputs written before the RPC lookup existed
-  alpenglowGenesis: RawAlpenglowGenesisDto | null
 }
 
 /** All override values are in decimal (0–1) scale, e.g. 5% = 0.05; cpmpe in SOL units */

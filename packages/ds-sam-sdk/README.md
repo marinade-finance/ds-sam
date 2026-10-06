@@ -25,8 +25,6 @@ SDK for Marinade's DS-SAM - max yield - auction evaluation tool.
   snapshotsApiBaseUrl: string
   // Base URL of the scoring API
   scoringApiBaseUrl: string
-  // Solana JSON-RPC; must serve `getAgGenesisCert` (Agave 4.3+). Required for APIS inputs, no default.
-  rpcUrl?: string
 
   // How many epochs in the past to fetch rewards for
   rewardsEpochsCount: number
