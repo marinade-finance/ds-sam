@@ -4,14 +4,18 @@ Pure, IO-free estimator for Marinade PSR (protected staking rewards) settlements
 will settle for epochs it has not processed yet, so dashboards can show unsettled payments before they land.
 
 - **No IO, no UI** — inputs and outputs are plain typed data. Fetching, schemas and labels stay in the consumers.
-- Depends on `@marinade.finance/ds-sam-calc` (`LAMPORTS_PER_SOL`, auction types) and `decimal.js`.
+- Depends on `@marinade.finance/ds-sam-calc` (`evaluateRevenueExpectations`, `LAMPORTS_PER_SOL`, auction types) and
+  `decimal.js`.
 
 ## What it computes
 
 - **PSR estimates** — `calculateProtectedEventEstimates` ports validator-bonds `protected_events.rs` and
   `psr_events.rs`: `CommissionSamIncrease` and `DowntimeRevenueImpact` events, the grace matcher, the covered bps
   range with the commission markup, and the minimum settlement. It uses one claim over the Marinade stake instead of
-  per-staker groups, so an amount can exceed the settled one by at most a lamport per group.
+  per-staker groups, so an amount can exceed the settled one by at most a lamport per group. The revenue expectations
+  come from calc `evaluateRevenueExpectations`, the same code `analyze-revenues` writes validator-bonds' input with.
+- **Scoring-row adapters** — `samRunFromScores` and `pastCommissionsFromScores` turn public `scores/sam` rows into the
+  SAM-run and past-commission inputs.
 - **Unsettled selection** — `selectLatestProcessedEpoch`, `selectUnsettledEstimates` and `selectCurrentEpochEstimates`
   drop estimates for epochs the bonds API already settled.
 - **Auction penalty estimates** — `estimateAuctionPenalties` turns bid-too-low, blacklist and bond-risk-fee values from
@@ -22,9 +26,11 @@ will settle for epochs it has not processed yet, so dashboards can show unsettle
 ## Inputs
 
 - `ValidatorWithEpochs[]` — validators API `/validators?epochs=N` rows; stakes are lamport strings.
-- `PsrValidatorMeta[]` — validator-bonds `ValidatorMeta` (snapshot `validators.json`: `commission`, `stake`, `credits`)
-  of every vote account; `expected_credits` is their stake-weighted mean.
-- `RevenueExpectation[]` — `revenueExpectations` of ds-sam's `analyze-revenues` evaluation.json for the epoch.
+- `PsrValidatorMeta[]` — the live epoch's `epoch_stats` (`commission_advertised`, `activated_stake`, `credits`) of
+  every vote account; `expected_credits` is their stake-weighted mean, so partial mid-epoch credits compare fairly.
+- `samRun` — `samRunFromScores(rows, epoch)` over scoring API `/api/v1/scores/sam` rows.
+- `pastCommissions` — `pastCommissionsFromScores(rows, epoch - 1)` over the same rows.
+- `currentValidators`, `rewards` — `auctionData.validators` and `auctionData.rewards` of a live `DsSamSDK` run.
 - `marinadeStakeLamports` — Marinade liquid + native stake per vote account.
 - `ProtectedEvent[]` — bonds API `/v1/protected-events` rows.
 - `ScoringEntry[]` — scoring API `/api/v1/scores/sam` rows; `AuctionPenaltyInput[]` — `AuctionValidator`s of the
@@ -32,6 +38,9 @@ will settle for epochs it has not processed yet, so dashboards can show unsettle
 - `SettlementConfig[]` — the `DowntimeRevenueImpactSettlement` and `CommissionSamIncreaseSettlement` entries of
   validator-bonds `settlement-config.yaml`, as-is; no defaults in the lib.
 - `lastDryrunEpoch` — required on `buildProtectedEventRows`; settlements at or below it are `dryrun`, above it `fact`.
+
+PSR amounts are estimates for the live epoch: validator-bonds compares the SAM run with the end-of-epoch snapshot,
+this package with the state at the time of the call.
 
 ## Outputs
 
@@ -47,12 +56,20 @@ this package.
 ## Usage
 
 ```ts
-import { buildProtectedEventRows, calculateProtectedEventEstimates } from '@marinade.finance/ds-sam-estimator'
+import {
+  buildProtectedEventRows,
+  calculateProtectedEventEstimates,
+  pastCommissionsFromScores,
+  samRunFromScores,
+} from '@marinade.finance/ds-sam-estimator'
 
 const estimates = calculateProtectedEventEstimates({
   epoch,
   validatorMetas,
-  revenueExpectations: evaluation.revenueExpectations,
+  samRun: samRunFromScores(scoring, epoch),
+  currentValidators: auctionResult.auctionData.validators,
+  pastCommissions: pastCommissionsFromScores(scoring, epoch - 1),
+  rewards: auctionResult.auctionData.rewards,
   marinadeStakeLamports,
   settlementConfigs,
 })
