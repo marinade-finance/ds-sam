@@ -1,4 +1,4 @@
-import { pmpeToSol } from '@marinade.finance/ts-common'
+import { pmpeToSol } from '@marinade.finance/ts-common/dist/src/browser'
 
 import { computeBidPenalty } from './bid-penalty'
 import { selectPaidUndelegationSol } from './sam'
