@@ -119,10 +119,8 @@ export function passesUptime(validator: AggregatedValidator, epochs: EpochUptime
       return false
     }
     if (epochUptime.type === EpochUptimeType.TOWER) {
-      // Null credits: no data, the epoch is skipped
-      return (
-        es.voteCredits == null || (!!epochUptime.creditsThreshold && es.voteCredits >= epochUptime.creditsThreshold)
-      )
+      // Null credits: the account cast no vote in this epoch
+      return es.voteCredits != null && !!epochUptime.creditsThreshold && es.voteCredits >= epochUptime.creditsThreshold
     }
     // No score: null vote reward, no data, the epoch is skipped
     const score = epochUptime.scores.get(validator.voteAccount)
