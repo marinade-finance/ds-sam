@@ -1,6 +1,6 @@
 import Decimal from 'decimal.js'
 
-import type { AggregatedValidator, EpochStats } from '@marinade.finance/ds-sam-calc'
+import type { AggregatedValidator, EpochStats } from './types'
 
 export enum EpochUptimeType {
   TOWER = 'TOWER',

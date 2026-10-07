@@ -1,9 +1,12 @@
 import {
   calcValidatorRevShare,
   DEFAULT_CONFIG,
+  epochUptimes,
+  EpochUptimeType,
   InputsSource,
   isInflationCommissionUnresolved,
   ineligibleValidatorAggDefaults,
+  passesUptime,
   validatorAggDefaults,
 } from '@marinade.finance/ds-sam-calc'
 import semver from 'semver'
@@ -12,7 +15,6 @@ import { Auction } from './auction'
 import { AuctionConstraints } from './constraints'
 import { DataProvider } from './data-provider/data-provider'
 import { Debug } from './debug'
-import { epochUptimes, EpochUptimeType, passesUptime } from './uptime'
 
 import type { SourceDataOverrides } from './data-provider/data-provider.dto'
 import type {
