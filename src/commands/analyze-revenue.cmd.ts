@@ -34,7 +34,7 @@ export type SnapshotValidatorMeta = {
   inflation_rewards_commission_bps?: number | null
   mev_commission?: number
   stake: number
-  credits: number
+  credits: number | null
 }
 
 export type SnapshotValidatorsCollection = {

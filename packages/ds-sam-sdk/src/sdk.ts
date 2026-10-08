@@ -1,12 +1,14 @@
 import {
   calcValidatorRevShare,
   DEFAULT_CONFIG,
+  epochUptimes,
+  EpochUptimeType,
   InputsSource,
   isInflationCommissionUnresolved,
   ineligibleValidatorAggDefaults,
+  passesUptime,
   validatorAggDefaults,
 } from '@marinade.finance/ds-sam-calc'
-import Decimal from 'decimal.js'
 import semver from 'semver'
 
 import { Auction } from './auction'
@@ -78,35 +80,12 @@ export class DsSamSDK {
   }
 
   transformValidators({ validators, rewards, blacklist }: AggregatedData): AuctionValidator[] {
-    let maxEpoch = 0
-    const epochsTotals = validators.reduce((totals, { epochStats }) => {
-      epochStats.forEach(({ epoch, totalActivatedStake, voteCredits }) => {
-        const currentTotal = totals.get(epoch) ?? {
-          weightedCredits: new Decimal(0),
-          weight: new Decimal(0),
-        }
-        totals.set(epoch, {
-          weightedCredits: currentTotal.weightedCredits.add(totalActivatedStake.mul(voteCredits)),
-          weight: currentTotal.weight.add(totalActivatedStake),
-        })
-        maxEpoch = Math.max(maxEpoch, epoch)
-      })
-      return totals
-    }, new Map<number, { weightedCredits: Decimal; weight: Decimal }>())
-
-    const epochCreditsThresholds = new Map<number, number>()
+    const maxEpoch = validators.reduce(
+      (max, { epochStats }) => epochStats.reduce((m, { epoch }) => Math.max(m, epoch), max),
+      0,
+    )
     const minEpoch = maxEpoch - this.config.validatorsUptimeEpochsCount + 1
-    for (let epoch = minEpoch; epoch <= maxEpoch; epoch++) {
-      const epochTotals = epochsTotals.get(epoch)
-      if (!epochTotals) {
-        throw new Error(`Validator credits data for epoch ${epoch} not available`)
-      }
-      const threshold = epochTotals.weightedCredits
-        .div(epochTotals.weight)
-        .mul(this.config.validatorsUptimeThresholdDec)
-        .toNumber()
-      epochCreditsThresholds.set(epoch, threshold)
-    }
+    const uptimeEpochs = epochUptimes(validators, minEpoch, maxEpoch, this.config.validatorsUptimeThresholdDec)
 
     const minEffectiveRevSharePmpe = Math.max(
       0,
@@ -118,7 +97,10 @@ export class DsSamSDK {
     )
     this.debug.log('min rev share PMPE', minEffectiveRevSharePmpe)
     this.debug.log('rewards', rewards)
-    this.debug.log('uptime thresholds', epochCreditsThresholds)
+    this.debug.log(
+      'uptime epochs',
+      uptimeEpochs.map(e => (e.type === EpochUptimeType.ALPENGLOW ? { epoch: e.epoch, type: e.type } : e)),
+    )
     this.debug.pushInfo('min effective rev share', minEffectiveRevSharePmpe.toString())
     this.debug.pushInfo('estimated rewards', JSON.stringify(rewards))
 
@@ -166,16 +148,12 @@ export class DsSamSDK {
           ...ineligibleValidatorAggDefaults(),
         }
       }
-      for (let epoch = minEpoch; epoch <= maxEpoch; epoch++) {
-        const es = validator.epochStats.find(es => es.epoch === epoch)
-        const threshold = epochCreditsThresholds.get(epoch)
-        if (!es || !threshold || es.voteCredits < threshold) {
-          return {
-            ...validator,
-            revShare,
-            auctionStake,
-            ...ineligibleValidatorAggDefaults(),
-          }
+      if (!passesUptime(validator, uptimeEpochs, this.config.validatorsUptimeThresholdDec)) {
+        return {
+          ...validator,
+          revShare,
+          auctionStake,
+          ...ineligibleValidatorAggDefaults(),
         }
       }
       if (isInflationCommissionUnresolved(validator.values.commissions)) {

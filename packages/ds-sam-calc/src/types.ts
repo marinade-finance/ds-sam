@@ -35,7 +35,9 @@ export type EpochStats = {
   epoch: number
   totalActivatedStake: Decimal
   marinadeActivatedStake: Decimal
-  voteCredits: number
+  voteCredits: number | null
+  voteRewardLamports: number | null
+  leaderSlots: number
 }
 
 export type ValidatorAuctionStake = {
@@ -70,7 +72,7 @@ export type AuctionValidator = AggregatedValidator & {
 export type AggregatedValidator = {
   voteAccount: string
   clientVersion: string
-  voteCredits: number
+  voteCredits: number | null
   aso: string
   country: string
   bondBalanceSol: number | null
