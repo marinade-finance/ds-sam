@@ -187,8 +187,32 @@ describe('buildProtectedEventRows settled-epoch guard', () => {
     })
 
     expect(result.map(r => [r.protectedEvent.reason, r.protectedEvent.amount, r.validator])).toEqual([
+      ['BidTooLowPenalty', 1_000_000_000, expect.objectContaining({ vote_account: VOTE })],
       ['BondRiskFee', 500_000_000, null],
     ])
+  })
+
+  it('keeps the live-epoch scoring penalty of a validator missing from the auction', () => {
+    const result = buildProtectedEventRows({
+      validators: [makeValidator([1009, 1008])],
+      settlements: [makeEvent(1008)],
+      estimates: [],
+      scoring: [makeScoring(1009)],
+      auctionValidators: [
+        {
+          voteAccount: 'other',
+          revShare: { bidTooLowPenaltyPmpe: 0, blacklistPenaltyPmpe: 0 },
+          values: { bondRiskFeeSol: 0 },
+        },
+      ],
+      lastDryrunEpoch: LAST_DRYRUN_EPOCH,
+    })
+
+    expect(
+      result
+        .filter(r => r.status === 'estimate')
+        .map(r => [r.protectedEvent.vote_account, r.protectedEvent.epoch, r.protectedEvent.amount]),
+    ).toEqual([[VOTE, 1009, 1_000_000_000]])
   })
 
   it('keeps the scoring BondRiskFee for a validator with no stats for that epoch', () => {

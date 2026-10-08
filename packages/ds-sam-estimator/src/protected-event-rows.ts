@@ -64,9 +64,12 @@ export const estimateAuctionPenalties = ({
   const events: ProtectedEvent[] = []
   const auctionCoversCurrentEpoch =
     auctionValidators.length > 0 && maxStatsEpoch >= maxScoredEpoch && maxStatsEpoch > latestProcessedEpoch
+  const auctionVoteAccounts = new Set(auctionValidators.map(({ voteAccount }) => voteAccount))
   for (const entry of scoring) {
     if (entry.epoch <= latestProcessedEpoch) continue
-    if (auctionCoversCurrentEpoch && entry.epoch === maxStatsEpoch) continue
+    if (auctionCoversCurrentEpoch && entry.epoch === maxStatsEpoch && auctionVoteAccounts.has(entry.voteAccount)) {
+      continue
+    }
     const epochStats = validatorsMap.get(entry.voteAccount)?.epoch_stats.find(({ epoch }) => epoch === entry.epoch)
     const stake = epochStats ? Number(epochStats.marinade_native_stake) + Number(epochStats.marinade_stake) : 0
     events.push(...penaltyEvents(entry.voteAccount, entry.epoch, stake, entry))
