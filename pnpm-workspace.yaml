@@ -4,3 +4,6 @@ packages:
 allowBuilds:
   '@nestjs/core': true
   unrs-resolver: true
+
+overrides:
+  '@marinade.finance/ts-common': link:../typescript-common/packages/ts-common
