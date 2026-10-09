@@ -1,4 +1,5 @@
 import { EpochUptimeType, evaluateRevenueExpectations, uptimeTypeOf } from '@marinade.finance/ds-sam-calc'
+import { alpenglowExpectedCredits } from '@marinade.finance/ts-common/dist/src/browser'
 import Decimal from 'decimal.js'
 
 import type {
@@ -46,6 +47,7 @@ export type PsrValidatorMeta = {
   stake: bigint
   credits: bigint | null
   vote_reward_lamports: bigint | null
+  leader_slots: bigint
 }
 
 export type ProtectedEventEstimatesInput = {
@@ -121,31 +123,67 @@ const commissionIncreaseEvents = (
     ]
   })
 
-const downtimeRevenueImpactEvents = (
-  validatorMetas: PsrValidatorMeta[],
-  expectations: Map<string, RevenueExpectation>,
-): PsrEvent[] => {
-  const epochType = uptimeTypeOf(
-    validatorMetas.some(({ credits }) => credits != null),
-    validatorMetas.some(({ vote_reward_lamports }) => vote_reward_lamports != null),
-  )
-  // Alpenglow downtime is not estimated yet; validator-bonds settles no downtime in the migration epoch
-  if (epochType !== EpochUptimeType.TOWER) {
-    return []
-  }
+type CreditsOutcome = { meta: PsrValidatorMeta; actual: bigint; expected: bigint }
+
+const towerCredits = (validatorMetas: PsrValidatorMeta[]): CreditsOutcome[] => {
   const totalStake = validatorMetas.reduce((sum, { stake }) => sum + stake, 0n)
   if (totalStake === 0n) {
     return []
   }
   // validators-api writes null for a Tower validator that cast no vote
-  const towerMetas = validatorMetas.map(meta => ({ ...meta, credits: meta.credits ?? 0n }))
-  const expectedCredits = towerMetas.reduce((sum, { credits, stake }) => sum + credits * stake, 0n) / totalStake
-  return towerMetas.flatMap((meta): PsrEvent[] => {
+  const towerMetas = validatorMetas.map(meta => ({ meta, actual: meta.credits ?? 0n }))
+  const expected = towerMetas.reduce((sum, { meta, actual }) => sum + actual * meta.stake, 0n) / totalStake
+  return towerMetas.map(({ meta, actual }) => ({ meta, actual, expected }))
+}
+
+const alpenglowCredits = (validatorMetas: PsrValidatorMeta[]): CreditsOutcome[] => {
+  // validators-api writes 0 for a staked validator without a vote reward; null means no data
+  const rewarded = validatorMetas.flatMap(meta =>
+    meta.vote_reward_lamports == null ? [] : [{ meta, credits: meta.vote_reward_lamports }],
+  )
+  const results = alpenglowExpectedCredits(
+    rewarded.map(({ meta, credits }) => ({
+      voteAccount: meta.vote_account,
+      stake: meta.stake,
+      leaderSlots: meta.leader_slots,
+      credits,
+    })),
+    {
+      totalStake: rewarded.reduce((sum, { meta }) => sum + meta.stake, 0n),
+      totalSlots: rewarded.reduce((sum, { meta }) => sum + meta.leader_slots, 0n),
+    },
+  )
+  return rewarded.flatMap(({ meta }, i) => {
+    const result = results[i]
+    return result ? [{ meta, actual: result.actual, expected: result.expected }] : []
+  })
+}
+
+const creditsOutcomes = (validatorMetas: PsrValidatorMeta[]): CreditsOutcome[] => {
+  const epochType = uptimeTypeOf(
+    validatorMetas.some(({ credits }) => credits != null),
+    validatorMetas.some(({ vote_reward_lamports }) => vote_reward_lamports != null),
+  )
+  if (epochType === EpochUptimeType.TOWER) {
+    return towerCredits(validatorMetas)
+  }
+  if (epochType === EpochUptimeType.ALPENGLOW) {
+    return alpenglowCredits(validatorMetas)
+  }
+  // validator-bonds settles no downtime in the migration epoch
+  return []
+}
+
+const downtimeRevenueImpactEvents = (
+  validatorMetas: PsrValidatorMeta[],
+  expectations: Map<string, RevenueExpectation>,
+): PsrEvent[] =>
+  creditsOutcomes(validatorMetas).flatMap(({ meta, actual, expected }): PsrEvent[] => {
     const expectation = expectations.get(meta.vote_account)
-    if (meta.stake <= 0n || !expectation || meta.credits >= expectedCredits || meta.commission >= 100) {
+    if (meta.stake <= 0n || !expectation || actual >= expected || meta.commission >= 100) {
       return []
     }
-    const uptime = new Dec(meta.credits.toString()).div(expectedCredits.toString())
+    const uptime = new Dec(actual.toString()).div(expected.toString())
     const expectedEpr = new Dec(expectation.actualNonBidPmpe).div(1000)
     const actualEpr = new Dec(expectation.actualNonBidPmpe).div(1000).mul(uptime)
     return [
@@ -155,17 +193,16 @@ const downtimeRevenueImpactEvents = (
         actualEpr,
         payload: {
           vote_account: meta.vote_account,
-          actual_credits: Number(meta.credits),
-          expected_credits: Number(expectedCredits),
+          actual_credits: Number(actual),
+          expected_credits: Number(expected),
           expected_epr: expectedEpr.toNumber(),
           actual_epr: actualEpr.toNumber(),
-          epr_loss_bps: Number((10000n * (expectedCredits - meta.credits)) / expectedCredits),
+          epr_loss_bps: Number((10000n * (expected - actual)) / expected),
           stake: Number(meta.stake),
         },
       },
     ]
   })
-}
 
 const graceBps = (config: SettlementConfig) =>
   (config.type === 'DowntimeRevenueImpactSettlement' ? config.grace_downtime_bps : config.grace_increase_bps) ?? 0

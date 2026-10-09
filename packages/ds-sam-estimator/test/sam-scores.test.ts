@@ -134,7 +134,14 @@ describe('scoring rows end to end', () => {
     const events = calculateProtectedEventEstimates({
       epoch: 101,
       validatorMetas: [
-        { vote_account: 'rug', commission: 5, stake: 100_000_000_000n, credits: 10000n, vote_reward_lamports: null },
+        {
+          vote_account: 'rug',
+          commission: 5,
+          stake: 100_000_000_000n,
+          credits: 10000n,
+          vote_reward_lamports: null,
+          leader_slots: 0n,
+        },
       ],
       samRun: samRunFromScores(rows, 101),
       currentValidators: [

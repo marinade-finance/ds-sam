@@ -4,8 +4,8 @@ Pure, IO-free estimator for Marinade PSR (protected staking rewards) settlements
 will settle for epochs it has not processed yet, so dashboards can show unsettled payments before they land.
 
 - **No IO, no UI** — inputs and outputs are plain typed data. Fetching, schemas and labels stay in the consumers.
-- Depends on `@marinade.finance/ds-sam-calc` (`evaluateRevenueExpectations`, `LAMPORTS_PER_SOL`, auction types) and
-  `decimal.js`.
+- Depends on `@marinade.finance/ds-sam-calc` (`evaluateRevenueExpectations`, `LAMPORTS_PER_SOL`, auction types),
+  `@marinade.finance/ts-common` (`alpenglowExpectedCredits`) and `decimal.js`.
 
 ## What it computes
 
@@ -27,8 +27,10 @@ will settle for epochs it has not processed yet, so dashboards can show unsettle
 
 - `ValidatorWithEpochs[]` — validators API `/validators?epochs=N` rows; stakes are lamport strings.
 - `PsrValidatorMeta[]` — the live epoch's `epoch_stats` (`commission_advertised`, `activated_stake`, `credits`,
-  `vote_reward_lamports`) of every vote account; `expected_credits` is their stake-weighted mean, so partial mid-epoch
-  credits compare fairly. The epoch type follows calc `uptimeTypeOf`; downtime is estimated in Tower epochs only.
+  `vote_reward_lamports`, `leader_slots`) of every vote account. The epoch type follows calc `uptimeTypeOf`. In Tower
+  `expected_credits` is the stake-weighted mean of credits, so partial mid-epoch credits compare fairly. In Alpenglow
+  the vote reward is compared with ts-common `alpenglowExpectedCredits` over validators with a vote reward; a null
+  vote reward is unknown and gets no downtime estimate. The migration epoch gets none.
 - `samRun` — `samRunFromScores(rows, epoch)` over scoring API `/api/v1/scores/sam` rows.
 - `pastCommissions` — `pastCommissionsFromScores(rows, epoch - 1)` over the same rows.
 - `currentValidators`, `rewards` — `auctionData.validators` and `auctionData.rewards` of a live `DsSamSDK` run.

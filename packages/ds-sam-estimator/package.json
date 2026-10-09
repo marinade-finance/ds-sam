@@ -22,6 +22,7 @@
   ],
   "dependencies": {
     "@marinade.finance/ds-sam-calc": "workspace:*",
+    "@marinade.finance/ts-common": "^5.11.0",
     "decimal.js": "^10.6.0"
   }
 }

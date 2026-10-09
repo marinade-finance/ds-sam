@@ -1,3 +1,5 @@
+import Decimal from 'decimal.js'
+
 import { calculateProtectedEventEstimates } from '../src'
 
 import type {
@@ -45,6 +47,7 @@ const meta = (
   stake: STAKE,
   credits,
   vote_reward_lamports: null,
+  leader_slots: 0n,
   ...overrides,
 })
 
@@ -164,16 +167,87 @@ describe('calculateProtectedEventEstimates — DowntimeRevenueImpact', () => {
     })
   })
 
-  it('estimates no downtime in an Alpenglow epoch, the migration epoch, or without vote data', () => {
-    const alpenglow = [
-      meta('down', null, { vote_reward_lamports: 5000n }),
-      meta('peer', null, { vote_reward_lamports: 15000n }),
-    ]
+  it('estimates no downtime in the migration epoch or without vote data', () => {
     const migration = [meta('down', 5000n, { vote_reward_lamports: 0n }), meta('peer', 15000n)]
     const noData = [meta('down', null), meta('peer', null)]
-    for (const validatorMetas of [alpenglow, migration, noData]) {
+    for (const validatorMetas of [migration, noData]) {
       expect(calculateProtectedEventEstimates({ ...downtimeInput([downtimeConfig()]), validatorMetas })).toEqual([])
     }
+  })
+})
+
+const alpenglowMeta = (vote_account: string, voteReward: bigint | null, leaderSlots: bigint, stake = STAKE) =>
+  meta(vote_account, null, { vote_reward_lamports: voteReward, leader_slots: leaderSlots, stake })
+
+// validator-bonds alpenglow_collection: w = s/S + L/N gives A 1000, B 800, C 600 of Σcredits 2400
+const ALPENGLOW_COLLECTION = [
+  alpenglowMeta('A', 1000n, 3n),
+  alpenglowMeta('B', 1000n, 2n),
+  alpenglowMeta('C', 400n, 1n),
+]
+
+const alpenglowInput = (validatorMetas: PsrValidatorMeta[], marinadeStakeOf: string[]) => ({
+  epoch: 100,
+  validatorMetas,
+  ...revenue(validatorMetas.map(({ vote_account }) => validator(vote_account))),
+  marinadeStakeLamports: new Map(marinadeStakeOf.map(voteAccount => [voteAccount, STAKE])),
+  settlementConfigs: [downtimeConfig()],
+})
+
+describe('calculateProtectedEventEstimates — Alpenglow DowntimeRevenueImpact', () => {
+  it('matches validator-bonds alpenglow_collection: C earns 400 of the 600 it expects', () => {
+    expect(calculateProtectedEventEstimates(alpenglowInput(ALPENGLOW_COLLECTION, ['A', 'B', 'C']))).toEqual([
+      {
+        epoch: 100,
+        // a third of 0.001 epr on 100 SOL, under the 5000 bps cap
+        amount: 33_333_333,
+        vote_account: 'C',
+        meta: { funder: 'ValidatorBond' },
+        reason: {
+          ProtectedEvent: {
+            DowntimeRevenueImpact: {
+              vote_account: 'C',
+              actual_credits: 400,
+              expected_credits: 600,
+              expected_epr: 0.001,
+              actual_epr: new Decimal(0.001).mul(400).div(600).toNumber(),
+              epr_loss_bps: 3333,
+              stake: 100_000_000_000,
+            },
+          },
+        },
+      },
+    ])
+  })
+
+  it('skips a null vote reward and keeps it out of S and N', () => {
+    const unknown = alpenglowMeta('D', null, 6n, 10n * STAKE)
+    const events = calculateProtectedEventEstimates(alpenglowInput([...ALPENGLOW_COLLECTION, unknown], ['C', 'D']))
+    expect(events.map(({ vote_account }) => vote_account)).toEqual(['C'])
+    expect(events[0]?.reason).toMatchObject({
+      ProtectedEvent: { DowntimeRevenueImpact: { actual_credits: 400, expected_credits: 600 } },
+    })
+  })
+
+  it('charges a zero vote reward as a validator that cast no vote', () => {
+    const silent = alpenglowMeta('E', 0n, 1n)
+    const [event, ...rest] = calculateProtectedEventEstimates(alpenglowInput([...ALPENGLOW_COLLECTION, silent], ['E']))
+    expect(rest).toEqual([])
+    // full loss, capped by covered_range_bps [0, 5000]
+    expect(event?.amount).toBe(50_000_000)
+    expect(event?.reason).toMatchObject({
+      ProtectedEvent: { DowntimeRevenueImpact: { vote_account: 'E', actual_credits: 0, epr_loss_bps: 10000 } },
+    })
+  })
+
+  it('estimates no downtime before any vote reward or leader slot is in', () => {
+    const validatorMetas = [alpenglowMeta('A', 0n, 0n), alpenglowMeta('B', 0n, 0n)]
+    expect(calculateProtectedEventEstimates(alpenglowInput(validatorMetas, ['A', 'B']))).toEqual([])
+  })
+
+  it('still skips a 100% commission validator', () => {
+    const validatorMetas = ALPENGLOW_COLLECTION.map(m => (m.vote_account === 'C' ? { ...m, commission: 100 } : m))
+    expect(calculateProtectedEventEstimates(alpenglowInput(validatorMetas, ['A', 'B', 'C']))).toEqual([])
   })
 })
 

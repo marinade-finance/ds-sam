@@ -81,6 +81,9 @@ importers:
       '@marinade.finance/ds-sam-calc':
         specifier: workspace:*
         version: link:../ds-sam-calc
+      '@marinade.finance/ts-common':
+        specifier: link:../../../typescript-common/packages/ts-common
+        version: link:../../../typescript-common/packages/ts-common
       decimal.js:
         specifier: ^10.6.0
         version: 10.6.0
