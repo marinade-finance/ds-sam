@@ -1,4 +1,4 @@
-import { evaluateRevenueExpectations } from '@marinade.finance/ds-sam-calc'
+import { EpochUptimeType, evaluateRevenueExpectations, uptimeTypeOf } from '@marinade.finance/ds-sam-calc'
 import Decimal from 'decimal.js'
 
 import type {
@@ -44,7 +44,8 @@ export type PsrValidatorMeta = {
   vote_account: string
   commission: number
   stake: bigint
-  credits: bigint
+  credits: bigint | null
+  vote_reward_lamports: bigint | null
 }
 
 export type ProtectedEventEstimatesInput = {
@@ -124,12 +125,22 @@ const downtimeRevenueImpactEvents = (
   validatorMetas: PsrValidatorMeta[],
   expectations: Map<string, RevenueExpectation>,
 ): PsrEvent[] => {
+  const epochType = uptimeTypeOf(
+    validatorMetas.some(({ credits }) => credits != null),
+    validatorMetas.some(({ vote_reward_lamports }) => vote_reward_lamports != null),
+  )
+  // Alpenglow downtime is not estimated yet; validator-bonds settles no downtime in the migration epoch
+  if (epochType !== EpochUptimeType.TOWER) {
+    return []
+  }
   const totalStake = validatorMetas.reduce((sum, { stake }) => sum + stake, 0n)
   if (totalStake === 0n) {
     return []
   }
-  const expectedCredits = validatorMetas.reduce((sum, { credits, stake }) => sum + credits * stake, 0n) / totalStake
-  return validatorMetas.flatMap((meta): PsrEvent[] => {
+  // validators-api writes null for a Tower validator that cast no vote
+  const towerMetas = validatorMetas.map(meta => ({ ...meta, credits: meta.credits ?? 0n }))
+  const expectedCredits = towerMetas.reduce((sum, { credits, stake }) => sum + credits * stake, 0n) / totalStake
+  return towerMetas.flatMap((meta): PsrEvent[] => {
     const expectation = expectations.get(meta.vote_account)
     if (meta.stake <= 0n || !expectation || meta.credits >= expectedCredits || meta.commission >= 100) {
       return []

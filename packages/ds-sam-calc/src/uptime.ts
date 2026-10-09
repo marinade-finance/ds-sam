@@ -18,10 +18,8 @@ export type EpochUptime =
 const findEpochStats = ({ epochStats }: AggregatedValidator, epoch: number): EpochStats | undefined =>
   epochStats.find(es => es.epoch === epoch)
 
-export function epochUptimeType(validators: AggregatedValidator[], epoch: number): EpochUptimeType {
-  const stats = validators.map(v => findEpochStats(v, epoch))
-  const hasCredits = stats.some(es => es?.voteCredits != null)
-  const hasRewards = stats.some(es => es?.voteRewardLamports != null)
+// Cluster-wide: whether any validator of the epoch has credits, and whether any has a vote reward
+export function uptimeTypeOf(hasCredits: boolean, hasRewards: boolean): EpochUptimeType | undefined {
   // Only the migration epoch has both
   if (hasCredits && hasRewards) {
     return EpochUptimeType.MIGRATION
@@ -32,7 +30,19 @@ export function epochUptimeType(validators: AggregatedValidator[], epoch: number
   if (hasCredits) {
     return EpochUptimeType.TOWER
   }
-  throw new Error(`Validator credits and vote rewards data for epoch ${epoch} not available`)
+  return undefined
+}
+
+export function epochUptimeType(validators: AggregatedValidator[], epoch: number): EpochUptimeType {
+  const stats = validators.map(v => findEpochStats(v, epoch))
+  const type = uptimeTypeOf(
+    stats.some(es => es?.voteCredits != null),
+    stats.some(es => es?.voteRewardLamports != null),
+  )
+  if (type === undefined) {
+    throw new Error(`Validator credits and vote rewards data for epoch ${epoch} not available`)
+  }
+  return type
 }
 
 function meanTowerCredits(validators: AggregatedValidator[], epoch: number): Decimal {

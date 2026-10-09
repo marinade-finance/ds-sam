@@ -35,11 +35,16 @@ const commissionConfig = (
   ...overrides,
 })
 
-const meta = (vote_account: string, credits: bigint, overrides: Partial<PsrValidatorMeta> = {}): PsrValidatorMeta => ({
+const meta = (
+  vote_account: string,
+  credits: bigint | null,
+  overrides: Partial<PsrValidatorMeta> = {},
+): PsrValidatorMeta => ({
   vote_account,
   commission: 5,
   stake: STAKE,
   credits,
+  vote_reward_lamports: null,
   ...overrides,
 })
 
@@ -145,6 +150,31 @@ describe('calculateProtectedEventEstimates — DowntimeRevenueImpact', () => {
     const input = { ...downtimeInput([downtimeConfig()]), marinadeStakeLamports: new Map<string, bigint>() }
     expect(calculateProtectedEventEstimates(input)).toEqual([])
   })
+
+  it('counts null credits in a Tower epoch as no vote', () => {
+    const [event, ...rest] = calculateProtectedEventEstimates({
+      ...downtimeInput([downtimeConfig()]),
+      validatorMetas: [meta('down', null), meta('peer', 15000n)],
+    })
+    expect(rest).toEqual([])
+    // full loss, capped by covered_range_bps [0, 5000]
+    expect(event?.amount).toBe(50_000_000)
+    expect(event?.reason).toMatchObject({
+      ProtectedEvent: { DowntimeRevenueImpact: { actual_credits: 0, expected_credits: 7500, epr_loss_bps: 10000 } },
+    })
+  })
+
+  it('estimates no downtime in an Alpenglow epoch, the migration epoch, or without vote data', () => {
+    const alpenglow = [
+      meta('down', null, { vote_reward_lamports: 5000n }),
+      meta('peer', null, { vote_reward_lamports: 15000n }),
+    ]
+    const migration = [meta('down', 5000n, { vote_reward_lamports: 0n }), meta('peer', 15000n)]
+    const noData = [meta('down', null), meta('peer', null)]
+    for (const validatorMetas of [alpenglow, migration, noData]) {
+      expect(calculateProtectedEventEstimates({ ...downtimeInput([downtimeConfig()]), validatorMetas })).toEqual([])
+    }
+  })
 })
 
 const commissionInput = (
@@ -211,6 +241,15 @@ describe('calculateProtectedEventEstimates — CommissionSamIncrease', () => {
 
   it('never matches a commission event against a downtime config', () => {
     expect(calculateProtectedEventEstimates(commissionInput({}, [downtimeConfig()]))).toEqual([])
+  })
+
+  it('still settles a commission increase in an Alpenglow epoch', () => {
+    const [event, ...rest] = calculateProtectedEventEstimates({
+      ...commissionInput({}, [commissionConfig()]),
+      validatorMetas: [meta('rug', null, { vote_reward_lamports: 10000n })],
+    })
+    expect(rest).toEqual([])
+    expect(event?.amount).toBe(22_000_000)
   })
 })
 

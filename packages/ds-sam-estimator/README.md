@@ -26,8 +26,9 @@ will settle for epochs it has not processed yet, so dashboards can show unsettle
 ## Inputs
 
 - `ValidatorWithEpochs[]` — validators API `/validators?epochs=N` rows; stakes are lamport strings.
-- `PsrValidatorMeta[]` — the live epoch's `epoch_stats` (`commission_advertised`, `activated_stake`, `credits`) of
-  every vote account; `expected_credits` is their stake-weighted mean, so partial mid-epoch credits compare fairly.
+- `PsrValidatorMeta[]` — the live epoch's `epoch_stats` (`commission_advertised`, `activated_stake`, `credits`,
+  `vote_reward_lamports`) of every vote account; `expected_credits` is their stake-weighted mean, so partial mid-epoch
+  credits compare fairly. The epoch type follows calc `uptimeTypeOf`; downtime is estimated in Tower epochs only.
 - `samRun` — `samRunFromScores(rows, epoch)` over scoring API `/api/v1/scores/sam` rows.
 - `pastCommissions` — `pastCommissionsFromScores(rows, epoch - 1)` over the same rows.
 - `currentValidators`, `rewards` — `auctionData.validators` and `auctionData.rewards` of a live `DsSamSDK` run.

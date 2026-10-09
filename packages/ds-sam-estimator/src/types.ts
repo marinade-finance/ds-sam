@@ -3,7 +3,6 @@ import type { AuctionValidatorValues, RevShare } from '@marinade.finance/ds-sam-
 // Fields of one validators-API `epoch_stats` entry the estimator reads; stakes are lamport strings.
 export type ValidatorEpochStats = {
   epoch: number
-  credits: number
   commission_advertised: number | null
   activated_stake: string
   marinade_stake: string

@@ -14,7 +14,6 @@ const LAST_DRYRUN_EPOCH = 608 // live bonds pipeline: 608
 function makeEpochStat(epoch: number): ValidatorEpochStats {
   return {
     epoch,
-    credits: 432_000,
     activated_stake: '1000000000000',
     marinade_stake: '500000000000',
     marinade_native_stake: '500000000000',
