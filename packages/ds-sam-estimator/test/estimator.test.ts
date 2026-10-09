@@ -48,6 +48,7 @@ const meta = (
   credits,
   vote_reward_lamports: null,
   leader_slots: 0n,
+  epoch_stake: null,
   ...overrides,
 })
 
@@ -176,8 +177,12 @@ describe('calculateProtectedEventEstimates — DowntimeRevenueImpact', () => {
   })
 })
 
-const alpenglowMeta = (vote_account: string, voteReward: bigint | null, leaderSlots: bigint, stake = STAKE) =>
-  meta(vote_account, null, { vote_reward_lamports: voteReward, leader_slots: leaderSlots, stake })
+const alpenglowMeta = (
+  vote_account: string,
+  voteReward: bigint | null,
+  leaderSlots: bigint,
+  epochStake: bigint | null = STAKE,
+) => meta(vote_account, null, { vote_reward_lamports: voteReward, leader_slots: leaderSlots, epoch_stake: epochStake })
 
 // validator-bonds alpenglow_collection: w = s/S + L/N gives A 1000, B 800, C 600 of Σcredits 2400
 const ALPENGLOW_COLLECTION = [
@@ -220,17 +225,29 @@ describe('calculateProtectedEventEstimates — Alpenglow DowntimeRevenueImpact',
     ])
   })
 
-  it('skips a null vote reward and keeps it out of S and N', () => {
-    const unknown = alpenglowMeta('D', null, 6n, 10n * STAKE)
-    const events = calculateProtectedEventEstimates(alpenglowInput([...ALPENGLOW_COLLECTION, unknown], ['C', 'D']))
+  it('skips a staked non-member and keeps it out of S and N', () => {
+    const newcomer = { ...alpenglowMeta('D', 0n, 0n, null), stake: 10n * STAKE }
+    const events = calculateProtectedEventEstimates(alpenglowInput([...ALPENGLOW_COLLECTION, newcomer], ['C', 'D']))
     expect(events.map(({ vote_account }) => vote_account)).toEqual(['C'])
     expect(events[0]?.reason).toMatchObject({
       ProtectedEvent: { DowntimeRevenueImpact: { actual_credits: 400, expected_credits: 600 } },
     })
   })
 
-  it('charges a zero vote reward as a validator that cast no vote', () => {
-    const silent = alpenglowMeta('E', 0n, 1n)
+  it('weighs a member by its epoch stake, not its live stake', () => {
+    const validatorMetas = ALPENGLOW_COLLECTION.map(m =>
+      m.vote_account === 'A' ? { ...m, epoch_stake: STAKE / 2n } : m,
+    )
+    const events = calculateProtectedEventEstimates(alpenglowInput(validatorMetas, ['A', 'B', 'C']))
+    expect(events.map(({ vote_account }) => vote_account)).toEqual(['C'])
+    // scaled weights A 1.05e12, B 1.1e12, C 0.85e12 of 3e12 give C 680 of Σcredits 2400
+    expect(events[0]?.reason).toMatchObject({
+      ProtectedEvent: { DowntimeRevenueImpact: { actual_credits: 400, expected_credits: 680, stake: 100_000_000_000 } },
+    })
+  })
+
+  it.each([0n, null])('charges a member with vote reward %p as a validator that cast no vote', voteReward => {
+    const silent = alpenglowMeta('E', voteReward, 1n)
     const [event, ...rest] = calculateProtectedEventEstimates(alpenglowInput([...ALPENGLOW_COLLECTION, silent], ['E']))
     expect(rest).toEqual([])
     // full loss, capped by covered_range_bps [0, 5000]

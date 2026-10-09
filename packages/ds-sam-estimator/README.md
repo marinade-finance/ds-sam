@@ -29,8 +29,9 @@ will settle for epochs it has not processed yet, so dashboards can show unsettle
 - `PsrValidatorMeta[]` — the live epoch's `epoch_stats` (`commission_advertised`, `activated_stake`, `credits`,
   `vote_reward_lamports`, `leader_slots`) of every vote account. The epoch type follows calc `uptimeTypeOf`. In Tower
   `expected_credits` is the stake-weighted mean of credits, so partial mid-epoch credits compare fairly. In Alpenglow
-  the vote reward is compared with ts-common `alpenglowExpectedCredits` over validators with a vote reward; a null
-  vote reward is unknown and gets no downtime estimate. The migration epoch gets none.
+  the vote reward is compared with ts-common `alpenglowExpectedCredits` over the reward committee (non-null
+  `epoch_stake`, which also weights it), and a member without a vote reward counts 0. A non-member gets no downtime
+  estimate. The migration epoch gets none.
 - `samRun` — `samRunFromScores(rows, epoch)` over scoring API `/api/v1/scores/sam` rows.
 - `pastCommissions` — `pastCommissionsFromScores(rows, epoch - 1)` over the same rows.
 - `currentValidators`, `rewards` — `auctionData.validators` and `auctionData.rewards` of a live `DsSamSDK` run.

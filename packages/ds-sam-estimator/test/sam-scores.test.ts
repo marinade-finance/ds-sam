@@ -141,6 +141,7 @@ describe('scoring rows end to end', () => {
           credits: 10000n,
           vote_reward_lamports: null,
           leader_slots: 0n,
+          epoch_stake: null,
         },
       ],
       samRun: samRunFromScores(rows, 101),

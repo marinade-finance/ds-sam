@@ -48,6 +48,8 @@ export type PsrValidatorMeta = {
   credits: bigint | null
   vote_reward_lamports: bigint | null
   leader_slots: bigint
+  // stake in the epoch's Alpenglow reward committee; null is not a member
+  epoch_stake: bigint | null
 }
 
 export type ProtectedEventEstimatesInput = {
@@ -137,23 +139,23 @@ const towerCredits = (validatorMetas: PsrValidatorMeta[]): CreditsOutcome[] => {
 }
 
 const alpenglowCredits = (validatorMetas: PsrValidatorMeta[]): CreditsOutcome[] => {
-  // validators-api writes 0 for a staked validator without a vote reward; null means no data
-  const rewarded = validatorMetas.flatMap(meta =>
-    meta.vote_reward_lamports == null ? [] : [{ meta, credits: meta.vote_reward_lamports }],
+  // validator-bonds weighs only reward-committee members and counts a missing vote reward as 0
+  const members = validatorMetas.flatMap(meta =>
+    meta.epoch_stake == null ? [] : [{ meta, epochStake: meta.epoch_stake }],
   )
   const results = alpenglowExpectedCredits(
-    rewarded.map(({ meta, credits }) => ({
+    members.map(({ meta, epochStake }) => ({
       voteAccount: meta.vote_account,
-      stake: meta.stake,
+      stake: epochStake,
       leaderSlots: meta.leader_slots,
-      credits,
+      credits: meta.vote_reward_lamports ?? 0n,
     })),
     {
-      totalStake: rewarded.reduce((sum, { meta }) => sum + meta.stake, 0n),
-      totalSlots: rewarded.reduce((sum, { meta }) => sum + meta.leader_slots, 0n),
+      totalStake: members.reduce((sum, { epochStake }) => sum + epochStake, 0n),
+      totalSlots: members.reduce((sum, { meta }) => sum + meta.leader_slots, 0n),
     },
   )
-  return rewarded.flatMap(({ meta }, i) => {
+  return members.flatMap(({ meta }, i) => {
     const result = results[i]
     return result ? [{ meta, actual: result.actual, expected: result.expected }] : []
   })
