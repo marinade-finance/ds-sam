@@ -1,3 +1,5 @@
+import { EPSILON } from './constants'
+
 import type { AuctionValidator, AuctionConstraint, AuctionConstraintType, CommissionDetails } from './types'
 
 // "Not known", as opposed to "keeps everything": nothing on chain resolved and no override supplied a rate.
@@ -71,6 +73,12 @@ export const minCapFromConstraint = (
     cap: Math.max(0, Math.min(constraint.totalLeftToCapSol, constraint.marinadeLeftToCapSol)) / affectedValidators,
   }
 }
+
+// same gate as ds-sam-sdk findCapForValidator
+export const isConstraintBinding = (constraint: AuctionConstraint): boolean =>
+  Math.min(constraint.totalLeftToCapSol, constraint.marinadeLeftToCapSol) < EPSILON
+export const isCapBinding = (validator: Pick<AuctionValidator, 'lastCapConstraint'>): boolean =>
+  validator.lastCapConstraint != null && isConstraintBinding(validator.lastCapConstraint)
 
 export const formatLastCapConstraint = (constraint: AuctionConstraint | null) =>
   constraint ? `${constraint.constraintType} (${constraint.constraintName})` : 'NULL'

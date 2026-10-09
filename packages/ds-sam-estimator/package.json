@@ -1,5 +1,5 @@
 {
-  "name": "@marinade.finance/ds-sam-sdk",
+  "name": "@marinade.finance/ds-sam-estimator",
   "version": "0.6.0",
   "author": "Marinade Finance",
   "license": "ISC",
@@ -22,11 +22,7 @@
   ],
   "dependencies": {
     "@marinade.finance/ds-sam-calc": "workspace:*",
-    "axios": "^1.20.0",
-    "decimal.js": "^10.6.0",
-    "semver": "^7.7.4"
-  },
-  "devDependencies": {
-    "@types/semver": "7.7.1"
+    "@marinade.finance/ts-common": "^5.11.0",
+    "decimal.js": "^10.6.0"
   }
 }

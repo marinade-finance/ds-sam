@@ -1,20 +1,24 @@
 import {
   calcValidatorRevShare,
   DEFAULT_CONFIG,
-  epochUptimes,
   EpochUptimeType,
   InputsSource,
   isInflationCommissionUnresolved,
   ineligibleValidatorAggDefaults,
-  passesUptime,
   validatorAggDefaults,
 } from '@marinade.finance/ds-sam-calc'
-import semver from 'semver'
 
 import { Auction } from './auction'
 import { AuctionConstraints } from './constraints'
 import { DataProvider } from './data-provider/data-provider'
 import { Debug } from './debug'
+import {
+  computeSamEligibilityThresholds,
+  isBackstopEligible,
+  samIneligibilityGate,
+  samPmpeThreshold,
+} from './eligibility'
+import { buildAuctionConstraintsConfig } from './engine-config'
 
 import type { SourceDataOverrides } from './data-provider/data-provider.dto'
 import type {
@@ -24,7 +28,6 @@ import type {
   AuctionData,
   ValidatorAuctionStake,
   AuctionResult,
-  AuctionConstraintsConfig,
 } from '@marinade.finance/ds-sam-calc'
 
 export const defaultDataProviderBuilder = (config: DsSamConfig) => new DataProvider({ ...config }, config.inputsSource)
@@ -54,54 +57,21 @@ export class DsSamSDK {
     }
   }
 
-  getAuctionConstraints({ stakeAmounts }: AggregatedData, debug: Debug): AuctionConstraints {
-    const { networkTotalSol, marinadeSamTvlSol } = stakeAmounts
-    const marinadeTotalTvlSol = marinadeSamTvlSol
-    const constraints: AuctionConstraintsConfig = {
-      totalCountryStakeCapSol: networkTotalSol * this.config.maxNetworkStakeConcentrationPerCountryDec,
-      totalAsoStakeCapSol: networkTotalSol * this.config.maxNetworkStakeConcentrationPerAsoDec,
-      marinadeCountryStakeCapSol: marinadeTotalTvlSol * this.config.maxMarinadeStakeConcentrationPerCountryDec,
-      marinadeAsoStakeCapSol: marinadeTotalTvlSol * this.config.maxMarinadeStakeConcentrationPerAsoDec,
-      marinadeValidatorStakeCapSol: marinadeTotalTvlSol * this.config.maxMarinadeTvlSharePerValidatorDec,
-      minBondBalanceSol: this.config.minBondBalanceSol,
-      // if maxStakeWanted == null, disable the limit
-      minMaxStakeWanted: this.config.minMaxStakeWanted ?? Infinity,
-      minBondEpochs: this.config.minBondEpochs,
-      idealBondEpochs: this.config.idealBondEpochs,
-      unprotectedValidatorStakeCapSol: marinadeTotalTvlSol * this.config.maxUnprotectedStakePerValidatorDec,
-      minUnprotectedStakeToDelegateSol: this.config.minUnprotectedStakeToDelegateSol,
-      unprotectedFoundationStakeDec: this.config.unprotectedFoundationStakeDec,
-      unprotectedDelegatedStakeDec: this.config.unprotectedDelegatedStakeDec,
-      bondObligationSafetyMult: this.config.bondObligationSafetyMult,
-      bondSamHealthMult: this.config.bondSamHealthMult,
-    }
+  getAuctionConstraints(data: AggregatedData, debug: Debug): AuctionConstraints {
+    const constraints = buildAuctionConstraintsConfig(this.config, data)
     this.debug.pushInfo('auction constraints', JSON.stringify(constraints))
     return new AuctionConstraints(constraints, debug)
   }
 
   transformValidators({ validators, rewards, blacklist }: AggregatedData): AuctionValidator[] {
-    const maxEpoch = validators.reduce(
-      (max, { epochStats }) => epochStats.reduce((m, { epoch }) => Math.max(m, epoch), max),
-      0,
-    )
-    const minEpoch = maxEpoch - this.config.validatorsUptimeEpochsCount + 1
-    const uptimeEpochs = epochUptimes(validators, minEpoch, maxEpoch, this.config.validatorsUptimeThresholdDec)
-
-    const minEffectiveRevSharePmpe = Math.max(
-      0,
-      rewards.inflationPmpe * (1 - this.config.validatorsMaxEffectiveCommissionDec),
-    )
-    const minSamRevSharePmpe = Math.max(
-      0,
-      rewards.inflationPmpe + rewards.mevPmpe + (this.config.minEligibleFeePmpe ?? -Infinity),
-    )
-    this.debug.log('min rev share PMPE', minEffectiveRevSharePmpe)
+    const thresholds = computeSamEligibilityThresholds({ validators, rewards }, this.config)
+    this.debug.log('min rev share PMPE', thresholds.minEffectiveRevSharePmpe)
     this.debug.log('rewards', rewards)
     this.debug.log(
       'uptime epochs',
-      uptimeEpochs.map(e => (e.type === EpochUptimeType.ALPENGLOW ? { epoch: e.epoch, type: e.type } : e)),
+      thresholds.uptimeEpochs.map(e => (e.type === EpochUptimeType.ALPENGLOW ? { epoch: e.epoch, type: e.type } : e)),
     )
-    this.debug.pushInfo('min effective rev share', minEffectiveRevSharePmpe.toString())
+    this.debug.pushInfo('min effective rev share', thresholds.minEffectiveRevSharePmpe.toString())
     this.debug.pushInfo('estimated rewards', JSON.stringify(rewards))
 
     const unresolvedCommission = validators.filter(validator =>
@@ -128,7 +98,8 @@ export class DsSamSDK {
         externalActivatedSol: validator.totalActivatedStakeSol - validator.marinadeActivatedStakeSol,
         marinadeSamTargetSol: 0,
       }
-      if (blacklist.has(validator.voteAccount)) {
+      const gate = samIneligibilityGate(validator, blacklist, thresholds, this.config)
+      if (gate !== null && gate !== 'noBond') {
         return {
           ...validator,
           revShare,
@@ -136,39 +107,8 @@ export class DsSamSDK {
           ...ineligibleValidatorAggDefaults(),
         }
       }
-      if (
-        !semver.satisfies(validator.clientVersion, this.config.validatorsClientVersionSemverExpr, {
-          includePrerelease: true,
-        })
-      ) {
-        return {
-          ...validator,
-          revShare,
-          auctionStake,
-          ...ineligibleValidatorAggDefaults(),
-        }
-      }
-      if (!passesUptime(validator, uptimeEpochs, this.config.validatorsUptimeThresholdDec)) {
-        return {
-          ...validator,
-          revShare,
-          auctionStake,
-          ...ineligibleValidatorAggDefaults(),
-        }
-      }
-      if (isInflationCommissionUnresolved(validator.values.commissions)) {
-        return {
-          ...validator,
-          revShare,
-          auctionStake,
-          ...ineligibleValidatorAggDefaults(),
-        }
-      }
-      // Block revenue is off both sides: it is shareable only through a bond, and the backstop admits bondless validators
-      const zeroCommissionPmpe = Math.max(0, rewards.inflationPmpe + rewards.mevPmpe)
-      const backstopEligible =
-        this.config.enableZeroCommissionBackstop && revShare.inflationPmpe + revShare.mevPmpe >= zeroCommissionPmpe
-      if (validator.bondBalanceSol === null) {
+      const backstopEligible = isBackstopEligible(revShare, rewards, this.config)
+      if (gate === 'noBond') {
         return {
           ...validator,
           revShare,
@@ -177,7 +117,7 @@ export class DsSamSDK {
           backstopEligible,
         }
       }
-      const samEligible = revShare.totalPmpe >= Math.max(minEffectiveRevSharePmpe, minSamRevSharePmpe)
+      const samEligible = revShare.totalPmpe >= samPmpeThreshold(thresholds)
 
       return {
         ...validator,
@@ -190,13 +130,23 @@ export class DsSamSDK {
     })
   }
 
-  async auction(dataOverrides: SourceDataOverrides | null = null): Promise<Auction> {
+  // all three share objects Auction.evaluate() mutates, so clone before evaluating if you keep any
+  async prepareAuctionData(dataOverrides: SourceDataOverrides | null = null): Promise<{
+    aggregatedData: AggregatedData
+    constraints: AuctionConstraints
+    auctionData: AuctionData
+  }> {
     const aggregatedData = await this.getAggregatedData(dataOverrides)
     const constraints = this.getAuctionConstraints(aggregatedData, this.debug)
     const auctionData: AuctionData = {
       ...aggregatedData,
       validators: this.transformValidators(aggregatedData),
     }
+    return { aggregatedData, constraints, auctionData }
+  }
+
+  async auction(dataOverrides: SourceDataOverrides | null = null): Promise<Auction> {
+    const { auctionData, constraints } = await this.prepareAuctionData(dataOverrides)
     return new Auction(auctionData, constraints, this.config, this.debug)
   }
 
