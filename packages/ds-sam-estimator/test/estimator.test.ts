@@ -5,8 +5,10 @@ import { calculateProtectedEventEstimates } from '../src'
 import type {
   CommissionSamIncreaseSettlementConfig,
   DowntimeRevenueImpactSettlementConfig,
+  ProtectedEvent,
   PsrValidatorMeta,
   SettlementConfig,
+  VatAdmission,
   VatUnadmittedSettlementConfig,
 } from '../src'
 import type { PastValidatorCommissions, RevenueValidatorInput } from '@marinade.finance/ds-sam-calc'
@@ -285,6 +287,116 @@ describe('calculateProtectedEventEstimates — Alpenglow DowntimeRevenueImpact',
   it('still skips a 100% commission validator', () => {
     const validatorMetas = ALPENGLOW_COLLECTION.map(m => (m.vote_account === 'C' ? { ...m, commission: 100 } : m))
     expect(calculateProtectedEventEstimates(alpenglowInput(validatorMetas, ['A', 'B', 'C']))).toEqual([])
+  })
+})
+
+// validator-bonds alpenglow_collection for VAT: 500 bps applied, D staked outside the committee without votes
+const VAT_COLLECTION = [
+  ...ALPENGLOW_COLLECTION.map(m => ({ ...m, inflation_rewards_commission_bps: 500 })),
+  meta('D', null, { epoch_stake: null, inflation_rewards_commission_bps: 500 }),
+]
+
+const refused = (...voteAccounts: string[]): VatAdmission[] =>
+  voteAccounts.map(vote_account => ({ vote_account, inflation_rewards_admitted: false }))
+
+// inflationPmpe 100 is validator-bonds' rewards_per_stake 0.1, so 500 bps gives expected_epr 0.095
+const vatInput = (
+  validatorMetas: PsrValidatorMeta[],
+  vatAdmissions: VatAdmission[] | undefined,
+  settlementConfigs: SettlementConfig[] = [vatConfig()],
+  inflationPmpe = 100,
+) => ({
+  epoch: 100,
+  validatorMetas,
+  ...revenue(validatorMetas.map(({ vote_account }) => validator(vote_account))),
+  rewards: { ...REWARDS, inflationPmpe },
+  marinadeStakeLamports: new Map(validatorMetas.map(({ vote_account }) => [vote_account, STAKE])),
+  settlementConfigs,
+  vatAdmissions,
+})
+
+const reasonRows = (events: ProtectedEvent[]) =>
+  events.map(e => [e.vote_account, Object.keys((e.reason as { ProtectedEvent: object }).ProtectedEvent)[0], e.amount])
+
+const withA = (overrides: Partial<PsrValidatorMeta>) =>
+  VAT_COLLECTION.map(m => (m.vote_account === 'A' ? { ...m, ...overrides } : m))
+
+describe('calculateProtectedEventEstimates — VatUnadmitted', () => {
+  it('matches validator-bonds vat_unadmitted_needs_stake_votes_and_a_commission_below_100_percent', () => {
+    expect(calculateProtectedEventEstimates(vatInput(VAT_COLLECTION, refused('A', 'D')))).toEqual([
+      {
+        epoch: 100,
+        amount: 9_500_000_000,
+        vote_account: 'A',
+        meta: { funder: 'ValidatorBond' },
+        reason: {
+          ProtectedEvent: {
+            VatUnadmitted: {
+              vote_account: 'A',
+              actual_credits: 1000,
+              expected_epr: 0.095,
+              actual_epr: 0,
+              epr_loss_bps: 10000,
+              stake: 100_000_000_000,
+            },
+          },
+        },
+      },
+    ])
+    for (const overrides of [
+      { vote_reward_lamports: 0n },
+      { inflation_rewards_commission_bps: 10000 },
+      { stake: 0n },
+    ]) {
+      expect(calculateProtectedEventEstimates(vatInput(withA(overrides), refused('A')))).toEqual([])
+    }
+  })
+
+  it('matches vat_unadmitted_needs_the_snapshot_to_refuse_the_validator', () => {
+    for (const admitted of [true, null]) {
+      const vatAdmissions = [{ vote_account: 'A', inflation_rewards_admitted: admitted }]
+      expect(calculateProtectedEventEstimates(vatInput(VAT_COLLECTION, vatAdmissions))).toEqual([])
+    }
+    expect(calculateProtectedEventEstimates(vatInput(VAT_COLLECTION, refused('B')))).toHaveLength(1)
+    expect(calculateProtectedEventEstimates(vatInput(VAT_COLLECTION, refused()))).toEqual([])
+  })
+
+  it('fires in a Tower epoch on vote credits', () => {
+    const towerMetas = [meta('low', 2000n, { inflation_rewards_commission_bps: 0 }), meta('peer', 10000n)]
+    expect(reasonRows(calculateProtectedEventEstimates(vatInput(towerMetas, refused('low'))))).toEqual([
+      ['low', 'VatUnadmitted', 10_000_000_000],
+    ])
+  })
+
+  it('matches vat_unadmitted_never_fires_in_the_migration_epoch', () => {
+    const migrationMetas = VAT_COLLECTION.map(m => ({ ...m, credits: 1000n }))
+    expect(calculateProtectedEventEstimates(vatInput(migrationMetas, refused('A', 'B', 'C')))).toEqual([])
+  })
+
+  it('matches vat_unadmitted_replaces_the_downtime_event, before any settlement config applies', () => {
+    const configs = [downtimeConfig(), vatConfig()]
+    expect(reasonRows(calculateProtectedEventEstimates(vatInput(VAT_COLLECTION, refused('C'), configs)))).toEqual([
+      ['C', 'VatUnadmitted', 9_500_000_000],
+    ])
+    expect(reasonRows(calculateProtectedEventEstimates(vatInput(VAT_COLLECTION, undefined, configs)))).toEqual([
+      ['C', 'DowntimeRevenueImpact', 33_333_333],
+    ])
+    expect(calculateProtectedEventEstimates(vatInput(VAT_COLLECTION, refused('C'), [downtimeConfig()]))).toEqual([])
+  })
+
+  it('matches vat_unadmitted_needs_a_revenue_expectation', () => {
+    const { samRun, currentValidators } = revenue(['A', 'B', 'D'].map(voteAccount => validator(voteAccount)))
+    const input = vatInput(VAT_COLLECTION, refused('C'), [downtimeConfig(), vatConfig()])
+    expect(calculateProtectedEventEstimates({ ...input, samRun, currentValidators })).toEqual([])
+  })
+
+  it('matches vat_unadmitted_matches_only_its_settlement_config: 1000 lamports at 0.0095 claim 9', () => {
+    const input = (settlementConfigs: SettlementConfig[]) => ({
+      ...vatInput(VAT_COLLECTION, refused('A'), settlementConfigs, 10),
+      marinadeStakeLamports: new Map([['A', 1000n]]),
+    })
+    expect(reasonRows(calculateProtectedEventEstimates(input([vatConfig()])))).toEqual([['A', 'VatUnadmitted', 9]])
+    expect(calculateProtectedEventEstimates(input([downtimeConfig()]))).toEqual([])
   })
 })
 

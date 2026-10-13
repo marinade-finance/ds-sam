@@ -66,6 +66,12 @@ export type PsrValidatorMeta = {
   epoch_stake: bigint | null
 }
 
+// One solana-snapshot-parser validators.json `validator_metas[]` row, the fields VAT reads
+export type VatAdmission = {
+  vote_account: string
+  inflation_rewards_admitted: boolean | null
+}
+
 export type ProtectedEventEstimatesInput = {
   epoch: number
   validatorMetas: PsrValidatorMeta[]
@@ -79,6 +85,8 @@ export type ProtectedEventEstimatesInput = {
   // voteAccount → Marinade stake lamports; stands in for the per-staker groups validator-bonds sums claims over
   marinadeStakeLamports: Map<string, bigint>
   settlementConfigs: readonly SettlementConfig[]
+  // without it no VatUnadmitted is estimated; the caller owns the private snapshot data
+  vatAdmissions?: readonly VatAdmission[]
 }
 
 type PsrEvent =
@@ -230,6 +238,54 @@ const downtimeRevenueImpactEvents = (
     ]
   })
 
+// validator-bonds collect_vat_unadmitted_events; rewards_per_stake comes from the SDK's inflation PMPE
+const vatUnadmittedEvents = (
+  validatorMetas: PsrValidatorMeta[],
+  expectations: Map<string, RevenueExpectation>,
+  admissions: readonly VatAdmission[],
+  rewards: Pick<Rewards, 'inflationPmpe'>,
+): PsrEvent[] => {
+  if (epochTypeOf(validatorMetas) === EpochUptimeType.MIGRATION) {
+    return []
+  }
+  const refused = new Set(
+    admissions.filter(row => row.inflation_rewards_admitted === false).map(row => row.vote_account),
+  )
+  return validatorMetas.flatMap((meta): PsrEvent[] => {
+    const actualCredits = meta.credits ?? meta.vote_reward_lamports ?? 0n
+    const appliedCommissionBps = meta.inflation_rewards_commission_bps ?? meta.commission * 100
+    if (
+      !refused.has(meta.vote_account) ||
+      meta.stake <= 0n ||
+      actualCredits <= 0n ||
+      appliedCommissionBps >= 10000 ||
+      !expectations.has(meta.vote_account)
+    ) {
+      return []
+    }
+    const expectedEpr = new Dec(rewards.inflationPmpe)
+      .div(1000)
+      .mul(10000 - appliedCommissionBps)
+      .div(10000)
+    const actualEpr = new Dec(0)
+    return [
+      {
+        type: 'VatUnadmittedSettlement',
+        expectedEpr,
+        actualEpr,
+        payload: {
+          vote_account: meta.vote_account,
+          actual_credits: Number(actualCredits),
+          expected_epr: expectedEpr.toNumber(),
+          actual_epr: actualEpr.toNumber(),
+          epr_loss_bps: 10000,
+          stake: Number(meta.stake),
+        },
+      },
+    ]
+  })
+}
+
 const graceBps = (config: SettlementConfig): number => {
   switch (config.type) {
     case 'DowntimeRevenueImpactSettlement':
@@ -288,6 +344,7 @@ export const calculateProtectedEventEstimates = ({
   rewards,
   marinadeStakeLamports,
   settlementConfigs,
+  vatAdmissions,
 }: ProtectedEventEstimatesInput): ProtectedEvent[] => {
   const revenueExpectations = evaluateRevenueExpectations(
     samRun.validators,
@@ -297,10 +354,13 @@ export const calculateProtectedEventEstimates = ({
     rewards,
   )
   const expectations = new Map(revenueExpectations.map(e => [e.voteAccount, e]))
-  const events = [
-    ...commissionIncreaseEvents(validatorMetas, expectations),
-    ...downtimeRevenueImpactEvents(validatorMetas, expectations),
-  ]
+  const vatEvents = vatAdmissions ? vatUnadmittedEvents(validatorMetas, expectations, vatAdmissions, rewards) : []
+  const vatVoteAccounts = new Set(vatEvents.map(event => event.payload.vote_account))
+  // as in validator-bonds, a VAT event replaces the downtime event before any settlement config applies
+  const downtimeEvents = downtimeRevenueImpactEvents(validatorMetas, expectations).filter(
+    event => !vatVoteAccounts.has(event.payload.vote_account),
+  )
+  const events = [...commissionIncreaseEvents(validatorMetas, expectations), ...vatEvents, ...downtimeEvents]
   return settlementConfigs.flatMap(config =>
     events
       .filter(event => event.type === config.type && event.payload.epr_loss_bps > graceBps(config))
