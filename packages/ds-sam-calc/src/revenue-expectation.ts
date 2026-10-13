@@ -1,3 +1,5 @@
+import { EPSILON } from './constants'
+
 import type { AuctionValidator, RevShare, Rewards } from './types'
 
 // Field order is the key order of evaluation.json, which validator-bonds settles PSR events from
@@ -36,10 +38,10 @@ export type RevenueExpectationLogger = {
   debug: (message: string, context: object) => void
 }
 
-// The scoring API stores per-validator rows only, so a past run's clearing price is rebuilt from its winners
+// Rebuilt from scoring rows; like Auction.distributeSamStake, a sub-EPSILON crumb sets no price
 export const winningTotalPmpeOf = (rows: { marinadeSamTargetSol: number; revShare: { totalPmpe: number } }[]): number =>
   rows
-    .filter(entry => entry.marinadeSamTargetSol > 0)
+    .filter(entry => entry.marinadeSamTargetSol >= EPSILON)
     .reduce((min, entry) => Math.min(min, entry.revShare.totalPmpe), Infinity)
 
 export const evaluateRevenueExpectations = (

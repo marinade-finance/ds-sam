@@ -25,7 +25,7 @@ export type AuctionPenaltyInput = {
 }
 
 // One scoring-API `/api/v1/scores/sam` row.
-export type ScoringEntry = AuctionPenaltyInput & { epoch: number }
+export type ScoringEntry = AuctionPenaltyInput & { epoch: number; metadata?: { scoringId?: string } }
 
 export type SettlementFunder = 'ValidatorBond' | 'Marinade'
 

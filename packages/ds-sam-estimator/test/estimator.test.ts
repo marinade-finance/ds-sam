@@ -44,6 +44,7 @@ const meta = (
 ): PsrValidatorMeta => ({
   vote_account,
   commission: 5,
+  inflation_rewards_commission_bps: null,
   stake: STAKE,
   credits,
   vote_reward_lamports: null,
@@ -148,6 +149,16 @@ describe('calculateProtectedEventEstimates — DowntimeRevenueImpact', () => {
       }),
     ).toEqual([])
     expect(calculateProtectedEventEstimates({ ...downtimeInput([downtimeConfig()]), ...revenue([]) })).toEqual([])
+  })
+
+  it('gates on the applied commission bps, not the advertised percent', () => {
+    const withCommission = (overrides: Partial<PsrValidatorMeta>) =>
+      calculateProtectedEventEstimates({
+        ...downtimeInput([downtimeConfig()]),
+        validatorMetas: [meta('down', 5000n, overrides), meta('peer', 15000n)],
+      })
+    expect(withCommission({ commission: 5, inflation_rewards_commission_bps: 10000 })).toEqual([])
+    expect(withCommission({ commission: 100, inflation_rewards_commission_bps: 500 })).toHaveLength(1)
   })
 
   it('settles nothing without Marinade stake', () => {

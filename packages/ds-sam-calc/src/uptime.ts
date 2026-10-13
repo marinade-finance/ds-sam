@@ -1,3 +1,4 @@
+import { alpenglowExpectedCredits } from '@marinade.finance/ts-common/dist/src/browser'
 import Decimal from 'decimal.js'
 
 import type { AggregatedValidator, EpochStats } from './types'
@@ -59,6 +60,14 @@ function meanTowerCredits(validators: AggregatedValidator[], epoch: number): Dec
   return weightedCredits.div(weight)
 }
 
+function toCount(value: Decimal.Value, label: string): bigint {
+  const count = new Decimal(value)
+  if (!count.isInteger() || count.lt(0)) {
+    throw new Error(`Validator ${label} must be a non-negative integer, got ${value.toString()}`)
+  }
+  return BigInt(count.toFixed())
+}
+
 function alpenglowScores(validators: AggregatedValidator[], epoch: number): Map<string, number> {
   // S and N sum only over validators with a vote reward
   const admitted = validators.flatMap(validator => {
@@ -67,35 +76,24 @@ function alpenglowScores(validators: AggregatedValidator[], epoch: number): Map<
       ? [
           {
             voteAccount: validator.voteAccount,
-            stake: es.totalActivatedStake,
-            leaderSlots: es.leaderSlots,
-            reward: es.voteRewardLamports,
+            stake: toCount(es.totalActivatedStake, `${validator.voteAccount} epoch ${epoch} stake`),
+            leaderSlots: toCount(es.leaderSlots, `${validator.voteAccount} epoch ${epoch} leader slots`),
+            credits: toCount(es.voteRewardLamports, `${validator.voteAccount} epoch ${epoch} vote reward`),
           },
         ]
       : []
   })
-  const totalStake = Decimal.sum(0, ...admitted.map(({ stake }) => stake))
-  const totalLeaderSlots = admitted.reduce((sum, { leaderSlots }) => sum + leaderSlots, 0)
-  // w = stake/S + leader_slots/N
-  const weighted = admitted.map(entry => {
-    const stakeShare = totalStake.isZero() ? new Decimal(0) : entry.stake.div(totalStake)
-    const leaderShare = totalLeaderSlots === 0 ? 0 : entry.leaderSlots / totalLeaderSlots
-    return { ...entry, weight: stakeShare.add(leaderShare) }
+  const results = alpenglowExpectedCredits(admitted, {
+    totalStake: admitted.reduce((sum, { stake }) => sum + stake, 0n),
+    totalSlots: admitted.reduce((sum, { leaderSlots }) => sum + leaderSlots, 0n),
   })
-  const totalWeight = Decimal.sum(0, ...weighted.map(({ weight }) => weight))
-  const totalReward = Decimal.sum(0, ...weighted.map(({ reward }) => reward))
-  if (totalReward.isZero() || totalWeight.isZero()) {
+  // Every uptime is null exactly when the reward or the weight sums to zero
+  if (results.every(({ uptime }) => uptime === null)) {
     throw new Error(`Validator vote rewards for epoch ${epoch} sum to zero`)
   }
-  const meanRewardPerWeight = totalReward.div(totalWeight)
-  const scores = new Map<string, number>()
-  // uptime = (reward/w) / (Σreward/Σw)
-  for (const { voteAccount, reward, weight } of weighted) {
-    if (!weight.isZero()) {
-      scores.set(voteAccount, new Decimal(reward).div(weight).div(meanRewardPerWeight).toNumber())
-    }
-  }
-  return scores
+  return new Map(
+    results.flatMap(({ voteAccount, uptime }) => (uptime === null ? [] : [[voteAccount, uptime.toNumber()] as const])),
+  )
 }
 
 export function epochUptimes(

@@ -27,7 +27,8 @@ will settle for epochs it has not processed yet, so dashboards can show unsettle
 
 - `ValidatorWithEpochs[]` — validators API `/validators?epochs=N` rows; stakes are lamport strings.
 - `PsrValidatorMeta[]` — the live epoch's `epoch_stats` (`commission_advertised`, `activated_stake`, `credits`,
-  `vote_reward_lamports`, `leader_slots`) of every vote account. The epoch type follows calc `uptimeTypeOf`. In Tower
+  `vote_reward_lamports`, `leader_slots`) of every vote account, plus the applied inflation commission in bps when
+  known; like validator-bonds, downtime is skipped at an applied 100%. The epoch type follows calc `uptimeTypeOf`. In Tower
   `expected_credits` is the stake-weighted mean of credits, so partial mid-epoch credits compare fairly. In Alpenglow
   the vote reward is compared with ts-common `alpenglowExpectedCredits` over the reward committee (non-null
   `epoch_stake`, which also weights it), and a member without a vote reward counts 0. A non-member gets no downtime

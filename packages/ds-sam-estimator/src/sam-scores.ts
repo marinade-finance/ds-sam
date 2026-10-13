@@ -29,7 +29,18 @@ export type SamScoreRow = {
   metadata?: { scoringId?: string }
 }
 
-const runSlot = (row: SamScoreRow): number => Number(row.metadata?.scoringId?.split('.')[1] ?? 0)
+type RunRow = { epoch: number; metadata?: { scoringId?: string } }
+
+const runSlot = (row: RunRow): number => Number(row.metadata?.scoringId?.split('.')[1] ?? 0)
+
+// validator-bonds evaluates the epoch's highest-slot auction run, so a re-run supersedes the earlier one
+export const latestRunRows = <R extends RunRow>(rows: R[]): R[] => {
+  const lastSlots = new Map<number, number>()
+  for (const row of rows) {
+    lastSlots.set(row.epoch, Math.max(lastSlots.get(row.epoch) ?? -Infinity, runSlot(row)))
+  }
+  return rows.filter(row => runSlot(row) === lastSlots.get(row.epoch))
+}
 
 // The SDK writes values.commissions.mevCommissionDec as `?? 1`; the same rule tells when it was null
 const revenueValidatorFromScore = (row: SamScoreRow): RevenueValidatorInput => {
@@ -51,11 +62,8 @@ const revenueValidatorFromScore = (row: SamScoreRow): RevenueValidatorInput => {
   }
 }
 
-// validator-bonds evaluates the epoch's highest-slot auction run, so a re-run supersedes the earlier one
 export const samRunFromScores = (rows: SamScoreRow[], epoch: number): ProtectedEventEstimatesInput['samRun'] => {
-  const epochRows = rows.filter(row => row.epoch === epoch)
-  const lastSlot = Math.max(...epochRows.map(runSlot))
-  const runRows = epochRows.filter(row => runSlot(row) === lastSlot)
+  const runRows = latestRunRows(rows.filter(row => row.epoch === epoch))
   return {
     winningTotalPmpe: winningTotalPmpeOf(runRows),
     validators: runRows.map(revenueValidatorFromScore),
@@ -67,7 +75,7 @@ export const pastCommissionsFromScores = (
   epoch: number,
 ): Map<string, PastValidatorCommissions> => {
   const past = new Map<string, PastValidatorCommissions>()
-  for (const row of rows) {
+  for (const row of latestRunRows(rows)) {
     const commissions = row.values?.commissions
     // an unknown applied rate is left out, which charges nothing, as analyze-revenues does without a past snapshot
     if (row.epoch !== epoch || commissions?.inflationCommissionOnchainDec == null) {

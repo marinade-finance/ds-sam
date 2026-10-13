@@ -44,6 +44,8 @@ export type SettlementConfig = DowntimeRevenueImpactSettlementConfig | Commissio
 export type PsrValidatorMeta = {
   vote_account: string
   commission: number
+  // the rate applied to the epoch's inflation rewards; null falls back to `commission`
+  inflation_rewards_commission_bps: number | null
   stake: bigint
   credits: bigint | null
   vote_reward_lamports: bigint | null
@@ -182,7 +184,8 @@ const downtimeRevenueImpactEvents = (
 ): PsrEvent[] =>
   creditsOutcomes(validatorMetas).flatMap(({ meta, actual, expected }): PsrEvent[] => {
     const expectation = expectations.get(meta.vote_account)
-    if (meta.stake <= 0n || !expectation || actual >= expected || meta.commission >= 100) {
+    const appliedCommissionBps = meta.inflation_rewards_commission_bps ?? meta.commission * 100
+    if (meta.stake <= 0n || !expectation || actual >= expected || appliedCommissionBps >= 10000) {
       return []
     }
     const uptime = new Dec(actual.toString()).div(expected.toString())

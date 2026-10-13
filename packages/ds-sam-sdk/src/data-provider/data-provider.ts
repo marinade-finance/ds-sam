@@ -7,6 +7,7 @@ import {
   effectiveCommissions,
   winningTotalPmpeOf,
 } from '@marinade.finance/ds-sam-calc'
+import { lamportsToSol } from '@marinade.finance/ts-common/dist/src/browser'
 import axios from 'axios'
 import Decimal from 'decimal.js'
 
@@ -76,12 +77,13 @@ export class DataProvider {
   private aggregateRewardsRecords(
     activatedStakePerEpochs: Map<number, Decimal>,
     rawRewardsRecord: RawRewardsRecordDto[],
+    series: string,
   ): number {
     const rewardsTotal = rawRewardsRecord.reduce(
       (agg, [epoch, rewards]) => {
         const stake = activatedStakePerEpochs.get(epoch)
         // Rewards in SOL (1e9) + stake in lamports (1e-0) + result in PMPE (1e3) = 1e12
-        return stake
+        return stake && !stake.isZero()
           ? {
               epochs: agg.epochs + 1,
               total: agg.total.add(new Decimal(rewards).mul(1e12).div(stake)),
@@ -91,6 +93,9 @@ export class DataProvider {
       { epochs: 0, total: new Decimal(0) },
     )
 
+    if (rewardsTotal.epochs === 0) {
+      throw new Error(`No ${series} rewards epoch has a recorded stake to average over`)
+    }
     return rewardsTotal.total.div(rewardsTotal.epochs).toNumber()
   }
 
@@ -128,7 +133,7 @@ export class DataProvider {
   ): number {
     const slotsPerYearByEpoch = new Map(rewards.slots_per_year ?? [])
     if (slotsPerYearByEpoch.size === 0) {
-      return this.aggregateRewardsRecords(activatedStakePerEpochs, rewards.rewards_inflation_est)
+      return this.aggregateRewardsRecords(activatedStakePerEpochs, rewards.rewards_inflation_est, 'inflation')
     }
 
     const normalized = rewards.rewards_inflation_est
@@ -146,7 +151,7 @@ export class DataProvider {
           : [epoch, new Decimal(amount).mul(slotsPerYear).div(targetSlotsPerYear).toNumber()]
       })
 
-    return this.aggregateRewardsRecords(activatedStakePerEpochs, normalized)
+    return this.aggregateRewardsRecords(activatedStakePerEpochs, normalized, 'inflation')
   }
 
   private processAuctions(input: RawScoredValidatorDto[]): AuctionHistory[] {
@@ -255,7 +260,7 @@ export class DataProvider {
       let mevCommissionDec = mevCommissionOverrideDec ?? effective.mevDec
       let blockRewardsCommissionDec = blockRewardsCommissionOverrideDec ?? blockRewardsCommissionInBondDec
 
-      const bidCpmpeInBondDec = bond?.cpmpe != null ? new Decimal(bond.cpmpe).div(1e9).toNumber() : null
+      const bidCpmpeInBondDec = bond?.cpmpe != null ? lamportsToSol(bond.cpmpe).toNumber() : null
       const bidCpmpeDec = bidCpmpeOverrideDec ?? bidCpmpeInBondDec
 
       // safeguard against validator accidentally overly low commission to pay overly more than 100% of rewards
@@ -279,15 +284,17 @@ export class DataProvider {
         .flatMap(auction => auction.validators)
         .find(v => v.voteAccount === validator.vote_account)
       const auctions = auctionHistoriesData.map(auction => this.extractAuctionHistoryStats(auction, validator))
-      const bondBalanceSol = bond ? new Decimal(bond.effective_amount).div(1e9).toNumber() : null
+      const bondBalanceSol = bond ? lamportsToSol(bond.effective_amount).toNumber() : null
       const claimableBondBalanceSol = bond
-        ? Math.max(0, new Decimal(bond.funded_amount).sub(bond.remainining_settlement_claim_amount).div(1e9).toNumber())
+        ? Math.max(
+            0,
+            lamportsToSol(new Decimal(bond.funded_amount).sub(bond.remainining_settlement_claim_amount)).toNumber(),
+          )
         : null
-      const marinadeLiquidStakeSol = new Decimal(validator.marinade_stake).div(1e9).toNumber()
-      const marinadeActivatedStakeSol = new Decimal(validator.marinade_stake)
-        .add(validator.marinade_native_stake)
-        .div(1e9)
-        .toNumber()
+      const marinadeLiquidStakeSol = lamportsToSol(validator.marinade_stake).toNumber()
+      const marinadeActivatedStakeSol = lamportsToSol(
+        new Decimal(validator.marinade_stake).add(validator.marinade_native_stake),
+      ).toNumber()
 
       return {
         voteAccount: validator.vote_account,
@@ -300,14 +307,14 @@ export class DataProvider {
         lastBondBalanceSol: lastAuctionHistory?.values?.bondBalanceSol ?? null,
         lastMarinadeActivatedStakeSol: lastAuctionHistory?.values?.marinadeActivatedStakeSol ?? null,
         lastSamBlacklisted: lastAuctionHistory?.values?.samBlacklisted ?? null,
-        totalActivatedStakeSol: new Decimal(validator.activated_stake).div(1e9).toNumber(),
+        totalActivatedStakeSol: lamportsToSol(validator.activated_stake).toNumber(),
         marinadeActivatedStakeSol,
         inflationCommissionDec,
         mevCommissionDec,
         blockRewardsCommissionDec,
         bidCpmpe: bidCpmpeDec,
         maxStakeWanted:
-          this.config.minMaxStakeWanted != null && bond ? new Decimal(bond.max_stake_wanted).div(1e9).toNumber() : null,
+          this.config.minMaxStakeWanted != null && bond ? lamportsToSol(bond.max_stake_wanted).toNumber() : null,
         values: {
           bondBalanceSol,
           marinadeActivatedStakeSol,
@@ -336,8 +343,8 @@ export class DataProvider {
             minimalCommissionDec,
           },
         },
-        foundationStakeSol: new Decimal(validator.foundation_stake).div(1e9).toNumber(),
-        selfStakeSol: new Decimal(validator.self_stake).div(1e9).toNumber(),
+        foundationStakeSol: lamportsToSol(validator.foundation_stake).toNumber(),
+        selfStakeSol: lamportsToSol(validator.self_stake).toNumber(),
         epochStats: validator.epoch_stats
           .filter(({ epoch_end_at }) => !!epoch_end_at)
           .map(es => ({
@@ -383,14 +390,14 @@ export class DataProvider {
       validators: this.aggregateValidators(data, blacklist, dataOverrides),
       rewards: {
         inflationPmpe: this.aggregateInflationRecords(activatedStakePerEpochs, data.rewards, slotParams.slotsPerYear),
-        mevPmpe: this.aggregateRewardsRecords(activatedStakePerEpochs, data.rewards.rewards_mev),
-        blockPmpe: data.rewards.rewards_block
-          ? this.aggregateRewardsRecords(activatedStakePerEpochs, data.rewards.rewards_block)
+        mevPmpe: this.aggregateRewardsRecords(activatedStakePerEpochs, data.rewards.rewards_mev, 'mev'),
+        blockPmpe: data.rewards.rewards_block?.length
+          ? this.aggregateRewardsRecords(activatedStakePerEpochs, data.rewards.rewards_block, 'block')
           : 0,
       },
       slotParams,
       stakeAmounts: {
-        networkTotalSol: externalStakeTotal.div(1e9).add(tvlSol).toNumber(),
+        networkTotalSol: lamportsToSol(externalStakeTotal).add(tvlSol).toNumber(),
         marinadeSamTvlSol: tvlSol,
         marinadeRemainingSamSol: tvlSol,
       },

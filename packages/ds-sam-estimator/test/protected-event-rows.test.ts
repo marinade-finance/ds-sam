@@ -238,6 +238,50 @@ describe('buildProtectedEventRows settled-epoch guard', () => {
     ).toEqual([[1009, 'BondRiskFee', 500_000_000]])
   })
 
+  it('emits no BondRiskFee for a validator with zero Marinade stake in that epoch', () => {
+    const result = buildProtectedEventRows({
+      validators: [
+        {
+          ...makeValidator([1010, 1008]),
+          epoch_stats: [
+            makeEpochStat(1010),
+            { ...makeEpochStat(1009), marinade_stake: '0', marinade_native_stake: '0' },
+            makeEpochStat(1008),
+          ],
+        },
+      ],
+      settlements: [makeEvent(1008)],
+      estimates: [],
+      scoring: [{ ...makeScoring(1009), values: { bondRiskFeeSol: 0.5 } }],
+      auctionValidators: [],
+      lastDryrunEpoch: LAST_DRYRUN_EPOCH,
+    })
+
+    expect(result.filter(r => r.status === 'estimate')).toEqual([])
+  })
+
+  it('takes the penalties of the highest-slot run of an epoch only', () => {
+    const run = (scoringId: string, bidTooLowPenaltyPmpe: number): ScoringEntry => ({
+      ...makeScoring(1009),
+      revShare: { bidTooLowPenaltyPmpe, blacklistPenaltyPmpe: 0 },
+      metadata: { scoringId },
+    })
+    const result = buildProtectedEventRows({
+      validators: [makeValidator([1010, 1009, 1008])],
+      settlements: [makeEvent(1008)],
+      estimates: [],
+      scoring: [run('1009.900', 2), run('1009.100', 1)],
+      auctionValidators: [],
+      lastDryrunEpoch: LAST_DRYRUN_EPOCH,
+    })
+
+    expect(
+      result
+        .filter(r => r.status === 'estimate')
+        .map(r => [r.protectedEvent.epoch, r.protectedEvent.reason, r.protectedEvent.amount]),
+    ).toEqual([[1009, 'BidTooLowPenalty', 2_000_000_000]])
+  })
+
   it('rounds a non-integer bid-too-low penalty to an integer lamport amount', () => {
     const result = buildProtectedEventRows({
       validators: [

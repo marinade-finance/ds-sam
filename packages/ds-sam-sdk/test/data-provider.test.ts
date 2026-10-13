@@ -585,6 +585,38 @@ describe('inflation normalization across a slot-time change', () => {
 
     expect(trimmedDp.aggregateData(trimmedRaw).rewards.inflationPmpe).toBe(fullWindow)
   })
+
+  it('discards an epoch whose recorded stake is zero', async () => {
+    const { dp, raw } = await fetchRaw()
+    raw.validators.validators.forEach(({ epoch_stats }) =>
+      epoch_stats.filter(({ epoch }) => epoch === 995).forEach(es => (es.activated_stake = '0')),
+    )
+    const zeroStaked = dp.aggregateData(raw).rewards.mevPmpe
+
+    const { dp: droppedDp, raw: droppedRaw } = await fetchRaw()
+    droppedRaw.rewards.rewards_mev = droppedRaw.rewards.rewards_mev.filter(([epoch]) => epoch !== 995)
+
+    expect(Number.isFinite(zeroStaked)).toBe(true)
+    expect(zeroStaked).toBe(droppedDp.aggregateData(droppedRaw).rewards.mevPmpe)
+  })
+
+  it('reads an empty block rewards series as no block rewards', async () => {
+    const { dp, raw } = await fetchRaw()
+    raw.rewards.rewards_block = []
+    expect(dp.aggregateData(raw).rewards.blockPmpe).toBe(0)
+  })
+
+  it('refuses to average a rewards series with no staked epoch', async () => {
+    const { dp, raw } = await fetchRaw()
+    raw.rewards.rewards_mev = []
+    expect(() => dp.aggregateData(raw)).toThrow('No mev rewards epoch has a recorded stake to average over')
+
+    const { dp: zeroDp, raw: zeroRaw } = await fetchRaw()
+    zeroRaw.validators.validators.forEach(({ epoch_stats }) => epoch_stats.forEach(es => (es.activated_stake = '0')))
+    expect(() => zeroDp.aggregateData(zeroRaw)).toThrow(
+      'No inflation rewards epoch has a recorded stake to average over',
+    )
+  })
 })
 
 describe('blacklistFilePath validation', () => {

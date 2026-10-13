@@ -161,6 +161,10 @@ describe('winningTotalPmpeOf', () => {
     expect(winningTotalPmpeOf([row(100, 0.5), row(0, 0.1), row(50, 0.3)])).toBe(0.3)
   })
 
+  it('ignores a sub-EPSILON crumb below the clearing price, as the auction does', () => {
+    expect(winningTotalPmpeOf([row(100, 0.5), row(5e-5, 0.3)])).toBe(0.5)
+  })
+
   it('is Infinity when nobody won', () => {
     expect(winningTotalPmpeOf([row(0, 0.1)])).toBe(Infinity)
     expect(winningTotalPmpeOf([])).toBe(Infinity)

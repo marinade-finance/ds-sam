@@ -103,6 +103,20 @@ describe('pastCommissionsFromScores', () => {
     expect(pastCommissionsFromScores([row('a', { epoch: 100, values: { commissions: unknown } })], 100).size).toBe(0)
   })
 
+  it('takes the rates of the highest-slot run whatever the row order', () => {
+    const rate = (inflationCommissionOnchainDec: number) => ({
+      commissions: commissions({ inflationCommissionOnchainDec }),
+    })
+    const past = pastCommissionsFromScores(
+      [
+        row('a', { epoch: 100, scoringId: '100.900', values: rate(0.08) }),
+        row('a', { epoch: 100, scoringId: '100.100', values: rate(0.05) }),
+      ],
+      100,
+    )
+    expect(past.get('a')?.inflation).toBe(0.08)
+  })
+
   it('keeps a null on-chain MEV rate as null', () => {
     const noMev = commissions({ mevCommissionOnchainDec: null })
     const past = pastCommissionsFromScores([row('a', { epoch: 100, values: { commissions: noMev } })], 100)
@@ -137,6 +151,7 @@ describe('scoring rows end to end', () => {
         {
           vote_account: 'rug',
           commission: 5,
+          inflation_rewards_commission_bps: null,
           stake: 100_000_000_000n,
           credits: 10000n,
           vote_reward_lamports: null,

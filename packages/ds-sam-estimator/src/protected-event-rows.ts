@@ -1,5 +1,6 @@
 import { LAMPORTS_PER_SOL } from '@marinade.finance/ds-sam-calc'
 
+import { latestRunRows } from './sam-scores'
 import { selectLatestProcessedEpoch, selectUnsettledEstimates } from './selectors'
 
 import type {
@@ -21,13 +22,15 @@ export type AuctionPenaltyEstimatesInput = {
 const penaltyEvents = (
   voteAccount: string,
   epoch: number,
-  stakeLamports: number,
+  stakeLamports: number | null,
   entry: AuctionPenaltyInput,
 ): ProtectedEvent[] => {
+  const stake = stakeLamports ?? 0
   const penalties: [number, SettlementReason][] = [
-    [Math.round((stakeLamports * entry.revShare.bidTooLowPenaltyPmpe) / 1000), 'BidTooLowPenalty'],
-    [Math.round((stakeLamports * entry.revShare.blacklistPenaltyPmpe) / 1000), 'BlacklistPenalty'],
-    [Math.round(LAMPORTS_PER_SOL * (entry.values?.bondRiskFeeSol ?? 0)), 'BondRiskFee'],
+    [Math.round((stake * entry.revShare.bidTooLowPenaltyPmpe) / 1000), 'BidTooLowPenalty'],
+    [Math.round((stake * entry.revShare.blacklistPenaltyPmpe) / 1000), 'BlacklistPenalty'],
+    // validator-bonds splits the fee over stake groups with active stake, so none settles at a known 0
+    [stakeLamports === 0 ? 0 : Math.round(LAMPORTS_PER_SOL * (entry.values?.bondRiskFeeSol ?? 0)), 'BondRiskFee'],
   ]
   return penalties
     .filter(([amount]) => amount > 0)
@@ -65,20 +68,20 @@ export const estimateAuctionPenalties = ({
   const auctionCoversCurrentEpoch =
     auctionValidators.length > 0 && maxStatsEpoch >= maxScoredEpoch && maxStatsEpoch > latestProcessedEpoch
   const auctionVoteAccounts = new Set(auctionValidators.map(({ voteAccount }) => voteAccount))
-  for (const entry of scoring) {
+  for (const entry of latestRunRows(scoring)) {
     if (entry.epoch <= latestProcessedEpoch) continue
     if (auctionCoversCurrentEpoch && entry.epoch === maxStatsEpoch && auctionVoteAccounts.has(entry.voteAccount)) {
       continue
     }
     const epochStats = validatorsMap.get(entry.voteAccount)?.epoch_stats.find(({ epoch }) => epoch === entry.epoch)
-    const stake = epochStats ? Number(epochStats.marinade_native_stake) + Number(epochStats.marinade_stake) : 0
+    const stake = epochStats ? Number(epochStats.marinade_native_stake) + Number(epochStats.marinade_stake) : null
     events.push(...penaltyEvents(entry.voteAccount, entry.epoch, stake, entry))
   }
 
   if (auctionCoversCurrentEpoch) {
     for (const entry of auctionValidators) {
       const v = validatorsMap.get(entry.voteAccount)
-      const stake = v ? Number(v.marinade_native_stake) + Number(v.marinade_stake) : 0
+      const stake = v ? Number(v.marinade_native_stake) + Number(v.marinade_stake) : null
       events.push(...penaltyEvents(entry.voteAccount, maxStatsEpoch, stake, entry))
     }
   }
