@@ -1,11 +1,13 @@
 import { EpochUptimeType, evaluateRevenueExpectations, uptimeTypeOf } from '@marinade.finance/ds-sam-calc'
-import { alpenglowExpectedCredits } from '@marinade.finance/ts-common/dist/src/browser'
+import { alpenglowExpectedCredits, assertNever } from '@marinade.finance/ts-common/dist/src/browser'
 import Decimal from 'decimal.js'
 
 import type {
   ProtectedEvent,
   ProtectedEventCommissionSamIncrease,
   ProtectedEventDowntimeRevenueImpact,
+  ProtectedEventReason,
+  ProtectedEventVatUnadmitted,
   SettlementMeta,
 } from './types'
 import type {
@@ -38,7 +40,17 @@ export type CommissionSamIncreaseSettlementConfig = {
   penalty_markup_bps: number
 }
 
-export type SettlementConfig = DowntimeRevenueImpactSettlementConfig | CommissionSamIncreaseSettlementConfig
+export type VatUnadmittedSettlementConfig = {
+  type: 'VatUnadmittedSettlement'
+  meta: SettlementMeta
+  min_settlement_lamports: number
+  covered_range_bps: [number, number]
+}
+
+export type SettlementConfig =
+  | DowntimeRevenueImpactSettlementConfig
+  | CommissionSamIncreaseSettlementConfig
+  | VatUnadmittedSettlementConfig
 
 // validator-bonds `ValidatorMeta`: `commission` is the on-chain percent, `stake` the validator's total activated lamports
 export type PsrValidatorMeta = {
@@ -81,6 +93,12 @@ type PsrEvent =
       expectedEpr: Decimal
       actualEpr: Decimal
       payload: ProtectedEventCommissionSamIncrease
+    }
+  | {
+      type: 'VatUnadmittedSettlement'
+      expectedEpr: Decimal
+      actualEpr: Decimal
+      payload: ProtectedEventVatUnadmitted
     }
 
 const bpsToFraction = (bps: number) => new Dec(bps).div(10000)
@@ -209,8 +227,31 @@ const downtimeRevenueImpactEvents = (
     ]
   })
 
-const graceBps = (config: SettlementConfig) =>
-  (config.type === 'DowntimeRevenueImpactSettlement' ? config.grace_downtime_bps : config.grace_increase_bps) ?? 0
+const graceBps = (config: SettlementConfig): number => {
+  switch (config.type) {
+    case 'DowntimeRevenueImpactSettlement':
+      return config.grace_downtime_bps ?? 0
+    case 'CommissionSamIncreaseSettlement':
+      return config.grace_increase_bps ?? 0
+    case 'VatUnadmittedSettlement':
+      return 0
+    default:
+      return assertNever(config)
+  }
+}
+
+const reasonOf = (event: PsrEvent): ProtectedEventReason => {
+  switch (event.type) {
+    case 'DowntimeRevenueImpactSettlement':
+      return { DowntimeRevenueImpact: event.payload }
+    case 'CommissionSamIncreaseSettlement':
+      return { CommissionSamIncrease: event.payload }
+    case 'VatUnadmittedSettlement':
+      return { VatUnadmitted: event.payload }
+    default:
+      return assertNever(event)
+  }
+}
 
 const claimPerStake = (event: PsrEvent, config: SettlementConfig): Decimal => {
   const base = event.expectedEpr.sub(event.actualEpr)
@@ -269,17 +310,13 @@ export const calculateProtectedEventEstimates = ({
         if (amount === 0n || amount < BigInt(config.min_settlement_lamports)) {
           return []
         }
-        const reason =
-          event.type === 'DowntimeRevenueImpactSettlement'
-            ? { DowntimeRevenueImpact: event.payload }
-            : { CommissionSamIncrease: event.payload }
         return [
           {
             epoch,
             amount: Number(amount),
             vote_account: event.payload.vote_account,
             meta: config.meta,
-            reason: { ProtectedEvent: reason },
+            reason: { ProtectedEvent: reasonOf(event) },
           },
         ]
       }),

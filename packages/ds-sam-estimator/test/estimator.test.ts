@@ -7,6 +7,7 @@ import type {
   DowntimeRevenueImpactSettlementConfig,
   PsrValidatorMeta,
   SettlementConfig,
+  VatUnadmittedSettlementConfig,
 } from '../src'
 import type { PastValidatorCommissions, RevenueValidatorInput } from '@marinade.finance/ds-sam-calc'
 
@@ -34,6 +35,14 @@ const commissionConfig = (
   extra_penalty_threshold_bps: 5000,
   base_markup_bps: 1000,
   penalty_markup_bps: 2000,
+  ...overrides,
+})
+
+const vatConfig = (overrides: Partial<VatUnadmittedSettlementConfig> = {}): VatUnadmittedSettlementConfig => ({
+  type: 'VatUnadmittedSettlement',
+  meta: { funder: 'ValidatorBond' },
+  min_settlement_lamports: 0,
+  covered_range_bps: [0, 10000],
   ...overrides,
 })
 
@@ -356,7 +365,7 @@ describe('calculateProtectedEventEstimates — CommissionSamIncrease', () => {
 })
 
 describe('calculateProtectedEventEstimates — live settlement-config.yaml', () => {
-  // validator-bonds settlement-config.yaml DowntimeRevenueImpactSettlement and CommissionSamIncreaseSettlement
+  // the PSR entries of validator-bonds settlement-config.yaml
   const LIVE: SettlementConfig[] = [
     downtimeConfig({ min_settlement_lamports: 100_000_000, grace_downtime_bps: 100, covered_range_bps: [0, 10000] }),
     commissionConfig({
@@ -366,6 +375,7 @@ describe('calculateProtectedEventEstimates — live settlement-config.yaml', () 
       base_markup_bps: 0,
       penalty_markup_bps: 0,
     }),
+    vatConfig({ min_settlement_lamports: 100_000_000 }),
   ]
 
   it('emits one settlement per matching config, in config order', () => {

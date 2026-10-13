@@ -58,6 +58,15 @@ export type ProtectedEventDowntimeRevenueImpact = {
   stake: number
 }
 
+export type ProtectedEventVatUnadmitted = {
+  vote_account: string
+  actual_credits: number
+  expected_epr: number
+  actual_epr: number
+  epr_loss_bps: number
+  stake: number
+}
+
 // V1, parse-only: validator-bonds no longer produces CommissionIncrease or LowCredits
 export type ProtectedEventCommissionIncrease = {
   vote_account: string
@@ -85,6 +94,7 @@ export type ProtectedEventReason =
   | { LowCredits: ProtectedEventLowCredits }
   | { DowntimeRevenueImpact: ProtectedEventDowntimeRevenueImpact }
   | { CommissionSamIncrease: ProtectedEventCommissionSamIncrease }
+  | { VatUnadmitted: ProtectedEventVatUnadmitted }
 
 export type ProtectedEventSettlement = {
   ProtectedEvent: ProtectedEventReason
