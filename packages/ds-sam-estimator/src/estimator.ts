@@ -181,11 +181,14 @@ const alpenglowCredits = (validatorMetas: PsrValidatorMeta[]): CreditsOutcome[] 
   })
 }
 
-const creditsOutcomes = (validatorMetas: PsrValidatorMeta[]): CreditsOutcome[] => {
-  const epochType = uptimeTypeOf(
+const epochTypeOf = (validatorMetas: PsrValidatorMeta[]) =>
+  uptimeTypeOf(
     validatorMetas.some(({ credits }) => credits != null),
     validatorMetas.some(({ vote_reward_lamports }) => vote_reward_lamports != null),
   )
+
+const creditsOutcomes = (validatorMetas: PsrValidatorMeta[]): CreditsOutcome[] => {
+  const epochType = epochTypeOf(validatorMetas)
   if (epochType === EpochUptimeType.TOWER) {
     return towerCredits(validatorMetas)
   }
