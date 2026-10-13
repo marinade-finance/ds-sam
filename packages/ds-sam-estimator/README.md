@@ -10,7 +10,8 @@ will settle for epochs it has not processed yet, so dashboards can show unsettle
 ## What it computes
 
 - **PSR estimates** — `calculateProtectedEventEstimates` ports validator-bonds `protected_events.rs` and
-  `psr_events.rs`: `CommissionSamIncrease` and `DowntimeRevenueImpact` events, the grace matcher, the covered bps
+  `psr_events.rs`: `CommissionSamIncrease`, `DowntimeRevenueImpact` and, given `vatAdmissions`, `VatUnadmitted`
+  events (a VAT event replaces that validator's downtime event), the grace matcher, the covered bps
   range with the commission markup, and the minimum settlement. It uses one claim over the Marinade stake instead of
   per-staker groups, so an amount can exceed the settled one by at most a lamport per group. The revenue expectations
   come from calc `evaluateRevenueExpectations`, the same code `analyze-revenues` writes validator-bonds' input with.
@@ -40,8 +41,16 @@ will settle for epochs it has not processed yet, so dashboards can show unsettle
 - `ProtectedEvent[]` — bonds API `/v1/protected-events` rows.
 - `ScoringEntry[]` — scoring API `/api/v1/scores/sam` rows; `AuctionPenaltyInput[]` — `AuctionValidator`s of the
   current auction.
-- `SettlementConfig[]` — the `DowntimeRevenueImpactSettlement` and `CommissionSamIncreaseSettlement` entries of
-  validator-bonds `settlement-config.yaml`, as-is; no defaults in the lib.
+- `vatAdmissions` — optional. Rows of solana-snapshot-parser `validators.json` `validator_metas[]`, passed as-is; only
+  `vote_account` and `inflation_rewards_admitted` are read. Only `false` raises a `VatUnadmitted` estimate; `true`,
+  `null` or no row raise none. The per-stake reward is `rewards.inflationPmpe / 1000`. Omitted, no VAT is estimated.
+  The snapshot is private, so the caller owns this data:
+  ```ts
+  calculateProtectedEventEstimates({ ...input, vatAdmissions: snapshot.validator_metas })
+  calculateProtectedEventEstimates({ ...input, vatAdmissions: [{ vote_account, inflation_rewards_admitted: false }] })
+  ```
+- `SettlementConfig[]` — the `DowntimeRevenueImpactSettlement`, `CommissionSamIncreaseSettlement` and
+  `VatUnadmittedSettlement` entries of validator-bonds `settlement-config.yaml`, as-is; no defaults in the lib.
 - `lastDryrunEpoch` — required on `buildProtectedEventRows`; settlements at or below it are `dryrun`, above it `fact`.
 
 PSR amounts are estimates for the live epoch: validator-bonds compares the SAM run with the end-of-epoch snapshot,
