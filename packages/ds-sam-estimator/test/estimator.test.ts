@@ -297,7 +297,7 @@ const VAT_COLLECTION = [
 ]
 
 const refused = (...voteAccounts: string[]): VatAdmission[] =>
-  voteAccounts.map(vote_account => ({ vote_account, inflation_rewards_admitted: false }))
+  voteAccounts.map(vote_account => ({ vote_account, inflation_rewards_admitted: false, stakers_inflation_rewards: 0 }))
 
 // inflationPmpe 100 is validator-bonds' rewards_per_stake 0.1, so 500 bps gives expected_epr 0.095
 const vatInput = (
@@ -346,25 +346,49 @@ describe('calculateProtectedEventEstimates — VatUnadmitted', () => {
     for (const overrides of [
       { vote_reward_lamports: 0n },
       { inflation_rewards_commission_bps: 10000 },
+      { inflation_rewards_commission_bps: null, commission: 100 },
       { stake: 0n },
     ]) {
       expect(calculateProtectedEventEstimates(vatInput(withA(overrides), refused('A')))).toEqual([])
     }
   })
 
+  it('falls back to the on-chain percent when the applied bps are unknown', () => {
+    const input = vatInput(withA({ inflation_rewards_commission_bps: null, commission: 5 }), refused('A'))
+    expect(reasonRows(calculateProtectedEventEstimates(input))).toEqual([['A', 'VatUnadmitted', 9_500_000_000]])
+  })
+
   it('matches vat_unadmitted_needs_the_snapshot_to_refuse_the_validator', () => {
     for (const admitted of [true, null]) {
-      const vatAdmissions = [{ vote_account: 'A', inflation_rewards_admitted: admitted }]
+      const vatAdmissions = [{ vote_account: 'A', inflation_rewards_admitted: admitted, stakers_inflation_rewards: 0 }]
       expect(calculateProtectedEventEstimates(vatInput(VAT_COLLECTION, vatAdmissions))).toEqual([])
     }
     expect(calculateProtectedEventEstimates(vatInput(VAT_COLLECTION, refused('B')))).toHaveLength(1)
     expect(calculateProtectedEventEstimates(vatInput(VAT_COLLECTION, refused()))).toEqual([])
   })
 
-  it('fires in a Tower epoch on vote credits', () => {
+  it('matches validator-bonds unpaid_vote_accounts: a paid validator keeps its downtime event', () => {
+    const configs = [downtimeConfig(), vatConfig()]
+    const paid = [{ vote_account: 'C', inflation_rewards_admitted: false, stakers_inflation_rewards: 5_000 }]
+    expect(reasonRows(calculateProtectedEventEstimates(vatInput(VAT_COLLECTION, paid, configs)))).toEqual([
+      ['C', 'DowntimeRevenueImpact', 33_333_333],
+    ])
+    // no rewards row counts as unpaid
+    const noRow = [{ vote_account: 'C', inflation_rewards_admitted: false, stakers_inflation_rewards: null }]
+    expect(reasonRows(calculateProtectedEventEstimates(vatInput(VAT_COLLECTION, noRow, configs)))).toEqual([
+      ['C', 'VatUnadmitted', 9_500_000_000],
+    ])
+  })
+
+  it('fires in a Tower epoch on vote credits and replaces the downtime event there too', () => {
     const towerMetas = [meta('low', 2000n, { inflation_rewards_commission_bps: 0 }), meta('peer', 10000n)]
-    expect(reasonRows(calculateProtectedEventEstimates(vatInput(towerMetas, refused('low'))))).toEqual([
+    const configs = [downtimeConfig(), vatConfig()]
+    expect(reasonRows(calculateProtectedEventEstimates(vatInput(towerMetas, refused('low'), configs)))).toEqual([
       ['low', 'VatUnadmitted', 10_000_000_000],
+    ])
+    // 2000 of 6000 expected credits, a 0.000667 epr loss capped at 5000 bps of 0.001 on 100 SOL
+    expect(reasonRows(calculateProtectedEventEstimates(vatInput(towerMetas, undefined, configs)))).toEqual([
+      ['low', 'DowntimeRevenueImpact', 50_000_000],
     ])
   })
 

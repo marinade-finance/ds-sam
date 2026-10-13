@@ -66,10 +66,12 @@ export type PsrValidatorMeta = {
   epoch_stake: bigint | null
 }
 
-// One solana-snapshot-parser validators.json `validator_metas[]` row, the fields VAT reads
+// validators.json `inflation_rewards_admitted` joined with the stakes-etl inflation rewards row of the epoch
 export type VatAdmission = {
   vote_account: string
   inflation_rewards_admitted: boolean | null
+  // lamports the stakers got; null when the validator has no rewards row
+  stakers_inflation_rewards: number | null
 }
 
 export type ProtectedEventEstimatesInput = {
@@ -189,6 +191,9 @@ const alpenglowCredits = (validatorMetas: PsrValidatorMeta[]): CreditsOutcome[] 
   })
 }
 
+// validator-bonds applied_commission_bps
+const appliedCommissionBps = (meta: PsrValidatorMeta) => meta.inflation_rewards_commission_bps ?? meta.commission * 100
+
 const epochTypeOf = (validatorMetas: PsrValidatorMeta[]) =>
   uptimeTypeOf(
     validatorMetas.some(({ credits }) => credits != null),
@@ -213,8 +218,7 @@ const downtimeRevenueImpactEvents = (
 ): PsrEvent[] =>
   creditsOutcomes(validatorMetas).flatMap(({ meta, actual, expected }): PsrEvent[] => {
     const expectation = expectations.get(meta.vote_account)
-    const appliedCommissionBps = meta.inflation_rewards_commission_bps ?? meta.commission * 100
-    if (meta.stake <= 0n || !expectation || actual >= expected || appliedCommissionBps >= 10000) {
+    if (meta.stake <= 0n || !expectation || actual >= expected || appliedCommissionBps(meta) >= 10000) {
       return []
     }
     const uptime = new Dec(actual.toString()).div(expected.toString())
@@ -248,24 +252,27 @@ const vatUnadmittedEvents = (
   if (epochTypeOf(validatorMetas) === EpochUptimeType.MIGRATION) {
     return []
   }
+  // validator-bonds needs both: the snapshot refused it and its stakers were not paid
   const refused = new Set(
-    admissions.filter(row => row.inflation_rewards_admitted === false).map(row => row.vote_account),
+    admissions
+      .filter(row => row.inflation_rewards_admitted === false && !row.stakers_inflation_rewards)
+      .map(row => row.vote_account),
   )
   return validatorMetas.flatMap((meta): PsrEvent[] => {
     const actualCredits = meta.credits ?? meta.vote_reward_lamports ?? 0n
-    const appliedCommissionBps = meta.inflation_rewards_commission_bps ?? meta.commission * 100
+    const commissionBps = appliedCommissionBps(meta)
     if (
       !refused.has(meta.vote_account) ||
       meta.stake <= 0n ||
       actualCredits <= 0n ||
-      appliedCommissionBps >= 10000 ||
+      commissionBps >= 10000 ||
       !expectations.has(meta.vote_account)
     ) {
       return []
     }
     const expectedEpr = new Dec(rewards.inflationPmpe)
       .div(1000)
-      .mul(10000 - appliedCommissionBps)
+      .mul(10000 - commissionBps)
       .div(10000)
     const actualEpr = new Dec(0)
     return [

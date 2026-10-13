@@ -41,13 +41,16 @@ will settle for epochs it has not processed yet, so dashboards can show unsettle
 - `ProtectedEvent[]` — bonds API `/v1/protected-events` rows.
 - `ScoringEntry[]` — scoring API `/api/v1/scores/sam` rows; `AuctionPenaltyInput[]` — `AuctionValidator`s of the
   current auction.
-- `vatAdmissions` — optional. Rows of solana-snapshot-parser `validators.json` `validator_metas[]`, passed as-is; only
-  `vote_account` and `inflation_rewards_admitted` are read. Only `false` raises a `VatUnadmitted` estimate; `true`,
-  `null` or no row raise none. The per-stake reward is `rewards.inflationPmpe / 1000`. Omitted, no VAT is estimated.
-  The snapshot is private, so the caller owns this data:
+- `vatAdmissions` — optional, one `VatAdmission` per vote account: `inflation_rewards_admitted` from
+  solana-snapshot-parser `validators.json` `validator_metas[]`, and `stakers_inflation_rewards` (lamports) from the
+  epoch's stakes-etl inflation rewards row, `null` when the validator has none. Like validator-bonds, a
+  `VatUnadmitted` estimate needs both `inflation_rewards_admitted: false` and stakers paid nothing (`0` or `null`).
+  The per-stake reward is `rewards.inflationPmpe / 1000`. Both sources are private and exist only once the epoch has
+  ended, so a consumer of public APIs, such as a dashboard, omits this input and gets no VAT estimate. A caller with
+  the data owns its quality:
   ```ts
-  calculateProtectedEventEstimates({ ...input, vatAdmissions: snapshot.validator_metas })
-  calculateProtectedEventEstimates({ ...input, vatAdmissions: [{ vote_account, inflation_rewards_admitted: false }] })
+  const vatAdmissions = [{ vote_account, inflation_rewards_admitted: false, stakers_inflation_rewards: null }]
+  calculateProtectedEventEstimates({ ...input, vatAdmissions })
   ```
 - `SettlementConfig[]` — the `DowntimeRevenueImpactSettlement`, `CommissionSamIncreaseSettlement` and
   `VatUnadmittedSettlement` entries of validator-bonds `settlement-config.yaml`, as-is; no defaults in the lib.
