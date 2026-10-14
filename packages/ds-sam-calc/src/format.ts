@@ -3,6 +3,8 @@
 // `toLocaleString` and `toFixed` both round half-away-from-zero, which is what
 // we want for monetary display.
 
+import Decimal from 'decimal.js'
+
 import { finite } from './utils'
 
 // Non-breaking space (U+00A0) between a number and its "SOL" unit so
@@ -34,8 +36,8 @@ export const stake = (n: number) => `${sol(n, 0)}${NBSP}SOL`
 // amount is never less than what will actually be charged. Defaults to 0
 // decimals (tip-pill style); pass digits for receipt-precision rendering.
 export const pay = (n: number, digits: number = 0) => {
-  const p = Math.pow(10, digits)
-  return `${sol(Math.ceil(finite(n) * p) / p, digits)}${NBSP}SOL`
+  const rounded = new Decimal(finite(n)).toDecimalPlaces(digits, Decimal.ROUND_CEIL).toNumber()
+  return `${sol(rounded, digits)}${NBSP}SOL`
 }
 export const penalty = (n: number) => `${sol(n, 3)}${NBSP}SOL`
 // Cost rows need 3-decimal precision — per-epoch bid costs are often

@@ -1,4 +1,4 @@
-import { assertNever } from '@marinade.finance/ts-common'
+import { assertNever } from '@marinade.finance/ts-common/dist/src/browser'
 
 import { blacklistPenaltySol, computeBidPenalty } from './bid-penalty'
 import { computeBondCoverage } from './bond-coverage'

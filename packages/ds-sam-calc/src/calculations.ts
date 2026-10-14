@@ -1,4 +1,4 @@
-import { assert } from '@marinade.finance/ts-common'
+import { assert } from '@marinade.finance/ts-common/dist/src/browser'
 import Decimal from 'decimal.js'
 
 import { isInflationCommissionUnresolved } from './utils'

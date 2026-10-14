@@ -10,6 +10,7 @@ lowest PMPE until stake depletes or constraints bind; the last
 TypeScript monorepo:
 
 - `packages/ds-sam-sdk`: Core auction logic (NPM package)
+- `packages/ds-sam-estimator`: PSR settlement and auction-penalty estimates for dashboards (NPM package)
 - `src/`: NestJS CLI wrapper (nest-commander)
 
 ## Evaluation Flow

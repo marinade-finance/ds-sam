@@ -194,6 +194,45 @@ describe('uptime', () => {
     expect(passes.get('new')).toBe(false)
   })
 
+  it('throws when the Alpenglow rewards or weights sum to zero', () => {
+    const zeroRewards = [validator('a', [{ epoch: 10, stake: 100, reward: 0, leaderSlots: 10 }])]
+    const zeroWeights = [validator('a', [{ epoch: 10, stake: 0, reward: 1000, leaderSlots: 0 }])]
+
+    expect(() => epochUptimes(zeroRewards, 10, 10, THRESHOLD)).toThrow(
+      'Validator vote rewards for epoch 10 sum to zero',
+    )
+    expect(() => epochUptimes(zeroWeights, 10, 10, THRESHOLD)).toThrow(
+      'Validator vote rewards for epoch 10 sum to zero',
+    )
+  })
+
+  it.each([
+    ['vote reward', { reward: -1 }, '-1'],
+    ['vote reward', { reward: 1.5 }, '1.5'],
+    ['leader slots', { leaderSlots: -2 }, '-2'],
+    ['stake', { stake: 0.5 }, '0.5'],
+  ])('names the validator whose Alpenglow %s is not a count', (field, override, got) => {
+    const validators = [
+      validator('a', [{ epoch: 10, stake: 100, reward: 1000, leaderSlots: 10 }]),
+      validator('bad', [{ epoch: 10, stake: 100, reward: 1000, leaderSlots: 10, ...override }]),
+    ]
+
+    expect(() => epochUptimes(validators, 10, 10, THRESHOLD)).toThrow(
+      `Validator bad epoch 10 ${field} must be a non-negative integer, got ${got}`,
+    )
+  })
+
+  it('leaves a zero-weight validator unscored', () => {
+    const validators = [
+      validator('a', [{ epoch: 10, stake: 100, reward: 1000, leaderSlots: 10 }]),
+      validator('idle', [{ epoch: 10, stake: 0, reward: 0, leaderSlots: 0 }]),
+    ]
+    const { epochs } = evaluate(validators, 10, 10)
+
+    expect(scoresOf(epochs[0]).get('a')).toBeCloseTo(1)
+    expect(scoresOf(epochs[0]).has('idle')).toBe(false)
+  })
+
   it('throws when an epoch has neither credits nor vote rewards', () => {
     const validators = [validator('a', [{ epoch: 10, stake: 100 }])]
 
