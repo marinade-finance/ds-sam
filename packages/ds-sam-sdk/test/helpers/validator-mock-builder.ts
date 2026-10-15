@@ -276,6 +276,7 @@ export class ValidatorMockBuilder {
         commission_advertised: inflationCommission,
         credits: credits,
         vote_reward_lamports: this.voteRewards[e] ?? null,
+        epoch_stake: new Decimal(this.nativeStake + this.liquidStake + this.externalStake).mul(1e9).toString(),
         leader_slots: this.leaderSlots,
         epoch_end_at:
           e === 0 ? null : new Date(EPOCH_END_ANCHOR_MS - (e - 1) * MOCK_EPOCH_DURATION_SECONDS * 1000).toISOString(),

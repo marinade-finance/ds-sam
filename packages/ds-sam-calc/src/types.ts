@@ -34,6 +34,8 @@ export type SlotParams = {
 export type EpochStats = {
   epoch: number
   totalActivatedStake: Decimal
+  // totalActivatedStake of the previous epoch, the stake agave pays the Alpenglow vote reward on
+  epochStake: Decimal | null
   marinadeActivatedStake: Decimal
   voteCredits: number | null
   voteRewardLamports: number | null

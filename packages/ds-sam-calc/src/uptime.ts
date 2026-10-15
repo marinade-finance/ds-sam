@@ -69,14 +69,14 @@ function toCount(value: Decimal.Value, label: string): bigint {
 }
 
 function alpenglowScores(validators: AggregatedValidator[], epoch: number): Map<string, number> {
-  // S and N sum only over validators with a vote reward
+  // S and N sum only over validators with a vote reward and an epoch stake
   const admitted = validators.flatMap(validator => {
     const es = findEpochStats(validator, epoch)
-    return es?.voteRewardLamports != null
+    return es?.voteRewardLamports != null && es.epochStake != null
       ? [
           {
             voteAccount: validator.voteAccount,
-            stake: toCount(es.totalActivatedStake, `${validator.voteAccount} epoch ${epoch} stake`),
+            stake: toCount(es.epochStake, `${validator.voteAccount} epoch ${epoch} stake`),
             leaderSlots: toCount(es.leaderSlots, `${validator.voteAccount} epoch ${epoch} leader slots`),
             credits: toCount(es.voteRewardLamports, `${validator.voteAccount} epoch ${epoch} vote reward`),
           },
@@ -130,7 +130,7 @@ export function passesUptime(validator: AggregatedValidator, epochs: EpochUptime
       // Null credits: the account cast no vote in this epoch
       return es.voteCredits != null && !!epochUptime.creditsThreshold && es.voteCredits >= epochUptime.creditsThreshold
     }
-    // No score: null vote reward, no data, the epoch is skipped
+    // No score: null vote reward or epoch stake, no data, the epoch is skipped
     const score = epochUptime.scores.get(validator.voteAccount)
     return score === undefined || score >= thresholdDec
   })
