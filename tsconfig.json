@@ -25,6 +25,6 @@
     "declarationMap": true,
 
     /* TypeScript doesn't recognize the CryptoKeyPair type by default, Web Crypto API needed */
-    "lib": ["dom"]
+    "lib": ["ES2022", "dom"]
   }
 }
