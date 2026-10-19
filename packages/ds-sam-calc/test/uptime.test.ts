@@ -197,6 +197,17 @@ describe('uptime', () => {
     expect(passes.get('new')).toBe(false)
   })
 
+  it('throws when no validator of an Alpenglow epoch has an epoch stake', () => {
+    const validators = [
+      validator('a', [{ epoch: 10, stake: 100, epochStake: null, reward: 1000, leaderSlots: 10 }]),
+      validator('b', [{ epoch: 10, stake: 100, epochStake: null, reward: 1000, leaderSlots: 10 }]),
+    ]
+
+    expect(() => epochUptimes(validators, 10, 10, THRESHOLD)).toThrow(
+      'No validator with a vote reward for epoch 10 has an epoch stake',
+    )
+  })
+
   it('throws when the Alpenglow rewards or weights sum to zero', () => {
     const zeroRewards = [validator('a', [{ epoch: 10, stake: 100, reward: 0, leaderSlots: 10 }])]
     const zeroWeights = [validator('a', [{ epoch: 10, stake: 0, reward: 1000, leaderSlots: 0 }])]
@@ -213,7 +224,7 @@ describe('uptime', () => {
     ['vote reward', { reward: -1 }, '-1'],
     ['vote reward', { reward: 1.5 }, '1.5'],
     ['leader slots', { leaderSlots: -2 }, '-2'],
-    ['epoch stake', { stake: 0.5 }, '0.5'],
+    ['stake', { epochStake: 0.5 }, '0.5'],
   ])('names the validator whose Alpenglow %s is not a count', (field, override, got) => {
     const validators = [
       validator('a', [{ epoch: 10, stake: 100, reward: 1000, leaderSlots: 10 }]),

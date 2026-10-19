@@ -83,6 +83,9 @@ function alpenglowScores(validators: AggregatedValidator[], epoch: number): Map<
         ]
       : []
   })
+  if (admitted.length === 0) {
+    throw new Error(`No validator with a vote reward for epoch ${epoch} has an epoch stake`)
+  }
   const results = alpenglowExpectedCredits(admitted, {
     totalStake: admitted.reduce((sum, { stake }) => sum + stake, 0n),
     totalSlots: admitted.reduce((sum, { leaderSlots }) => sum + leaderSlots, 0n),
