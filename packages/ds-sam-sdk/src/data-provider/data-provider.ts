@@ -47,12 +47,6 @@ export class DataProvider {
         if (this.config.cacheInputs && !this.config.inputsCacheDirPath) {
           throw new Error('Cannot cache inputs without cache directory path configured')
         }
-        if (this.config.cacheInputs && this.config.blacklistFilePath) {
-          throw new Error(
-            'Cannot cache inputs while reading the blacklist from a local file: ' +
-              'the cached blacklist.csv would be indistinguishable from an API snapshot',
-          )
-        }
         break
       case InputsSource.FILES:
         if (!this.config.inputsCacheDirPath) {
