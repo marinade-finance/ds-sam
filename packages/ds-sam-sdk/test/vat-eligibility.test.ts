@@ -2,7 +2,7 @@ import assert from 'node:assert'
 
 import { DsSamSDK } from '../src'
 import { computeSamEligibilityThresholds, samIneligibilityGate } from '../src/eligibility'
-import { StaticDataProviderBuilder } from './helpers/static-data-provider-builder'
+import { defaultStaticDataProviderBuilder } from './helpers/static-data-provider-builder'
 import { assertValidatorIneligible, findValidatorInResult } from './helpers/utils'
 import { ValidatorMockBuilder, generateIdentities, generateVoteAccounts } from './helpers/validator-mock-builder'
 
@@ -17,7 +17,7 @@ const withEpochs = (builder: ValidatorMockBuilder, kinds: EpochKind[]) =>
     .withVoteRewards(...kinds.map(kind => (kind === 'tower' ? null : STAKE)))
     .withLeaderSlots(STAKE / 10_000)
 
-const gatesFor = async (kinds: EpochKind[], vatEligible: (boolean | null)[]) => {
+const gatesFor = async (kinds: EpochKind[], vatEligible: (boolean | null | undefined)[]) => {
   const votes = generateVoteAccounts('vat')
   const ids = generateIdentities()
   const validators = vatEligible.map(eligible =>
@@ -26,14 +26,7 @@ const gatesFor = async (kinds: EpochKind[], vatEligible: (boolean | null)[]) => 
       kinds,
     ).withVatEligible(eligible),
   )
-  const dataProvider = new StaticDataProviderBuilder()
-    .withCurrentEpoch(1000)
-    .withInflationRewardsPerEpoch(200000)
-    .withMevRewardsPerEpoch(50000)
-    .withBlockRewardsPerEpoch(0)
-    .withValidators(validators)
-    .build()
-  const dsSam = new DsSamSDK({}, dataProvider)
+  const dsSam = new DsSamSDK({}, defaultStaticDataProviderBuilder(validators))
   const aggregatedData = await dsSam.getAggregatedData()
   const thresholds = computeSamEligibilityThresholds(aggregatedData, dsSam.config)
   return validators.map(builder => {
@@ -47,7 +40,12 @@ const repeat = (kind: EpochKind, count: number): EpochKind[] => Array.from({ len
 
 describe('VAT eligibility', () => {
   it('refuses only a validator with vat_eligible false', async () => {
-    expect(await gatesFor(repeat('alpenglow', 10), [false, true, null])).toEqual(['vatIneligible', null, null])
+    expect(await gatesFor(repeat('alpenglow', 10), [false, true, null, undefined])).toEqual([
+      'vatIneligible',
+      null,
+      null,
+      null,
+    ])
   })
 
   it('refuses in Tower epochs and in the migration epoch too', async () => {
@@ -70,16 +68,36 @@ describe('VAT eligibility', () => {
       new ValidatorMockBuilder(votes.next().value, ids.next().value).withEligibleDefaults(),
       repeat('alpenglow', 10),
     ).withVatEligible(true)
-    const dataProvider = new StaticDataProviderBuilder()
-      .withCurrentEpoch(1000)
-      .withInflationRewardsPerEpoch(200000)
-      .withMevRewardsPerEpoch(50000)
-      .withBlockRewardsPerEpoch(0)
-      .withValidators([refused, admitted])
-      .build()
-    const result = await new DsSamSDK({}, dataProvider).run()
+    const result = await new DsSamSDK({}, defaultStaticDataProviderBuilder([refused, admitted])).run()
 
     assertValidatorIneligible(findValidatorInResult(refused.voteAccount, result))
     expect(findValidatorInResult(admitted.voteAccount, result)?.samEligible).toBe(true)
+  })
+
+  it('refuses a bondless VAT-ineligible validator for the backstop too', async () => {
+    const votes = generateVoteAccounts('vat-bondless')
+    const ids = generateIdentities()
+    const bondless = (vatEligible: boolean) =>
+      withEpochs(
+        new ValidatorMockBuilder(votes.next().value, ids.next().value)
+          .withEligibleDefaults()
+          .withBond(null)
+          .withInflationCommission(0)
+          .withMevCommission(0),
+        repeat('alpenglow', 10),
+      ).withVatEligible(vatEligible)
+    const refused = bondless(false)
+    const admitted = bondless(true)
+    const bonded = withEpochs(
+      new ValidatorMockBuilder(votes.next().value, ids.next().value).withEligibleDefaults(),
+      repeat('alpenglow', 10),
+    )
+    const result = await new DsSamSDK(
+      { enableZeroCommissionBackstop: true },
+      defaultStaticDataProviderBuilder([refused, admitted, bonded]),
+    ).run()
+
+    expect(findValidatorInResult(refused.voteAccount, result)?.backstopEligible).toBe(false)
+    expect(findValidatorInResult(admitted.voteAccount, result)?.backstopEligible).toBe(true)
   })
 })
