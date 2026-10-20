@@ -90,6 +90,8 @@ export type RawEpochStatDto = {
   credits: number | null
   // null in a tower epoch; absent in older API responses
   vote_reward_lamports?: number | null
+  // activated_stake of the previous epoch; null without it, absent in older API responses
+  epoch_stake?: string | null
   // assigned leader slots, not produced blocks
   leader_slots?: number
   epoch_end_at: string | null

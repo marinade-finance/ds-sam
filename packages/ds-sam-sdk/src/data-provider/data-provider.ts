@@ -350,6 +350,7 @@ export class DataProvider {
           .map(es => ({
             epoch: es.epoch,
             totalActivatedStake: new Decimal(es.activated_stake),
+            epochStake: es.epoch_stake == null ? null : new Decimal(es.epoch_stake),
             marinadeActivatedStake: new Decimal(es.marinade_stake).add(es.marinade_native_stake),
             voteCredits: es.credits,
             voteRewardLamports: es.vote_reward_lamports ?? null,

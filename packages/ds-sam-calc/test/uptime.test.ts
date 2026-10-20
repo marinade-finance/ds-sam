@@ -12,6 +12,8 @@ const THRESHOLD = 0.8
 type StatInput = {
   epoch: number
   stake: number
+  // Defaults to `stake`
+  epochStake?: number | null
   credits?: number | null
   reward?: number | null
   leaderSlots?: number
@@ -21,9 +23,10 @@ const validator = (voteAccount: string, stats: StatInput[]): AggregatedValidator
   ({
     voteAccount,
     epochStats: stats.map(
-      ({ epoch, stake, credits = null, reward = null, leaderSlots = 0 }): EpochStats => ({
+      ({ epoch, stake, epochStake = stake, credits = null, reward = null, leaderSlots = 0 }): EpochStats => ({
         epoch,
         totalActivatedStake: new Decimal(stake),
+        epochStake: epochStake === null ? null : new Decimal(epochStake),
         marinadeActivatedStake: new Decimal(0),
         voteCredits: credits,
         voteRewardLamports: reward,
@@ -194,6 +197,17 @@ describe('uptime', () => {
     expect(passes.get('new')).toBe(false)
   })
 
+  it('throws when no validator of an Alpenglow epoch has an epoch stake', () => {
+    const validators = [
+      validator('a', [{ epoch: 10, stake: 100, epochStake: null, reward: 1000, leaderSlots: 10 }]),
+      validator('b', [{ epoch: 10, stake: 100, epochStake: null, reward: 1000, leaderSlots: 10 }]),
+    ]
+
+    expect(() => epochUptimes(validators, 10, 10, THRESHOLD)).toThrow(
+      'No validator with a vote reward for epoch 10 has an epoch stake',
+    )
+  })
+
   it('throws when the Alpenglow rewards or weights sum to zero', () => {
     const zeroRewards = [validator('a', [{ epoch: 10, stake: 100, reward: 0, leaderSlots: 10 }])]
     const zeroWeights = [validator('a', [{ epoch: 10, stake: 0, reward: 1000, leaderSlots: 0 }])]
@@ -210,7 +224,7 @@ describe('uptime', () => {
     ['vote reward', { reward: -1 }, '-1'],
     ['vote reward', { reward: 1.5 }, '1.5'],
     ['leader slots', { leaderSlots: -2 }, '-2'],
-    ['stake', { stake: 0.5 }, '0.5'],
+    ['stake', { epochStake: 0.5 }, '0.5'],
   ])('names the validator whose Alpenglow %s is not a count', (field, override, got) => {
     const validators = [
       validator('a', [{ epoch: 10, stake: 100, reward: 1000, leaderSlots: 10 }]),
@@ -220,6 +234,31 @@ describe('uptime', () => {
     expect(() => epochUptimes(validators, 10, 10, THRESHOLD)).toThrow(
       `Validator bad epoch 10 ${field} must be a non-negative integer, got ${got}`,
     )
+  })
+
+  it('weighs by the epoch stake, not the stake of the epoch', () => {
+    // 'grown' doubles its stake in the epoch, agave pays it on the 100 of the previous epoch
+    const validators = [
+      validator('grown', [{ epoch: 10, stake: 200, epochStake: 100, reward: 1000, leaderSlots: 10 }]),
+      validator('steady', [{ epoch: 10, stake: 100, reward: 1000, leaderSlots: 10 }]),
+    ]
+    const { epochs } = evaluate(validators, 10, 10)
+
+    expect(scoresOf(epochs[0]).get('grown')).toBeCloseTo(1)
+    expect(scoresOf(epochs[0]).get('steady')).toBeCloseTo(1)
+  })
+
+  it('leaves a validator without an epoch stake unscored and out of the sums', () => {
+    const validators = [
+      validator('a', [{ epoch: 10, stake: 100, reward: 1000, leaderSlots: 10 }]),
+      validator('b', [{ epoch: 10, stake: 100, reward: 1000, leaderSlots: 10 }]),
+      validator('unknown', [{ epoch: 10, stake: 100, epochStake: null, reward: 10, leaderSlots: 10 }]),
+    ]
+    const { epochs, passes } = evaluate(validators, 10, 10)
+
+    expect(scoresOf(epochs[0]).get('a')).toBeCloseTo(1)
+    expect(scoresOf(epochs[0]).has('unknown')).toBe(false)
+    expect(passes.get('unknown')).toBe(true)
   })
 
   it('leaves a zero-weight validator unscored', () => {
