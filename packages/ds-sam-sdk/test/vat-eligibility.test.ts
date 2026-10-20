@@ -46,22 +46,17 @@ const gatesFor = async (kinds: EpochKind[], vatEligible: (boolean | null)[]) => 
 const repeat = (kind: EpochKind, count: number): EpochKind[] => Array.from({ length: count }, () => kind)
 
 describe('VAT eligibility', () => {
-  it('refuses a VAT-ineligible validator once the running epoch is an Alpenglow epoch', async () => {
+  it('refuses only a validator with vat_eligible false', async () => {
     expect(await gatesFor(repeat('alpenglow', 10), [false, true, null])).toEqual(['vatIneligible', null, null])
   })
 
-  it('applies in the epoch that follows the migration epoch', async () => {
-    const kinds: EpochKind[] = ['alpenglow', 'migration', ...repeat('tower', 8)]
-    expect(await gatesFor(kinds, [false, true])).toEqual(['vatIneligible', null])
-  })
-
-  it('does not apply while the running epoch is the migration epoch', async () => {
-    const kinds: EpochKind[] = ['migration', ...repeat('tower', 9)]
-    expect(await gatesFor(kinds, [false, true])).toEqual([null, null])
-  })
-
-  it('does not apply in Tower epochs', async () => {
-    expect(await gatesFor(repeat('tower', 10), [false, true])).toEqual([null, null])
+  it('refuses in Tower epochs and in the migration epoch too', async () => {
+    const towerOnly = repeat('tower', 10)
+    const runningMigration: EpochKind[] = ['migration', ...repeat('tower', 9)]
+    const afterMigration: EpochKind[] = ['alpenglow', 'migration', ...repeat('tower', 8)]
+    for (const kinds of [towerOnly, runningMigration, afterMigration]) {
+      expect(await gatesFor(kinds, [false, true])).toEqual(['vatIneligible', null])
+    }
   })
 
   it('gives a VAT-ineligible validator no SAM stake', async () => {

@@ -88,9 +88,8 @@ reads, or clone it with `new Decimal(value)`.
 the package root and from `./eligibility`) expose the SAM eligibility rule as pure functions, so a consumer can
 recompute a single validator's eligibility (e.g. after an override) with the SDK's own logic.
 
-The `vatIneligible` gate refuses a validator whose validators-api `vat_eligible` is `false`. It applies only when the
-running epoch is an Alpenglow epoch, which means that the newest closed epoch is the migration epoch or an Alpenglow
-epoch. `vat_eligible: null` never refuses a validator. For now, validators-api checks only the SIMD-0357 balance.
+The `vatIneligible` gate refuses a validator whose validators-api `vat_eligible` is `false`, in every epoch.
+`vat_eligible: null` never refuses a validator. For now, validators-api checks only the SIMD-0357 balance.
 
 ## Browser-safe entry
 
