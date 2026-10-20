@@ -1,4 +1,9 @@
-import { epochUptimes, isInflationCommissionUnresolved, passesUptime } from '@marinade.finance/ds-sam-calc'
+import {
+  EpochUptimeType,
+  epochUptimes,
+  isInflationCommissionUnresolved,
+  passesUptime,
+} from '@marinade.finance/ds-sam-calc'
 import semver from 'semver'
 
 import type {
@@ -12,11 +17,19 @@ import type {
 
 export type SamEligibilityThresholds = {
   uptimeEpochs: EpochUptime[]
+  // The running epoch follows a migration or Alpenglow epoch, so agave applies the VAT at its end
+  vatApplies: boolean
   minEffectiveRevSharePmpe: number
   minSamRevSharePmpe: number
 }
 
-export type SamIneligibilityGate = 'blacklist' | 'clientVersion' | 'uptime' | 'unresolvedCommission' | 'noBond'
+export type SamIneligibilityGate =
+  | 'blacklist'
+  | 'clientVersion'
+  | 'uptime'
+  | 'unresolvedCommission'
+  | 'vatIneligible'
+  | 'noBond'
 
 export const computeSamEligibilityThresholds = (
   { validators, rewards }: Pick<AggregatedData, 'validators' | 'rewards'>,
@@ -28,6 +41,8 @@ export const computeSamEligibilityThresholds = (
   )
   const minEpoch = maxEpoch - config.validatorsUptimeEpochsCount + 1
   const uptimeEpochs = epochUptimes(validators, minEpoch, maxEpoch, config.validatorsUptimeThresholdDec)
+  const lastClosedType = uptimeEpochs.at(-1)?.type
+  const vatApplies = lastClosedType === EpochUptimeType.MIGRATION || lastClosedType === EpochUptimeType.ALPENGLOW
 
   const minEffectiveRevSharePmpe = Math.max(0, rewards.inflationPmpe * (1 - config.validatorsMaxEffectiveCommissionDec))
   const minSamRevSharePmpe = Math.max(
@@ -35,7 +50,7 @@ export const computeSamEligibilityThresholds = (
     rewards.inflationPmpe + rewards.mevPmpe + (config.minEligibleFeePmpe ?? -Infinity),
   )
 
-  return { uptimeEpochs, minEffectiveRevSharePmpe, minSamRevSharePmpe }
+  return { uptimeEpochs, vatApplies, minEffectiveRevSharePmpe, minSamRevSharePmpe }
 }
 
 export const samIneligibilityGate = (
@@ -59,6 +74,9 @@ export const samIneligibilityGate = (
   }
   if (isInflationCommissionUnresolved(validator.values.commissions)) {
     return 'unresolvedCommission'
+  }
+  if (thresholds.vatApplies && validator.vatEligible === false) {
+    return 'vatIneligible'
   }
   if (validator.bondBalanceSol === null) {
     return 'noBond'

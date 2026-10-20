@@ -91,6 +91,8 @@ export type AggregatedValidator = {
   maxStakeWanted: number | null
   foundationStakeSol: number
   selfStakeSol: number
+  // SIMD-0357 balance check for the running epoch; null when unknown
+  vatEligible: boolean | null
   epochStats: EpochStats[]
   auctions: AuctionHistoryStats[]
   values: AuctionValidatorValues

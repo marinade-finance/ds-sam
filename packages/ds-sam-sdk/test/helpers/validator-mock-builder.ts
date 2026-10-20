@@ -38,6 +38,7 @@ export class ValidatorMockBuilder {
   private liquidStake = 0
   private externalStake = 0
   private version = '4.1.0'
+  private vatEligible: boolean | null = null
   private bond: BondDataType | null = null
   private country: string | null = null
   private aso: string | null = null
@@ -157,6 +158,11 @@ export class ValidatorMockBuilder {
 
   withVersion(version: string): this {
     this.version = version
+    return this
+  }
+
+  withVatEligible(vatEligible: boolean | null): this {
+    this.vatEligible = vatEligible
     return this
   }
 
@@ -283,6 +289,7 @@ export class ValidatorMockBuilder {
       })),
       self_stake: '0',
       foundation_stake: '0',
+      vat_eligible: this.vatEligible,
     }
   }
 }
