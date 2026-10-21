@@ -16,7 +16,13 @@ export type SamEligibilityThresholds = {
   minSamRevSharePmpe: number
 }
 
-export type SamIneligibilityGate = 'blacklist' | 'clientVersion' | 'uptime' | 'unresolvedCommission' | 'noBond'
+export type SamIneligibilityGate =
+  | 'blacklist'
+  | 'clientVersion'
+  | 'uptime'
+  | 'unresolvedCommission'
+  | 'vatIneligible'
+  | 'noBond'
 
 export const computeSamEligibilityThresholds = (
   { validators, rewards }: Pick<AggregatedData, 'validators' | 'rewards'>,
@@ -59,6 +65,9 @@ export const samIneligibilityGate = (
   }
   if (isInflationCommissionUnresolved(validator.values.commissions)) {
     return 'unresolvedCommission'
+  }
+  if (validator.vatEligible === false) {
+    return 'vatIneligible'
   }
   if (validator.bondBalanceSol === null) {
     return 'noBond'

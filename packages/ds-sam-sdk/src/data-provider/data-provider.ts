@@ -300,6 +300,7 @@ export class DataProvider {
         voteAccount: validator.vote_account,
         clientVersion: validator.version ?? '0.0.0',
         voteCredits: validator.credits,
+        vatEligible: validator.vat_eligible ?? null,
         aso: validator.dc_aso ?? 'Unknown',
         country: validator.dc_country ?? 'Unknown',
         bondBalanceSol,
