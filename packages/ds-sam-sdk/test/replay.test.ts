@@ -28,6 +28,9 @@ const ELIGIBILITY_KEYS: readonly ('samEligible' | 'backstopEligible')[] = ['samE
 
 const REPLAY_EPOCHS = 3
 
+// Archives before 1064 come from code without the VAT gate (#153). Raise this when the auction result changes on purpose.
+const REPLAY_FIRST_EPOCH = 1064
+
 type StoredValidator = {
   voteAccount: string
   revShare: RevShare
@@ -55,6 +58,7 @@ const listArchives = (): string[] => {
   return fs
     .readdirSync(auctionsDirPath)
     .filter(name => /^\d+\.\d+$/.test(name))
+    .filter(name => Number(name.split('.')[0]) >= REPLAY_FIRST_EPOCH)
     .filter(name => fs.existsSync(path.join(auctionsDirPath, name, 'outputs', 'results.json')))
     .sort((a, b) => Number(a.split('.')[0]) - Number(b.split('.')[0]))
     .slice(-REPLAY_EPOCHS)
@@ -92,7 +96,7 @@ const warnUnlessArchivesSpanCommissionChange = (): void => {
 const describeWithArchives = archives.length > 0 ? describe : describe.skip
 if (archives.length === 0) {
   console.warn(
-    `No ds-sam-pipeline auction archives at ${auctionsDirPath}, replay skipped. ` +
+    `No ds-sam-pipeline auction archives from epoch ${REPLAY_FIRST_EPOCH} at ${auctionsDirPath}, replay skipped. ` +
       'Clone marinade-finance/ds-sam-pipeline next to this repo or set DS_SAM_AUCTIONS_DIR.',
   )
 } else {
