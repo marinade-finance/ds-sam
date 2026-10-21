@@ -116,6 +116,8 @@ export type RawValidatorDto = {
   epoch_stats: RawEpochStatDto[]
   foundation_stake: string
   self_stake: string
+  // SIMD-0357 eligibility of the running epoch; absent in older API responses
+  vat_eligible?: boolean | null
   // Other properties ignored
 }
 export type RawValidatorsResponseDto = {
