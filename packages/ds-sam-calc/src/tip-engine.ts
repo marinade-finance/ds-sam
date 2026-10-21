@@ -336,6 +336,7 @@ function bidCta(
   // (or stay silent).
   if (
     !selectInSet(validator) &&
+    !(validator.samEligible === false && validator.vatEligible === false) &&
     (validator.bondBalanceSol ?? 0) >= dsSamConfig.minBondBalanceSol &&
     validator.revShare.totalPmpe < winningTotalPmpe
   ) {
@@ -422,6 +423,7 @@ function bondGrowthCta(
 export type OutOfSetGate =
   | { kind: 'blocked' }
   | { kind: 'blacklisted' }
+  | { kind: 'vatIneligible' }
   | { kind: 'ineligible' }
   | { kind: 'bondBelowMin' }
   | { kind: 'cap'; constraint: AuctionConstraint }
@@ -446,7 +448,12 @@ export function outOfSetGate(
     return { kind: 'blocked' }
   }
   if (validator.samEligible === false) {
-    return blacklist?.has(validator.voteAccount) ? { kind: 'blacklisted' } : { kind: 'ineligible' }
+    if (blacklist?.has(validator.voteAccount)) {
+      return { kind: 'blacklisted' }
+    }
+    // The SDK checks clientVersion, uptime and unresolvedCommission before
+    // vatIneligible, but the auction result does not say which gate refused.
+    return validator.vatEligible === false ? { kind: 'vatIneligible' } : { kind: 'ineligible' }
   }
   // The clipped cap, not the raw balance: clipBondStakeCap only zeroes the
   // cap below 0.8 × the minimum, so a balance inside that hysteresis band
@@ -465,6 +472,8 @@ export function outOfSetGateLabel(gate: OutOfSetGate, dsSamConfig: DsSamConfig):
       return 'Blocked from SAM'
     case 'blacklisted':
       return 'Blacklisted'
+    case 'vatIneligible':
+      return 'Vote account below VAT minimum'
     case 'ineligible':
       return 'Not eligible'
     case 'bondBelowMin':
@@ -496,12 +505,13 @@ function outOfSetCta(
   delta: number,
   blacklist?: Set<string>,
 ): ValidatorTip | null {
-  // Bid actually is the lever to pull → let bidCta own the message.
-  if (validator.revShare.totalPmpe < winningTotalPmpe) {
-    return null
-  }
   const gate = outOfSetGate(validator, dsSamConfig, blacklist)
   if (gate === null) {
+    return null
+  }
+  // Bid actually is the lever to pull → let bidCta own the message. A
+  // VAT-ineligible validator stays out at any bid.
+  if (validator.revShare.totalPmpe < winningTotalPmpe && gate.kind !== 'vatIneligible') {
     return null
   }
 
@@ -533,6 +543,13 @@ function outOfSetCta(
       // Yellow when defending so this message outranks deltaCta's symptom.
       return tip('Blacklisted.', defending ? 'warning' : 'neutral', 'none', delta)
     }
+    case 'vatIneligible':
+      return tip(
+        'Vote account below VAT minimum — fund it to pay the VAT.',
+        defending ? 'warning' : 'info',
+        'none',
+        delta,
+      )
     case 'ineligible':
       // Growth lever — fix the eligibility checks and you can qualify.
       // Escalate to yellow when defending so this names the cause instead of

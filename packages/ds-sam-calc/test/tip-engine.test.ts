@@ -758,6 +758,22 @@ describe('outOfSetGate', () => {
     expect(labelFor(validator, blacklist)).toBe('Not eligible')
   })
 
+  it('samEligible false + vatEligible false → vatIneligible', () => {
+    const validator = makeOutOfSet({ samEligible: false, vatEligible: false })
+    expect(outOfSetGate(validator, MIN_BOND_CONFIG)).toEqual({ kind: 'vatIneligible' })
+    expect(labelFor(validator)).toBe('Vote account below VAT minimum')
+  })
+
+  it('samEligible false + vatEligible false + on the blacklist → blacklisted', () => {
+    const validator = makeOutOfSet({ samEligible: false, vatEligible: false })
+    expect(outOfSetGate(validator, MIN_BOND_CONFIG, new Set(['test']))).toEqual({ kind: 'blacklisted' })
+  })
+
+  it.each([true, null, undefined])('samEligible false + vatEligible %s → ineligible', vatEligible => {
+    const validator = makeOutOfSet({ samEligible: false, vatEligible })
+    expect(outOfSetGate(validator, MIN_BOND_CONFIG)).toEqual({ kind: 'ineligible' })
+  })
+
   it('bond clipped to zero + below min → bondBelowMin, label carries the minimum', () => {
     const validator = makeOutOfSet({
       bondBalanceSol: 2,
@@ -815,6 +831,7 @@ describe('outOfSetGate / outOfSetCta agreement', () => {
   const cases: Array<[string, Record<string, unknown>]> = [
     ['blocked', { samBlocked: true }],
     ['ineligible', { samEligible: false }],
+    ['vatIneligible', { samEligible: false, vatEligible: false }],
     ['country cap', { lastCapConstraint: COUNTRY_CAP_CONSTRAINT }],
     ['bond cap', { bondSamStakeCapSol: 0, lastCapConstraint: BOND_CAP_CONSTRAINT }],
   ]
@@ -823,6 +840,27 @@ describe('outOfSetGate / outOfSetCta agreement', () => {
     const validator = makeOutOfSet(overrides)
     const tip = getValidatorTip(validator, MIN_BOND_CONFIG, 10)
     expect(tip.text.startsWith(labelFor(validator))).toBe(true)
+  })
+})
+
+describe('getValidatorTip for a VAT-ineligible validator', () => {
+  it('names the VAT, not the client version', () => {
+    const validator = makeOutOfSet({ samEligible: false, vatEligible: false })
+    expect(getValidatorTip(validator, MIN_BOND_CONFIG, 10).text).toBe(
+      'Vote account below VAT minimum — fund it to pay the VAT.',
+    )
+  })
+
+  it('names the VAT, not the bid, when the bid is below the winning price', () => {
+    const validator = makeOutOfSet({ samEligible: false, vatEligible: false })
+    const tip = getValidatorTip(validator, MIN_BOND_CONFIG, 100)
+    expect(tip.text).toBe('Vote account below VAT minimum — fund it to pay the VAT.')
+    expect(tip.constraint).toBe('none')
+  })
+
+  it('an eligible validator below the winning price still gets the bid CTA', () => {
+    const validator = makeOutOfSet({ vatEligible: true })
+    expect(getValidatorTip(validator, MIN_BOND_CONFIG, 100).text).toBe('Raise bid to qualify for stake.')
   })
 })
 
