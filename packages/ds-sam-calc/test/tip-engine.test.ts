@@ -759,9 +759,15 @@ describe('outOfSetGate', () => {
   })
 
   it('samEligible false + vatEligible false → vatIneligible', () => {
-    const validator = makeOutOfSet({ samEligible: false, vatEligible: false })
-    expect(outOfSetGate(validator, MIN_BOND_CONFIG)).toEqual({ kind: 'vatIneligible' })
+    const validator = makeOutOfSet({ samEligible: false, vatEligible: false, vatRejectionReason: 'low_balance' })
+    expect(outOfSetGate(validator, MIN_BOND_CONFIG)).toEqual({ kind: 'vatIneligible', reason: 'low_balance' })
     expect(labelFor(validator)).toBe('Vote account below VAT minimum')
+  })
+
+  it('vatIneligible without a reason → a label that covers every reason', () => {
+    const validator = makeOutOfSet({ samEligible: false, vatEligible: false })
+    expect(outOfSetGate(validator, MIN_BOND_CONFIG)).toEqual({ kind: 'vatIneligible', reason: null })
+    expect(labelFor(validator)).toBe('Not admitted to the VAT')
   })
 
   it('samEligible false + vatEligible false + on the blacklist → blacklisted', () => {
@@ -832,6 +838,10 @@ describe('outOfSetGate / outOfSetCta agreement', () => {
     ['blocked', { samBlocked: true }],
     ['ineligible', { samEligible: false }],
     ['vatIneligible', { samEligible: false, vatEligible: false }],
+    ['vatIneligible no_bls_key', { samEligible: false, vatEligible: false, vatRejectionReason: 'no_bls_key' }],
+    ['vatIneligible no_stake', { samEligible: false, vatEligible: false, vatRejectionReason: 'no_stake' }],
+    ['vatIneligible low_balance', { samEligible: false, vatEligible: false, vatRejectionReason: 'low_balance' }],
+    ['vatIneligible below_cutoff', { samEligible: false, vatEligible: false, vatRejectionReason: 'below_cutoff' }],
     ['country cap', { lastCapConstraint: COUNTRY_CAP_CONSTRAINT }],
     ['bond cap', { bondSamStakeCapSol: 0, lastCapConstraint: BOND_CAP_CONSTRAINT }],
   ]
@@ -844,15 +854,19 @@ describe('outOfSetGate / outOfSetCta agreement', () => {
 })
 
 describe('getValidatorTip for a VAT-ineligible validator', () => {
-  it('names the VAT, not the client version', () => {
-    const validator = makeOutOfSet({ samEligible: false, vatEligible: false })
-    expect(getValidatorTip(validator, MIN_BOND_CONFIG, 10).text).toBe(
-      'Vote account below VAT minimum — fund it to pay the VAT.',
-    )
+  it.each([
+    ['no_bls_key', 'No BLS key on the vote account — add a BLS key to pay the VAT.'],
+    ['no_stake', 'No stake next epoch — get stake to pay the VAT.'],
+    ['low_balance', 'Vote account below VAT minimum — fund it to pay the VAT.'],
+    ['below_cutoff', 'Outside the top 2000 vote accounts by stake — get more stake to pay the VAT.'],
+    [undefined, 'Not admitted to the VAT — check the BLS key, the vote account balance and the stake rank.'],
+  ])('names the VAT reason %s, not the client version', (vatRejectionReason, text) => {
+    const validator = makeOutOfSet({ samEligible: false, vatEligible: false, vatRejectionReason })
+    expect(getValidatorTip(validator, MIN_BOND_CONFIG, 10).text).toBe(text)
   })
 
   it('names the VAT, not the bid, when the bid is below the winning price', () => {
-    const validator = makeOutOfSet({ samEligible: false, vatEligible: false })
+    const validator = makeOutOfSet({ samEligible: false, vatEligible: false, vatRejectionReason: 'low_balance' })
     const tip = getValidatorTip(validator, MIN_BOND_CONFIG, 100)
     expect(tip.text).toBe('Vote account below VAT minimum — fund it to pay the VAT.')
     expect(tip.constraint).toBe('none')

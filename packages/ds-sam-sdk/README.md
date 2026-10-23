@@ -89,7 +89,9 @@ the package root and from `./eligibility`) expose the SAM eligibility rule as pu
 recompute a single validator's eligibility (e.g. after an override) with the SDK's own logic.
 
 The `vatIneligible` gate refuses a validator whose validators-api `vat_eligible` is `false`, in every epoch.
-`vat_eligible: null` never refuses a validator. For now, validators-api checks only the SIMD-0357 balance.
+`vat_eligible: null` never refuses a validator. validators-api applies all the SIMD-0357 checks.
+`vat_rejection_reason` names the first check that fails. The SDK keeps it as `vatRejectionReason`, and maps an unknown
+value to `null`.
 
 ## Browser-safe entry
 

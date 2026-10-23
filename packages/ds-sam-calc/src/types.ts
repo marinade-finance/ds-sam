@@ -1,5 +1,8 @@
 import type Decimal from 'decimal.js'
 
+export const VAT_REJECTION_REASONS = ['no_bls_key', 'no_stake', 'low_balance', 'below_cutoff'] as const
+export type VatRejectionReason = (typeof VAT_REJECTION_REASONS)[number]
+
 export type AuctionResult = {
   auctionData: AuctionData
   winningTotalPmpe: number
@@ -91,8 +94,10 @@ export type AggregatedValidator = {
   maxStakeWanted: number | null
   foundationStakeSol: number
   selfStakeSol: number
-  // SIMD-0357 balance check for the running epoch; null when unknown
+  // SIMD-0357 admission of the running epoch; null when unknown
   vatEligible?: boolean | null
+  // The first SIMD-0357 check that fails; null when admitted, unknown or not one of these values
+  vatRejectionReason?: VatRejectionReason | null
   epochStats: EpochStats[]
   auctions: AuctionHistoryStats[]
   values: AuctionValidatorValues
