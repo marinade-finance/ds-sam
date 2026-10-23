@@ -13,7 +13,7 @@ import type { BondHealthState } from './bond-health'
 import type { CardStatusSeverity } from './card-status'
 import type { DsSamConfig } from './config'
 import type { AugmentedAuctionValidator } from './sam'
-import type { AuctionConstraint } from './types'
+import type { AuctionConstraint, VatRejectionReason } from './types'
 
 export type TipUrgency = 'critical' | 'warning' | 'info' | 'positive' | 'neutral'
 export type TipConstraint = 'rank' | 'bond' | 'bid' | 'cap' | 'none'
@@ -423,7 +423,7 @@ function bondGrowthCta(
 export type OutOfSetGate =
   | { kind: 'blocked' }
   | { kind: 'blacklisted' }
-  | { kind: 'vatIneligible' }
+  | { kind: 'vatIneligible'; reason: VatRejectionReason | null }
   | { kind: 'ineligible' }
   | { kind: 'bondBelowMin' }
   | { kind: 'cap'; constraint: AuctionConstraint }
@@ -453,7 +453,9 @@ export function outOfSetGate(
     }
     // The SDK checks clientVersion, uptime and unresolvedCommission before
     // vatIneligible, but the auction result does not say which gate refused.
-    return validator.vatEligible === false ? { kind: 'vatIneligible' } : { kind: 'ineligible' }
+    return validator.vatEligible === false
+      ? { kind: 'vatIneligible', reason: validator.vatRejectionReason ?? null }
+      : { kind: 'ineligible' }
   }
   // The clipped cap, not the raw balance: clipBondStakeCap only zeroes the
   // cap below 0.8 × the minimum, so a balance inside that hysteresis band
@@ -473,7 +475,7 @@ export function outOfSetGateLabel(gate: OutOfSetGate, dsSamConfig: DsSamConfig):
     case 'blacklisted':
       return 'Blacklisted'
     case 'vatIneligible':
-      return 'Vote account below VAT minimum'
+      return vatGateLabel(gate.reason)
     case 'ineligible':
       return 'Not eligible'
     case 'bondBelowMin':
@@ -482,6 +484,40 @@ export function outOfSetGateLabel(gate: OutOfSetGate, dsSamConfig: DsSamConfig):
       return capCauseLine(gate.constraint.constraintType, gate.constraint.constraintName)
     default:
       return assertNever(gate)
+  }
+}
+
+function vatGateLabel(reason: VatRejectionReason | null): string {
+  switch (reason) {
+    case 'no_bls_key':
+      return 'No BLS key on the vote account'
+    case 'no_stake':
+      return 'No stake next epoch'
+    case 'low_balance':
+      return 'Vote account below VAT minimum'
+    case 'below_cutoff':
+      return 'Outside the top 2000 vote accounts by stake'
+    case null:
+      return 'Not admitted to the VAT'
+    default:
+      return assertNever(reason)
+  }
+}
+
+function vatGateAction(reason: VatRejectionReason | null): string {
+  switch (reason) {
+    case 'no_bls_key':
+      return 'add a BLS key to pay the VAT'
+    case 'no_stake':
+      return 'get stake to pay the VAT'
+    case 'low_balance':
+      return 'fund it to pay the VAT'
+    case 'below_cutoff':
+      return 'get more stake to pay the VAT'
+    case null:
+      return 'check the BLS key, the vote account balance and the stake rank'
+    default:
+      return assertNever(reason)
   }
 }
 
@@ -545,7 +581,7 @@ function outOfSetCta(
     }
     case 'vatIneligible':
       return tip(
-        'Vote account below VAT minimum — fund it to pay the VAT.',
+        `${vatGateLabel(gate.reason)} — ${vatGateAction(gate.reason)}.`,
         defending ? 'warning' : 'info',
         'none',
         delta,

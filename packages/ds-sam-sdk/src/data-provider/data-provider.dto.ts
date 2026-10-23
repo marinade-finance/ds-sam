@@ -118,6 +118,8 @@ export type RawValidatorDto = {
   self_stake: string
   // SIMD-0357 eligibility of the running epoch; absent in older API responses
   vat_eligible?: boolean | null
+  // no_bls_key, no_stake, low_balance or below_cutoff; absent in older API responses
+  vat_rejection_reason?: string | null
   // Other properties ignored
 }
 export type RawValidatorsResponseDto = {
