@@ -288,6 +288,26 @@ describe('calculateProtectedEventEstimates — Alpenglow DowntimeRevenueImpact',
     const validatorMetas = ALPENGLOW_COLLECTION.map(m => (m.vote_account === 'C' ? { ...m, commission: 100 } : m))
     expect(calculateProtectedEventEstimates(alpenglowInput(validatorMetas, ['A', 'B', 'C']))).toEqual([])
   })
+
+  // validator-bonds first_window_skip_collection: every member skipped its first window, produced the rest
+  const FIRST_WINDOW_SKIPPERS = [
+    alpenglowMeta('A', 1200n, 12n),
+    alpenglowMeta('B', 800n, 8n),
+    alpenglowMeta('C', 400n, 4n),
+  ]
+
+  it.each([1065, 1066, 1067])('estimates no downtime for the skipped first leader window in epoch %i', epoch => {
+    const input = { ...alpenglowInput(FIRST_WINDOW_SKIPPERS, ['A', 'B', 'C']), epoch }
+    expect(calculateProtectedEventEstimates(input)).toEqual([])
+  })
+
+  it('keeps every scheduled slot outside the Agave skip epochs', () => {
+    const events = calculateProtectedEventEstimates(alpenglowInput(FIRST_WINDOW_SKIPPERS, ['A', 'B', 'C']))
+    expect(events.map(({ vote_account }) => vote_account)).toEqual(['C'])
+    expect(events[0]?.reason).toMatchObject({
+      ProtectedEvent: { DowntimeRevenueImpact: { actual_credits: 400, expected_credits: 600 } },
+    })
+  })
 })
 
 // validator-bonds alpenglow_collection for VAT: 500 bps applied, D staked outside the committee without votes

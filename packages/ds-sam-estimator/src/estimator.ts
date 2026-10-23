@@ -1,4 +1,9 @@
-import { EpochUptimeType, evaluateRevenueExpectations, uptimeTypeOf } from '@marinade.finance/ds-sam-calc'
+import {
+  EpochUptimeType,
+  evaluateRevenueExpectations,
+  uptimeTypeOf,
+  withoutFirstWindow,
+} from '@marinade.finance/ds-sam-calc'
 import { alpenglowExpectedCredits, assertNever } from '@marinade.finance/ts-common/dist/src/browser'
 import Decimal from 'decimal.js'
 
@@ -168,21 +173,23 @@ const towerCredits = (validatorMetas: PsrValidatorMeta[]): CreditsOutcome[] => {
   return towerMetas.map(({ meta, actual }) => ({ meta, actual, expected }))
 }
 
-const alpenglowCredits = (validatorMetas: PsrValidatorMeta[]): CreditsOutcome[] => {
+const alpenglowCredits = (validatorMetas: PsrValidatorMeta[], epoch: number): CreditsOutcome[] => {
   // validator-bonds weighs only reward-committee members and counts a missing vote reward as 0
   const members = validatorMetas.flatMap(meta =>
-    meta.epoch_stake == null ? [] : [{ meta, epochStake: meta.epoch_stake }],
+    meta.epoch_stake == null
+      ? []
+      : [{ meta, epochStake: meta.epoch_stake, leaderSlots: withoutFirstWindow(meta.leader_slots, epoch) }],
   )
   const results = alpenglowExpectedCredits(
-    members.map(({ meta, epochStake }) => ({
+    members.map(({ meta, epochStake, leaderSlots }) => ({
       voteAccount: meta.vote_account,
       stake: epochStake,
-      leaderSlots: meta.leader_slots,
+      leaderSlots,
       credits: meta.vote_reward_lamports ?? 0n,
     })),
     {
       totalStake: members.reduce((sum, { epochStake }) => sum + epochStake, 0n),
-      totalSlots: members.reduce((sum, { meta }) => sum + meta.leader_slots, 0n),
+      totalSlots: members.reduce((sum, { leaderSlots }) => sum + leaderSlots, 0n),
     },
   )
   return members.flatMap(({ meta }, i) => {
@@ -200,13 +207,13 @@ const epochTypeOf = (validatorMetas: PsrValidatorMeta[]) =>
     validatorMetas.some(({ vote_reward_lamports }) => vote_reward_lamports != null),
   )
 
-const creditsOutcomes = (validatorMetas: PsrValidatorMeta[]): CreditsOutcome[] => {
+const creditsOutcomes = (validatorMetas: PsrValidatorMeta[], epoch: number): CreditsOutcome[] => {
   const epochType = epochTypeOf(validatorMetas)
   if (epochType === EpochUptimeType.TOWER) {
     return towerCredits(validatorMetas)
   }
   if (epochType === EpochUptimeType.ALPENGLOW) {
-    return alpenglowCredits(validatorMetas)
+    return alpenglowCredits(validatorMetas, epoch)
   }
   // validator-bonds settles no downtime in the migration epoch
   return []
@@ -215,8 +222,9 @@ const creditsOutcomes = (validatorMetas: PsrValidatorMeta[]): CreditsOutcome[] =
 const downtimeRevenueImpactEvents = (
   validatorMetas: PsrValidatorMeta[],
   expectations: Map<string, RevenueExpectation>,
+  epoch: number,
 ): PsrEvent[] =>
-  creditsOutcomes(validatorMetas).flatMap(({ meta, actual, expected }): PsrEvent[] => {
+  creditsOutcomes(validatorMetas, epoch).flatMap(({ meta, actual, expected }): PsrEvent[] => {
     const expectation = expectations.get(meta.vote_account)
     if (meta.stake <= 0n || !expectation || actual >= expected || appliedCommissionBps(meta) >= 10000) {
       return []
@@ -364,7 +372,7 @@ export const calculateProtectedEventEstimates = ({
   const vatEvents = vatAdmissions ? vatUnadmittedEvents(validatorMetas, expectations, vatAdmissions, rewards) : []
   const vatVoteAccounts = new Set(vatEvents.map(event => event.payload.vote_account))
   // as in validator-bonds, a VAT event replaces the downtime event before any settlement config applies
-  const downtimeEvents = downtimeRevenueImpactEvents(validatorMetas, expectations).filter(
+  const downtimeEvents = downtimeRevenueImpactEvents(validatorMetas, expectations, epoch).filter(
     event => !vatVoteAccounts.has(event.payload.vote_account),
   )
   const events = [...commissionIncreaseEvents(validatorMetas, expectations), ...vatEvents, ...downtimeEvents]
