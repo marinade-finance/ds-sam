@@ -132,8 +132,20 @@ describe('uptime', () => {
     }
   })
 
-  it('keeps every scheduled slot outside the Agave skip epochs', () => {
-    const { epochs, passes } = evaluate(firstWindowSkippers(10), 10, 10)
+  it('scores a validator without leader slots in an Agave skip epoch', () => {
+    const validators = [
+      validator('idle-leader', [{ epoch: 1066, stake: 100, reward: 1000, leaderSlots: 0 }]),
+      validator('one-window', [{ epoch: 1066, stake: 100, reward: 1000, leaderSlots: 4 }]),
+    ]
+    const { epochs, passes } = evaluate(validators, 1066, 1066)
+
+    expect(scoresOf(epochs[0]).get('idle-leader')).toBeCloseTo(1)
+    expect(scoresOf(epochs[0]).get('one-window')).toBeCloseTo(1)
+    expect(passes.get('idle-leader')).toBe(true)
+  })
+
+  it.each([10, 1064, 1068])('keeps every scheduled slot in epoch %i', epoch => {
+    const { epochs, passes } = evaluate(firstWindowSkippers(epoch), epoch, epoch)
 
     // w scaled by S·N = stake·25 + slots·400: a 7300, b 5700, c 4100, d 2900, Σw = 20000, Σreward = 2400
     expect(scoresOf(epochs[0]).get('a')).toBeCloseTo((1100 * 20000) / (7300 * 2400))

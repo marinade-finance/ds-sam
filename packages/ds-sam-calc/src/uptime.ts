@@ -23,7 +23,7 @@ const findEpochStats = ({ epochStats }: AggregatedValidator, epoch: number): Epo
 const FIRST_LEADER_WINDOW_SKIP_EPOCHS = new Set<number>([1065, 1066, 1067])
 const NUM_CONSECUTIVE_LEADER_SLOTS = 4n
 
-const withoutFirstWindow = (leaderSlots: bigint, epoch: number): bigint => {
+export const withoutFirstWindow = (leaderSlots: bigint, epoch: number): bigint => {
   if (!FIRST_LEADER_WINDOW_SKIP_EPOCHS.has(epoch)) {
     return leaderSlots
   }
