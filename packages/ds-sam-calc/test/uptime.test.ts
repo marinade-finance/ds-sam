@@ -115,6 +115,34 @@ describe('uptime', () => {
     expect(passes.get('a')).toBe(true)
   })
 
+  // Every validator skipped its whole first window and produced every other slot
+  const firstWindowSkippers = (epoch: number) => [
+    validator('a', [{ epoch, stake: 100, reward: 1100, leaderSlots: 12 }]),
+    validator('b', [{ epoch, stake: 100, reward: 700, leaderSlots: 8 }]),
+    validator('c', [{ epoch, stake: 100, reward: 300, leaderSlots: 4 }]),
+    validator('d', [{ epoch, stake: 100, reward: 300, leaderSlots: 1 }]),
+  ]
+
+  it.each([1065, 1066, 1067])('drops the skipped first leader window in epoch %i', epoch => {
+    const { epochs, passes } = evaluate(firstWindowSkippers(epoch), epoch, epoch)
+
+    for (const voteAccount of ['a', 'b', 'c', 'd']) {
+      expect(scoresOf(epochs[0]).get(voteAccount)).toBeCloseTo(1)
+      expect(passes.get(voteAccount)).toBe(true)
+    }
+  })
+
+  it('keeps every scheduled slot outside the Agave skip epochs', () => {
+    const { epochs, passes } = evaluate(firstWindowSkippers(10), 10, 10)
+
+    // w scaled by S·N = stake·25 + slots·400: a 7300, b 5700, c 4100, d 2900, Σw = 20000, Σreward = 2400
+    expect(scoresOf(epochs[0]).get('a')).toBeCloseTo((1100 * 20000) / (7300 * 2400))
+    expect(scoresOf(epochs[0]).get('c')).toBeCloseTo((300 * 20000) / (4100 * 2400))
+    expect(scoresOf(epochs[0]).get('d')).toBeCloseTo((300 * 20000) / (2900 * 2400))
+    expect(passes.get('c')).toBe(false)
+    expect(passes.get('d')).toBe(true)
+  })
+
   it('treats a null reward as unknown and leaves it out of the sums', () => {
     const validators = [
       validator('a', [{ epoch: 10, stake: 100, reward: 1000, leaderSlots: 10 }]),

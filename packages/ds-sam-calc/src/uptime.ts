@@ -19,6 +19,17 @@ export type EpochUptime =
 const findEpochStats = ({ epochStats }: AggregatedValidator, epoch: number): EpochStats | undefined =>
   epochStats.find(es => es.epoch === epoch)
 
+// Agave skipped each validator's first leader window of these epochs (agave#16302)
+const FIRST_LEADER_WINDOW_SKIP_EPOCHS = new Set<number>([1065, 1066, 1067])
+const NUM_CONSECUTIVE_LEADER_SLOTS = 4n
+
+const withoutFirstWindow = (leaderSlots: bigint, epoch: number): bigint => {
+  if (!FIRST_LEADER_WINDOW_SKIP_EPOCHS.has(epoch)) {
+    return leaderSlots
+  }
+  return leaderSlots > NUM_CONSECUTIVE_LEADER_SLOTS ? leaderSlots - NUM_CONSECUTIVE_LEADER_SLOTS : 0n
+}
+
 // Cluster-wide: whether any validator of the epoch has credits, and whether any has a vote reward
 export function uptimeTypeOf(hasCredits: boolean, hasRewards: boolean): EpochUptimeType | undefined {
   // Only the migration epoch has both
@@ -77,7 +88,10 @@ function alpenglowScores(validators: AggregatedValidator[], epoch: number): Map<
           {
             voteAccount: validator.voteAccount,
             stake: toCount(es.epochStake, `${validator.voteAccount} epoch ${epoch} stake`),
-            leaderSlots: toCount(es.leaderSlots, `${validator.voteAccount} epoch ${epoch} leader slots`),
+            leaderSlots: withoutFirstWindow(
+              toCount(es.leaderSlots, `${validator.voteAccount} epoch ${epoch} leader slots`),
+              epoch,
+            ),
             credits: toCount(es.voteRewardLamports, `${validator.voteAccount} epoch ${epoch} vote reward`),
           },
         ]
