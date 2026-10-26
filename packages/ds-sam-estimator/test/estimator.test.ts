@@ -296,10 +296,13 @@ describe('calculateProtectedEventEstimates — Alpenglow DowntimeRevenueImpact',
     alpenglowMeta('C', 400n, 4n),
   ]
 
-  it.each([1065, 1066, 1067])('estimates no downtime for the skipped first leader window in epoch %i', epoch => {
-    const input = { ...alpenglowInput(FIRST_WINDOW_SKIPPERS, ['A', 'B', 'C']), epoch }
-    expect(calculateProtectedEventEstimates(input)).toEqual([])
-  })
+  it.each([1065, 1066, 1067, 1068, 1069, 1070])(
+    'estimates no downtime for the skipped first leader window in epoch %i',
+    epoch => {
+      const input = { ...alpenglowInput(FIRST_WINDOW_SKIPPERS, ['A', 'B', 'C']), epoch }
+      expect(calculateProtectedEventEstimates(input)).toEqual([])
+    },
+  )
 
   it('keeps every scheduled slot outside the Agave skip epochs', () => {
     const events = calculateProtectedEventEstimates(alpenglowInput(FIRST_WINDOW_SKIPPERS, ['A', 'B', 'C']))

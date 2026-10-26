@@ -19,8 +19,8 @@ export type EpochUptime =
 const findEpochStats = ({ epochStats }: AggregatedValidator, epoch: number): EpochStats | undefined =>
   epochStats.find(es => es.epoch === epoch)
 
-// Agave skipped each validator's first leader window of these epochs (agave#16302)
-const FIRST_LEADER_WINDOW_SKIP_EPOCHS = new Set<number>([1065, 1066, 1067])
+// Agave skips each validator's first leader window in these epochs (agave#16302)
+const FIRST_LEADER_WINDOW_SKIP_EPOCHS = new Set<number>([1065, 1066, 1067, 1068, 1069, 1070])
 const NUM_CONSECUTIVE_LEADER_SLOTS = 4n
 
 export const withoutFirstWindow = (leaderSlots: bigint, epoch: number): bigint => {
