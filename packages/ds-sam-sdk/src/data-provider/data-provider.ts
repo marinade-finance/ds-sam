@@ -5,6 +5,7 @@ import {
   calcEffParticipatingBidPmpe,
   InputsSource,
   effectiveCommissions,
+  VAT_REJECTION_REASONS,
   winningTotalPmpeOf,
 } from '@marinade.finance/ds-sam-calc'
 import { lamportsToSol } from '@marinade.finance/ts-common/dist/src/browser'
@@ -31,7 +32,12 @@ import type {
   AuctionHistoryStats,
   DsSamConfig,
   SlotParams,
+  VatRejectionReason,
 } from '@marinade.finance/ds-sam-calc'
+
+function parseVatRejectionReason(reason: string | null | undefined): VatRejectionReason | null {
+  return VAT_REJECTION_REASONS.find(known => known === reason) ?? null
+}
 
 export class DataProvider {
   constructor(
@@ -301,6 +307,7 @@ export class DataProvider {
         clientVersion: validator.version ?? '0.0.0',
         voteCredits: validator.credits,
         vatEligible: validator.vat_eligible ?? null,
+        vatRejectionReason: parseVatRejectionReason(validator.vat_rejection_reason),
         aso: validator.dc_aso ?? 'Unknown',
         country: validator.dc_country ?? 'Unknown',
         bondBalanceSol,

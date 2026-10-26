@@ -88,8 +88,8 @@ reads, or clone it with `new Decimal(value)`.
 the package root and from `./eligibility`) expose the SAM eligibility rule as pure functions, so a consumer can
 recompute a single validator's eligibility (e.g. after an override) with the SDK's own logic.
 
-The `vatIneligible` gate refuses a validator whose validators-api `vat_eligible` is `false`, in every epoch.
-`vat_eligible: null` never refuses a validator. For now, validators-api checks only the SIMD-0357 balance.
+The `vatIneligible` gate refuses a validator only when validators-api gives `vat_eligible: false`, and
+`vatRejectionReason` keeps the first SIMD-0357 check that fails.
 
 ## Browser-safe entry
 

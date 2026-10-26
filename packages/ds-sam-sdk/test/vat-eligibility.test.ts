@@ -48,6 +48,26 @@ describe('VAT eligibility', () => {
     ])
   })
 
+  it('keeps a known vat_rejection_reason and drops an unknown one', async () => {
+    const votes = generateVoteAccounts('vat-reason')
+    const ids = generateIdentities()
+    const reasons = ['below_cutoff', 'no_bls_key', 'future_reason', null, undefined]
+    const validators = reasons.map(reason =>
+      withEpochs(
+        new ValidatorMockBuilder(votes.next().value, ids.next().value).withEligibleDefaults(),
+        repeat('alpenglow', 10),
+      )
+        .withVatEligible(false)
+        .withVatRejectionReason(reason),
+    )
+    const aggregatedData = await new DsSamSDK({}, defaultStaticDataProviderBuilder(validators)).getAggregatedData()
+    expect(
+      validators.map(
+        builder => aggregatedData.validators.find(v => v.voteAccount === builder.voteAccount)?.vatRejectionReason,
+      ),
+    ).toEqual(['below_cutoff', 'no_bls_key', null, null, null])
+  })
+
   it('refuses in Tower epochs and in the migration epoch too', async () => {
     const towerOnly = repeat('tower', 10)
     const runningMigration: EpochKind[] = ['migration', ...repeat('tower', 9)]
