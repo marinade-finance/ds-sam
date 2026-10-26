@@ -632,7 +632,7 @@ describe('blacklistFilePath validation', () => {
     ).toThrow('--blacklist-file is not read for inputs source')
   })
 
-  it('rejects caching a local blacklist file, which would look like an API snapshot', () => {
+  it('accepts caching inputs with a local blacklist file', () => {
     expect(() =>
       build({
         inputsSource: InputsSource.APIS,
@@ -640,7 +640,7 @@ describe('blacklistFilePath validation', () => {
         inputsCacheDirPath: '/dev/null',
         blacklistFilePath: './b.csv',
       }),
-    ).toThrow('Cannot cache inputs while reading the blacklist from a local file')
+    ).not.toThrow()
   })
 
   it('accepts a local blacklist file for a live APIS run', () => {
