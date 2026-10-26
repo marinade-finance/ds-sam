@@ -123,7 +123,7 @@ describe('uptime', () => {
     validator('d', [{ epoch, stake: 100, reward: 300, leaderSlots: 1 }]),
   ]
 
-  it.each([1065, 1066, 1067])('drops the skipped first leader window in epoch %i', epoch => {
+  it.each([1065, 1066, 1067, 1068, 1069, 1070])('drops the skipped first leader window in epoch %i', epoch => {
     const { epochs, passes } = evaluate(firstWindowSkippers(epoch), epoch, epoch)
 
     for (const voteAccount of ['a', 'b', 'c', 'd']) {
@@ -144,7 +144,7 @@ describe('uptime', () => {
     expect(passes.get('idle-leader')).toBe(true)
   })
 
-  it.each([10, 1064, 1068])('keeps every scheduled slot in epoch %i', epoch => {
+  it.each([10, 1064, 1071])('keeps every scheduled slot in epoch %i', epoch => {
     const { epochs, passes } = evaluate(firstWindowSkippers(epoch), epoch, epoch)
 
     // w scaled by S·N = stake·25 + slots·400: a 7300, b 5700, c 4100, d 2900, Σw = 20000, Σreward = 2400
