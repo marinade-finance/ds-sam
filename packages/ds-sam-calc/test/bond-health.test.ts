@@ -9,7 +9,8 @@ const CONFIG: DsSamConfig = {
   minBondEpochs: 2,
   idealBondEpochs: 10,
   bondRiskFeeMult: 1,
-  minBondBalanceSol: 1,
+  minBondBalanceSol: 7,
+  noBondBalanceSol: 1.01,
 } as unknown as DsSamConfig
 
 function makeValidator(overrides: Record<string, unknown> = {}): AuctionValidator {
@@ -46,20 +47,35 @@ describe('bondHealthFromAuction — no-bond tier', () => {
     const v = makeValidator({ bondBalanceSol: -1, claimableBondBalanceSol: 0 })
     expect(bondHealthFromAuction(v, CONFIG, 10)).toBe('no-bond')
   })
+
+  it('bondBalance at the stake-account floor → "no-bond"', () => {
+    const v = makeValidator({ bondBalanceSol: 1.00228288, claimableBondBalanceSol: 0 })
+    expect(bondHealthFromAuction(v, CONFIG, 10)).toBe('no-bond')
+  })
+
+  it('bondBalance exactly equals noBondBalanceSol → "no-bond"', () => {
+    const v = makeValidator({ bondBalanceSol: 1.01, claimableBondBalanceSol: 0 })
+    expect(bondHealthFromAuction(v, CONFIG, 10)).toBe('no-bond')
+  })
+
+  it('bondBalance just above noBondBalanceSol → "critical", not "no-bond"', () => {
+    const v = makeValidator({ bondBalanceSol: 1.02, claimableBondBalanceSol: 0 })
+    expect(bondHealthFromAuction(v, CONFIG, 10)).toBe('critical')
+  })
 })
 
 describe('bondHealthFromAuction — below minBondBalanceSol → critical', () => {
-  it('bondBalance > 0 but < minBondBalanceSol → "critical"', () => {
-    // minBondBalanceSol=1, bondBalance=0.5 → critical before any runway check
-    const v = makeValidator({ bondBalanceSol: 0.5 })
+  it('bondBalance > noBondBalanceSol but < minBondBalanceSol → "critical"', () => {
+    // noBondBalanceSol=1.01 < 2 < minBondBalanceSol=7 → critical before any runway check
+    const v = makeValidator({ bondBalanceSol: 2 })
     expect(bondHealthFromAuction(v, CONFIG, 10)).toBe('critical')
   })
 
   it('bondBalance exactly equals minBondBalanceSol → NOT below-min, continues to runway check', () => {
-    // balance=1 == minBondBalanceSol=1 → passes gate.
+    // balance=7 == minBondBalanceSol=7 → passes gate.
     // claimable must cover stakeKeepFloor = (minBondPmpe/1000)*stake = (1/1000)*10000 = 10
     // so set claimable=100 (covers floor) and runway=20 → healthy.
-    const v = makeValidator({ bondBalanceSol: 1, claimableBondBalanceSol: 100 })
+    const v = makeValidator({ bondBalanceSol: 7, claimableBondBalanceSol: 100 })
     expect(bondHealthFromAuction(v, CONFIG, 10)).toBe('healthy')
   })
 })

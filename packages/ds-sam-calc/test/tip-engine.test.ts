@@ -45,6 +45,7 @@ const DS_SAM_CONFIG = {
   // SDK minimum (they pin the fee branch, not the below-min branch); large
   // enough that bondSol(minBondBalanceSol) renders for the no-bond message.
   minBondBalanceSol: 0.0001,
+  noBondBalanceSol: 0,
   bidTooLowPenaltyHistoryEpochs: 10,
   bidTooLowPenaltyPermittedDeviationPmpe: 0.0001,
 } as unknown as DsSamConfig
