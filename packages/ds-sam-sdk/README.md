@@ -54,6 +54,8 @@ SDK for Marinade's DS-SAM - max yield - auction evaluation tool.
 
   // The minimal bond balance to have to get and retain any stake
   minBondBalanceSol: number
+  // Bond at or below this is no bond: 1 SOL min delegation + rent that fund_settlement can never take
+  noBondBalanceSol: number
 
   // Minimum commission a validator can set on bonds.
   // Prevents validators from setting excessively negative commissions.

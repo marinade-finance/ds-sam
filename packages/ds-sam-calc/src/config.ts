@@ -71,6 +71,8 @@ export type DsSamConfig = {
 
   // The minimal bond balanace to have to get and retain any stake
   minBondBalanceSol: number
+  // Bond at or below this is no bond: 1 SOL min delegation + rent that fund_settlement can never take
+  noBondBalanceSol: number
 
   // The minimum number of epochs payments for which the bond has to cover on top
   // of the downtime and rugging risk
@@ -159,6 +161,7 @@ export const DEFAULT_CONFIG: DsSamConfig = {
   maxMarinadeTvlSharePerValidatorDec: 0.04,
   maxUnprotectedStakePerValidatorDec: 0,
   minBondBalanceSol: 0,
+  noBondBalanceSol: 1.01,
   minBondEpochs: 1,
   idealBondEpochs: 1,
   bondRiskFeeMult: 0,
