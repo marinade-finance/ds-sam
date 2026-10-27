@@ -147,7 +147,7 @@ describe('sam', () => {
             .withBond({
               stakeWanted: 1_000_000,
               cpmpe: 0.1 * (index + 1),
-              balance: 1,
+              balance: 2,
             }),
         ),
         ...Array.from({ length: 10 }, (_, index) =>

@@ -78,7 +78,7 @@ describe('constraints', () => {
       new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
         .withEligibleDefaults()
 
-        .withBond({ stakeWanted: 11_000, cpmpe: 0, balance: 0.1 }),
+        .withBond({ stakeWanted: 11_000, cpmpe: 0, balance: 2 }),
       // max stake wanted is clipped to a minimum value
       new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
         .withEligibleDefaults()
@@ -271,7 +271,7 @@ describe('constraints', () => {
           .withNativeStake(0)
           .withLiquidStake(0)
           .withExternalStake(100_000)
-          .withBond({ stakeWanted: 1_000_000, cpmpe: 1, balance: 1 }),
+          .withBond({ stakeWanted: 1_000_000, cpmpe: 1, balance: 2 }),
       ),
       ...Array.from({ length: 10 }, () =>
         new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
@@ -279,7 +279,7 @@ describe('constraints', () => {
           .withNativeStake(0)
           .withLiquidStake(10_000)
           .withExternalStake(10_000_000)
-          .withBond({ stakeWanted: 1_000_000, cpmpe: 0, balance: 1 }),
+          .withBond({ stakeWanted: 1_000_000, cpmpe: 0, balance: 2 }),
       ),
     ]
     const dsSam = new DsSamSDK({}, defaultStaticDataProviderBuilder(validators))
