@@ -69,7 +69,7 @@ export const samIneligibilityGate = (
   if (validator.vatEligible === false) {
     return 'vatIneligible'
   }
-  if (validator.bondBalanceSol === null) {
+  if (validator.bondBalanceSol === null || validator.bondBalanceSol <= config.noBondBalanceSol) {
     return 'noBond'
   }
   return null

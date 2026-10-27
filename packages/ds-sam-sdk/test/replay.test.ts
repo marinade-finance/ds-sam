@@ -28,8 +28,8 @@ const ELIGIBILITY_KEYS: readonly ('samEligible' | 'backstopEligible')[] = ['samE
 
 const REPLAY_EPOCHS = 3
 
-// Archives before 1064 come from code without the VAT gate (#153). Raise this when the auction result changes on purpose.
-const REPLAY_FIRST_EPOCH = 1064
+// Archives before 1070 count floor-only bonds as bonds (noBondBalanceSol). Raise this when the result changes on purpose.
+const REPLAY_FIRST_EPOCH = 1070
 
 type StoredValidator = {
   voteAccount: string
