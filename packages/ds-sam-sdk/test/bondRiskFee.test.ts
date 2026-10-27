@@ -13,7 +13,7 @@ import assert from 'node:assert'
 
 import { calcBondRiskFee, DEFAULT_CONFIG } from '@marinade.finance/ds-sam-calc'
 
-import { DsSamSDK } from '../src'
+import { DsSamSDK, loadSamConfig } from '../src'
 import { Auction } from '../src/auction'
 import { Debug } from '../src/debug'
 import { defaultStaticDataProviderBuilder } from './helpers/static-data-provider-builder'
@@ -417,5 +417,18 @@ describe('setBondRiskFee no-bond floor', () => {
 
   it('reads the last balance first, so a bond drained this epoch is still charged', () => {
     expect(runFee(1.005, 50).values.bondRiskFeeSol).toBeGreaterThan(0)
+  })
+
+  it('loadSamConfig fills noBondBalanceSol for a remote config that lacks it', async () => {
+    const fetchSpy = jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValue({ json: () => Promise.resolve({ minBondBalanceSol: 7 }) } as Response)
+    try {
+      const config = await loadSamConfig()
+      expect(config.noBondBalanceSol).toBe(DEFAULT_CONFIG.noBondBalanceSol)
+      expect(config.minBondBalanceSol).toBe(7)
+    } finally {
+      fetchSpy.mockRestore()
+    }
   })
 })

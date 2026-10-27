@@ -180,6 +180,6 @@ export class DsSamSDK {
 export async function loadSamConfig(): Promise<DsSamConfig> {
   const url = 'https://thru.marinade.finance/marinade-finance/ds-sam-pipeline/main/auction-config.json'
   const response = await fetch(url)
-  const dataJson = (await response.json()) as DsSamConfig
-  return dataJson
+  const dataJson = (await response.json()) as Partial<DsSamConfig>
+  return { ...DEFAULT_CONFIG, ...dataJson }
 }
