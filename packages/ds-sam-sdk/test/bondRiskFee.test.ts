@@ -357,7 +357,7 @@ describe('setBondRiskFee (SDK integration)', () => {
         .withEligibleDefaults()
         .withLiquidStake(100_000)
         .withBond({ stakeWanted: 150_000, cpmpe: 0, balance })
-    const floorVal = withBalance(1.005)
+    const floorVal = withBalance(1.00228288)
     const bondedVal = withBalance(5)
     const fundedVal = withBalance(100_000)
     const networkBallast = new ValidatorMockBuilder(votes.next().value, ids.next().value).withExternalStake(2_000_000)
@@ -400,23 +400,24 @@ describe('setBondRiskFee no-bond floor', () => {
   }
 
   it('skips the fee when the current balance is at the floor and no last balance exists', () => {
-    const v = runFee(1.005, null)
+    const v = runFee(1.00228288, null)
     expect(v.values.bondRiskFeeSol).toBe(0)
     expect(v.bondForcedUndelegation).toBeUndefined()
   })
 
   it('charges the fee above the floor', () => {
     expect(runFee(26, null).values.bondRiskFeeSol).toBeGreaterThan(0)
+    expect(runFee(1.002282881, null).values.bondRiskFeeSol).toBeGreaterThan(0)
   })
 
   it('skips the fee when the last balance is at the floor', () => {
-    const v = runFee(26, 1.01)
+    const v = runFee(26, 1.00228288)
     expect(v.values.bondRiskFeeSol).toBe(0)
     expect(v.bondForcedUndelegation).toBeUndefined()
   })
 
   it('reads the last balance first, so a bond drained this epoch is still charged', () => {
-    expect(runFee(1.005, 50).values.bondRiskFeeSol).toBeGreaterThan(0)
+    expect(runFee(1.00228288, 50).values.bondRiskFeeSol).toBeGreaterThan(0)
   })
 
   it('loadSamConfig fills noBondBalanceSol for a remote config that lacks it', async () => {

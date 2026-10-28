@@ -866,7 +866,11 @@ describe('getValidatorTip for a VAT-ineligible validator', () => {
 })
 
 describe('a bond at or below noBondBalanceSol', () => {
-  const FLOOR_CONFIG = { ...DS_SAM_CONFIG, minBondBalanceSol: 7, noBondBalanceSol: 1.01 } as unknown as DsSamConfig
+  const FLOOR_CONFIG = {
+    ...DS_SAM_CONFIG,
+    minBondBalanceSol: 7,
+    noBondBalanceSol: 1.00228288,
+  } as unknown as DsSamConfig
   const floorBond = { bondBalanceSol: 1.00228288, claimableBondBalanceSol: 0, bondSamStakeCapSol: 0 }
 
   it.each([1.00228288, 0, null])('samEligible false with bond %s → bondBelowMin, bond tip', bondBalanceSol => {

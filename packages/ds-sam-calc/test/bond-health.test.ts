@@ -10,7 +10,7 @@ const CONFIG: DsSamConfig = {
   idealBondEpochs: 10,
   bondRiskFeeMult: 1,
   minBondBalanceSol: 7,
-  noBondBalanceSol: 1.01,
+  noBondBalanceSol: 1.00228288,
 } as unknown as DsSamConfig
 
 function makeValidator(overrides: Record<string, unknown> = {}): AuctionValidator {
@@ -48,25 +48,25 @@ describe('bondHealthFromAuction — no-bond tier', () => {
     expect(bondHealthFromAuction(v, CONFIG, 10)).toBe('no-bond')
   })
 
-  it('bondBalance at the stake-account floor → "no-bond"', () => {
-    const v = makeValidator({ bondBalanceSol: 1.00228288, claimableBondBalanceSol: 0 })
+  it('bondBalance below the stake-account floor → "no-bond"', () => {
+    const v = makeValidator({ bondBalanceSol: 0.5, claimableBondBalanceSol: 0 })
     expect(bondHealthFromAuction(v, CONFIG, 10)).toBe('no-bond')
   })
 
   it('bondBalance exactly equals noBondBalanceSol → "no-bond"', () => {
-    const v = makeValidator({ bondBalanceSol: 1.01, claimableBondBalanceSol: 0 })
+    const v = makeValidator({ bondBalanceSol: 1.00228288, claimableBondBalanceSol: 0 })
     expect(bondHealthFromAuction(v, CONFIG, 10)).toBe('no-bond')
   })
 
-  it('bondBalance just above noBondBalanceSol → "critical", not "no-bond"', () => {
-    const v = makeValidator({ bondBalanceSol: 1.02, claimableBondBalanceSol: 0 })
+  it('bondBalance one lamport above noBondBalanceSol → "critical", not "no-bond"', () => {
+    const v = makeValidator({ bondBalanceSol: 1.002282881, claimableBondBalanceSol: 0 })
     expect(bondHealthFromAuction(v, CONFIG, 10)).toBe('critical')
   })
 })
 
 describe('bondHealthFromAuction — below minBondBalanceSol → critical', () => {
   it('bondBalance > noBondBalanceSol but < minBondBalanceSol → "critical"', () => {
-    // noBondBalanceSol=1.01 < 2 < minBondBalanceSol=7 → critical before any runway check
+    // noBondBalanceSol < 2 < minBondBalanceSol=7 → critical before any runway check
     const v = makeValidator({ bondBalanceSol: 2 })
     expect(bondHealthFromAuction(v, CONFIG, 10)).toBe('critical')
   })

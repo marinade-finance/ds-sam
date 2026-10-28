@@ -66,8 +66,8 @@ describe('eligibility', () => {
         .withEligibleDefaults()
         .withBond(balance === null ? null : { stakeWanted: 0, cpmpe: 1, balance })
 
-    const noBondVals = [withBond(null), withBond(0), withBond(1.00228288), withBond(1.009)]
-    const bondedVals = [withBond(1.02), withBond(10)]
+    const noBondVals = [withBond(null), withBond(0), withBond(0.5), withBond(1.00228288)]
+    const bondedVals = [withBond(1.002282881), withBond(10)]
 
     const result = await new DsSamSDK({}, defaultStaticDataProviderBuilder([...noBondVals, ...bondedVals])).run()
 

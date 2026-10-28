@@ -60,11 +60,11 @@ describe('samIneligibilityGate', () => {
       new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
         .withEligibleDefaults()
         .withBond({ stakeWanted: 0, cpmpe: 1, balance })
+    const belowVal = withBalance(0.5)
     const floorVal = withBalance(1.00228288)
-    const boundaryVal = withBalance(1.01)
-    const aboveVal = withBalance(1.02)
+    const aboveVal = withBalance(1.002282881)
 
-    const dsSam = new DsSamSDK({}, defaultStaticDataProviderBuilder([floorVal, boundaryVal, aboveVal]))
+    const dsSam = new DsSamSDK({}, defaultStaticDataProviderBuilder([belowVal, floorVal, aboveVal]))
     const aggregatedData = await dsSam.getAggregatedData()
     const thresholds = computeSamEligibilityThresholds(aggregatedData, dsSam.config)
     const gateFor = (voteAccount: string) => {
@@ -73,9 +73,9 @@ describe('samIneligibilityGate', () => {
       return samIneligibilityGate(validator, aggregatedData.blacklist, thresholds, dsSam.config)
     }
 
-    expect(dsSam.config.noBondBalanceSol).toStrictEqual(1.01)
+    expect(dsSam.config.noBondBalanceSol).toStrictEqual(1.00228288)
+    expect(gateFor(belowVal.voteAccount)).toBe('noBond')
     expect(gateFor(floorVal.voteAccount)).toBe('noBond')
-    expect(gateFor(boundaryVal.voteAccount)).toBe('noBond')
     expect(gateFor(aboveVal.voteAccount)).toBeNull()
   })
 
