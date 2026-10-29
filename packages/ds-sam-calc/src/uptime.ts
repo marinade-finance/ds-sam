@@ -20,7 +20,7 @@ const findEpochStats = ({ epochStats }: AggregatedValidator, epoch: number): Epo
   epochStats.find(es => es.epoch === epoch)
 
 // Agave skips each validator's first leader window in these epochs (agave#16302)
-const FIRST_LEADER_WINDOW_SKIP_EPOCHS = new Set<number>([1065, 1066, 1067, 1068, 1069, 1070])
+const FIRST_LEADER_WINDOW_SKIP_EPOCHS = new Set<number>([1065, 1066, 1067, 1068, 1069, 1070, 1071, 1072])
 const NUM_CONSECUTIVE_LEADER_SLOTS = 4n
 
 export const withoutFirstWindow = (leaderSlots: bigint, epoch: number): bigint => {

@@ -296,7 +296,7 @@ describe('calculateProtectedEventEstimates — Alpenglow DowntimeRevenueImpact',
     alpenglowMeta('C', 400n, 4n),
   ]
 
-  it.each([1065, 1066, 1067, 1068, 1069, 1070])(
+  it.each([1065, 1066, 1067, 1068, 1069, 1070, 1071, 1072])(
     'estimates no downtime for the skipped first leader window in epoch %i',
     epoch => {
       const input = { ...alpenglowInput(FIRST_WINDOW_SKIPPERS, ['A', 'B', 'C']), epoch }
