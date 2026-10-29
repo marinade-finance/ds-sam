@@ -28,8 +28,8 @@ const ELIGIBILITY_KEYS: readonly ('samEligible' | 'backstopEligible')[] = ['samE
 
 const REPLAY_EPOCHS = 3
 
-// Archives before 1071 count floor-only bonds as bonds (noBondBalanceSol). Raise this when the result changes on purpose.
-const REPLAY_FIRST_EPOCH = 1071
+// Archives before 1072 count floor-only bonds as bonds (noBondBalanceSol). Raise this when the result changes on purpose.
+const REPLAY_FIRST_EPOCH = 1072
 
 type StoredValidator = {
   voteAccount: string
