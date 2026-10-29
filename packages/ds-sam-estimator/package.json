@@ -1,6 +1,6 @@
 {
   "name": "@marinade.finance/ds-sam-estimator",
-  "version": "0.6.4",
+  "version": "0.6.5",
   "author": "Marinade Finance",
   "license": "ISC",
   "main": "dist/src/index.js",
