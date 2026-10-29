@@ -123,14 +123,17 @@ describe('uptime', () => {
     validator('d', [{ epoch, stake: 100, reward: 300, leaderSlots: 1 }]),
   ]
 
-  it.each([1065, 1066, 1067, 1068, 1069, 1070])('drops the skipped first leader window in epoch %i', epoch => {
-    const { epochs, passes } = evaluate(firstWindowSkippers(epoch), epoch, epoch)
+  it.each([1065, 1066, 1067, 1068, 1069, 1070, 1071, 1072])(
+    'drops the skipped first leader window in epoch %i',
+    epoch => {
+      const { epochs, passes } = evaluate(firstWindowSkippers(epoch), epoch, epoch)
 
-    for (const voteAccount of ['a', 'b', 'c', 'd']) {
-      expect(scoresOf(epochs[0]).get(voteAccount)).toBeCloseTo(1)
-      expect(passes.get(voteAccount)).toBe(true)
-    }
-  })
+      for (const voteAccount of ['a', 'b', 'c', 'd']) {
+        expect(scoresOf(epochs[0]).get(voteAccount)).toBeCloseTo(1)
+        expect(passes.get(voteAccount)).toBe(true)
+      }
+    },
+  )
 
   it('scores a validator without leader slots in an Agave skip epoch', () => {
     const validators = [
@@ -144,7 +147,7 @@ describe('uptime', () => {
     expect(passes.get('idle-leader')).toBe(true)
   })
 
-  it.each([10, 1064, 1071])('keeps every scheduled slot in epoch %i', epoch => {
+  it.each([10, 1064, 1073])('keeps every scheduled slot in epoch %i', epoch => {
     const { epochs, passes } = evaluate(firstWindowSkippers(epoch), epoch, epoch)
 
     // w scaled by S·N = stake·25 + slots·400: a 7300, b 5700, c 4100, d 2900, Σw = 20000, Σreward = 2400
