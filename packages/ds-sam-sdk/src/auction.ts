@@ -297,7 +297,7 @@ export class Auction {
 
   setBondRiskFee() {
     for (const validator of this.data.validators) {
-      if ((validator.lastBondBalanceSol ?? validator.bondBalanceSol ?? 0) < 1) {
+      if ((validator.lastBondBalanceSol ?? validator.bondBalanceSol ?? 0) <= this.config.noBondBalanceSol) {
         continue
       }
       const value = calcBondRiskFee(this.config, validator)

@@ -259,7 +259,7 @@ function bondCta(
     // validator shedding a few SOL.
     const bondIsSoleBlocker = validator.revShare.totalPmpe >= winningTotalPmpe
     return tip(
-      bondBalance <= 0
+      bondBalance <= dsSamConfig.noBondBalanceSol
         ? `Post a bond of ${bondSol(dsSamConfig.minBondBalanceSol)} to grow stake.`
         : `Top up bond to ${bondSol(dsSamConfig.minBondBalanceSol)} to grow stake.`,
       bondIsSoleBlocker && isDefending(validator, delta) ? 'warning' : 'neutral',
@@ -452,8 +452,13 @@ export function outOfSetGate(
       return { kind: 'blacklisted' }
     }
     // The SDK checks clientVersion, uptime and unresolvedCommission before
-    // vatIneligible, but the auction result does not say which gate refused.
-    return validator.vatEligible === false ? { kind: 'vatIneligible' } : { kind: 'ineligible' }
+    // vatIneligible and noBond, but the auction result does not say which gate refused.
+    if (validator.vatEligible === false) {
+      return { kind: 'vatIneligible' }
+    }
+    return (validator.bondBalanceSol ?? 0) <= dsSamConfig.noBondBalanceSol
+      ? { kind: 'bondBelowMin' }
+      : { kind: 'ineligible' }
   }
   // The clipped cap, not the raw balance: clipBondStakeCap only zeroes the
   // cap below 0.8 × the minimum, so a balance inside that hysteresis band

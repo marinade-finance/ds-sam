@@ -6,13 +6,16 @@
  *  - division by zero: idealBondPmpe=0, zero effective PMPE
  *  - zero expected max PMPE
  *  - SDK integration: bondRiskFeeMult=0 yields 0
+ *  - no fee for a bond at or below noBondBalanceSol
  */
 
 import assert from 'node:assert'
 
-import { calcBondRiskFee } from '@marinade.finance/ds-sam-calc'
+import { calcBondRiskFee, DEFAULT_CONFIG } from '@marinade.finance/ds-sam-calc'
 
-import { DsSamSDK } from '../src'
+import { DsSamSDK, loadSamConfig } from '../src'
+import { Auction } from '../src/auction'
+import { Debug } from '../src/debug'
 import { defaultStaticDataProviderBuilder } from './helpers/static-data-provider-builder'
 import { findValidatorInResult } from './helpers/utils'
 import { ValidatorMockBuilder, generateIdentities, generateVoteAccounts } from './helpers/validator-mock-builder'
@@ -344,5 +347,89 @@ describe('setBondRiskFee (SDK integration)', () => {
     const v = findValidatorInResult(val.voteAccount, result)
     assert(v)
     expect(v.values.bondRiskFeeSol).toBe(0)
+  })
+
+  it('charges no fee to a bond at or below noBondBalanceSol', async () => {
+    const votes = generateVoteAccounts('brisk-floor')
+    const ids = generateIdentities()
+    const withBalance = (balance: number) =>
+      new ValidatorMockBuilder(votes.next().value, ids.next().value)
+        .withEligibleDefaults()
+        .withLiquidStake(100_000)
+        .withBond({ stakeWanted: 150_000, cpmpe: 0, balance })
+    const floorVal = withBalance(1.00228288)
+    const bondedVal = withBalance(5)
+    const fundedVal = withBalance(100_000)
+    const networkBallast = new ValidatorMockBuilder(votes.next().value, ids.next().value).withExternalStake(2_000_000)
+
+    const dsSam = new DsSamSDK(
+      { bondRiskFeeMult: 0.1, minBondBalanceSol: 10, minBondEpochs: 1, idealBondEpochs: 2 },
+      defaultStaticDataProviderBuilder([floorVal, bondedVal, fundedVal, networkBallast]),
+    )
+    const result = await dsSam.run()
+
+    const floor = findValidatorInResult(floorVal.voteAccount, result)
+    const bonded = findValidatorInResult(bondedVal.voteAccount, result)
+    assert(floor && bonded)
+    expect(floor.lastBondBalanceSol).toBeNull()
+    expect(floor.values.bondRiskFeeSol).toBe(0)
+    expect(bonded.values.bondRiskFeeSol).toBeGreaterThan(0)
+  })
+})
+
+describe('setBondRiskFee no-bond floor', () => {
+  const runFee = (bondBalanceSol: number, lastBondBalanceSol: number | null) => {
+    const validator = {
+      ...makeValidator({
+        bondBalanceSol,
+        marinadeActivatedStakeSol: 50,
+        values: { paidUndelegationSol: 5 },
+        revShare: { onchainDistributedPmpe: 200 },
+      }),
+      lastBondBalanceSol,
+    } as AuctionValidator
+    validator.values.bondRiskFeeSol = 0
+    const auction = new Auction(
+      { validators: [validator] } as never,
+      {} as never,
+      { ...DEFAULT_CONFIG, ...baseConfig },
+      new Debug(new Set()),
+    )
+    auction.setBondRiskFee()
+    return validator
+  }
+
+  it('skips the fee when the current balance is at the floor and no last balance exists', () => {
+    const v = runFee(1.00228288, null)
+    expect(v.values.bondRiskFeeSol).toBe(0)
+    expect(v.bondForcedUndelegation).toBeUndefined()
+  })
+
+  it('charges the fee above the floor', () => {
+    expect(runFee(26, null).values.bondRiskFeeSol).toBeGreaterThan(0)
+    expect(runFee(1.002282881, null).values.bondRiskFeeSol).toBeGreaterThan(0)
+  })
+
+  it('skips the fee when the last balance is at the floor', () => {
+    const v = runFee(26, 1.00228288)
+    expect(v.values.bondRiskFeeSol).toBe(0)
+    expect(v.bondForcedUndelegation).toBeUndefined()
+  })
+
+  it('reads the last balance first, so a bond drained this epoch is still charged', () => {
+    expect(runFee(1.00228288, 50).values.bondRiskFeeSol).toBeGreaterThan(0)
+  })
+
+  it('loadSamConfig fills noBondBalanceSol for a remote config that lacks it', async () => {
+    const fetchSpy = jest
+      .spyOn(global, 'fetch')
+      .mockResolvedValue({ json: () => Promise.resolve({ minBondBalanceSol: 7 }) } as Response)
+    try {
+      const config = await loadSamConfig()
+      expect(config.noBondBalanceSol).toBe(DEFAULT_CONFIG.noBondBalanceSol)
+      expect(config.minBondBalanceSol).toBe(7)
+    } finally {
+      fetchSpy.mockRestore()
+    }
   })
 })

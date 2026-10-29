@@ -53,6 +53,32 @@ describe('samIneligibilityGate', () => {
     expect(gateFor(eligibleVal.voteAccount)).toBeNull()
   })
 
+  it('returns noBond for a bond at or below noBondBalanceSol', async () => {
+    const voteAccounts = generateVoteAccounts('no-bond-floor')
+    const identities = generateIdentities()
+    const withBalance = (balance: number) =>
+      new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
+        .withEligibleDefaults()
+        .withBond({ stakeWanted: 0, cpmpe: 1, balance })
+    const belowVal = withBalance(0.5)
+    const floorVal = withBalance(1.00228288)
+    const aboveVal = withBalance(1.002282881)
+
+    const dsSam = new DsSamSDK({}, defaultStaticDataProviderBuilder([belowVal, floorVal, aboveVal]))
+    const aggregatedData = await dsSam.getAggregatedData()
+    const thresholds = computeSamEligibilityThresholds(aggregatedData, dsSam.config)
+    const gateFor = (voteAccount: string) => {
+      const validator = aggregatedData.validators.find(v => v.voteAccount === voteAccount)
+      assert(validator)
+      return samIneligibilityGate(validator, aggregatedData.blacklist, thresholds, dsSam.config)
+    }
+
+    expect(dsSam.config.noBondBalanceSol).toStrictEqual(1.00228288)
+    expect(gateFor(belowVal.voteAccount)).toBe('noBond')
+    expect(gateFor(floorVal.voteAccount)).toBe('noBond')
+    expect(gateFor(aboveVal.voteAccount)).toBeNull()
+  })
+
   it('a validator ineligible only by PMPE returns null with totalPmpe below samPmpeThreshold', async () => {
     const voteAccounts = generateVoteAccounts()
     const identities = generateIdentities()

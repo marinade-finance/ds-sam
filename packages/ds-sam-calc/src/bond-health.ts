@@ -39,7 +39,7 @@ export function bondGaugeCriticalFrac(config: DsSamConfig): number {
 }
 
 // Four tiers driving the bond chip color and the page-level CTA:
-//   no-bond  → no bond posted at all (red)
+//   no-bond  → no bond, or only the un-spendable floor (<= noBondBalanceSol) (red)
 //   critical → fee charging now, coverage shortfall, OR runway ≤ minBondEpochs + BOND_URGENT_EPOCHS (red)
 //   watch    → runway between urgent threshold and idealBondEpochs (yellow)
 //   healthy  → runway above idealBondEpochs (green)
@@ -56,7 +56,7 @@ export function bondHealthFromAuction(
   precomputedCoverage?: BondCoverage,
 ): BondHealthState {
   const bondBalance = v.bondBalanceSol ?? 0
-  if (bondBalance <= 0) return 'no-bond'
+  if (bondBalance <= config.noBondBalanceSol) return 'no-bond'
   // Below the SDK minimum the validator can win no stake regardless of bid
   // (clipBondStakeCap → 0). Runway-vs-tiny-stake looks huge, so the
   // coverage-based diagnosis below would mislabel it healthy — gate it red here.

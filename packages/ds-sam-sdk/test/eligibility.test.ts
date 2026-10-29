@@ -58,6 +58,31 @@ describe('eligibility', () => {
     expect(findValidatorInResult(eligibleValidator.voteAccount, result)?.samEligible).toStrictEqual(true)
   })
 
+  it('treats a bond at or below the stake-account floor as no bond', async () => {
+    const voteAccounts = generateVoteAccounts('no-bond-floor')
+    const identities = generateIdentities()
+    const withBond = (balance: number | null) =>
+      new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
+        .withEligibleDefaults()
+        .withBond(balance === null ? null : { stakeWanted: 0, cpmpe: 1, balance })
+
+    const noBondVals = [withBond(null), withBond(0), withBond(0.5), withBond(1.00228288)]
+    const bondedVals = [withBond(1.002282881), withBond(10)]
+
+    const result = await new DsSamSDK({}, defaultStaticDataProviderBuilder([...noBondVals, ...bondedVals])).run()
+
+    for (const val of noBondVals) {
+      const v = findValidatorInResult(val.voteAccount, result)
+      assertValidatorIneligible(v)
+      expect(v?.unstakePriority).toStrictEqual(0)
+    }
+    for (const val of bondedVals) {
+      const v = findValidatorInResult(val.voteAccount, result)
+      expect(v?.samEligible).toStrictEqual(true)
+      expect(v?.unstakePriority).toBeGreaterThan(0)
+    }
+  })
+
   it('enforces the client version floor across Agave and Frankendancer', async () => {
     const voteAccounts = generateVoteAccounts()
     const identities = generateIdentities()

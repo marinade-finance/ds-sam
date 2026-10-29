@@ -45,6 +45,7 @@ const DS_SAM_CONFIG = {
   // SDK minimum (they pin the fee branch, not the below-min branch); large
   // enough that bondSol(minBondBalanceSol) renders for the no-bond message.
   minBondBalanceSol: 0.0001,
+  noBondBalanceSol: 0,
   bidTooLowPenaltyHistoryEpochs: 10,
   bidTooLowPenaltyPermittedDeviationPmpe: 0.0001,
 } as unknown as DsSamConfig
@@ -861,6 +862,43 @@ describe('getValidatorTip for a VAT-ineligible validator', () => {
   it('an eligible validator below the winning price still gets the bid CTA', () => {
     const validator = makeOutOfSet({ vatEligible: true })
     expect(getValidatorTip(validator, MIN_BOND_CONFIG, 100).text).toBe('Raise bid to qualify for stake.')
+  })
+})
+
+describe('a bond at or below noBondBalanceSol', () => {
+  const FLOOR_CONFIG = {
+    ...DS_SAM_CONFIG,
+    minBondBalanceSol: 7,
+    noBondBalanceSol: 1.00228288,
+  } as unknown as DsSamConfig
+  const floorBond = { bondBalanceSol: 1.00228288, claimableBondBalanceSol: 0, bondSamStakeCapSol: 0 }
+
+  it.each([1.00228288, 0, null])('samEligible false with bond %s → bondBelowMin, bond tip', bondBalanceSol => {
+    const validator = makeOutOfSet({ ...floorBond, samEligible: false, bondBalanceSol })
+    expect(outOfSetGate(validator, FLOOR_CONFIG)).toEqual({ kind: 'bondBelowMin' })
+    expect(outOfSetGateLabel({ kind: 'bondBelowMin' }, FLOOR_CONFIG)).toMatch(/^Bond below 7\.0.SOL minimum$/)
+    expect(getValidatorTip(validator, FLOOR_CONFIG, 10).text).toMatch(/^Post a bond of 7\.0.SOL to grow stake\.$/)
+  })
+
+  it('samEligible false with a bond above the floor stays ineligible', () => {
+    const validator = makeOutOfSet({ samEligible: false, bondBalanceSol: 2 })
+    expect(outOfSetGate(validator, FLOOR_CONFIG)).toEqual({ kind: 'ineligible' })
+  })
+
+  it('samEligible false + vatEligible false with a floor bond stays vatIneligible', () => {
+    const validator = makeOutOfSet({ ...floorBond, samEligible: false, vatEligible: false })
+    expect(outOfSetGate(validator, FLOOR_CONFIG)).toEqual({ kind: 'vatIneligible' })
+  })
+
+  it('bondCta says "Post a bond" for a floor bond and agrees with bondAdvice', () => {
+    const validator = makeOutOfSet(floorBond)
+    expect(getValidatorTip(validator, FLOOR_CONFIG, 10).text).toMatch(/^Post a bond of 7\.0.SOL to grow stake\.$/)
+    expect(bondHealthFromAuction(validator, FLOOR_CONFIG, 10)).toBe('no-bond')
+  })
+
+  it('bondCta says "Top up" for a bond above the floor', () => {
+    const validator = makeOutOfSet({ ...floorBond, bondBalanceSol: 2 })
+    expect(getValidatorTip(validator, FLOOR_CONFIG, 10).text).toMatch(/^Top up bond to 7\.0.SOL to grow stake\.$/)
   })
 })
 

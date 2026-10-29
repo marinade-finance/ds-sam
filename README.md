@@ -51,6 +51,7 @@ Key parameters:
 | `maxMarinadeTvlSharePerValidatorDec` | Per-validator stake cap |
 | `maxUnprotectedStakePerValidatorDec` | Unprotected stake cap |
 | `minBondBalanceSol` | Minimum bond balance |
+| `noBondBalanceSol` | Bond balance at or below this counts as no bond (stake-account floor) |
 | `minBondEpochs` / `idealBondEpochs` | Bond reserve epochs |
 | `bondRiskFeeMult` | Bond risk fee multiplier |
 | `activatingStakePmpeMult` | Overbid fraction charged on activating stake [0-1] |
