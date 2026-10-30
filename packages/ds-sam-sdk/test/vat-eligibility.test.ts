@@ -71,6 +71,7 @@ describe('VAT eligibility', () => {
     const result = await new DsSamSDK({}, defaultStaticDataProviderBuilder([refused, admitted])).run()
 
     assertValidatorIneligible(findValidatorInResult(refused.voteAccount, result))
+    expect(findValidatorInResult(refused.voteAccount, result)?.samIneligibilityGate).toBe('vatIneligible')
     expect(findValidatorInResult(admitted.voteAccount, result)?.samEligible).toBe(true)
   })
 

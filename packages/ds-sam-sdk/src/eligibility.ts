@@ -8,21 +8,16 @@ import type {
   EpochUptime,
   Rewards,
   RevShare,
+  SamIneligibilityGate,
 } from '@marinade.finance/ds-sam-calc'
+
+export type { SamIneligibilityGate }
 
 export type SamEligibilityThresholds = {
   uptimeEpochs: EpochUptime[]
   minEffectiveRevSharePmpe: number
   minSamRevSharePmpe: number
 }
-
-export type SamIneligibilityGate =
-  | 'blacklist'
-  | 'clientVersion'
-  | 'uptime'
-  | 'unresolvedCommission'
-  | 'vatIneligible'
-  | 'noBond'
 
 export const computeSamEligibilityThresholds = (
   { validators, rewards }: Pick<AggregatedData, 'validators' | 'rewards'>,
@@ -49,7 +44,7 @@ export const samIneligibilityGate = (
   blacklist: Set<string>,
   thresholds: SamEligibilityThresholds,
   config: DsSamConfig,
-): SamIneligibilityGate | null => {
+): Exclude<SamIneligibilityGate, 'revShareBelowFloor'> | null => {
   if (blacklist.has(validator.voteAccount)) {
     return 'blacklist'
   }

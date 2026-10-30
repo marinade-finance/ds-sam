@@ -826,6 +826,111 @@ describe('outOfSetGate', () => {
   })
 })
 
+describe('outOfSetGate reads samIneligibilityGate', () => {
+  it.each([
+    ['blacklist', 'blacklisted'],
+    ['clientVersion', 'clientVersion'],
+    ['uptime', 'uptime'],
+    ['unresolvedCommission', 'unresolvedCommission'],
+    ['vatIneligible', 'vatIneligible'],
+    ['noBond', 'bondBelowMin'],
+    ['revShareBelowFloor', 'revShareBelowFloor'],
+  ])('gate %s → kind %s', (samIneligibilityGate, kind) => {
+    const validator = makeOutOfSet({ samEligible: false, samIneligibilityGate })
+    expect(outOfSetGate(validator, MIN_BOND_CONFIG)).toEqual({ kind })
+  })
+
+  it.each([
+    ['clientVersion', 'Unsupported client version'],
+    ['uptime', 'Uptime below threshold'],
+    ['unresolvedCommission', 'Inflation commission unresolved'],
+    ['revShareBelowFloor', 'Bid below eligibility floor'],
+  ] as const)('label for %s', (kind, label) => {
+    expect(outOfSetGateLabel({ kind }, MIN_BOND_CONFIG)).toBe(label)
+  })
+
+  it('samBlocked outranks the gate', () => {
+    const validator = makeOutOfSet({ samBlocked: true, samEligible: false, samIneligibilityGate: 'clientVersion' })
+    expect(outOfSetGate(validator, MIN_BOND_CONFIG)).toEqual({ kind: 'blocked' })
+  })
+
+  it('clientVersion with no bond → clientVersion, not bondBelowMin', () => {
+    const validator = makeOutOfSet({
+      samEligible: false,
+      samIneligibilityGate: 'clientVersion',
+      bondBalanceSol: 0,
+      claimableBondBalanceSol: 0,
+      bondSamStakeCapSol: 0,
+    })
+    expect(outOfSetGate(validator, MIN_BOND_CONFIG)).toEqual({ kind: 'clientVersion' })
+  })
+
+  it('uptime with vatEligible false → uptime, not vatIneligible', () => {
+    const validator = makeOutOfSet({ samEligible: false, samIneligibilityGate: 'uptime', vatEligible: false })
+    expect(outOfSetGate(validator, MIN_BOND_CONFIG)).toEqual({ kind: 'uptime' })
+  })
+
+  it('blacklist gate without a blacklist set → blacklisted', () => {
+    const validator = makeOutOfSet({ samEligible: false, samIneligibilityGate: 'blacklist' })
+    expect(outOfSetGate(validator, MIN_BOND_CONFIG)).toEqual({ kind: 'blacklisted' })
+  })
+
+  it('vatIneligible with no bond → vatIneligible', () => {
+    const validator = makeOutOfSet({ samEligible: false, samIneligibilityGate: 'vatIneligible', bondBalanceSol: 0 })
+    expect(outOfSetGate(validator, MIN_BOND_CONFIG)).toEqual({ kind: 'vatIneligible' })
+  })
+
+  it('null gate + cap recorded → cap', () => {
+    const validator = makeOutOfSet({ samIneligibilityGate: null, lastCapConstraint: COUNTRY_CAP_CONSTRAINT })
+    expect(outOfSetGate(validator, MIN_BOND_CONFIG)).toEqual({ kind: 'cap', constraint: COUNTRY_CAP_CONSTRAINT })
+  })
+
+  it('null gate alone → null', () => {
+    expect(outOfSetGate(makeOutOfSet({ samIneligibilityGate: null }), MIN_BOND_CONFIG)).toBeNull()
+  })
+
+  it.each<[string, Record<string, unknown>, string]>([
+    ['vatEligible false', { vatEligible: false }, 'vatIneligible'],
+    ['no bond', { bondBalanceSol: 0, claimableBondBalanceSol: 0 }, 'bondBelowMin'],
+    ['nothing else', {}, 'ineligible'],
+  ])('null gate contradicting samEligible false falls back to inference: %s → %s', (_name, overrides, kind) => {
+    const validator = makeOutOfSet({ samEligible: false, samIneligibilityGate: null, ...overrides })
+    expect(outOfSetGate(validator, MIN_BOND_CONFIG)).toEqual({ kind })
+  })
+
+  it.each<[string, Record<string, unknown>, string]>([
+    ['vatEligible false', { vatEligible: false }, 'vatIneligible'],
+    ['no bond', { bondBalanceSol: 0, claimableBondBalanceSol: 0 }, 'bondBelowMin'],
+    ['nothing else', {}, 'ineligible'],
+  ])('undefined gate falls back to inference: %s → %s', (_name, overrides, kind) => {
+    const validator = makeOutOfSet({ samEligible: false, samIneligibilityGate: undefined, ...overrides })
+    expect(outOfSetGate(validator, MIN_BOND_CONFIG)).toEqual({ kind })
+  })
+
+  it.each([
+    ['clientVersion', 'Upgrade to a supported validator client.'],
+    ['uptime', 'Improve uptime to become eligible.'],
+    ['unresolvedCommission', 'Set an on-chain inflation commission.'],
+  ])('%s CTA', (samIneligibilityGate, text) => {
+    const calm = getValidatorTip(makeOutOfSet({ samEligible: false, samIneligibilityGate }), MIN_BOND_CONFIG, 10)
+    expect(calm).toMatchObject({ text, urgency: 'info', constraint: 'none' })
+    const defending = makeOutOfSet({
+      samEligible: false,
+      samIneligibilityGate,
+      marinadeActivatedStakeSol: 50_000,
+      values: { expectedStakeChangeSol: -50_000 },
+    })
+    expect(getValidatorTip(defending, MIN_BOND_CONFIG, 10)).toMatchObject({ text, urgency: 'warning' })
+  })
+
+  it('revShareBelowFloor with the price clearing → no gate CTA, delta fallback', () => {
+    const validator = makeOutOfSet({ samEligible: false, samIneligibilityGate: 'revShareBelowFloor' })
+    const tip = getValidatorTip(validator, MIN_BOND_CONFIG, 10)
+    expect(tip.constraint).toBe('none')
+    expect(tip.text).toContain('Losing')
+  })
+})
+
 describe('outOfSetGate / outOfSetCta agreement', () => {
   // Anti-drift: the caption label and the CTA sentence must name one gate.
   // bondBelowMin is absent by design — outOfSetCta defers it to bondCta.
@@ -862,6 +967,54 @@ describe('getValidatorTip for a VAT-ineligible validator', () => {
   it('an eligible validator below the winning price still gets the bid CTA', () => {
     const validator = makeOutOfSet({ vatEligible: true })
     expect(getValidatorTip(validator, MIN_BOND_CONFIG, 100).text).toBe('Raise bid to qualify for stake.')
+  })
+})
+
+describe('bidCta behind a gate the bid cannot clear', () => {
+  it.each([
+    ['clientVersion', 'Upgrade to a supported validator client.'],
+    ['uptime', 'Improve uptime to become eligible.'],
+    ['unresolvedCommission', 'Set an on-chain inflation commission.'],
+    ['vatIneligible', 'Vote account below VAT minimum — fund it to pay the VAT.'],
+  ])('%s below the winning price → the gate CTA, never the bid', (samIneligibilityGate, text) => {
+    const validator = makeOutOfSet({ samEligible: false, samIneligibilityGate })
+    const tip = getValidatorTip(validator, MIN_BOND_CONFIG, 100)
+    expect(tip.text).toBe(text)
+    expect(tip.text).not.toContain('Raise bid')
+    expect(tip.constraint).toBe('none')
+  })
+
+  it('revShareBelowFloor below the winning price → raise the bid', () => {
+    const validator = makeOutOfSet({ samEligible: false, samIneligibilityGate: 'revShareBelowFloor' })
+    const tip = getValidatorTip(validator, MIN_BOND_CONFIG, 100)
+    expect(tip.text).toBe('Raise bid to qualify for stake.')
+    expect(tip.constraint).toBe('rank')
+  })
+
+  it('null gate below the winning price → raise the bid', () => {
+    const validator = makeOutOfSet({ samIneligibilityGate: null })
+    expect(getValidatorTip(validator, MIN_BOND_CONFIG, 100).text).toBe('Raise bid to qualify for stake.')
+  })
+
+  // A calm 'Blacklisted.' is neutral by design, so the info-level loss line outranks it.
+  it.each<[string, Record<string, unknown>, Set<string> | undefined]>([
+    ['blacklist gate', { samIneligibilityGate: 'blacklist' }, undefined],
+    ['undefined gate on the blacklist set', { vatEligible: true }, new Set(['test'])],
+  ])('%s below the winning price → the loss, never the bid', (_name, overrides, blacklist) => {
+    const validator = makeOutOfSet({ samEligible: false, ...overrides })
+    const tip = getValidatorTip(validator, MIN_BOND_CONFIG, 100, undefined, blacklist)
+    expect(tip.text).toMatch(/^Losing 8.SOL next epoch\.$/)
+    expect(tip.constraint).toBe('none')
+  })
+
+  it('blacklist gate while defending → Blacklisted.', () => {
+    const validator = makeOutOfSet({
+      samEligible: false,
+      samIneligibilityGate: 'blacklist',
+      marinadeActivatedStakeSol: 50_000,
+      values: { expectedStakeChangeSol: -50_000 },
+    })
+    expect(getValidatorTip(validator, MIN_BOND_CONFIG, 100).text).toBe('Blacklisted.')
   })
 })
 
