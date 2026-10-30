@@ -893,6 +893,15 @@ describe('outOfSetGate reads samIneligibilityGate', () => {
     ['vatEligible false', { vatEligible: false }, 'vatIneligible'],
     ['no bond', { bondBalanceSol: 0, claimableBondBalanceSol: 0 }, 'bondBelowMin'],
     ['nothing else', {}, 'ineligible'],
+  ])('null gate contradicting samEligible false falls back to inference: %s → %s', (_name, overrides, kind) => {
+    const validator = makeOutOfSet({ samEligible: false, samIneligibilityGate: null, ...overrides })
+    expect(outOfSetGate(validator, MIN_BOND_CONFIG)).toEqual({ kind })
+  })
+
+  it.each<[string, Record<string, unknown>, string]>([
+    ['vatEligible false', { vatEligible: false }, 'vatIneligible'],
+    ['no bond', { bondBalanceSol: 0, claimableBondBalanceSol: 0 }, 'bondBelowMin'],
+    ['nothing else', {}, 'ineligible'],
   ])('undefined gate falls back to inference: %s → %s', (_name, overrides, kind) => {
     const validator = makeOutOfSet({ samEligible: false, samIneligibilityGate: undefined, ...overrides })
     expect(outOfSetGate(validator, MIN_BOND_CONFIG)).toEqual({ kind })
@@ -990,7 +999,7 @@ describe('bidCta behind a gate the bid cannot clear', () => {
   // A calm 'Blacklisted.' is neutral by design, so the info-level loss line outranks it.
   it.each<[string, Record<string, unknown>, Set<string> | undefined]>([
     ['blacklist gate', { samIneligibilityGate: 'blacklist' }, undefined],
-    ['undefined gate on the blacklist set', { vatEligible: false }, new Set(['test'])],
+    ['undefined gate on the blacklist set', { vatEligible: true }, new Set(['test'])],
   ])('%s below the winning price → the loss, never the bid', (_name, overrides, blacklist) => {
     const validator = makeOutOfSet({ samEligible: false, ...overrides })
     const tip = getValidatorTip(validator, MIN_BOND_CONFIG, 100, undefined, blacklist)

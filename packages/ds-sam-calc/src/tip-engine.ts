@@ -331,6 +331,7 @@ function bidCta(
   dsSamConfig: DsSamConfig,
   winningTotalPmpe: number,
   delta: number,
+  blacklist?: Set<string>,
 ): ValidatorTip | null {
   const metrics = computeBidPenalty(validator, dsSamConfig, winningTotalPmpe)
   if (metrics.penaltyPmpe > 0) {
@@ -342,7 +343,7 @@ function bidCta(
   // country/ASO/validator cap binds, or because they're sam-blocked. In
   // those cases telling them to raise the bid is a lie — defer to capCta
   // (or stay silent).
-  const gate = outOfSetGate(validator, dsSamConfig)
+  const gate = outOfSetGate(validator, dsSamConfig, blacklist)
   if (
     !selectInSet(validator) &&
     !(gate !== null && GATES_BID_CANNOT_CLEAR.has(gate.kind)) &&
@@ -446,9 +447,9 @@ function eligibilityGate(
   dsSamConfig: DsSamConfig,
   blacklist?: Set<string>,
 ): OutOfSetGate | null {
-  // Relayed or archived validators from before the SDK set the field arrive without it.
+  // No field (relayed or archived) or a null that contradicts samEligible: infer as before.
   const gate: SamIneligibilityGate | null | undefined = validator.samIneligibilityGate
-  if (gate === undefined) {
+  if (gate === undefined || (gate === null && validator.samEligible === false)) {
     if (validator.samEligible !== false) {
       return null
     }
@@ -758,7 +759,7 @@ export const getValidatorTip = (
   const delta = validator.values.expectedStakeChangeSol
   const cap = capCta(validator, delta)
   const bond = bondCta(validator, dsSamConfig, winningTotalPmpe, delta, precomputedCoverage)
-  const bid = bidCta(validator, dsSamConfig, winningTotalPmpe, delta)
+  const bid = bidCta(validator, dsSamConfig, winningTotalPmpe, delta, blacklist)
   const gate = outOfSetCta(validator, dsSamConfig, winningTotalPmpe, delta, blacklist)
   const causes = [bond, bid, gate, cap]
   // Out of set at a price that already clears: the loss IS the gate's effect,
