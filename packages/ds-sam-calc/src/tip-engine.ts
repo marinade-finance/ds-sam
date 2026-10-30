@@ -13,7 +13,7 @@ import type { BondHealthState } from './bond-health'
 import type { CardStatusSeverity } from './card-status'
 import type { DsSamConfig } from './config'
 import type { AugmentedAuctionValidator } from './sam'
-import type { AuctionConstraint } from './types'
+import type { AuctionConstraint, SamIneligibilityGate } from './types'
 
 export type TipUrgency = 'critical' | 'warning' | 'info' | 'positive' | 'neutral'
 export type TipConstraint = 'rank' | 'bond' | 'bid' | 'cap' | 'none'
@@ -424,9 +424,46 @@ export type OutOfSetGate =
   | { kind: 'blocked' }
   | { kind: 'blacklisted' }
   | { kind: 'vatIneligible' }
+  | { kind: 'clientVersion' }
+  | { kind: 'uptime' }
+  | { kind: 'unresolvedCommission' }
+  | { kind: 'revShareBelowFloor' }
   | { kind: 'ineligible' }
   | { kind: 'bondBelowMin' }
   | { kind: 'cap'; constraint: AuctionConstraint }
+
+function eligibilityGate(
+  validator: AugmentedAuctionValidator,
+  dsSamConfig: DsSamConfig,
+  blacklist?: Set<string>,
+): OutOfSetGate | null {
+  // Relayed or archived validators from before the SDK set the field arrive without it.
+  const gate: SamIneligibilityGate | null | undefined = validator.samIneligibilityGate
+  if (gate === undefined) {
+    if (validator.samEligible !== false) {
+      return null
+    }
+    if (blacklist?.has(validator.voteAccount)) {
+      return { kind: 'blacklisted' }
+    }
+    if (validator.vatEligible === false) {
+      return { kind: 'vatIneligible' }
+    }
+    return (validator.bondBalanceSol ?? 0) <= dsSamConfig.noBondBalanceSol
+      ? { kind: 'bondBelowMin' }
+      : { kind: 'ineligible' }
+  }
+  switch (gate) {
+    case null:
+      return null
+    case 'blacklist':
+      return { kind: 'blacklisted' }
+    case 'noBond':
+      return { kind: 'bondBelowMin' }
+    default:
+      return { kind: gate }
+  }
+}
 
 // Which gate holds an out-of-set validator out — the "why" behind the
 // membership badge, for callers that need a cause rather than a CTA.
@@ -447,18 +484,9 @@ export function outOfSetGate(
   if (validator.samBlocked) {
     return { kind: 'blocked' }
   }
-  if (validator.samEligible === false) {
-    if (blacklist?.has(validator.voteAccount)) {
-      return { kind: 'blacklisted' }
-    }
-    // The SDK checks clientVersion, uptime and unresolvedCommission before
-    // vatIneligible and noBond, but the auction result does not say which gate refused.
-    if (validator.vatEligible === false) {
-      return { kind: 'vatIneligible' }
-    }
-    return (validator.bondBalanceSol ?? 0) <= dsSamConfig.noBondBalanceSol
-      ? { kind: 'bondBelowMin' }
-      : { kind: 'ineligible' }
+  const gate = eligibilityGate(validator, dsSamConfig, blacklist)
+  if (gate !== null) {
+    return gate
   }
   // The clipped cap, not the raw balance: clipBondStakeCap only zeroes the
   // cap below 0.8 × the minimum, so a balance inside that hysteresis band
@@ -479,6 +507,14 @@ export function outOfSetGateLabel(gate: OutOfSetGate, dsSamConfig: DsSamConfig):
       return 'Blacklisted'
     case 'vatIneligible':
       return 'Vote account below VAT minimum'
+    case 'clientVersion':
+      return 'Unsupported client version'
+    case 'uptime':
+      return 'Uptime below threshold'
+    case 'unresolvedCommission':
+      return 'Inflation commission unresolved'
+    case 'revShareBelowFloor':
+      return 'Bid below eligibility floor'
     case 'ineligible':
       return 'Not eligible'
     case 'bondBelowMin':
@@ -489,6 +525,14 @@ export function outOfSetGateLabel(gate: OutOfSetGate, dsSamConfig: DsSamConfig):
       return assertNever(gate)
   }
 }
+
+const ELIGIBILITY_CTA = {
+  vatIneligible: 'Vote account below VAT minimum — fund it to pay the VAT.',
+  clientVersion: 'Upgrade to a supported validator client.',
+  uptime: 'Improve uptime to become eligible.',
+  unresolvedCommission: 'Set an on-chain inflation commission.',
+  ineligible: 'Not eligible — check client version and vote credits.',
+} as const
 
 // Out-of-set despite a high enough totalPmpe. The bid isn't the lever —
 // some other constraint binds. Names the actual reason so the user knows
@@ -549,17 +593,15 @@ function outOfSetCta(
       return tip('Blacklisted.', defending ? 'warning' : 'neutral', 'none', delta)
     }
     case 'vatIneligible':
-      return tip(
-        'Vote account below VAT minimum — fund it to pay the VAT.',
-        defending ? 'warning' : 'info',
-        'none',
-        delta,
-      )
+    case 'clientVersion':
+    case 'uptime':
+    case 'unresolvedCommission':
     case 'ineligible':
       // Growth lever — fix the eligibility checks and you can qualify.
       // Escalate to yellow when defending so this names the cause instead of
       // letting deltaCta's "Losing N SOL" win the severity sort.
-      return tip('Not eligible — check client version and vote credits.', defending ? 'warning' : 'info', 'none', delta)
+      return tip(ELIGIBILITY_CTA[gate.kind], defending ? 'warning' : 'info', 'none', delta)
+    case 'revShareBelowFloor':
     case 'bondBelowMin':
       return null
     case 'cap': {
