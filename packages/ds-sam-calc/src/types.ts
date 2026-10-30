@@ -47,6 +47,15 @@ export type ValidatorAuctionStake = {
   marinadeSamTargetSol: number
 }
 
+export type SamIneligibilityGate =
+  | 'blacklist'
+  | 'clientVersion'
+  | 'uptime'
+  | 'unresolvedCommission'
+  | 'vatIneligible'
+  | 'noBond'
+  | 'revShareBelowFloor'
+
 export type AuctionValidator = AggregatedValidator & {
   revShare: RevShare
   bidTooLowPenalty: BidTooLowPenalty
