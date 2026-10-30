@@ -961,6 +961,54 @@ describe('getValidatorTip for a VAT-ineligible validator', () => {
   })
 })
 
+describe('bidCta behind a gate the bid cannot clear', () => {
+  it.each([
+    ['clientVersion', 'Upgrade to a supported validator client.'],
+    ['uptime', 'Improve uptime to become eligible.'],
+    ['unresolvedCommission', 'Set an on-chain inflation commission.'],
+    ['vatIneligible', 'Vote account below VAT minimum — fund it to pay the VAT.'],
+  ])('%s below the winning price → the gate CTA, never the bid', (samIneligibilityGate, text) => {
+    const validator = makeOutOfSet({ samEligible: false, samIneligibilityGate })
+    const tip = getValidatorTip(validator, MIN_BOND_CONFIG, 100)
+    expect(tip.text).toBe(text)
+    expect(tip.text).not.toContain('Raise bid')
+    expect(tip.constraint).toBe('none')
+  })
+
+  it('revShareBelowFloor below the winning price → raise the bid', () => {
+    const validator = makeOutOfSet({ samEligible: false, samIneligibilityGate: 'revShareBelowFloor' })
+    const tip = getValidatorTip(validator, MIN_BOND_CONFIG, 100)
+    expect(tip.text).toBe('Raise bid to qualify for stake.')
+    expect(tip.constraint).toBe('rank')
+  })
+
+  it('null gate below the winning price → raise the bid', () => {
+    const validator = makeOutOfSet({ samIneligibilityGate: null })
+    expect(getValidatorTip(validator, MIN_BOND_CONFIG, 100).text).toBe('Raise bid to qualify for stake.')
+  })
+
+  // A calm 'Blacklisted.' is neutral by design, so the info-level loss line outranks it.
+  it.each<[string, Record<string, unknown>, Set<string> | undefined]>([
+    ['blacklist gate', { samIneligibilityGate: 'blacklist' }, undefined],
+    ['undefined gate on the blacklist set', { vatEligible: false }, new Set(['test'])],
+  ])('%s below the winning price → the loss, never the bid', (_name, overrides, blacklist) => {
+    const validator = makeOutOfSet({ samEligible: false, ...overrides })
+    const tip = getValidatorTip(validator, MIN_BOND_CONFIG, 100, undefined, blacklist)
+    expect(tip.text).toMatch(/^Losing 8.SOL next epoch\.$/)
+    expect(tip.constraint).toBe('none')
+  })
+
+  it('blacklist gate while defending → Blacklisted.', () => {
+    const validator = makeOutOfSet({
+      samEligible: false,
+      samIneligibilityGate: 'blacklist',
+      marinadeActivatedStakeSol: 50_000,
+      values: { expectedStakeChangeSol: -50_000 },
+    })
+    expect(getValidatorTip(validator, MIN_BOND_CONFIG, 100).text).toBe('Blacklisted.')
+  })
+})
+
 describe('a bond at or below noBondBalanceSol', () => {
   const FLOOR_CONFIG = {
     ...DS_SAM_CONFIG,

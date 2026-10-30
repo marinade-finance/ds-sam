@@ -189,6 +189,14 @@ export const LEVER_ORDER: Record<TipConstraint, number> = {
   none: 3,
 }
 
+const GATES_BID_CANNOT_CLEAR: ReadonlySet<OutOfSetGate['kind']> = new Set([
+  'blacklisted',
+  'clientVersion',
+  'uptime',
+  'unresolvedCommission',
+  'vatIneligible',
+])
+
 function tip(
   text: string,
   urgency: TipUrgency,
@@ -334,9 +342,10 @@ function bidCta(
   // country/ASO/validator cap binds, or because they're sam-blocked. In
   // those cases telling them to raise the bid is a lie — defer to capCta
   // (or stay silent).
+  const gate = outOfSetGate(validator, dsSamConfig)
   if (
     !selectInSet(validator) &&
-    !(validator.samEligible === false && validator.vatEligible === false) &&
+    !(gate !== null && GATES_BID_CANNOT_CLEAR.has(gate.kind)) &&
     (validator.bondBalanceSol ?? 0) >= dsSamConfig.minBondBalanceSol &&
     validator.revShare.totalPmpe < winningTotalPmpe
   ) {
@@ -559,8 +568,8 @@ function outOfSetCta(
     return null
   }
   // Bid actually is the lever to pull → let bidCta own the message. A
-  // VAT-ineligible validator stays out at any bid.
-  if (validator.revShare.totalPmpe < winningTotalPmpe && gate.kind !== 'vatIneligible') {
+  // validator refused by blacklist, client, uptime, commission or VAT stays out at any bid.
+  if (validator.revShare.totalPmpe < winningTotalPmpe && !GATES_BID_CANNOT_CLEAR.has(gate.kind)) {
     return null
   }
 
