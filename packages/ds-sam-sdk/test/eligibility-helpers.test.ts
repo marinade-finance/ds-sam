@@ -100,6 +100,8 @@ describe('samIneligibilityGate', () => {
 
     expect(samIneligibilityGate(validator, aggregatedData.blacklist, thresholds, dsSam.config)).toBeNull()
     expect(transformed.revShare.totalPmpe).toBeLessThan(samPmpeThreshold(thresholds))
+    expect(transformed.samEligible).toBe(false)
+    expect(transformed.samIneligibilityGate).toBe('revShareBelowFloor')
   })
 })
 

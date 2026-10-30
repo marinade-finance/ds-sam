@@ -29,6 +29,7 @@ describe('unresolved on-chain inflation commission', () => {
 
     const validator = findValidatorInResult(unresolvedVal.voteAccount, result)
     assertValidatorIneligible(validator)
+    expect(validator?.samIneligibilityGate).toBe('unresolvedCommission')
     expect(validator?.backstopEligible).toStrictEqual(false)
     expect(validator?.values.commissions.inflationCommissionOnchainDec).toBeNull()
     expect(validator?.revShare.inflationPmpe).toStrictEqual(0)

@@ -78,6 +78,7 @@ export function makeUnitValidator(overrides: Partial<AuctionValidator>): Auction
       bondRiskFeeSol: 0,
     },
     samEligible: true,
+    samIneligibilityGate: null,
     samBlocked: false,
     stakePriority: NaN,
     unstakePriority: NaN,

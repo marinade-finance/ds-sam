@@ -105,6 +105,7 @@ export class DsSamSDK {
           revShare,
           auctionStake,
           ...ineligibleValidatorAggDefaults(),
+          samIneligibilityGate: gate,
         }
       }
       const backstopEligible = isBackstopEligible(revShare, rewards, this.config)
@@ -115,6 +116,7 @@ export class DsSamSDK {
           auctionStake,
           ...ineligibleValidatorAggDefaults(),
           backstopEligible,
+          samIneligibilityGate: gate,
         }
       }
       const samEligible = revShare.totalPmpe >= samPmpeThreshold(thresholds)
@@ -124,6 +126,7 @@ export class DsSamSDK {
         revShare,
         auctionStake,
         samEligible,
+        samIneligibilityGate: samEligible ? null : 'revShareBelowFloor',
         backstopEligible,
         ...validatorAggDefaults(),
       }

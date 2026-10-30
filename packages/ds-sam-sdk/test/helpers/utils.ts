@@ -29,5 +29,6 @@ export const findValidatorInResult = (validatorVoteAccount: string, result: Auct
 export const assertValidatorIneligible = (validator: AuctionValidator | undefined) => {
   expect(validator).toBeDefined()
   expect(validator?.samEligible).toStrictEqual(false)
+  expect(typeof validator?.samIneligibilityGate).toBe('string')
   expect(validator?.auctionStake.marinadeSamTargetSol).toStrictEqual(0)
 }

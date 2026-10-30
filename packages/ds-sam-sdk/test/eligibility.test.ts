@@ -56,6 +56,14 @@ describe('eligibility', () => {
     assertValidatorIneligible(findValidatorInResult(commissionTooHighVal.voteAccount, result))
 
     expect(findValidatorInResult(eligibleValidator.voteAccount, result)?.samEligible).toStrictEqual(true)
+
+    const gateOf = (voteAccount: string) => findValidatorInResult(voteAccount, result)?.samIneligibilityGate
+    expect(gateOf(blacklistedVal.voteAccount)).toBe('blacklist')
+    expect(gateOf(wrongVersionVal.voteAccount)).toBe('clientVersion')
+    expect(gateOf(badUptimeVal.voteAccount)).toBe('uptime')
+    expect(gateOf(noBondVal.voteAccount)).toBe('noBond')
+    expect(gateOf(commissionTooHighVal.voteAccount)).toBe('revShareBelowFloor')
+    expect(gateOf(eligibleValidator.voteAccount)).toBeNull()
   })
 
   it('treats a bond at or below the stake-account floor as no bond', async () => {

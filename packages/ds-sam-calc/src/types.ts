@@ -61,6 +61,7 @@ export type AuctionValidator = AggregatedValidator & {
   bidTooLowPenalty: BidTooLowPenalty
   bondForcedUndelegation: BondForcedUndelegation
   samEligible: boolean
+  samIneligibilityGate: SamIneligibilityGate | null
   backstopEligible: boolean
   samBlocked: boolean
   auctionStake: ValidatorAuctionStake
