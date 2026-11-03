@@ -227,10 +227,10 @@ export class DataProvider {
         dataOverrides?.blockRewardsCommissionsDec?.get(validator.vote_account) ?? null
       const bidCpmpeOverrideDec = dataOverrides?.cpmpesDec?.get(validator.vote_account) ?? null
 
-      const inflationCommissionInBondDec =
+      let inflationCommissionInBondDec =
         bond?.inflation_commission_bps != null ? Number(bond.inflation_commission_bps) / 10_000 : null
-      const mevCommissionInBondDec = bond?.mev_commission_bps != null ? Number(bond.mev_commission_bps) / 10_000 : null
-      const blockRewardsCommissionInBondDec =
+      let mevCommissionInBondDec = bond?.mev_commission_bps != null ? Number(bond.mev_commission_bps) / 10_000 : null
+      let blockRewardsCommissionInBondDec =
         bond?.block_commission_bps != null ? Number(bond.block_commission_bps) / 10_000 : null
 
       // No default: a missing rate must stay unknown, never collapse to 100% and silently zero the staker share
@@ -277,6 +277,21 @@ export class DataProvider {
         if (blockRewardsCommissionDec && blockRewardsCommissionDec < this.config.minimalCommission) {
           minimalCommissionDec = this.config.minimalCommission
           blockRewardsCommissionDec = this.config.minimalCommission
+        }
+        if (inflationCommissionInBondDec != null && inflationCommissionInBondDec < this.config.minimalCommission) {
+          minimalCommissionDec = this.config.minimalCommission
+          inflationCommissionInBondDec = this.config.minimalCommission
+        }
+        if (mevCommissionInBondDec != null && mevCommissionInBondDec < this.config.minimalCommission) {
+          minimalCommissionDec = this.config.minimalCommission
+          mevCommissionInBondDec = this.config.minimalCommission
+        }
+        if (
+          blockRewardsCommissionInBondDec != null &&
+          blockRewardsCommissionInBondDec < this.config.minimalCommission
+        ) {
+          minimalCommissionDec = this.config.minimalCommission
+          blockRewardsCommissionInBondDec = this.config.minimalCommission
         }
       }
 

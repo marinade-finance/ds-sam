@@ -1,4 +1,9 @@
-import { BASELINE_SLOTS_PER_YEAR, DEFAULT_CONFIG, InputsSource } from '@marinade.finance/ds-sam-calc'
+import {
+  BASELINE_SLOTS_PER_YEAR,
+  DEFAULT_CONFIG,
+  InputsSource,
+  calcValidatorRevShare,
+} from '@marinade.finance/ds-sam-calc'
 
 import { defaultStaticDataProviderBuilder } from './helpers/static-data-provider-builder'
 import { ValidatorMockBuilder } from './helpers/validator-mock-builder'
@@ -183,7 +188,7 @@ describe('Data Provider Testing Setup', () => {
         mevCommissionOnchainDec: 0.2,
         mevCommissionInBondDec: 0.4,
         blockRewardsCommissionOnchainDec: null,
-        blockRewardsCommissionInBondDec: -0.3,
+        blockRewardsCommissionInBondDec: -0.2,
         minimalCommissionDec: -0.2,
         bidCpmpeInBondDec: 0,
       })
@@ -221,7 +226,7 @@ describe('Data Provider Testing Setup', () => {
         blockRewardsCommissionDec: 0.4, // override not applied as above minimal
         inflationCommissionOnchainDec: 0.1,
         inflationCommissionOnchainSource: 'effective',
-        inflationCommissionInBondDec: 0.3,
+        inflationCommissionInBondDec: 0.4,
         mevCommissionOnchainDec: 0.2,
         mevCommissionInBondDec: 0.4,
         blockRewardsCommissionOnchainDec: null,
@@ -278,6 +283,44 @@ describe('Data Provider Testing Setup', () => {
           minimal: -2.0,
         },
       ])
+    })
+
+    it('in-bond commissions down to i64::MIN bps are floored at minimalCommission', async () => {
+      const i64MinPercent = -92233720368547758.08
+      const validators = [
+        new ValidatorMockBuilder('validator', 'id')
+          .withEligibleDefaults()
+          .withInflationCommission(5)
+          .withMevCommission(5)
+          .withBond({
+            stakeWanted: 0,
+            cpmpe: 0,
+            balance: 0,
+            bondInflationCommission: i64MinPercent,
+            bondMevCommission: i64MinPercent,
+            bondBlockCommission: i64MinPercent,
+          }),
+      ]
+      const agg = await runStaticAggregate(validators, [], { minimalCommission: -5 })
+      const validator = agg.validators[0]
+      if (!validator) {
+        throw new Error('validator missing from the aggregate')
+      }
+      expect(validator.values.commissions).toMatchObject({
+        inflationCommissionDec: -5,
+        mevCommissionDec: -5,
+        blockRewardsCommissionDec: -5,
+        inflationCommissionInBondDec: -5,
+        mevCommissionInBondDec: -5,
+        blockRewardsCommissionInBondDec: -5,
+        minimalCommissionDec: -5,
+      })
+
+      const rewards = { inflationPmpe: 0.4, mevPmpe: 0.05, blockPmpe: 0.1 }
+      const revShare = calcValidatorRevShare(validator, rewards)
+      expect(revShare.bondObligationPmpe).toBeLessThanOrEqual(
+        6 * (rewards.inflationPmpe + rewards.mevPmpe + rewards.blockPmpe) + revShare.bidPmpe,
+      )
     })
   })
 })
