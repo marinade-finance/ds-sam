@@ -29,13 +29,13 @@ jobs:
 
     steps:
       - name: 🏃‍♂️ Checkout project
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: 👩‍🔧 Install pnpm
         uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
 
       - name: 👨‍🔧 Install Node.js
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v6
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
           cache: 'pnpm'
@@ -49,7 +49,7 @@ jobs:
 
       - name: 💾 Cache auction data
         id: cache-auctions
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v5
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: data-repo/auctions
           key: auction-data-${{ steps.data-hash.outputs.hash }}
@@ -91,7 +91,7 @@ jobs:
           ./scripts/run-auction-test.sh $ARGS --verbose
 
       - name: 📁📎 Upload results
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: auction-results-${{ github.run_id }}
@@ -100,7 +100,7 @@ jobs:
           retention-days: 15
 
       - name: 📁✏️ Upload logs
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: auction-logs-${{ github.run_id }}
@@ -109,7 +109,7 @@ jobs:
           retention-days: 3
 
       - name: 📁🔬 Upload diffs
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: auction-diffs-${{ github.run_id }}
