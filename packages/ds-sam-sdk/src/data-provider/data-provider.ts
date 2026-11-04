@@ -265,34 +265,29 @@ export class DataProvider {
 
       // safeguard against validator accidentally overly low commission to pay overly more than 100% of rewards
       let minimalCommissionDec: number | undefined = undefined
-      if (this.config.minimalCommission != null) {
-        if (inflationCommissionDec != null && inflationCommissionDec < this.config.minimalCommission) {
-          minimalCommissionDec = this.config.minimalCommission
-          inflationCommissionDec = this.config.minimalCommission
-        }
-        if (mevCommissionDec && mevCommissionDec < this.config.minimalCommission) {
-          minimalCommissionDec = this.config.minimalCommission
-          mevCommissionDec = this.config.minimalCommission
-        }
-        if (blockRewardsCommissionDec && blockRewardsCommissionDec < this.config.minimalCommission) {
-          minimalCommissionDec = this.config.minimalCommission
-          blockRewardsCommissionDec = this.config.minimalCommission
-        }
-        if (inflationCommissionInBondDec != null && inflationCommissionInBondDec < this.config.minimalCommission) {
-          minimalCommissionDec = this.config.minimalCommission
-          inflationCommissionInBondDec = this.config.minimalCommission
-        }
-        if (mevCommissionInBondDec != null && mevCommissionInBondDec < this.config.minimalCommission) {
-          minimalCommissionDec = this.config.minimalCommission
-          mevCommissionInBondDec = this.config.minimalCommission
-        }
-        if (
-          blockRewardsCommissionInBondDec != null &&
-          blockRewardsCommissionInBondDec < this.config.minimalCommission
-        ) {
-          minimalCommissionDec = this.config.minimalCommission
-          blockRewardsCommissionInBondDec = this.config.minimalCommission
-        }
+      if (inflationCommissionDec != null && inflationCommissionDec < this.config.minimalCommission) {
+        minimalCommissionDec = this.config.minimalCommission
+        inflationCommissionDec = this.config.minimalCommission
+      }
+      if (mevCommissionDec != null && mevCommissionDec < this.config.minimalCommission) {
+        minimalCommissionDec = this.config.minimalCommission
+        mevCommissionDec = this.config.minimalCommission
+      }
+      if (blockRewardsCommissionDec != null && blockRewardsCommissionDec < this.config.minimalCommission) {
+        minimalCommissionDec = this.config.minimalCommission
+        blockRewardsCommissionDec = this.config.minimalCommission
+      }
+      if (inflationCommissionInBondDec != null && inflationCommissionInBondDec < this.config.minimalCommission) {
+        minimalCommissionDec = this.config.minimalCommission
+        inflationCommissionInBondDec = this.config.minimalCommission
+      }
+      if (mevCommissionInBondDec != null && mevCommissionInBondDec < this.config.minimalCommission) {
+        minimalCommissionDec = this.config.minimalCommission
+        mevCommissionInBondDec = this.config.minimalCommission
+      }
+      if (blockRewardsCommissionInBondDec != null && blockRewardsCommissionInBondDec < this.config.minimalCommission) {
+        minimalCommissionDec = this.config.minimalCommission
+        blockRewardsCommissionInBondDec = this.config.minimalCommission
       }
 
       const lastAuctionHistory = auctionHistoriesData

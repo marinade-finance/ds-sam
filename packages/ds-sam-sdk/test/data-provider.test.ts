@@ -285,6 +285,33 @@ describe('Data Provider Testing Setup', () => {
       ])
     })
 
+    it('zero commissions are floored at a positive minimalCommission', async () => {
+      const validators = [
+        new ValidatorMockBuilder('validator', 'id')
+          .withEligibleDefaults()
+          .withInflationCommission(10)
+          .withMevCommission(50)
+          .withBond({
+            stakeWanted: 0,
+            cpmpe: 0,
+            balance: 0,
+            bondInflationCommission: 0,
+            bondMevCommission: 0,
+            bondBlockCommission: 0,
+          }),
+      ]
+      const agg = await runStaticAggregate(validators, [], { minimalCommission: 0.4 })
+      expect(agg.validators[0]?.values.commissions).toMatchObject({
+        inflationCommissionDec: 0.4,
+        mevCommissionDec: 0.4,
+        blockRewardsCommissionDec: 0.4,
+        inflationCommissionInBondDec: 0.4,
+        mevCommissionInBondDec: 0.4,
+        blockRewardsCommissionInBondDec: 0.4,
+        minimalCommissionDec: 0.4,
+      })
+    })
+
     it('in-bond commissions down to i64::MIN bps are floored at minimalCommission', async () => {
       const i64MinPercent = -92233720368547758.08
       const validators = [

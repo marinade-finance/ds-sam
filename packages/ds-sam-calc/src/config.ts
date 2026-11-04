@@ -109,7 +109,7 @@ export type DsSamConfig = {
 
   // Minimum commission a validator can set (probably in bond configuration)
   // Prevents validators from setting overly negative commissions
-  minimalCommission: number | null
+  minimalCommission: number
 
   // Multiplier for bond balance requirements when calculating stake caps constraints.
   // We assume some bond balance for the stake is required and multiply the calculated bond requirement
