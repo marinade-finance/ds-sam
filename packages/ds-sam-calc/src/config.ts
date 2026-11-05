@@ -108,8 +108,8 @@ export type DsSamConfig = {
   minEligibleFeePmpe: number | null
 
   // Minimum commission a validator can set (probably in bond configuration)
-  // Prevents validators from setting overly negative commissions
-  minimalCommission: number | null
+  // Caps a validator's over-commitment from negative commissions; production -5.0 = 500% of rewards
+  minimalCommission: number
 
   // Multiplier for bond balance requirements when calculating stake caps constraints.
   // We assume some bond balance for the stake is required and multiply the calculated bond requirement
@@ -174,7 +174,7 @@ export const DEFAULT_CONFIG: DsSamConfig = {
   bondObligationSafetyMult: 1,
   bondSamHealthMult: 1.1,
   bidTooLowPenaltyPermittedDeviationPmpe: 0.05,
-  minimalCommission: -2.0,
+  minimalCommission: -5.0,
 
   debugVoteAccounts: [],
   logVerbosity: LogVerbosity.DEBUG,
