@@ -2,7 +2,9 @@ import fs from 'fs'
 
 import {
   BASELINE_SLOTS_PER_YEAR,
+  blacklistRulesEpochs,
   calcEffParticipatingBidPmpe,
+  evaluateBlacklistRules,
   InputsSource,
   effectiveCommissions,
   winningTotalPmpeOf,
@@ -11,8 +13,14 @@ import { lamportsToSol } from '@marinade.finance/ts-common/dist/src/browser'
 import axios from 'axios'
 import Decimal from 'decimal.js'
 
+import { blacklistRulesData, parseCurrentBlacklist } from './blacklist-rules'
+
 import type {
   RawBlacklistResponseDto,
+  RawBlacklistRulesInputs,
+  RawCurrentBlacklistDto,
+  RawValidatorQualityDto,
+  RawValidatorQualityResponseDto,
   RawBondsResponseDto,
   RawMevInfoResponseDto,
   RawRewardsRecordDto,
@@ -29,9 +37,14 @@ import type {
   AggregatedData,
   AggregatedValidator,
   AuctionHistoryStats,
+  BlacklistAuctionDecision,
   DsSamConfig,
   SlotParams,
 } from '@marinade.finance/ds-sam-calc'
+
+/** The epoch the auction runs in: one after the last epoch with an inflation estimate. */
+export const auctionEpochOf = (rewards: RawRewardsResponseDto): number =>
+  rewards.rewards_inflation_est.reduce((epoch, entry) => Math.max(epoch, entry[0]), 0) + 1
 
 export class DataProvider {
   constructor(
@@ -42,6 +55,9 @@ export class DataProvider {
   }
 
   private validateConfig() {
+    if (this.config.blacklistRules && this.config.blacklistFilePath) {
+      throw new Error('--blacklist-file is not read when blacklistRules decide the blacklist')
+    }
     switch (this.dataSource) {
       case InputsSource.APIS:
         if (this.config.cacheInputs && !this.config.inputsCacheDirPath) {
@@ -385,15 +401,8 @@ export class DataProvider {
 
     const tvlSol = data.tvlInfo.total_virtual_staked_sol + data.tvlInfo.marinade_native_stake_sol
 
-    const blacklist = new Set(
-      data.blacklist
-        .split('\n')
-        .slice(1) // header row
-        .map(line => line.trim().split(',')[0])
-        .filter((value): value is string => !!value),
-    )
-
-    const epoch = data.rewards.rewards_inflation_est.reduce((epoch, entry) => Math.max(epoch, entry[0]), 0) + 1
+    const epoch = auctionEpochOf(data.rewards)
+    const { blacklist, blacklistDecision } = this.resolveBlacklist(data, epoch)
     const slotParams: SlotParams = { slotsPerYear: this.resolveSlotsPerYear(data.rewards, epoch), epoch }
 
     console.log('tvl', tvlSol)
@@ -414,7 +423,40 @@ export class DataProvider {
         marinadeRemainingSamSol: tvlSol,
       },
       blacklist,
+      ...(blacklistDecision ? { blacklistDecision } : {}),
     }
+  }
+
+  private resolveBlacklist(
+    data: RawSourceData,
+    auctionEpoch: number,
+  ): { blacklist: Set<string>; blacklistDecision?: BlacklistAuctionDecision } {
+    const rules = this.config.blacklistRules
+    if (!rules) {
+      return {
+        blacklist: new Set(
+          data.blacklist
+            .split('\n')
+            .slice(1) // header row
+            .map(line => line.trim().split(',')[0])
+            .filter((value): value is string => !!value),
+        ),
+      }
+    }
+    if (!data.blacklistRulesInputs) {
+      throw new Error('blacklistRules are configured but the source data has no blacklist rules inputs')
+    }
+    if (data.blacklistRulesInputs.auctionEpoch !== auctionEpoch) {
+      throw new Error(
+        `Blacklist rules inputs are for auction epoch ${data.blacklistRulesInputs.auctionEpoch}, the auction runs in ${auctionEpoch}`,
+      )
+    }
+    const { blacklist, decision } = evaluateBlacklistRules(
+      rules,
+      blacklistRulesData(data.blacklistRulesInputs, data.validators, this.config.blacklistApiBaseUrl),
+      auctionEpoch,
+    )
+    return { blacklist, blacklistDecision: decision }
   }
 
   cacheSourceData(data: RawSourceData) {
@@ -425,9 +467,35 @@ export class DataProvider {
     fs.writeFileSync(`${this.config.inputsCacheDirPath}/mev-info.json`, JSON.stringify(data.mevInfo, null, 2))
     fs.writeFileSync(`${this.config.inputsCacheDirPath}/bonds.json`, JSON.stringify(data.bonds, null, 2))
     fs.writeFileSync(`${this.config.inputsCacheDirPath}/tvl-info.json`, JSON.stringify(data.tvlInfo, null, 2))
-    fs.writeFileSync(`${this.config.inputsCacheDirPath}/blacklist.csv`, data.blacklist)
+    if (data.blacklistRulesInputs) {
+      const { auctionEpoch, current, quality } = data.blacklistRulesInputs
+      fs.writeFileSync(`${this.config.inputsCacheDirPath}/blacklist.json`, JSON.stringify(current, null, 2))
+      fs.writeFileSync(
+        `${this.config.inputsCacheDirPath}/validator-quality.json`,
+        JSON.stringify({ auctionEpoch, epochs: quality }, null, 2),
+      )
+    } else {
+      fs.writeFileSync(`${this.config.inputsCacheDirPath}/blacklist.csv`, data.blacklist)
+    }
     fs.writeFileSync(`${this.config.inputsCacheDirPath}/rewards.json`, JSON.stringify(data.rewards, null, 2))
     fs.writeFileSync(`${this.config.inputsCacheDirPath}/auctions.json`, JSON.stringify(data.auctions, null, 2))
+  }
+
+  private readCachedFile(name: string): string {
+    const path = `${this.config.inputsCacheDirPath}/${name}`
+    if (!fs.existsSync(path)) {
+      throw new Error(`Missing cached input ${path}`)
+    }
+    return fs.readFileSync(path).toString()
+  }
+
+  private parseCachedBlacklistRulesInputs(): RawBlacklistRulesInputs {
+    const current = JSON.parse(this.readCachedFile('blacklist.json')) as RawCurrentBlacklistDto
+    const { auctionEpoch, epochs } = JSON.parse(this.readCachedFile('validator-quality.json')) as {
+      auctionEpoch: number
+      epochs: Record<string, RawValidatorQualityDto[]>
+    }
+    return { auctionEpoch, current, quality: epochs }
   }
 
   parseCachedSourceData(): RawSourceData {
@@ -446,9 +514,8 @@ export class DataProvider {
     const tvlInfo: RawTvlResponseDto = JSON.parse(
       fs.readFileSync(`${this.config.inputsCacheDirPath}/tvl-info.json`).toString(),
     ) as RawTvlResponseDto
-    const blacklist: RawBlacklistResponseDto = fs
-      .readFileSync(`${this.config.inputsCacheDirPath}/blacklist.csv`)
-      .toString()
+    const blacklistRulesInputs = this.config.blacklistRules ? this.parseCachedBlacklistRulesInputs() : undefined
+    const blacklist: RawBlacklistResponseDto = blacklistRulesInputs ? '' : this.readCachedFile('blacklist.csv')
     const rewards: RawRewardsResponseDto = JSON.parse(
       fs.readFileSync(`${this.config.inputsCacheDirPath}/rewards.json`).toString(),
     ) as RawRewardsResponseDto
@@ -467,21 +534,36 @@ export class DataProvider {
       rewards,
       blacklist,
       auctions,
+      ...(blacklistRulesInputs ? { blacklistRulesInputs } : {}),
     }
   }
 
   async fetchSourceData(): Promise<RawSourceData> {
-    const [validators, mevInfo, bonds, tvlInfo, blacklist, rewards, auctions] = await Promise.all([
+    const rules = this.config.blacklistRules
+    const [validators, mevInfo, bonds, tvlInfo, blacklist, rewards, auctions, current] = await Promise.all([
       this.fetchValidators(),
       this.fetchMevInfo(),
       this.fetchBonds(),
       this.fetchTvlInfo(),
-      this.fetchBlacklist(),
+      rules ? Promise.resolve('') : this.fetchBlacklist(),
       this.fetchRewards(),
       this.fetchAuctions(this.config.bidTooLowPenaltyHistoryEpochs),
+      rules ? this.fetchCurrentBlacklist() : Promise.resolve(null),
     ])
 
-    const data = {
+    let blacklistRulesInputs: RawBlacklistRulesInputs | undefined
+    if (rules && current) {
+      const auctionEpoch = auctionEpochOf(rewards)
+      const epochs = blacklistRulesEpochs(rules, auctionEpoch)
+      const quality = await Promise.all(epochs.map(epoch => this.fetchValidatorQuality(epoch)))
+      blacklistRulesInputs = {
+        auctionEpoch,
+        current,
+        quality: Object.fromEntries(epochs.map((epoch, i) => [String(epoch), quality[i] ?? []])),
+      }
+    }
+
+    const data: RawSourceData = {
       validators,
       mevInfo,
       bonds,
@@ -489,6 +571,7 @@ export class DataProvider {
       blacklist,
       rewards,
       auctions,
+      ...(blacklistRulesInputs ? { blacklistRulesInputs } : {}),
     }
     if (this.config.cacheInputs) {
       this.cacheSourceData(data)
@@ -543,6 +626,26 @@ export class DataProvider {
     const url = `${this.config.blacklistApiBaseUrl}/blacklist.csv`
     const response = await axios.get<RawBlacklistResponseDto>(url)
     return response.data
+  }
+
+  async fetchCurrentBlacklist(): Promise<RawCurrentBlacklistDto> {
+    const url = `${this.config.blacklistApiBaseUrl}/blacklist`
+    const response = await axios.get<RawCurrentBlacklistDto>(url)
+    parseCurrentBlacklist(response.data, url)
+    return response.data
+  }
+
+  async fetchValidatorQuality(epoch: number): Promise<RawValidatorQualityDto[]> {
+    const url = `${this.config.validatorsApiBaseUrl}/validators/quality?epoch=${epoch}`
+    try {
+      const response = await axios.get<RawValidatorQualityResponseDto>(url)
+      return response.data.validators
+    } catch (err) {
+      if (axios.isAxiosError(err) && err.response?.status === 404) {
+        return []
+      }
+      throw err
+    }
   }
 
   async fetchRewards(): Promise<RawRewardsResponseDto> {

@@ -34,6 +34,43 @@ export type AuctionHistory = {
 
 export type RawBlacklistResponseDto = string // csv
 
+export type RawCurrentBlacklistRowDto = {
+  vote_account: string
+  code: string
+  source: string
+  auction_epoch: number | null
+}
+export type RawBlacklistExemptDto = {
+  vote_account: string
+  rule: string
+  until_epoch: number | null
+}
+export type RawCurrentBlacklistDto = {
+  rows: RawCurrentBlacklistRowDto[]
+  exempt: RawBlacklistExemptDto[]
+}
+
+export type RawValidatorQualityDto = {
+  vote_account: string
+  blocks_produced: number | null
+  blocks_with_sandwiches: number | null
+  sandwich_rate_30d: number | null
+  wide_sandwich_rate_30d: number | null
+  slot_duration_median_ms: number | null
+  // Other properties ignored
+}
+export type RawValidatorQualityResponseDto = {
+  epoch: number
+  validators: RawValidatorQualityDto[]
+}
+
+export type RawBlacklistRulesInputs = {
+  auctionEpoch: number
+  current: RawCurrentBlacklistDto
+  // Keyed by epoch; an epoch the API had no rows for is an empty array
+  quality: Record<string, RawValidatorQualityDto[]>
+}
+
 export type RawTvlResponseDto = {
   total_virtual_staked_sol: number
   marinade_native_stake_sol: number
@@ -130,9 +167,11 @@ export type RawSourceData = {
   mevInfo: RawMevInfoResponseDto
   bonds: RawBondsResponseDto
   tvlInfo: RawTvlResponseDto
+  // Empty when `blacklistRules` decide the blacklist from `blacklistRulesInputs`
   blacklist: RawBlacklistResponseDto
   rewards: RawRewardsResponseDto
   auctions: RawScoredValidatorDto[]
+  blacklistRulesInputs?: RawBlacklistRulesInputs
 }
 
 /** All override values are in decimal (0–1) scale, e.g. 5% = 0.05; cpmpe in SOL units */
