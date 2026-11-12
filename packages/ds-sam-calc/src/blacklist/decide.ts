@@ -51,12 +51,14 @@ export const ruleOfCode = (code: string): BlacklistRuleId | null =>
   CODE_PREFIXES.find(([prefix]) => code.startsWith(prefix))?.[1] ?? null
 
 const exempted = (hit: BlacklistHit, exempt: BlacklistExempt[]): boolean =>
-  exempt.some(
-    entry =>
+  exempt.some(entry => {
+    const until = entry.untilEpoch
+    return (
       entry.voteAccount === hit.voteAccount &&
       (entry.rule === ExemptRule.ALL || (entry.rule as string) === (hit.rule as string)) &&
-      (entry.untilEpoch === null || hit.epochs.some(epoch => epoch <= (entry.untilEpoch ?? epoch))),
-  )
+      (until === null || hit.epochs.some(epoch => epoch <= until))
+    )
+  })
 
 /**
  * The blacklist of auction `auctionEpoch`: the current list plus the rule hits that are neither

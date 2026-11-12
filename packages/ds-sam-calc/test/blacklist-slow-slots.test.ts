@@ -1,4 +1,5 @@
-import { slowSlotsHits, stakeWeightedMedian, windowStart } from '../src/blacklist/slow-slots'
+import { evaluateBlacklistRules } from '../src/blacklist/evaluate'
+import { slowSlotsHits, stakeWeightedMedian, windowEpochs } from '../src/blacklist/slow-slots'
 
 import type { SlotTimeRow } from '../src/blacklist/slow-slots'
 import type { BlacklistHit, SlowSlotsEvidence } from '../src/blacklist/types'
@@ -123,9 +124,33 @@ describe('slow slots rule', () => {
     }
   })
 
-  it('the window starts its length minus one before the epoch', () => {
-    expect(windowStart(1080, 2)).toBe(1079)
-    expect(windowStart(1080, 1)).toBe(1080)
-    expect(windowStart(0, 3)).toBe(0)
+  it('the window holds its length of epochs ending at the epoch', () => {
+    expect(windowEpochs(1080, 2)).toEqual([1079, 1080])
+    expect(windowEpochs(1080, 1)).toEqual([1080])
+    expect(windowEpochs(1080, 0)).toEqual([])
+    expect(windowEpochs(1, 3)).toEqual([0, 1])
+  })
+
+  it('names a window epoch without stake as missing', () => {
+    const rows = [...NETWORK, ['slow', 250, 10] as Row].map(([voteAccount, ms]) => ({
+      voteAccount,
+      slotDurationMedianMs: ms,
+    }))
+    const stakes = new Map(NETWORK.map(([account, , stake]) => [account, BigInt(stake)]))
+    const { decision } = evaluateBlacklistRules(
+      { maxNewListings: 10, slowSlots: PARAMS },
+      {
+        current: { rows: [], exempt: [] },
+        sandwichesByEpoch: new Map(),
+        slotTimesByEpoch: new Map([
+          [E - 1, rows],
+          [E, rows],
+        ]),
+        stakesByEpoch: new Map([[E, stakes]]),
+      },
+      E + 1,
+    )
+    expect(decision.missingEpochs).toEqual([E - 1])
+    expect(decision.added).toEqual([])
   })
 })

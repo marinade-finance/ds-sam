@@ -51,6 +51,34 @@ export const parseCurrentBlacklist = (dto: RawCurrentBlacklistDto, source: strin
   return { rows, exempt }
 }
 
+const COUNTS = ['blocks_produced', 'blocks_with_sandwiches'] as const
+const MEASURES = ['sandwich_rate_30d', 'wide_sandwich_rate_30d', 'slot_duration_median_ms'] as const
+
+/** Checks every quality row the rules read; errors name the row, never its content. */
+const validateQuality = (records: RawValidatorQualityDto[], epoch: number) => {
+  const fail = (what: string): never => {
+    throw new Error(`Invalid validator quality of epoch ${epoch}: ${what}`)
+  }
+  records.forEach((r, i) => {
+    if (!VOTE_ACCOUNT.test(r.vote_account)) fail(`row ${i}: vote account is not a base58 pubkey`)
+    for (const field of COUNTS) {
+      const value = r[field]
+      if (value !== null && !(Number.isInteger(value) && value >= 0)) fail(`row ${i}: ${field}`)
+    }
+    for (const field of MEASURES) {
+      const value = r[field]
+      if (value !== null && !(Number.isFinite(value) && value >= 0)) fail(`row ${i}: ${field}`)
+    }
+    if (
+      r.blocks_with_sandwiches !== null &&
+      r.blocks_produced !== null &&
+      r.blocks_with_sandwiches > r.blocks_produced
+    ) {
+      fail(`row ${i}: more blocks with sandwiches than blocks produced`)
+    }
+  })
+}
+
 const sandwichRows = (records: RawValidatorQualityDto[]): SandwichRow[] =>
   records.flatMap(r =>
     r.blocks_produced === null || r.blocks_with_sandwiches === null || r.sandwich_rate_30d === null
@@ -91,6 +119,9 @@ export const blacklistRulesData = (
   source: string,
 ): BlacklistRulesData => {
   const epochs = Object.entries(inputs.quality).map(([epoch, records]) => [Number(epoch), records] as const)
+  for (const [epoch, records] of epochs) {
+    validateQuality(records, epoch)
+  }
   return {
     current: parseCurrentBlacklist(inputs.current, source),
     sandwichesByEpoch: new Map(epochs.map(([epoch, records]) => [epoch, sandwichRows(records)])),
