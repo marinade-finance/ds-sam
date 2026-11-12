@@ -69,8 +69,8 @@ describe('decideBlacklist', () => {
     expect(accounts(decision.added)).toEqual(['a'])
   })
 
-  it('until epoch ignores only evidence up to it', () => {
-    const exemption = [exempt('v', ExemptRule.SLOW_SLOTS, 1083)]
+  it('until epoch exempts hits whose code epoch is at or below it', () => {
+    const exemption = [exempt('v', ExemptRule.SLOW_SLOTS, 1084)]
     const suppressed = decideBlacklist(
       current([], exemption),
       [hit('v', BlacklistRuleId.SLOW_SLOTS, [1083, 1084])],
@@ -80,6 +80,16 @@ describe('decideBlacklist', () => {
     const kept = decideBlacklist(current([], exemption), [hit('v', BlacklistRuleId.SLOW_SLOTS, [1084, 1085])], A, 10)
     expect(suppressed.added).toEqual([])
     expect(accounts(kept.added)).toEqual(['v'])
+  })
+
+  it('until epoch below the code epoch does not exempt a window that starts at it', () => {
+    const decision = decideBlacklist(
+      current([], [exempt('v', ExemptRule.SLOW_SLOTS, 1083)]),
+      [hit('v', BlacklistRuleId.SLOW_SLOTS, [1083, 1084])],
+      A,
+      10,
+    )
+    expect(accounts(decision.added)).toEqual(['v'])
   })
 
   it('adds new accounts up to the limit', () => {

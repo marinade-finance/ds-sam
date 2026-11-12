@@ -26,6 +26,7 @@ export type BlacklistRow = {
 export type BlacklistExempt = {
   voteAccount: string
   rule: ExemptRule
+  // Hits whose code epoch is at or below it are exempt, as ds2 holds it against listed codes
   untilEpoch: number | null
 }
 
@@ -56,7 +57,7 @@ const exempted = (hit: BlacklistHit, exempt: BlacklistExempt[]): boolean =>
     return (
       entry.voteAccount === hit.voteAccount &&
       (entry.rule === ExemptRule.ALL || (entry.rule as string) === (hit.rule as string)) &&
-      (until === null || hit.epochs.some(epoch => epoch <= until))
+      (until === null || Math.max(...hit.epochs) <= until)
     )
   })
 
