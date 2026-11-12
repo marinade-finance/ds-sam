@@ -540,7 +540,7 @@ export class DataProvider {
 
   async fetchSourceData(): Promise<RawSourceData> {
     const rules = this.config.blacklistRules
-    const [validators, mevInfo, bonds, tvlInfo, blacklist, rewards, auctions, current] = await Promise.all([
+    const [validators, mevInfo, bonds, tvlInfo, blacklist, rewards, auctions] = await Promise.all([
       this.fetchValidators(),
       this.fetchMevInfo(),
       this.fetchBonds(),
@@ -548,14 +548,16 @@ export class DataProvider {
       rules ? Promise.resolve('') : this.fetchBlacklist(),
       this.fetchRewards(),
       this.fetchAuctions(this.config.bidTooLowPenaltyHistoryEpochs),
-      rules ? this.fetchCurrentBlacklist() : Promise.resolve(null),
     ])
 
     let blacklistRulesInputs: RawBlacklistRulesInputs | undefined
-    if (rules && current) {
+    if (rules) {
       const auctionEpoch = auctionEpochOf(rewards)
       const epochs = blacklistRulesEpochs(rules, auctionEpoch)
-      const quality = await Promise.all(epochs.map(epoch => this.fetchValidatorQuality(epoch)))
+      const [current, ...quality] = await Promise.all([
+        this.fetchCurrentBlacklist(),
+        ...epochs.map(epoch => this.fetchValidatorQuality(epoch)),
+      ])
       blacklistRulesInputs = {
         auctionEpoch,
         current,
@@ -637,15 +639,11 @@ export class DataProvider {
 
   async fetchValidatorQuality(epoch: number): Promise<RawValidatorQualityDto[]> {
     const url = `${this.config.validatorsApiBaseUrl}/validators/quality?epoch=${epoch}`
-    try {
-      const response = await axios.get<RawValidatorQualityResponseDto>(url)
-      return response.data.validators
-    } catch (err) {
-      if (axios.isAxiosError(err) && err.response?.status === 404) {
-        return []
-      }
-      throw err
+    const response = await axios.get<RawValidatorQualityResponseDto>(url)
+    if (!Array.isArray(response.data?.validators)) {
+      throw new Error(`Invalid validator quality from ${url}: validators must be an array`)
     }
+    return response.data.validators
   }
 
   async fetchRewards(): Promise<RawRewardsResponseDto> {

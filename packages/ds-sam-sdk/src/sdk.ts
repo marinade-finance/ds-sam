@@ -58,6 +58,13 @@ export class DsSamSDK {
     }
     if (config.blacklistRules) {
       validateBlacklistRulesConfig(config.blacklistRules)
+      const epochsWithStake = Math.max(config.validatorsUptimeEpochsCount, config.rewardsEpochsCount)
+      const consecutiveEpochs = config.blacklistRules.slowSlots?.consecutiveEpochs ?? 0
+      if (consecutiveEpochs > epochsWithStake) {
+        throw new Error(
+          `Invalid config: blacklistRules.slowSlots.consecutiveEpochs must be <= ${epochsWithStake}, the closed epochs the validators fetch covers, got ${consecutiveEpochs}`,
+        )
+      }
     }
   }
 

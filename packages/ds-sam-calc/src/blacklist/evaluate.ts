@@ -1,7 +1,7 @@
 import { sandwichParams } from './config'
 import { decideBlacklist } from './decide'
 import { sandwichHits } from './sandwich'
-import { slowSlotsHits, windowStart } from './slow-slots'
+import { hasStakedSlotTimes, slowSlotsHits, windowEpochs } from './slow-slots'
 
 import type { CurrentBlacklist } from './decide'
 import type { SandwichRow } from './sandwich'
@@ -19,7 +19,7 @@ export type BlacklistRulesData = {
 export type BlacklistAuctionDecision = {
   auctionEpoch: number
   evaluatedEpoch: number
-  // Epochs the rules needed that had no data; their rules gave no hits
+  // Epochs the rules needed that had no data or no stake; their rules gave no hits
   missingEpochs: number[]
   added: BlacklistHit[]
   held: BlacklistHit[]
@@ -27,13 +27,8 @@ export type BlacklistAuctionDecision = {
 
 /** The epochs of data the configured rules read for an auction: a window ending at the last closed epoch. */
 export const blacklistRulesEpochs = (rules: BlacklistRulesConfig, auctionEpoch: number): number[] => {
-  const evaluatedEpoch = auctionEpoch - 1
   const window = Math.max(rules.sandwich ? 1 : 0, rules.slowSlots?.consecutiveEpochs ?? 0)
-  const epochs: number[] = []
-  for (let epoch = windowStart(evaluatedEpoch, window); window > 0 && epoch <= evaluatedEpoch; epoch++) {
-    epochs.push(epoch)
-  }
-  return epochs
+  return windowEpochs(auctionEpoch - 1, window)
 }
 
 export const evaluateBlacklistRules = (
@@ -54,8 +49,8 @@ export const evaluateBlacklistRules = (
   }
   if (rules.slowSlots) {
     const slowSlots = rules.slowSlots
-    for (let epoch = windowStart(evaluatedEpoch, slowSlots.consecutiveEpochs); epoch <= evaluatedEpoch; epoch++) {
-      if ((data.slotTimesByEpoch.get(epoch) ?? []).length === 0) {
+    for (const epoch of windowEpochs(evaluatedEpoch, slowSlots.consecutiveEpochs)) {
+      if (!hasStakedSlotTimes(data.slotTimesByEpoch.get(epoch) ?? [], data.stakesByEpoch.get(epoch))) {
         missingEpochs.add(epoch)
       }
     }

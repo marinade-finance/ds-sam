@@ -14,8 +14,18 @@ export type SlotTimeRow = {
   slotDurationMedianMs: number
 }
 
-/** The first epoch of a window of `window` epochs that ends at `epoch`. */
-export const windowStart = (epoch: number, window: number): number => Math.max(0, epoch - Math.max(0, window - 1))
+/** The epochs of a window of `length` epochs that ends at `end`, oldest first. */
+export const windowEpochs = (end: number, length: number): number[] => {
+  const epochs: number[] = []
+  for (let epoch = Math.max(0, end - length + 1); length > 0 && epoch <= end; epoch++) {
+    epochs.push(epoch)
+  }
+  return epochs
+}
+
+/** Whether any slot-time row of the epoch has stake, the precondition of the network median. */
+export const hasStakedSlotTimes = (slotTimes: SlotTimeRow[], stakes: Map<string, bigint> | undefined): boolean =>
+  slotTimes.some(row => (stakes?.get(row.voteAccount) ?? 0n) > 0n)
 
 /** The value at which half of the stake sits at or below; `null` without any stake. */
 export const stakeWeightedMedian = (values: { value: number; stake: bigint }[]): number | null => {
@@ -46,10 +56,7 @@ export const slowSlotsHits = (
   epoch: number,
   params: SlowSlotsParams,
 ): BlacklistHit[] => {
-  const epochs: number[] = []
-  for (let e = windowStart(epoch, params.consecutiveEpochs); e <= epoch; e++) {
-    epochs.push(e)
-  }
+  const epochs = windowEpochs(epoch, params.consecutiveEpochs)
 
   const medians: number[] = []
   const perEpoch: Map<string, number>[] = []
