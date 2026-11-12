@@ -5,14 +5,38 @@ import { CliUtilityService, Command, CommandRunner, Option } from 'nest-commande
 
 import {
   AuctionResult,
+  BlacklistAuctionDecision,
+  BlacklistHit,
+  BlacklistRuleId,
   DsSamConfig,
   DsSamSDK,
   EPSILON,
   InputsSource,
+  SandwichEvidence,
+  SandwichObservation,
+  SlowSlotsEvidence,
   formatLastCapConstraint,
+  renderBlacklistCsv,
 } from '@marinade.finance/ds-sam-sdk'
 
 const COMMAND_NAME = 'auction'
+
+const formatSandwich = (kind: string, o: SandwichObservation) =>
+  `${kind} ${o.rate30dPct}% (${o.blocksWithSandwiches}/${o.blocksProduced} blocks, cluster median ${o.clusterMedianPct.toFixed(2)}%, p=${o.pValue.toExponential(2)})`
+
+const formatHit = (hit: BlacklistHit): string => {
+  if (hit.rule === BlacklistRuleId.SANDWICH) {
+    const { single, wide } = hit.evidence as SandwichEvidence
+    const observed = [single && formatSandwich('single', single), wide && formatSandwich('wide', wide)]
+    return `  - \`${hit.voteAccount}\` ${hit.code}: ${observed.filter(Boolean).join('; ')}`
+  }
+  const { epochs } = hit.evidence as SlowSlotsEvidence
+  const observed = Object.entries(epochs).map(
+    ([epoch, { slotDurationMedianMs, networkMedianMs }]) =>
+      `epoch ${epoch} ${slotDurationMedianMs}ms vs network ${networkMedianMs}ms`,
+  )
+  return `  - \`${hit.voteAccount}\` ${hit.code}: ${observed.join('; ')}`
+}
 
 type AuctionCommandOptions = Partial<
   DsSamConfig & {
@@ -54,11 +78,20 @@ export class AuctionCommand extends CommandRunner {
     }
 
     if (config.outputDirPath) {
-      this.storeResults(result, `${config.outputDirPath}/results.json`, `${config.outputDirPath}/summary.md`)
+      this.storeResults(
+        result,
+        `${config.outputDirPath}/results.json`,
+        `${config.outputDirPath}/summary.md`,
+        `${config.outputDirPath}/blacklist-added.csv`,
+      )
     }
   }
 
-  storeResults(result: AuctionResult, resultsPath: string, summaryPath: string) {
+  storeResults(result: AuctionResult, resultsPath: string, summaryPath: string, blacklistAddedPath?: string) {
+    const decision = result.auctionData.blacklistDecision
+    if (decision && blacklistAddedPath) {
+      fs.writeFileSync(blacklistAddedPath, renderBlacklistCsv(decision.added))
+    }
     const resultsStr = JSON.stringify(
       {
         ...result,
@@ -103,8 +136,30 @@ export class AuctionCommand extends CommandRunner {
       `- Auction winning rev share = \`${result.winningTotalPmpe}\` PMPE`,
       `- Eligible validators count = \`${eligibleValidators.toLocaleString()}\``,
       `- Staked validators count = \`${stakedValidators.toLocaleString()}\``,
+      ...this.formatBlacklistSummary(result.auctionData.blacklistDecision),
       '',
     ].join('\n')
+  }
+
+  formatBlacklistSummary(decision: BlacklistAuctionDecision | undefined): string[] {
+    if (!decision) {
+      return []
+    }
+    const lines = ['\n### Blacklist', `- Evaluated epoch = \`${decision.evaluatedEpoch}\``]
+    if (decision.missingEpochs.length > 0) {
+      lines.push(
+        `- ⚠ No validator quality data for epochs ${decision.missingEpochs.join(', ')}; their rules did not run`,
+      )
+    }
+    lines.push(`- Added = \`${decision.added.length}\``, ...decision.added.map(formatHit))
+    if (decision.held.length > 0) {
+      lines.push(
+        `- ⚠ Held = \`${decision.held.length}\`: more new accounts than \`blacklistRules.maxNewListings\`.` +
+          ' Approve by adding them as manual entries of the blacklist config.',
+        ...decision.held.map(formatHit),
+      )
+    }
+    return lines
   }
 
   @Option({
