@@ -17,14 +17,15 @@ const withEpochs = (builder: ValidatorMockBuilder, kinds: EpochKind[]) =>
     .withVoteRewards(...kinds.map(kind => (kind === 'tower' ? null : STAKE)))
     .withLeaderSlots(STAKE / 10_000)
 
-const gatesFor = async (kinds: EpochKind[], vatEligible: (boolean | null | undefined)[]) => {
+type VatVerdict = boolean | null | undefined
+
+const gatesFor = async (kinds: EpochKind[], vatEligible: (VatVerdict | [VatVerdict, VatVerdict])[]) => {
   const votes = generateVoteAccounts('vat')
   const ids = generateIdentities()
   const validators = vatEligible.map(eligible =>
-    withEpochs(
-      new ValidatorMockBuilder(votes.next().value, ids.next().value).withEligibleDefaults(),
-      kinds,
-    ).withVatEligible(eligible),
+    withEpochs(new ValidatorMockBuilder(votes.next().value, ids.next().value).withEligibleDefaults(), kinds)
+      .withVatEligible(Array.isArray(eligible) ? eligible[0] : eligible)
+      .withClosedEpochVatEligible(Array.isArray(eligible) ? eligible[1] : eligible),
   )
   const dsSam = new DsSamSDK({}, defaultStaticDataProviderBuilder(validators))
   const aggregatedData = await dsSam.getAggregatedData()
@@ -46,6 +47,20 @@ describe('VAT eligibility', () => {
       null,
       null,
     ])
+  })
+
+  it('refuses only when the running and the newest closed epoch both read false', async () => {
+    // [running epoch, newest closed epoch]
+    expect(
+      await gatesFor(repeat('alpenglow', 10), [
+        [false, false],
+        [false, true],
+        [true, false],
+        [false, null],
+        [null, false],
+        [false, undefined],
+      ]),
+    ).toEqual(['vatIneligible', null, null, null, null, null])
   })
 
   it('refuses in Tower epochs and in the migration epoch too', async () => {

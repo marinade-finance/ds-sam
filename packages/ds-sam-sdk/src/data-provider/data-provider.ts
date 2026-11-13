@@ -33,6 +33,28 @@ import type {
   SlotParams,
 } from '@marinade.finance/ds-sam-calc'
 
+// The running epoch is read soon after the VAT burn: a vote account funded one epoch at a time
+// reads false there until it tops up.
+const mergeVatEligible = (
+  runningEpoch: boolean | null | undefined,
+  closedEpoch: boolean | null | undefined,
+): boolean | null => {
+  if (runningEpoch === false && closedEpoch === false) {
+    return false
+  }
+  if (runningEpoch === true || closedEpoch === true) {
+    return true
+  }
+  return null
+}
+
+const newestClosedEpochStat = (validator: RawValidatorDto) =>
+  validator.epoch_stats
+    .filter(({ epoch_end_at }) => !!epoch_end_at)
+    .reduce<
+      RawValidatorDto['epoch_stats'][number] | null
+    >((newest, es) => (newest === null || es.epoch > newest.epoch ? es : newest), null)
+
 export class DataProvider {
   constructor(
     protected readonly config: DsSamConfig,
@@ -310,7 +332,7 @@ export class DataProvider {
         voteAccount: validator.vote_account,
         clientVersion: validator.version ?? '0.0.0',
         voteCredits: validator.credits,
-        vatEligible: validator.vat_eligible ?? null,
+        vatEligible: mergeVatEligible(validator.vat_eligible, newestClosedEpochStat(validator)?.vat_eligible),
         aso: validator.dc_aso ?? 'Unknown',
         country: validator.dc_country ?? 'Unknown',
         bondBalanceSol,
