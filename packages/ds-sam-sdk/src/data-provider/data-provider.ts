@@ -33,21 +33,6 @@ import type {
   SlotParams,
 } from '@marinade.finance/ds-sam-calc'
 
-// The running epoch is read soon after the VAT burn: a vote account funded one epoch at a time
-// reads false there until it tops up.
-const mergeVatEligible = (
-  runningEpoch: boolean | null | undefined,
-  closedEpoch: boolean | null | undefined,
-): boolean | null => {
-  if (runningEpoch === false && closedEpoch === false) {
-    return false
-  }
-  if (runningEpoch === true || closedEpoch === true) {
-    return true
-  }
-  return null
-}
-
 const newestClosedEpochStat = (validator: RawValidatorDto) =>
   validator.epoch_stats
     .filter(({ epoch_end_at }) => !!epoch_end_at)
@@ -328,11 +313,22 @@ export class DataProvider {
         new Decimal(validator.marinade_stake).add(validator.marinade_native_stake),
       ).toNumber()
 
+      // False when the running epoch and the newest closed epoch both fail VAT, true when either passes, else null.
+      // The running epoch is read soon after the VAT burn, so a vote account funded one epoch at a time reads false there.
+      const runningEpochVatEligible = validator.vat_eligible
+      const closedEpochVatEligible = newestClosedEpochStat(validator)?.vat_eligible
+      let vatEligible: boolean | null = null
+      if (runningEpochVatEligible === false && closedEpochVatEligible === false) {
+        vatEligible = false
+      } else if (runningEpochVatEligible === true || closedEpochVatEligible === true) {
+        vatEligible = true
+      }
+
       return {
         voteAccount: validator.vote_account,
         clientVersion: validator.version ?? '0.0.0',
         voteCredits: validator.credits,
-        vatEligible: mergeVatEligible(validator.vat_eligible, newestClosedEpochStat(validator)?.vat_eligible),
+        vatEligible,
         aso: validator.dc_aso ?? 'Unknown',
         country: validator.dc_country ?? 'Unknown',
         bondBalanceSol,
