@@ -39,8 +39,10 @@ export class ValidatorMockBuilder {
   private externalStake = 0
   private version = '4.1.0'
   // undefined leaves the key out, as an older API response does
-  private vatEligible: boolean | null | undefined = null
-  private closedEpochVatEligible: boolean | null | undefined = null
+  private runningEpochVatEligible: boolean | null | undefined = null
+  private closedEpochVatAdmitted: boolean | null | undefined = true
+  // How many epochs back the newest closed epoch is; 2 leaves the last epoch open
+  private newestClosedEpochAgo = 1
   private bond: BondDataType | null = null
   private country: string | null = null
   private aso: string | null = null
@@ -163,15 +165,19 @@ export class ValidatorMockBuilder {
     return this
   }
 
-  // Sets the newest closed epoch too, unless withClosedEpochVatEligible follows
-  withVatEligible(vatEligible: boolean | null | undefined): this {
-    this.vatEligible = vatEligible
-    this.closedEpochVatEligible = vatEligible
+  // The validators-api forecast of the running epoch, which ds-sam does not read
+  withRunningEpochVatEligible(runningEpochVatEligible: boolean | null | undefined): this {
+    this.runningEpochVatEligible = runningEpochVatEligible
     return this
   }
 
-  withClosedEpochVatEligible(closedEpochVatEligible: boolean | null | undefined): this {
-    this.closedEpochVatEligible = closedEpochVatEligible
+  withClosedEpochVatAdmitted(closedEpochVatAdmitted: boolean | null | undefined): this {
+    this.closedEpochVatAdmitted = closedEpochVatAdmitted
+    return this
+  }
+
+  withLastEpochStillOpen(): this {
+    this.newestClosedEpochAgo = 2
     return this
   }
 
@@ -294,12 +300,16 @@ export class ValidatorMockBuilder {
         epoch_stake: new Decimal(this.nativeStake + this.liquidStake + this.externalStake).mul(1e9).toString(),
         leader_slots: this.leaderSlots,
         epoch_end_at:
-          e === 0 ? null : new Date(EPOCH_END_ANCHOR_MS - (e - 1) * MOCK_EPOCH_DURATION_SECONDS * 1000).toISOString(),
-        ...(e === 1 && this.closedEpochVatEligible !== undefined ? { vat_eligible: this.closedEpochVatEligible } : {}),
+          e < this.newestClosedEpochAgo
+            ? null
+            : new Date(EPOCH_END_ANCHOR_MS - (e - 1) * MOCK_EPOCH_DURATION_SECONDS * 1000).toISOString(),
+        ...(e === this.newestClosedEpochAgo && this.closedEpochVatAdmitted !== undefined
+          ? { vat_admitted: this.closedEpochVatAdmitted }
+          : {}),
       })),
       self_stake: '0',
       foundation_stake: '0',
-      ...(this.vatEligible === undefined ? {} : { vat_eligible: this.vatEligible }),
+      ...(this.runningEpochVatEligible === undefined ? {} : { vat_eligible: this.runningEpochVatEligible }),
     }
   }
 }

@@ -19,14 +19,18 @@ const withEpochs = (builder: ValidatorMockBuilder, kinds: EpochKind[]) =>
 
 type VatVerdict = boolean | null | undefined
 
-const gatesFor = async (kinds: EpochKind[], vatEligible: (VatVerdict | [VatVerdict, VatVerdict])[]) => {
+const buildersFor = (kinds: EpochKind[], closedEpochVatAdmitted: VatVerdict[]) => {
   const votes = generateVoteAccounts('vat')
   const ids = generateIdentities()
-  const validators = vatEligible.map(eligible =>
-    withEpochs(new ValidatorMockBuilder(votes.next().value, ids.next().value).withEligibleDefaults(), kinds)
-      .withVatEligible(Array.isArray(eligible) ? eligible[0] : eligible)
-      .withClosedEpochVatEligible(Array.isArray(eligible) ? eligible[1] : eligible),
+  return closedEpochVatAdmitted.map(admitted =>
+    withEpochs(
+      new ValidatorMockBuilder(votes.next().value, ids.next().value).withEligibleDefaults(),
+      kinds,
+    ).withClosedEpochVatAdmitted(admitted),
   )
+}
+
+const gatesOf = async (validators: ValidatorMockBuilder[]) => {
   const dsSam = new DsSamSDK({}, defaultStaticDataProviderBuilder(validators))
   const aggregatedData = await dsSam.getAggregatedData()
   const thresholds = computeSamEligibilityThresholds(aggregatedData, dsSam.config)
@@ -37,10 +41,13 @@ const gatesFor = async (kinds: EpochKind[], vatEligible: (VatVerdict | [VatVerdi
   })
 }
 
+const gatesFor = (kinds: EpochKind[], closedEpochVatAdmitted: VatVerdict[]) =>
+  gatesOf(buildersFor(kinds, closedEpochVatAdmitted))
+
 const repeat = (kind: EpochKind, count: number): EpochKind[] => Array.from({ length: count }, () => kind)
 
 describe('VAT eligibility', () => {
-  it('refuses only a validator with vat_eligible false', async () => {
+  it('refuses only a validator whose newest closed epoch has vat_admitted false', async () => {
     expect(await gatesFor(repeat('alpenglow', 10), [false, true, null, undefined])).toEqual([
       'vatIneligible',
       null,
@@ -49,18 +56,22 @@ describe('VAT eligibility', () => {
     ])
   })
 
-  it('refuses only when the running and the newest closed epoch both read false', async () => {
-    // [running epoch, newest closed epoch]
-    expect(
-      await gatesFor(repeat('alpenglow', 10), [
-        [false, false],
-        [false, true],
-        [true, false],
-        [false, null],
-        [null, false],
-        [false, undefined],
-      ]),
-    ).toEqual(['vatIneligible', null, null, null, null, null])
+  it('does not refuse on the running-epoch forecast', async () => {
+    const [forecastRefused] = buildersFor(repeat('alpenglow', 10), [true])
+    assert(forecastRefused)
+    expect(await gatesOf([forecastRefused.withRunningEpochVatEligible(false)])).toEqual([null])
+  })
+
+  it('refuses a validator refused at the boundary and topped up since', async () => {
+    const [toppedUp] = buildersFor(repeat('alpenglow', 10), [false])
+    assert(toppedUp)
+    expect(await gatesOf([toppedUp.withRunningEpochVatEligible(true)])).toEqual(['vatIneligible'])
+  })
+
+  it('ignores the verdict of an older epoch when the last epoch is not closed', async () => {
+    const [stale] = buildersFor(repeat('alpenglow', 10), [false])
+    assert(stale)
+    expect(await gatesOf([stale.withLastEpochStillOpen()])).toEqual([null])
   })
 
   it('refuses in Tower epochs and in the migration epoch too', async () => {
@@ -72,17 +83,38 @@ describe('VAT eligibility', () => {
     }
   })
 
+  it('warns with the vote accounts whose closed-epoch verdict is unknown', async () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      const [unknown, admitted] = buildersFor(repeat('alpenglow', 10), [null, true])
+      const [unstaked] = buildersFor(repeat('alpenglow', 10), [null])
+      assert(unknown && admitted && unstaked)
+      unstaked.withNativeStake(0).withLiquidStake(0).withExternalStake(0)
+      await gatesOf([unknown, admitted, unstaked])
+      const vatWarnings = warn.mock.calls.map(([message]) => String(message)).filter(m => m.includes('VAT verdict'))
+      expect(vatWarnings).toEqual([
+        `No closed-epoch VAT verdict for 1 staked validator(s), not cut: ${unknown.voteAccount}`,
+      ])
+
+      warn.mockClear()
+      await gatesOf(buildersFor(repeat('alpenglow', 10), [true, false]))
+      expect(warn.mock.calls.filter(([message]) => String(message).includes('VAT verdict'))).toEqual([])
+    } finally {
+      warn.mockRestore()
+    }
+  })
+
   it('gives a VAT-ineligible validator no SAM stake', async () => {
     const votes = generateVoteAccounts('vat-run')
     const ids = generateIdentities()
     const refused = withEpochs(
       new ValidatorMockBuilder(votes.next().value, ids.next().value).withEligibleDefaults(),
       repeat('alpenglow', 10),
-    ).withVatEligible(false)
+    ).withClosedEpochVatAdmitted(false)
     const admitted = withEpochs(
       new ValidatorMockBuilder(votes.next().value, ids.next().value).withEligibleDefaults(),
       repeat('alpenglow', 10),
-    ).withVatEligible(true)
+    ).withClosedEpochVatAdmitted(true)
     const result = await new DsSamSDK({}, defaultStaticDataProviderBuilder([refused, admitted])).run()
 
     assertValidatorIneligible(findValidatorInResult(refused.voteAccount, result))
@@ -93,7 +125,7 @@ describe('VAT eligibility', () => {
   it('refuses a bondless VAT-ineligible validator for the backstop too', async () => {
     const votes = generateVoteAccounts('vat-bondless')
     const ids = generateIdentities()
-    const bondless = (vatEligible: boolean) =>
+    const bondless = (vatAdmitted: boolean) =>
       withEpochs(
         new ValidatorMockBuilder(votes.next().value, ids.next().value)
           .withEligibleDefaults()
@@ -101,7 +133,7 @@ describe('VAT eligibility', () => {
           .withInflationCommission(0)
           .withMevCommission(0),
         repeat('alpenglow', 10),
-      ).withVatEligible(vatEligible)
+      ).withClosedEpochVatAdmitted(vatAdmitted)
     const refused = bondless(false)
     const admitted = bondless(true)
     const bonded = withEpochs(

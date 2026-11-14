@@ -30,6 +30,7 @@ import type {
   AggregatedValidator,
   AuctionHistoryStats,
   DsSamConfig,
+  EpochStats,
   SlotParams,
 } from '@marinade.finance/ds-sam-calc'
 
@@ -39,6 +40,31 @@ const newestClosedEpochStat = (validator: RawValidatorDto) =>
     .reduce<
       RawValidatorDto['epoch_stats'][number] | null
     >((newest, es) => (newest === null || es.epoch > newest.epoch ? es : newest), null)
+
+// The chain verdict at the boundary the running epoch started from; an older verdict must not refuse.
+const vatAdmittedAtLastBoundary = (validator: RawValidatorDto): boolean | null => {
+  const closed = newestClosedEpochStat(validator)
+  const runningEpoch = Math.max(...validator.epoch_stats.map(({ epoch }) => epoch))
+  return closed?.epoch === runningEpoch - 1 ? (closed.vat_admitted ?? null) : null
+}
+
+// An unstaked validator has no verdict to give, so only a staked one is worth the warning.
+const warnOnUnknownVatVerdict = (validators: AggregatedValidator[]) => {
+  const unknown = validators
+    .filter(({ vatAdmitted, epochStats }) => {
+      const newestClosed = epochStats.reduce<EpochStats | null>(
+        (newest, es) => (newest === null || es.epoch > newest.epoch ? es : newest),
+        null,
+      )
+      return vatAdmitted === null && newestClosed?.totalActivatedStake.gt(0) === true
+    })
+    .map(({ voteAccount }) => voteAccount)
+  if (unknown.length > 0) {
+    console.warn(
+      `No closed-epoch VAT verdict for ${unknown.length} staked validator(s), not cut: ${unknown.join(', ')}`,
+    )
+  }
+}
 
 export class DataProvider {
   constructor(
@@ -313,22 +339,11 @@ export class DataProvider {
         new Decimal(validator.marinade_stake).add(validator.marinade_native_stake),
       ).toNumber()
 
-      // False when the running epoch and the newest closed epoch both fail VAT, true when either passes, else null.
-      // The running epoch is read soon after the VAT burn, so a vote account funded one epoch at a time reads false there.
-      const runningEpochVatEligible = validator.vat_eligible
-      const closedEpochVatEligible = newestClosedEpochStat(validator)?.vat_eligible
-      let vatEligible: boolean | null = null
-      if (runningEpochVatEligible === false && closedEpochVatEligible === false) {
-        vatEligible = false
-      } else if (runningEpochVatEligible === true || closedEpochVatEligible === true) {
-        vatEligible = true
-      }
-
       return {
         voteAccount: validator.vote_account,
         clientVersion: validator.version ?? '0.0.0',
         voteCredits: validator.credits,
-        vatEligible,
+        vatAdmitted: vatAdmittedAtLastBoundary(validator),
         aso: validator.dc_aso ?? 'Unknown',
         country: validator.dc_country ?? 'Unknown',
         bondBalanceSol,
@@ -415,9 +430,11 @@ export class DataProvider {
     const slotParams: SlotParams = { slotsPerYear: this.resolveSlotsPerYear(data.rewards, epoch), epoch }
 
     console.log('tvl', tvlSol)
+    const validators = this.aggregateValidators(data, blacklist, dataOverrides)
+    warnOnUnknownVatVerdict(validators)
     return {
       epoch,
-      validators: this.aggregateValidators(data, blacklist, dataOverrides),
+      validators,
       rewards: {
         inflationPmpe: this.aggregateInflationRecords(activatedStakePerEpochs, data.rewards, slotParams.slotsPerYear),
         mevPmpe: this.aggregateRewardsRecords(activatedStakePerEpochs, data.rewards.rewards_mev, 'mev'),

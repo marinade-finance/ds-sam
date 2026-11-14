@@ -101,8 +101,8 @@ export type AggregatedValidator = {
   maxStakeWanted: number | null
   foundationStakeSol: number
   selfStakeSol: number
-  // SIMD-0357 balance check: false only when the running and the newest closed epoch both fail, null when unknown
-  vatEligible?: boolean | null
+  // SIMD-0357 chain verdict at the newest closed epoch boundary; null when unknown
+  vatAdmitted?: boolean | null
   epochStats: EpochStats[]
   auctions: AuctionHistoryStats[]
   values: AuctionValidatorValues

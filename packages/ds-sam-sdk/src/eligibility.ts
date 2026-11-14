@@ -61,7 +61,7 @@ export const samIneligibilityGate = (
   if (isInflationCommissionUnresolved(validator.values.commissions)) {
     return 'unresolvedCommission'
   }
-  if (validator.vatEligible === false) {
+  if (validator.vatAdmitted === false) {
     return 'vatIneligible'
   }
   if (validator.bondBalanceSol === null || validator.bondBalanceSol <= config.noBondBalanceSol) {
