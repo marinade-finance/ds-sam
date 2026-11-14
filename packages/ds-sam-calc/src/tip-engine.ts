@@ -456,7 +456,7 @@ function eligibilityGate(
     if (blacklist?.has(validator.voteAccount)) {
       return { kind: 'blacklisted' }
     }
-    if (validator.vatEligible === false) {
+    if (validator.vatAdmitted === false) {
       return { kind: 'vatIneligible' }
     }
     return (validator.bondBalanceSol ?? 0) <= dsSamConfig.noBondBalanceSol
