@@ -95,8 +95,8 @@ export type RawEpochStatDto = {
   // assigned leader slots, not produced blocks
   leader_slots?: number
   epoch_end_at: string | null
-  // SIMD-0357 verdict at the last snapshot of the epoch; absent in older API responses
-  vat_eligible?: boolean | null
+  // SIMD-0357 verdict of the chain for the closed epoch; absent in older API responses
+  vat_admitted?: boolean | null
   // Other properties ignored
 }
 export type RawValidatorDto = {
@@ -118,8 +118,6 @@ export type RawValidatorDto = {
   epoch_stats: RawEpochStatDto[]
   foundation_stake: string
   self_stake: string
-  // SIMD-0357 eligibility of the running epoch; absent in older API responses
-  vat_eligible?: boolean | null
   // Other properties ignored
 }
 export type RawValidatorsResponseDto = {
