@@ -40,6 +40,7 @@ export class ValidatorMockBuilder {
   private version = '4.1.0'
   // undefined leaves the key out, as an older API response does
   private vatEligible: boolean | null | undefined = null
+  private closedEpochVatEligible: boolean | null | undefined = null
   private bond: BondDataType | null = null
   private country: string | null = null
   private aso: string | null = null
@@ -162,8 +163,15 @@ export class ValidatorMockBuilder {
     return this
   }
 
+  // Sets the newest closed epoch too, unless withClosedEpochVatEligible follows
   withVatEligible(vatEligible: boolean | null | undefined): this {
     this.vatEligible = vatEligible
+    this.closedEpochVatEligible = vatEligible
+    return this
+  }
+
+  withClosedEpochVatEligible(closedEpochVatEligible: boolean | null | undefined): this {
+    this.closedEpochVatEligible = closedEpochVatEligible
     return this
   }
 
@@ -287,6 +295,7 @@ export class ValidatorMockBuilder {
         leader_slots: this.leaderSlots,
         epoch_end_at:
           e === 0 ? null : new Date(EPOCH_END_ANCHOR_MS - (e - 1) * MOCK_EPOCH_DURATION_SECONDS * 1000).toISOString(),
+        ...(e === 1 && this.closedEpochVatEligible !== undefined ? { vat_eligible: this.closedEpochVatEligible } : {}),
       })),
       self_stake: '0',
       foundation_stake: '0',
