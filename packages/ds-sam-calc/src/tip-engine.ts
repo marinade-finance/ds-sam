@@ -13,7 +13,7 @@ import type { BondHealthState } from './bond-health'
 import type { CardStatusSeverity } from './card-status'
 import type { DsSamConfig } from './config'
 import type { AugmentedAuctionValidator } from './sam'
-import type { AuctionConstraint, SamIneligibilityGate } from './types'
+import type { AuctionConstraint, SamIneligibilityGate, VatRejectionReason } from './types'
 
 export type TipUrgency = 'critical' | 'warning' | 'info' | 'positive' | 'neutral'
 export type TipConstraint = 'rank' | 'bond' | 'bid' | 'cap' | 'none'
@@ -433,7 +433,7 @@ function bondGrowthCta(
 export type OutOfSetGate =
   | { kind: 'blocked' }
   | { kind: 'blacklisted' }
-  | { kind: 'vatIneligible' }
+  | { kind: 'vatIneligible'; reason: VatRejectionReason | null }
   | { kind: 'clientVersion' }
   | { kind: 'uptime' }
   | { kind: 'unresolvedCommission' }
@@ -457,7 +457,7 @@ function eligibilityGate(
       return { kind: 'blacklisted' }
     }
     if (validator.vatEligible === false) {
-      return { kind: 'vatIneligible' }
+      return { kind: 'vatIneligible', reason: validator.vatRejectionReason ?? null }
     }
     return (validator.bondBalanceSol ?? 0) <= dsSamConfig.noBondBalanceSol
       ? { kind: 'bondBelowMin' }
@@ -470,6 +470,8 @@ function eligibilityGate(
       return { kind: 'blacklisted' }
     case 'noBond':
       return { kind: 'bondBelowMin' }
+    case 'vatIneligible':
+      return { kind: 'vatIneligible', reason: validator.vatRejectionReason ?? null }
     default:
       return { kind: gate }
   }
@@ -516,7 +518,7 @@ export function outOfSetGateLabel(gate: OutOfSetGate, dsSamConfig: DsSamConfig):
     case 'blacklisted':
       return 'Blacklisted'
     case 'vatIneligible':
-      return 'Vote account below VAT minimum'
+      return vatGateLabel(gate.reason)
     case 'clientVersion':
       return 'Unsupported client version'
     case 'uptime':
@@ -537,12 +539,51 @@ export function outOfSetGateLabel(gate: OutOfSetGate, dsSamConfig: DsSamConfig):
 }
 
 const ELIGIBILITY_CTA = {
-  vatIneligible: 'Vote account below VAT minimum — fund it to pay the VAT.',
   clientVersion: 'Upgrade to a supported validator client.',
   uptime: 'Improve uptime to become eligible.',
   unresolvedCommission: 'Set an on-chain inflation commission.',
   ineligible: 'Not eligible — check client version and vote credits.',
 } as const
+
+function vatGateLabel(reason: VatRejectionReason | null): string {
+  switch (reason) {
+    case 'no_bls_key':
+      return 'No BLS key on the vote account'
+    case 'no_stake':
+      return 'No stake next epoch'
+    case 'low_balance':
+      return 'Vote account below VAT minimum'
+    case 'below_cutoff':
+      return 'Outside the top 2000 vote accounts by stake'
+    case null:
+      return 'Not admitted to the VAT'
+    default:
+      return assertNever(reason)
+  }
+}
+
+function vatGateAction(reason: VatRejectionReason | null): string {
+  switch (reason) {
+    case 'no_bls_key':
+      return 'add a BLS key to pay the VAT'
+    case 'no_stake':
+      return 'get stake to pay the VAT'
+    case 'low_balance':
+      return 'fund it to pay the VAT'
+    case 'below_cutoff':
+      return 'get more stake to pay the VAT'
+    case null:
+      return 'check the BLS key, the vote account balance and the stake rank'
+    default:
+      return assertNever(reason)
+  }
+}
+
+function eligibilityCta(gate: Extract<OutOfSetGate, { kind: keyof typeof ELIGIBILITY_CTA | 'vatIneligible' }>): string {
+  return gate.kind === 'vatIneligible'
+    ? `${vatGateLabel(gate.reason)} — ${vatGateAction(gate.reason)}.`
+    : ELIGIBILITY_CTA[gate.kind]
+}
 
 // Out-of-set despite a high enough totalPmpe. The bid isn't the lever —
 // some other constraint binds. Names the actual reason so the user knows
@@ -610,7 +651,7 @@ function outOfSetCta(
       // Growth lever — fix the eligibility checks and you can qualify.
       // Escalate to yellow when defending so this names the cause instead of
       // letting deltaCta's "Losing N SOL" win the severity sort.
-      return tip(ELIGIBILITY_CTA[gate.kind], defending ? 'warning' : 'info', 'none', delta)
+      return tip(eligibilityCta(gate), defending ? 'warning' : 'info', 'none', delta)
     case 'revShareBelowFloor':
     case 'bondBelowMin':
       return null
