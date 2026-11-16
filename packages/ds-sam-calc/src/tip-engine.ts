@@ -579,6 +579,12 @@ function vatGateAction(reason: VatRejectionReason | null): string {
   }
 }
 
+function eligibilityCta(gate: Extract<OutOfSetGate, { kind: keyof typeof ELIGIBILITY_CTA | 'vatIneligible' }>): string {
+  return gate.kind === 'vatIneligible'
+    ? `${vatGateLabel(gate.reason)} — ${vatGateAction(gate.reason)}.`
+    : ELIGIBILITY_CTA[gate.kind]
+}
+
 // Out-of-set despite a high enough totalPmpe. The bid isn't the lever —
 // some other constraint binds. Names the actual reason so the user knows
 // what to investigate (or accept) instead of seeing the deltaCta's
@@ -638,12 +644,6 @@ function outOfSetCta(
       return tip('Blacklisted.', defending ? 'warning' : 'neutral', 'none', delta)
     }
     case 'vatIneligible':
-      return tip(
-        `${vatGateLabel(gate.reason)} — ${vatGateAction(gate.reason)}.`,
-        defending ? 'warning' : 'info',
-        'none',
-        delta,
-      )
     case 'clientVersion':
     case 'uptime':
     case 'unresolvedCommission':
@@ -651,7 +651,7 @@ function outOfSetCta(
       // Growth lever — fix the eligibility checks and you can qualify.
       // Escalate to yellow when defending so this names the cause instead of
       // letting deltaCta's "Losing N SOL" win the severity sort.
-      return tip(ELIGIBILITY_CTA[gate.kind], defending ? 'warning' : 'info', 'none', delta)
+      return tip(eligibilityCta(gate), defending ? 'warning' : 'info', 'none', delta)
     case 'revShareBelowFloor':
     case 'bondBelowMin':
       return null
