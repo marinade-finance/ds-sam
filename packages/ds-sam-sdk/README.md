@@ -93,8 +93,10 @@ recompute a single validator's eligibility (e.g. after an override) with the SDK
 `AuctionValidator.samIneligibilityGate` carries the gate that refused the validator, `'revShareBelowFloor'` when no
 gate fired but `revShare.totalPmpe` is below `samPmpeThreshold`, and `null` when eligible.
 
-The `vatIneligible` gate refuses a validator whose validators-api `vat_eligible` is `false`, in every epoch.
-`vat_eligible: null` never refuses a validator. For now, validators-api checks only the SIMD-0357 balance.
+The `vatIneligible` gate refuses a validator that the chain refused at the last epoch boundary (validators-api
+`epoch_stats[].vat_admitted: false`) and that is still below the VAT minimum in the running epoch (`vat_eligible:
+false`). When the verdict is unknown, the newest closed epoch's `vat_eligible` takes its place and a warning lists the
+validators. `null` never refuses a validator.
 
 ## Browser-safe entry
 

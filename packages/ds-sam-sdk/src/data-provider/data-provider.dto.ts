@@ -134,6 +134,8 @@ export type RawEpochStatDto = {
   epoch_end_at: string | null
   // SIMD-0357 verdict at the last snapshot of the epoch; absent in older API responses
   vat_eligible?: boolean | null
+  // SIMD-0357 verdict of the chain at the boundary ending the epoch; absent in older API responses
+  vat_admitted?: boolean | null
   // Other properties ignored
 }
 export type RawValidatorDto = {
