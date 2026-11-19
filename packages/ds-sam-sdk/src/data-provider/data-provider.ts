@@ -224,7 +224,9 @@ export class DataProvider {
     dataOverrides: SourceDataOverrides | null = null,
   ): AggregatedValidator[] {
     const auctionHistoriesData = this.processAuctions(data.auctions)
-    return data.validators.validators.map((validator): AggregatedValidator => {
+    const runningEpoch = Math.max(...data.validators.validators.flatMap(v => v.epoch_stats.map(es => es.epoch)))
+    const unknownVatVerdict: string[] = []
+    const validators = data.validators.validators.map((validator): AggregatedValidator => {
       const bond = data.bonds.bonds.find(({ vote_account }) => validator.vote_account === vote_account)
       const mev = data.mevInfo.validators.find(({ vote_account }) => validator.vote_account === vote_account)
 
@@ -313,14 +315,17 @@ export class DataProvider {
         new Decimal(validator.marinade_stake).add(validator.marinade_native_stake),
       ).toNumber()
 
-      // False when the running epoch and the newest closed epoch both fail VAT, true when either passes, else null.
-      // The running epoch is read soon after the VAT burn, so a vote account funded one epoch at a time reads false there.
+      // False only when the chain refused it at the last boundary and the running epoch still fails VAT
+      const lastBoundaryStat = validator.epoch_stats.find(es => es.epoch === runningEpoch - 1)
+      if (lastBoundaryStat?.vat_admitted == null && new Decimal(lastBoundaryStat?.activated_stake ?? 0).gt(0)) {
+        unknownVatVerdict.push(validator.vote_account)
+      }
       const runningEpochVatEligible = validator.vat_eligible
-      const closedEpochVatEligible = newestClosedEpochStat(validator)?.vat_eligible
+      const lastBoundaryVatVerdict = lastBoundaryStat?.vat_admitted ?? newestClosedEpochStat(validator)?.vat_eligible
       let vatEligible: boolean | null = null
-      if (runningEpochVatEligible === false && closedEpochVatEligible === false) {
+      if (runningEpochVatEligible === false && lastBoundaryVatVerdict === false) {
         vatEligible = false
-      } else if (runningEpochVatEligible === true || closedEpochVatEligible === true) {
+      } else if (runningEpochVatEligible === true || lastBoundaryVatVerdict === true) {
         vatEligible = true
       }
 
@@ -388,6 +393,12 @@ export class DataProvider {
         auctions,
       }
     })
+    if (unknownVatVerdict.length > 0) {
+      console.warn(
+        `No chain VAT verdict at the last epoch boundary for ${unknownVatVerdict.length} staked validator(s), using the newest closed forecast: ${unknownVatVerdict.join(', ')}`,
+      )
+    }
+    return validators
   }
 
   aggregateData(data: RawSourceData, dataOverrides: SourceDataOverrides | null = null): AggregatedData {

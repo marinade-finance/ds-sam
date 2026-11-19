@@ -19,14 +19,7 @@ const withEpochs = (builder: ValidatorMockBuilder, kinds: EpochKind[]) =>
 
 type VatVerdict = boolean | null | undefined
 
-const gatesFor = async (kinds: EpochKind[], vatEligible: (VatVerdict | [VatVerdict, VatVerdict])[]) => {
-  const votes = generateVoteAccounts('vat')
-  const ids = generateIdentities()
-  const validators = vatEligible.map(eligible =>
-    withEpochs(new ValidatorMockBuilder(votes.next().value, ids.next().value).withEligibleDefaults(), kinds)
-      .withVatEligible(Array.isArray(eligible) ? eligible[0] : eligible)
-      .withClosedEpochVatEligible(Array.isArray(eligible) ? eligible[1] : eligible),
-  )
+const gatesOf = async (validators: ValidatorMockBuilder[]) => {
   const dsSam = new DsSamSDK({}, defaultStaticDataProviderBuilder(validators))
   const aggregatedData = await dsSam.getAggregatedData()
   const thresholds = computeSamEligibilityThresholds(aggregatedData, dsSam.config)
@@ -37,7 +30,38 @@ const gatesFor = async (kinds: EpochKind[], vatEligible: (VatVerdict | [VatVerdi
   })
 }
 
+const gatesFor = (kinds: EpochKind[], vatEligible: (VatVerdict | [VatVerdict, VatVerdict])[]) => {
+  const votes = generateVoteAccounts('vat')
+  const ids = generateIdentities()
+  return gatesOf(
+    vatEligible.map(eligible =>
+      withEpochs(new ValidatorMockBuilder(votes.next().value, ids.next().value).withEligibleDefaults(), kinds)
+        .withVatEligible(Array.isArray(eligible) ? eligible[0] : eligible)
+        .withClosedEpochVatEligible(Array.isArray(eligible) ? eligible[1] : eligible),
+    ),
+  )
+}
+
 const repeat = (kind: EpochKind, count: number): EpochKind[] => Array.from({ length: count }, () => kind)
+
+type Boundary = { running: VatVerdict; admitted: VatVerdict; closedForecast: VatVerdict }
+
+const boundaryBuilders = (boundaries: Boundary[]) => {
+  const votes = generateVoteAccounts('vat-boundary')
+  const ids = generateIdentities()
+  return boundaries.map(({ running, admitted, closedForecast }) =>
+    withEpochs(
+      new ValidatorMockBuilder(votes.next().value, ids.next().value).withEligibleDefaults(),
+      repeat('alpenglow', 10),
+    )
+      .withVatEligible(running)
+      .withClosedEpochVatEligible(closedForecast)
+      .withLastEpochVatAdmitted(admitted),
+  )
+}
+
+const vatVerdictWarnings = (warn: jest.SpyInstance) =>
+  warn.mock.calls.map(([message]) => String(message)).filter(message => message.includes('chain VAT verdict'))
 
 describe('VAT eligibility', () => {
   it('refuses only a validator with vat_eligible false', async () => {
@@ -61,6 +85,84 @@ describe('VAT eligibility', () => {
         [false, undefined],
       ]),
     ).toEqual(['vatIneligible', null, null, null, null, null])
+  })
+
+  it('does not cut a validator the chain admitted, whatever the forecasts read', async () => {
+    expect(await gatesOf(boundaryBuilders([{ running: false, admitted: true, closedForecast: false }]))).toEqual([null])
+  })
+
+  it('cuts a validator the chain refused that is still below the VAT minimum', async () => {
+    expect(await gatesOf(boundaryBuilders([{ running: false, admitted: false, closedForecast: true }]))).toEqual([
+      'vatIneligible',
+    ])
+  })
+
+  it('does not cut a validator the chain refused that has topped up since', async () => {
+    expect(await gatesOf(boundaryBuilders([{ running: true, admitted: false, closedForecast: false }]))).toEqual([null])
+  })
+
+  it('reads the verdict of the last epoch while that epoch is still open', async () => {
+    const [refused] = boundaryBuilders([{ running: false, admitted: false, closedForecast: true }])
+    assert(refused)
+    expect(await gatesOf([refused.withLastEpochStillOpen()])).toEqual(['vatIneligible'])
+  })
+
+  it('falls back to the newest closed forecast and warns when the verdict is unknown', async () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      const builders = boundaryBuilders([
+        { running: false, admitted: null, closedForecast: false },
+        { running: false, admitted: null, closedForecast: true },
+        { running: false, admitted: false, closedForecast: true },
+      ])
+      expect(await gatesOf(builders)).toEqual(['vatIneligible', null, 'vatIneligible'])
+      const [first, second] = builders
+      assert(first && second)
+      expect(vatVerdictWarnings(warn)).toEqual([
+        `No chain VAT verdict at the last epoch boundary for 2 staked validator(s), using the newest closed forecast: ${first.voteAccount}, ${second.voteAccount}`,
+      ])
+    } finally {
+      warn.mockRestore()
+    }
+  })
+
+  it('falls back without a row for the last epoch and does not warn', async () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      const [fresh, veteran] = boundaryBuilders([
+        { running: false, admitted: undefined, closedForecast: false },
+        { running: true, admitted: true, closedForecast: true },
+      ])
+      assert(fresh && veteran)
+      fresh.withCredits(null).withVoteRewards(STAKE)
+      // One epoch fails the uptime gate first, so the VAT outcome is read where the gate reads it
+      const { validators } = await new DsSamSDK(
+        {},
+        defaultStaticDataProviderBuilder([fresh, veteran]),
+      ).getAggregatedData()
+      expect(validators.find(v => v.voteAccount === fresh.voteAccount)?.vatEligible).toBeNull()
+      expect(vatVerdictWarnings(warn)).toEqual([])
+    } finally {
+      warn.mockRestore()
+    }
+  })
+
+  it('leaves an unstaked validator without a verdict out of the warning', async () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      const [staked, unstaked] = boundaryBuilders([
+        { running: true, admitted: null, closedForecast: true },
+        { running: true, admitted: null, closedForecast: true },
+      ])
+      assert(staked && unstaked)
+      unstaked.withNativeStake(0).withLiquidStake(0).withExternalStake(0)
+      await gatesOf([staked, unstaked])
+      expect(vatVerdictWarnings(warn)).toEqual([
+        `No chain VAT verdict at the last epoch boundary for 1 staked validator(s), using the newest closed forecast: ${staked.voteAccount}`,
+      ])
+    } finally {
+      warn.mockRestore()
+    }
   })
 
   it('refuses in Tower epochs and in the migration epoch too', async () => {
