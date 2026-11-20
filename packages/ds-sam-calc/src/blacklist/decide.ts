@@ -26,7 +26,7 @@ export type BlacklistRow = {
 export type BlacklistExempt = {
   voteAccount: string
   rule: ExemptRule
-  // Hits whose code epoch is at or below it are exempt, as ds2 holds it against listed codes
+  // Hits whose code epoch is at or below it are exempt; only a null releases listed rows
   untilEpoch: number | null
 }
 
@@ -70,7 +70,7 @@ const exempted = (hit: BlacklistHit, exempt: BlacklistExempt[]): boolean =>
 /**
  * The blacklist of auction `auctionEpoch`: the current list plus the rule hits that are neither
  * exempted nor already listed under the same rule. More than `maxNewListings` newly listed accounts
- * hold all hits back. The rows a previous run of the same auction added are judged again, or carried
+ * hold all hits back, and `maxNewListings` 0 holds every hit (a dry run). The rows a previous run of the same auction added are judged again, or carried
  * over when the hits are held. An account of the previous auction's blacklist leaves it only through
  * an exemption without `untilEpoch`.
  */
@@ -97,7 +97,7 @@ export const decideBlacklist = (
   const newAccounts = new Set(
     candidates.map(hit => hit.voteAccount).filter(account => !listed.has(account) && !retained.has(account)),
   )
-  const hold = newAccounts.size > maxNewListings
+  const hold = newAccounts.size > maxNewListings || (maxNewListings === 0 && candidates.length > 0)
   const added = hold ? [] : candidates
   const carried = hold
     ? current.rows.filter(isOwn).sort((a, b) => byVoteAccount(a, b) || (a.code < b.code ? -1 : 1))

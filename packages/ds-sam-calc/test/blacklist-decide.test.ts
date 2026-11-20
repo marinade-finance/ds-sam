@@ -115,6 +115,13 @@ describe('decideBlacklist', () => {
     expect(decision.blacklist).toEqual(new Set(['old']))
   })
 
+  it('a limit of 0 holds every hit, also of an account listed under another rule', () => {
+    const decision = decideBlacklist(current([row('v', 'SLOW_SLOTS_1080')]), [hit('v'), hit('k')], A, 0, new Set(['k']))
+    expect(decision.added).toEqual([])
+    expect(accounts(decision.held)).toEqual(['v', 'k'])
+    expect(decision.blacklist).toEqual(new Set(['v', 'k']))
+  })
+
   it('a hit of an already listed account is not a new account', () => {
     const decision = decideBlacklist(
       current([row('a', 'SLOW_SLOTS_1080'), row('b', 'SLOW_SLOTS_1080')]),
