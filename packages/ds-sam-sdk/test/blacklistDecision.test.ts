@@ -226,6 +226,51 @@ describe('blacklist decided in the auction', () => {
     expect(replay.auctionData.blacklistDecision).toEqual(live.auctionData.blacklistDecision)
   })
 
+  it('replays identically from the cached inputs, twice', async () => {
+    const fixture = setup()
+    const honest = fixture.honest.voteAccount
+    const history = [
+      ...fixture.history.filter(entry => entry.voteAccount !== honest),
+      { voteAccount: honest, epoch: CURRENT_EPOCH - 1, revShare: {}, values: { samBlacklisted: true } },
+    ] as unknown as RawScoredValidatorDto[]
+    const current = currentBlacklist()
+    current.rows.push({
+      vote_account: '7'.repeat(32),
+      code: `MALICIOUS_SM_${EVALUATED_EPOCH}`,
+      source: 'auction',
+      auction_epoch: CURRENT_EPOCH,
+    })
+    const rules = { ...RULES, maxNewListings: 0 }
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ds-sam-blacklist-'))
+    const live = await sdkFor(
+      { blacklistRules: rules, cacheInputs: true, inputsCacheDirPath: dir },
+      { ...fixture, history },
+      current,
+    ).run()
+    const decision = live.auctionData.blacklistDecision
+    expect(decision?.kept).toEqual([honest])
+    expect(decision?.carried).toHaveLength(1)
+    expect(decision?.held).toHaveLength(1)
+
+    const replay = async () => {
+      const result = await new DsSamSDK({
+        ...DEFAULT_CONFIG,
+        blacklistRules: rules,
+        inputsSource: InputsSource.FILES,
+        inputsCacheDirPath: dir,
+      }).run()
+      return {
+        blacklist: [...result.auctionData.blacklist].sort(),
+        blacklistDecision: result.auctionData.blacklistDecision,
+        validators: result.auctionData.validators.map(v => [v.voteAccount, v.values.samBlacklisted]),
+      }
+    }
+    const first = await replay()
+    const second = await replay()
+    expect(JSON.stringify(second)).toBe(JSON.stringify(first))
+    expect(first.blacklistDecision).toEqual(decision)
+  })
+
   it('names a missing cached input', async () => {
     const fixture = setup()
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ds-sam-blacklist-'))
