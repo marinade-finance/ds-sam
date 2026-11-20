@@ -41,6 +41,9 @@ export class ValidatorMockBuilder {
   // undefined leaves the key out, as an older API response does
   private vatEligible: boolean | null | undefined = null
   private closedEpochVatEligible: boolean | null | undefined = null
+  private lastEpochVatAdmitted: boolean | null | undefined = undefined
+  // How many epochs back the newest closed epoch is; 2 leaves the last epoch open
+  private newestClosedEpochAgo = 1
   private bond: BondDataType | null = null
   private country: string | null = null
   private aso: string | null = null
@@ -175,6 +178,17 @@ export class ValidatorMockBuilder {
     return this
   }
 
+  // The chain verdict on the epoch before the running one
+  withLastEpochVatAdmitted(lastEpochVatAdmitted: boolean | null | undefined): this {
+    this.lastEpochVatAdmitted = lastEpochVatAdmitted
+    return this
+  }
+
+  withLastEpochStillOpen(): this {
+    this.newestClosedEpochAgo = 2
+    return this
+  }
+
   auctionOnly(): this {
     this.auctionOnlyFlag = true
     return this
@@ -294,8 +308,13 @@ export class ValidatorMockBuilder {
         epoch_stake: new Decimal(this.nativeStake + this.liquidStake + this.externalStake).mul(1e9).toString(),
         leader_slots: this.leaderSlots,
         epoch_end_at:
-          e === 0 ? null : new Date(EPOCH_END_ANCHOR_MS - (e - 1) * MOCK_EPOCH_DURATION_SECONDS * 1000).toISOString(),
-        ...(e === 1 && this.closedEpochVatEligible !== undefined ? { vat_eligible: this.closedEpochVatEligible } : {}),
+          e < this.newestClosedEpochAgo
+            ? null
+            : new Date(EPOCH_END_ANCHOR_MS - (e - 1) * MOCK_EPOCH_DURATION_SECONDS * 1000).toISOString(),
+        ...(e === this.newestClosedEpochAgo && this.closedEpochVatEligible !== undefined
+          ? { vat_eligible: this.closedEpochVatEligible }
+          : {}),
+        ...(e === 1 && this.lastEpochVatAdmitted !== undefined ? { vat_admitted: this.lastEpochVatAdmitted } : {}),
       })),
       self_stake: '0',
       foundation_stake: '0',
