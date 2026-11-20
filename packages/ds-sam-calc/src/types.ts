@@ -1,3 +1,4 @@
+import type { BlacklistAuctionDecision } from './blacklist/evaluate'
 import type Decimal from 'decimal.js'
 
 export type AuctionResult = {
@@ -22,6 +23,8 @@ export type AggregatedData = {
   slotParams: SlotParams
   stakeAmounts: StakeAmounts
   blacklist: Set<string>
+  // Set when `blacklistRules` decided the blacklist in this auction
+  blacklistDecision?: BlacklistAuctionDecision
 }
 
 // The slot-time regime the inflation input was normalised to, and the epoch that regime belongs to.
