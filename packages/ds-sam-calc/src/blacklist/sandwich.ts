@@ -13,6 +13,8 @@ export type SandwichParams = {
   minBlocks: number
   // A sandwich count this unlikely at the cluster's pooled rate is not chance
   significanceP: number
+  // Judge the wide sandwich rate too, not only the single one
+  wide: boolean
 }
 
 export const DEFAULT_SANDWICH_PARAMS: Omit<SandwichParams, 'ratePct'> = {
@@ -20,6 +22,7 @@ export const DEFAULT_SANDWICH_PARAMS: Omit<SandwichParams, 'ratePct'> = {
   minExcessPp: 1.0,
   minBlocks: 1000,
   significanceP: 1e-4,
+  wide: false,
 }
 
 export type SandwichRow = {
@@ -134,7 +137,7 @@ const observed = (
 
 export const sandwichCode = (epoch: number): string => `MALICIOUS_SM_${epoch}`
 
-/** Hits of one epoch's rows on the single rate, else on the wide rate, sorted by vote account. */
+/** Hits of one epoch's rows on the single rate, else on the wide rate when `params.wide`, sorted by vote account. */
 export const sandwichHits = (rows: SandwichRow[], epoch: number, params: SandwichParams): BlacklistHit[] => {
   const singlePopulation = sandwichPopulation(
     rows.map(r => ({
@@ -148,7 +151,7 @@ export const sandwichHits = (rows: SandwichRow[], epoch: number, params: Sandwic
     return []
   }
   const wideRows = rows.flatMap(r =>
-    r.wideSandwichRate30d === null
+    !params.wide || r.wideSandwichRate30d === null
       ? []
       : [
           {

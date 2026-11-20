@@ -15,12 +15,14 @@ const row = (voteAccount: string, blocks: number, sandwiched: number, wide: numb
 })
 
 // A cluster at ~0.77 % pooled and 0.8 % median, plus `rows`
-const evaluate = (rows: SandwichRow[]): BlacklistHit[] => {
+const evaluate = (rows: SandwichRow[], params = PARAMS): BlacklistHit[] => {
   const background = Array.from({ length: 40 }, (_, i) =>
     row(`n${String(i).padStart(2, '0')}`, 5000, 38 + (i % 3), 0.8),
   )
-  return sandwichHits([...background, ...rows], E, PARAMS)
+  return sandwichHits([...background, ...rows], E, params)
 }
+
+const WIDE = { ...PARAMS, wide: true }
 
 const codes = (hits: BlacklistHit[]) => hits.map(hit => [hit.voteAccount, hit.code])
 
@@ -45,17 +47,28 @@ describe('sandwich rule', () => {
   })
 
   it('a wide rate hits with the derived count', () => {
-    const hits = evaluate([row('wide', 5000, 40, 6.0)])
+    const hits = evaluate([row('wide', 5000, 40, 6.0)], WIDE)
     expect(codes(hits)).toEqual([['wide', 'MALICIOUS_SM_1075']])
     expect(evidence(hits[0]).wide?.blocksWithSandwiches).toBe(300)
     expect(evidence(hits[0]).single).toBeNull()
   })
 
   it('single takes precedence over wide and keeps the wide evidence', () => {
-    const hits = evaluate([row('both', 5000, 400, 9.0)])
+    const hits = evaluate([row('both', 5000, 400, 9.0)], WIDE)
     expect(codes(hits)).toEqual([['both', 'MALICIOUS_SM_1075']])
     expect(evidence(hits[0]).single).not.toBeNull()
     expect(evidence(hits[0]).wide).not.toBeNull()
+  })
+
+  it('wide off ignores a wide-only rate', () => {
+    expect(evaluate([row('wide', 5000, 40, 6.0)])).toEqual([])
+  })
+
+  it('wide off keeps the single hit without wide evidence', () => {
+    const hits = evaluate([row('both', 5000, 400, 9.0)])
+    expect(codes(hits)).toEqual([['both', 'MALICIOUS_SM_1075']])
+    expect(evidence(hits[0]).single).not.toBeNull()
+    expect(evidence(hits[0]).wide).toBeNull()
   })
 
   it('no wide rows means no wide hits', () => {

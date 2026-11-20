@@ -30,6 +30,7 @@ export const validateBlacklistRulesConfig = (config: BlacklistRulesConfig) => {
       'in (0, 1)',
       params.significanceP,
     )
+    check(typeof params.wide === 'boolean', 'sandwich.wide', 'a boolean', params.wide)
   }
   if (config.slowSlots) {
     const { medianMult, consecutiveEpochs } = config.slowSlots

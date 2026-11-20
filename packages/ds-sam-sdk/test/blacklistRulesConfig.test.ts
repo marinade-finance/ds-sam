@@ -14,6 +14,8 @@ describe('blacklistRules config', () => {
   it('accepts a valid config, with or without rule sections', () => {
     expect(() => sdk(VALID)).not.toThrow()
     expect(() => sdk({ maxNewListings: 0 })).not.toThrow()
+    expect(() => sdk({ ...VALID, sandwich: { ratePct: 4, wide: true } })).not.toThrow()
+    expect(() => sdk({ ...VALID, sandwich: { ratePct: 4, wide: false } })).not.toThrow()
     expect(() => new DsSamSDK({})).not.toThrow()
   })
 
@@ -27,6 +29,7 @@ describe('blacklistRules config', () => {
     ['blacklistRules.sandwich.minBlocks', { ...VALID, sandwich: { ratePct: 4, minBlocks: -5 } }],
     ['blacklistRules.sandwich.significanceP', { ...VALID, sandwich: { ratePct: 4, significanceP: 0 } }],
     ['blacklistRules.sandwich.significanceP', { ...VALID, sandwich: { ratePct: 4, significanceP: 1 } }],
+    ['blacklistRules.sandwich.wide', { ...VALID, sandwich: { ratePct: 4, wide: 'yes' as unknown as boolean } }],
     ['blacklistRules.slowSlots.medianMult', { ...VALID, slowSlots: { medianMult: 1, consecutiveEpochs: 2 } }],
     ['blacklistRules.slowSlots.consecutiveEpochs', { ...VALID, slowSlots: { medianMult: 1.1, consecutiveEpochs: 0 } }],
   ])('refuses an out-of-range %s', (field, config) => {
