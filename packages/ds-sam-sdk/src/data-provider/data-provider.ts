@@ -333,7 +333,11 @@ export class DataProvider {
 
       // False only when the chain refused it at the last boundary and the running epoch still fails VAT
       const lastBoundaryStat = validator.epoch_stats.find(es => es.epoch === runningEpoch - 1)
-      if (lastBoundaryStat?.vat_admitted == null && new Decimal(lastBoundaryStat?.activated_stake ?? 0).gt(0)) {
+      if (
+        validator.vat_eligible === false &&
+        lastBoundaryStat?.vat_admitted == null &&
+        new Decimal(lastBoundaryStat?.activated_stake ?? 0).gt(0)
+      ) {
         unknownVatVerdict.push(validator.vote_account)
       }
       const runningEpochVatEligible = validator.vat_eligible
@@ -411,7 +415,7 @@ export class DataProvider {
     })
     if (unknownVatVerdict.length > 0) {
       console.warn(
-        `No chain VAT verdict at the last epoch boundary for ${unknownVatVerdict.length} staked validator(s), using the newest closed forecast: ${unknownVatVerdict.join(', ')}`,
+        `No chain VAT verdict at the last epoch boundary for ${unknownVatVerdict.length} staked validator(s) below the VAT minimum, using the newest closed forecast: ${unknownVatVerdict.join(', ')}`,
       )
     }
     return validators

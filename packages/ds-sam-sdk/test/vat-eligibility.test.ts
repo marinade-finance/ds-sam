@@ -119,7 +119,7 @@ describe('VAT eligibility', () => {
       const [first, second] = builders
       assert(first && second)
       expect(vatVerdictWarnings(warn)).toEqual([
-        `No chain VAT verdict at the last epoch boundary for 2 staked validator(s), using the newest closed forecast: ${first.voteAccount}, ${second.voteAccount}`,
+        `No chain VAT verdict at the last epoch boundary for 2 staked validator(s) below the VAT minimum, using the newest closed forecast: ${first.voteAccount}, ${second.voteAccount}`,
       ])
     } finally {
       warn.mockRestore()
@@ -147,18 +147,19 @@ describe('VAT eligibility', () => {
     }
   })
 
-  it('leaves an unstaked validator without a verdict out of the warning', async () => {
+  it('warns only for staked validators the fallback can cut', async () => {
     const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
     try {
-      const [staked, unstaked] = boundaryBuilders([
-        { running: true, admitted: null, closedForecast: true },
+      const [staked, unstaked, aboveMinimum] = boundaryBuilders([
+        { running: false, admitted: null, closedForecast: true },
+        { running: false, admitted: null, closedForecast: true },
         { running: true, admitted: null, closedForecast: true },
       ])
-      assert(staked && unstaked)
+      assert(staked && unstaked && aboveMinimum)
       unstaked.withNativeStake(0).withLiquidStake(0).withExternalStake(0)
-      await gatesOf([staked, unstaked])
+      await gatesOf([staked, unstaked, aboveMinimum])
       expect(vatVerdictWarnings(warn)).toEqual([
-        `No chain VAT verdict at the last epoch boundary for 1 staked validator(s), using the newest closed forecast: ${staked.voteAccount}`,
+        `No chain VAT verdict at the last epoch boundary for 1 staked validator(s) below the VAT minimum, using the newest closed forecast: ${staked.voteAccount}`,
       ])
     } finally {
       warn.mockRestore()

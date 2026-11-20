@@ -96,7 +96,7 @@ gate fired but `revShare.totalPmpe` is below `samPmpeThreshold`, and `null` when
 The `vatIneligible` gate refuses a validator that the chain refused at the last epoch boundary (validators-api
 `epoch_stats[].vat_admitted: false`) and that is still below the VAT minimum in the running epoch (`vat_eligible:
 false`). When the verdict is unknown, the newest closed epoch's `vat_eligible` takes its place and a warning lists the
-validators. `null` never refuses a validator.
+validators it can cut. `null` never refuses a validator.
 
 ## Browser-safe entry
 
