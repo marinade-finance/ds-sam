@@ -101,7 +101,7 @@ export type AggregatedValidator = {
   maxStakeWanted: number | null
   foundationStakeSol: number
   selfStakeSol: number
-  // SIMD-0357: false only when refused at the last boundary and still below the minimum
+  // SIMD-0357: false when refused at the last boundary (else closed forecast) and still below minimum
   vatEligible?: boolean | null
   epochStats: EpochStats[]
   auctions: AuctionHistoryStats[]
