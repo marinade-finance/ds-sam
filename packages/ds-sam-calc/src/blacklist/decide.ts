@@ -43,6 +43,8 @@ export type BlacklistDecision = {
   held: BlacklistHit[]
   // Blacklisted in the previous auction, missing from the current list and not exempt
   kept: string[]
+  // Blacklisted in the previous auction and released by an exemption
+  removed: string[]
   // This auction's rows of an earlier run, kept while the hits are held
   carried: BlacklistRow[]
 }
@@ -70,7 +72,7 @@ const exempted = (hit: BlacklistHit, exempt: BlacklistExempt[]): boolean =>
  * exempted nor already listed under the same rule. More than `maxNewListings` newly listed accounts
  * hold all hits back. The rows a previous run of the same auction added are judged again, or carried
  * over when the hits are held. An account of the previous auction's blacklist leaves it only through
- * an exemption.
+ * an exemption without `untilEpoch`.
  */
 export const decideBlacklist = (
   current: CurrentBlacklist,
@@ -87,7 +89,14 @@ export const decideBlacklist = (
   const candidates = hits.filter(
     hit => !exempted(hit, current.exempt) && !listedRules.has(`${hit.voteAccount}/${hit.rule}`),
   )
-  const newAccounts = new Set(candidates.map(hit => hit.voteAccount).filter(account => !listed.has(account)))
+  const retained = new Set(
+    [...previousBlacklist].filter(
+      account => !current.exempt.some(entry => entry.voteAccount === account && entry.untilEpoch === null),
+    ),
+  )
+  const newAccounts = new Set(
+    candidates.map(hit => hit.voteAccount).filter(account => !listed.has(account) && !retained.has(account)),
+  )
   const hold = newAccounts.size > maxNewListings
   const added = hold ? [] : candidates
   const carried = hold
@@ -95,15 +104,15 @@ export const decideBlacklist = (
     : []
   const carriedRules = new Set(carried.map(row => `${row.voteAccount}/${ruleOfCode(row.code) ?? ''}`))
   const blacklist = new Set([...listed, ...added.map(hit => hit.voteAccount), ...carried.map(row => row.voteAccount)])
-  const kept = [...previousBlacklist]
-    .filter(account => !blacklist.has(account) && !current.exempt.some(entry => entry.voteAccount === account))
-    .sort()
+  const kept = [...retained].filter(account => !blacklist.has(account)).sort()
+  const removed = [...previousBlacklist].filter(account => !blacklist.has(account) && !retained.has(account)).sort()
 
   return {
     blacklist: new Set([...blacklist, ...kept]),
     added,
     held: hold ? candidates.filter(hit => !carriedRules.has(`${hit.voteAccount}/${hit.rule}`)) : [],
     kept,
+    removed,
     carried,
   }
 }

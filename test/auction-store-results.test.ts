@@ -107,6 +107,7 @@ describe('auction storeResults', () => {
             added: [],
             held: [],
             kept: [],
+            removed: [],
             carried: [],
             ...decision,
           },
@@ -212,7 +213,7 @@ describe('auction storeResults', () => {
     it('flags kept accounts and how to unlist them', () => {
       const summary = summaryOf({ kept: ['K'.repeat(32)] })
       expect(summary).toContain(
-        '- ⚠ Kept = `1`: blacklisted in the previous auction and missing from the served list. Unlist with an exemption in the blacklist config.',
+        '- ⚠ Kept = `1`: blacklisted in the previous auction and missing from the served list. Unlist with an exemption without until_epoch in the blacklist config.',
       )
       expect(summary).toContain(`  - \`${'K'.repeat(32)}\``)
     })
@@ -241,11 +242,9 @@ describe('auction storeResults', () => {
     })
 
     it('lists accounts removed since the previous auction', () => {
-      const summary = summaryOf({}, [
-        validator('R'.repeat(32), true, false),
-        validator('S'.repeat(32), true, true),
+      const summary = summaryOf({ removed: ['R'.repeat(32)] }, [
+        validator('S'.repeat(32), true, false),
         validator('T'.repeat(32), false, false),
-        validator('U'.repeat(32), null, false),
       ])
       expect(summary).toContain(`- Removed = \`1\`\n  - \`${'R'.repeat(32)}\`\n- Penalties`)
     })

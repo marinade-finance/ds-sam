@@ -332,7 +332,24 @@ describe('blacklist decided in the auction', () => {
       const result = await sdkFor({}, { ...fixture, history }, current).run()
 
       expect(result.auctionData.blacklistDecision?.kept).toEqual([])
+      expect(result.auctionData.blacklistDecision?.removed).toEqual([honest])
       expect(findValidatorInResult(honest, result)?.values.samBlacklisted).toBe(false)
+    })
+
+    it('an exempt entry with until epoch does not release it', async () => {
+      const fixture = setup()
+      const honest = fixture.honest.voteAccount
+      const history = [
+        ...fixture.history.filter(entry => entry.voteAccount !== honest),
+        historyEntry(honest, CURRENT_EPOCH - 1, true),
+      ]
+      const current = currentBlacklist()
+      current.exempt.push({ vote_account: honest, rule: 'sandwich', until_epoch: CURRENT_EPOCH })
+      const result = await sdkFor({}, { ...fixture, history }, current).run()
+
+      expect(result.auctionData.blacklistDecision?.kept).toEqual([honest])
+      expect(result.auctionData.blacklistDecision?.removed).toEqual([])
+      expect(findValidatorInResult(honest, result)?.values.samBlacklisted).toBe(true)
     })
 
     it('the newest history entry before the auction epoch decides', async () => {

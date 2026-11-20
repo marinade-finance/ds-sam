@@ -156,21 +156,43 @@ describe('decideBlacklist previous auction', () => {
   })
 
   it.each([ExemptRule.ALL, ExemptRule.SANDWICH, ExemptRule.SLOW_SLOTS, ExemptRule.LEGACY])(
-    'any exempt entry releases the account (%s)',
+    'an exempt entry of any rule without until epoch releases the account (%s)',
     rule => {
-      for (const untilEpoch of [null, 1]) {
-        const decision = decideBlacklist(
-          current([row('old', 'X')], [exempt('gone', rule, untilEpoch)]),
-          [],
-          A,
-          10,
-          new Set(['gone']),
-        )
-        expect(decision.kept).toEqual([])
-        expect(decision.blacklist.has('gone')).toBe(false)
-      }
+      const decision = decideBlacklist(current([row('old', 'X')], [exempt('gone', rule)]), [], A, 10, new Set(['gone']))
+      expect(decision.kept).toEqual([])
+      expect(decision.removed).toEqual(['gone'])
+      expect(decision.blacklist.has('gone')).toBe(false)
     },
   )
+
+  it.each([ExemptRule.ALL, ExemptRule.SANDWICH, ExemptRule.SLOW_SLOTS, ExemptRule.LEGACY])(
+    'an exempt entry with until epoch does not release the account (%s)',
+    rule => {
+      const decision = decideBlacklist(
+        current([row('old', 'X')], [exempt('gone', rule, A + 10)]),
+        [],
+        A,
+        10,
+        new Set(['gone']),
+      )
+      expect(decision.kept).toEqual(['gone'])
+      expect(decision.removed).toEqual([])
+      expect(decision.blacklist.has('gone')).toBe(true)
+    },
+  )
+
+  it('a kept account with a fresh hit does not count against maxNewListings', () => {
+    const decision = decideBlacklist(current([row('old', 'X')]), [hit('a'), hit('b')], A, 1, new Set(['a']))
+    expect(accounts(decision.added)).toEqual(['a', 'b'])
+    expect(decision.held).toEqual([])
+    expect(decision.kept).toEqual([])
+    expect(decision.blacklist).toEqual(new Set(['old', 'a', 'b']))
+  })
+
+  it('removes nothing when every previous account stays listed', () => {
+    const decision = decideBlacklist(current([row('old', 'X')]), [], A, 10, new Set(['old', 'gone']))
+    expect(decision.removed).toEqual([])
+  })
 
   it('an exempt entry of another account does not release', () => {
     const decision = decideBlacklist(

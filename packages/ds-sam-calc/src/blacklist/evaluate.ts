@@ -25,6 +25,7 @@ export type BlacklistAuctionDecision = {
   added: BlacklistHit[]
   held: BlacklistHit[]
   kept: string[]
+  removed: string[]
   carried: BlacklistRow[]
 }
 
@@ -60,7 +61,7 @@ export const evaluateBlacklistRules = (
     hits.push(...slowSlotsHits(data.slotTimesByEpoch, data.stakesByEpoch, evaluatedEpoch, slowSlots))
   }
 
-  const { blacklist, added, held, kept, carried } = decideBlacklist(
+  const { blacklist, added, held, kept, removed, carried } = decideBlacklist(
     data.current,
     hits,
     auctionEpoch,
@@ -76,6 +77,7 @@ export const evaluateBlacklistRules = (
       added,
       held,
       kept,
+      removed,
       carried,
     },
   }

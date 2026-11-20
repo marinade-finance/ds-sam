@@ -164,7 +164,7 @@ export class AuctionCommand extends CommandRunner {
     if (decision.kept.length > 0) {
       lines.push(
         `- ⚠ Kept = \`${decision.kept.length}\`: blacklisted in the previous auction and missing from the served list.` +
-          ' Unlist with an exemption in the blacklist config.',
+          ' Unlist with an exemption without until_epoch in the blacklist config.',
         ...decision.kept.map(account => `  - \`${account}\``),
       )
     }
@@ -174,15 +174,11 @@ export class AuctionCommand extends CommandRunner {
         ...decision.carried.map(row => `  - \`${row.voteAccount}\` ${row.code}`),
       )
     }
-    const removed = validators
-      .filter(v => v.lastSamBlacklisted === true && !v.values.samBlacklisted)
-      .map(v => v.voteAccount)
-      .sort()
     const penalized = validators.filter(v => v.revShare.blacklistPenaltyPmpe > 0)
     const penaltySol = penalized.reduce((sum, v) => sum + blacklistPenaltySol(v), 0)
     lines.push(
-      `- Removed = \`${removed.length}\``,
-      ...removed.map(account => `  - \`${account}\``),
+      `- Removed = \`${decision.removed.length}\``,
+      ...decision.removed.map(account => `  - \`${account}\``),
       `- Penalties = \`${penalized.length}\` validators, estimated \`${penaltySol.toLocaleString(undefined, { maximumFractionDigits: 4 })}\` SOL`,
     )
     return lines
