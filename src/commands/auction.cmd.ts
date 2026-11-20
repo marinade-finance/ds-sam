@@ -5,6 +5,7 @@ import { CliUtilityService, Command, CommandRunner, Option } from 'nest-commande
 
 import {
   AuctionResult,
+  AuctionValidator,
   BlacklistAuctionDecision,
   BlacklistHit,
   BlacklistRuleId,
@@ -15,6 +16,7 @@ import {
   SandwichEvidence,
   SandwichObservation,
   SlowSlotsEvidence,
+  blacklistPenaltySol,
   formatLastCapConstraint,
   renderBlacklistCsv,
 } from '@marinade.finance/ds-sam-sdk'
@@ -136,12 +138,12 @@ export class AuctionCommand extends CommandRunner {
       `- Auction winning rev share = \`${result.winningTotalPmpe}\` PMPE`,
       `- Eligible validators count = \`${eligibleValidators.toLocaleString()}\``,
       `- Staked validators count = \`${stakedValidators.toLocaleString()}\``,
-      ...this.formatBlacklistSummary(result.auctionData.blacklistDecision),
+      ...this.formatBlacklistSummary(result.auctionData.blacklistDecision, validators),
       '',
     ].join('\n')
   }
 
-  formatBlacklistSummary(decision: BlacklistAuctionDecision | undefined): string[] {
+  formatBlacklistSummary(decision: BlacklistAuctionDecision | undefined, validators: AuctionValidator[]): string[] {
     if (!decision) {
       return []
     }
@@ -159,6 +161,30 @@ export class AuctionCommand extends CommandRunner {
         ...decision.held.map(formatHit),
       )
     }
+    if (decision.kept.length > 0) {
+      lines.push(
+        `- ⚠ Kept = \`${decision.kept.length}\`: blacklisted in the previous auction and missing from the served list.` +
+          ' Unlist with an exemption in the blacklist config.',
+        ...decision.kept.map(account => `  - \`${account}\``),
+      )
+    }
+    if (decision.carried.length > 0) {
+      lines.push(
+        `- Carried = \`${decision.carried.length}\`: listings of an earlier run of this auction, kept while its hits are held`,
+        ...decision.carried.map(row => `  - \`${row.voteAccount}\` ${row.code}`),
+      )
+    }
+    const removed = validators
+      .filter(v => v.lastSamBlacklisted === true && !v.values.samBlacklisted)
+      .map(v => v.voteAccount)
+      .sort()
+    const penalized = validators.filter(v => v.revShare.blacklistPenaltyPmpe > 0)
+    const penaltySol = penalized.reduce((sum, v) => sum + blacklistPenaltySol(v), 0)
+    lines.push(
+      `- Removed = \`${removed.length}\``,
+      ...removed.map(account => `  - \`${account}\``),
+      `- Penalties = \`${penalized.length}\` validators, estimated \`${penaltySol.toLocaleString(undefined, { maximumFractionDigits: 4 })}\` SOL`,
+    )
     return lines
   }
 

@@ -94,11 +94,12 @@ describe('auction storeResults', () => {
         },
       },
     }
-    const withDecision = (decision: Partial<BlacklistAuctionDecision>) =>
+    const withDecision = (decision: Partial<BlacklistAuctionDecision>, validators: unknown[] = []) =>
       ({
         ...auctionResult,
         auctionData: {
           ...auctionResult.auctionData,
+          validators,
           blacklistDecision: {
             auctionEpoch: 641,
             evaluatedEpoch: 640,
@@ -189,6 +190,81 @@ describe('auction storeResults', () => {
       expect(summary).toContain(`  - \`${'B'.repeat(32)}\` MALICIOUS_SM_640: single 8%`)
     })
 
+    const validator = (
+      voteAccount: string,
+      lastSamBlacklisted: boolean | null,
+      samBlacklisted: boolean,
+      marinadeActivatedStakeSol = 0,
+      blacklistPenaltyPmpe = 0,
+    ) => ({
+      voteAccount,
+      lastSamBlacklisted,
+      marinadeActivatedStakeSol,
+      samEligible: false,
+      auctionStake: { marinadeSamTargetSol: 0 },
+      values: { samBlacklisted },
+      revShare: { blacklistPenaltyPmpe },
+    })
+
+    const summaryOf = (decision: Partial<BlacklistAuctionDecision>, validators: unknown[] = []) =>
+      new AuctionCommand(new CliUtilityService()).formatResultSummary(withDecision(decision, validators))
+
+    it('flags kept accounts and how to unlist them', () => {
+      const summary = summaryOf({ kept: ['K'.repeat(32)] })
+      expect(summary).toContain(
+        '- ⚠ Kept = `1`: blacklisted in the previous auction and missing from the served list. Unlist with an exemption in the blacklist config.',
+      )
+      expect(summary).toContain(`  - \`${'K'.repeat(32)}\``)
+    })
+
+    it('lists no kept or carried line when there is none', () => {
+      const summary = summaryOf({})
+      expect(summary).not.toContain('Kept')
+      expect(summary).not.toContain('Carried')
+    })
+
+    it('lists carried rows', () => {
+      const summary = summaryOf({
+        carried: [
+          {
+            voteAccount: 'C'.repeat(32),
+            code: 'MALICIOUS_SM_639',
+            source: BlacklistRowSource.AUCTION,
+            auctionEpoch: 641,
+          },
+        ],
+      })
+      expect(summary).toContain(
+        '- Carried = `1`: listings of an earlier run of this auction, kept while its hits are held',
+      )
+      expect(summary).toContain(`  - \`${'C'.repeat(32)}\` MALICIOUS_SM_639`)
+    })
+
+    it('lists accounts removed since the previous auction', () => {
+      const summary = summaryOf({}, [
+        validator('R'.repeat(32), true, false),
+        validator('S'.repeat(32), true, true),
+        validator('T'.repeat(32), false, false),
+        validator('U'.repeat(32), null, false),
+      ])
+      expect(summary).toContain(`- Removed = \`1\`\n  - \`${'R'.repeat(32)}\`\n- Penalties`)
+    })
+
+    it('totals the blacklist penalties', () => {
+      const summary = summaryOf({}, [
+        validator('P'.repeat(32), false, true, 1000, 2),
+        validator('Q'.repeat(32), false, false, 500, 0),
+        validator('V'.repeat(32), false, true, 250, 4),
+      ])
+      expect(summary).toContain('- Penalties = `2` validators, estimated `3` SOL')
+    })
+
+    it('reports zero removed and zero penalties', () => {
+      const summary = summaryOf({})
+      expect(summary).toContain('- Removed = `0`')
+      expect(summary).toContain('- Penalties = `0` validators, estimated `0` SOL')
+    })
+
     it('names the epochs without data', () => {
       const summary = new AuctionCommand(new CliUtilityService()).formatResultSummary(
         withDecision({ missingEpochs: [639, 640] }),
@@ -206,7 +282,10 @@ describe('auction storeResults', () => {
           path.join(outDir, 'blacklist-added.csv'),
         )
         expect(fs.existsSync(path.join(outDir, 'blacklist-added.csv'))).toBe(false)
-        expect(fs.readFileSync(path.join(outDir, 'summary.md')).toString()).not.toContain('### Blacklist')
+        const summary = fs.readFileSync(path.join(outDir, 'summary.md')).toString()
+        expect(summary).not.toContain('### Blacklist')
+        expect(summary).not.toContain('Removed')
+        expect(summary).not.toContain('Penalties')
       } finally {
         fs.rmSync(outDir, { recursive: true, force: true })
       }
