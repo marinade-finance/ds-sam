@@ -30,7 +30,13 @@ describe('blacklistRules config', () => {
     ['blacklistRules.sandwich.significanceP', { ...VALID, sandwich: { ratePct: 4, significanceP: 0 } }],
     ['blacklistRules.sandwich.significanceP', { ...VALID, sandwich: { ratePct: 4, significanceP: 1 } }],
     ['blacklistRules.sandwich.wide', { ...VALID, sandwich: { ratePct: 4, wide: 'yes' as unknown as boolean } }],
+    [
+      'blacklistRules.sandwich.minExcessPp',
+      { ...VALID, sandwich: { ratePct: 4, minExcessPp: '1' as unknown as number } },
+    ],
+    ['blacklistRules.sandwich.ratePct', { ...VALID, sandwich: { ratePct: true as unknown as number } }],
     ['blacklistRules.slowSlots.medianMult', { ...VALID, slowSlots: { medianMult: 1, consecutiveEpochs: 2 } }],
+    ['blacklistRules.slowSlots.medianMult', { ...VALID, slowSlots: { medianMult: Infinity, consecutiveEpochs: 2 } }],
     ['blacklistRules.slowSlots.consecutiveEpochs', { ...VALID, slowSlots: { medianMult: 1.1, consecutiveEpochs: 0 } }],
   ])('refuses an out-of-range %s', (field, config) => {
     expect(() => sdk(config)).toThrow(`Invalid config: ${field} must be`)

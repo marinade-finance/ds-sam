@@ -29,7 +29,7 @@ export const parseCurrentBlacklist = (dto: RawCurrentBlacklistDto, source: strin
     fail('no rows; refusing to decide on an empty list')
   }
   const rows = dto.rows.map((row, i) => {
-    if (!VOTE_ACCOUNT.test(row.vote_account)) fail(`row ${i}: vote account is not a base58 pubkey`)
+    if (!VOTE_ACCOUNT.test(row?.vote_account)) fail(`row ${i}: vote account is not a base58 pubkey`)
     if (!CODE.test(row.code)) fail(`row ${i}: code is not [A-Z0-9_]+`)
     if (!oneOf(BlacklistRowSource, row.source)) fail(`row ${i}: unknown source`)
     const auction = row.source === (BlacklistRowSource.AUCTION as string)
@@ -43,7 +43,7 @@ export const parseCurrentBlacklist = (dto: RawCurrentBlacklistDto, source: strin
     }
   })
   const exempt = dto.exempt.map((entry, i) => {
-    if (!VOTE_ACCOUNT.test(entry.vote_account)) fail(`exempt ${i}: vote account is not a base58 pubkey`)
+    if (!VOTE_ACCOUNT.test(entry?.vote_account)) fail(`exempt ${i}: vote account is not a base58 pubkey`)
     if (!oneOf(ExemptRule, entry.rule)) fail(`exempt ${i}: unknown rule`)
     if (entry.until_epoch !== null && !Number.isInteger(entry.until_epoch)) fail(`exempt ${i}: until_epoch`)
     return { voteAccount: entry.vote_account, rule: entry.rule as ExemptRule, untilEpoch: entry.until_epoch }
@@ -60,7 +60,7 @@ const validateQuality = (records: RawValidatorQualityDto[], epoch: number) => {
     throw new Error(`Invalid validator quality of epoch ${epoch}: ${what}`)
   }
   records.forEach((r, i) => {
-    if (!VOTE_ACCOUNT.test(r.vote_account)) fail(`row ${i}: vote account is not a base58 pubkey`)
+    if (!VOTE_ACCOUNT.test(r?.vote_account)) fail(`row ${i}: vote account is not a base58 pubkey`)
     for (const field of COUNTS) {
       const value = r[field]
       if (value !== null && !(Number.isInteger(value) && value >= 0)) fail(`row ${i}: ${field}`)

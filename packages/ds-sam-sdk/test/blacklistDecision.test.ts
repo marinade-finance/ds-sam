@@ -198,6 +198,13 @@ describe('blacklist decided in the auction', () => {
     await expect(sdkFor({}, fixture, current).run()).rejects.toThrow('row 1: vote account is not a base58 pubkey')
   })
 
+  it('names a null row by its index', async () => {
+    const fixture = setup()
+    const current = currentBlacklist()
+    current.rows.push(null as unknown as RawCurrentBlacklistDto['rows'][number])
+    await expect(sdkFor({}, fixture, current).run()).rejects.toThrow('row 1: vote account is not a base58 pubkey')
+  })
+
   it('names the bad quality row without printing it', async () => {
     const fixture = setup()
     const rows = fixture.quality.get(EVALUATED_EPOCH) ?? []
