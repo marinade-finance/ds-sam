@@ -240,7 +240,10 @@ export class DataProvider {
     dataOverrides: SourceDataOverrides | null = null,
   ): AggregatedValidator[] {
     const auctionHistoriesData = this.processAuctions(data.auctions)
-    const runningEpoch = Math.max(...data.validators.validators.flatMap(v => v.epoch_stats.map(es => es.epoch)))
+    const runningEpoch = data.validators.validators.reduce(
+      (max, v) => v.epoch_stats.reduce((m, es) => Math.max(m, es.epoch), max),
+      -Infinity,
+    )
     const unknownVatVerdict: string[] = []
     const validators = data.validators.validators.map((validator): AggregatedValidator => {
       const bond = data.bonds.bonds.find(({ vote_account }) => validator.vote_account === vote_account)
@@ -331,17 +334,19 @@ export class DataProvider {
         new Decimal(validator.marinade_stake).add(validator.marinade_native_stake),
       ).toNumber()
 
-      // False only when the chain refused it at the last boundary and the running epoch still fails VAT
+      // False when the last-boundary verdict (else the closed forecast) and the running epoch both fail VAT
       const lastBoundaryStat = validator.epoch_stats.find(es => es.epoch === runningEpoch - 1)
+      const closedForecastVatEligible = newestClosedEpochStat(validator)?.vat_eligible
       if (
         validator.vat_eligible === false &&
         lastBoundaryStat?.vat_admitted == null &&
+        closedForecastVatEligible === false &&
         new Decimal(lastBoundaryStat?.activated_stake ?? 0).gt(0)
       ) {
         unknownVatVerdict.push(validator.vote_account)
       }
       const runningEpochVatEligible = validator.vat_eligible
-      const lastBoundaryVatVerdict = lastBoundaryStat?.vat_admitted ?? newestClosedEpochStat(validator)?.vat_eligible
+      const lastBoundaryVatVerdict = lastBoundaryStat?.vat_admitted ?? closedForecastVatEligible
       let vatEligible: boolean | null = null
       if (runningEpochVatEligible === false && lastBoundaryVatVerdict === false) {
         vatEligible = false
