@@ -101,7 +101,7 @@ export type AggregatedValidator = {
   maxStakeWanted: number | null
   foundationStakeSol: number
   selfStakeSol: number
-  // SIMD-0357: false only when the chain refused it at the last boundary and the running epoch still fails, null when unknown
+  // SIMD-0357: false only when refused at the last boundary and still below the minimum
   vatEligible?: boolean | null
   epochStats: EpochStats[]
   auctions: AuctionHistoryStats[]
