@@ -1,4 +1,4 @@
-import { BlacklistRuleId } from './types'
+import { BlacklistRuleId, byVoteAccount } from './types'
 
 import type { BlacklistHit } from './types'
 
@@ -43,6 +43,8 @@ export type BlacklistDecision = {
   held: BlacklistHit[]
   // Blacklisted in the previous auction, missing from the current list and not exempt
   kept: string[]
+  // This auction's rows of an earlier run, kept while the hits are held
+  carried: BlacklistRow[]
 }
 
 const CODE_PREFIXES: [string, BlacklistRuleId][] = [
@@ -66,8 +68,9 @@ const exempted = (hit: BlacklistHit, exempt: BlacklistExempt[]): boolean =>
 /**
  * The blacklist of auction `auctionEpoch`: the current list plus the rule hits that are neither
  * exempted nor already listed under the same rule. More than `maxNewListings` newly listed accounts
- * hold all hits back. The rows a previous run of the same auction added are judged again. An account
- * of the previous auction's blacklist leaves it only through an exemption.
+ * hold all hits back. The rows a previous run of the same auction added are judged again, or carried
+ * over when the hits are held. An account of the previous auction's blacklist leaves it only through
+ * an exemption.
  */
 export const decideBlacklist = (
   current: CurrentBlacklist,
@@ -76,9 +79,8 @@ export const decideBlacklist = (
   maxNewListings: number,
   previousBlacklist: Set<string>,
 ): BlacklistDecision => {
-  const previous = current.rows.filter(
-    row => !(row.source === BlacklistRowSource.AUCTION && row.auctionEpoch === auctionEpoch),
-  )
+  const isOwn = (row: BlacklistRow) => row.source === BlacklistRowSource.AUCTION && row.auctionEpoch === auctionEpoch
+  const previous = current.rows.filter(row => !isOwn(row))
   const listed = new Set(previous.map(row => row.voteAccount))
   const listedRules = new Set(previous.map(row => `${row.voteAccount}/${ruleOfCode(row.code) ?? ''}`))
 
@@ -88,7 +90,11 @@ export const decideBlacklist = (
   const newAccounts = new Set(candidates.map(hit => hit.voteAccount).filter(account => !listed.has(account)))
   const hold = newAccounts.size > maxNewListings
   const added = hold ? [] : candidates
-  const blacklist = new Set([...listed, ...added.map(hit => hit.voteAccount)])
+  const carried = hold
+    ? current.rows.filter(isOwn).sort((a, b) => byVoteAccount(a, b) || (a.code < b.code ? -1 : 1))
+    : []
+  const carriedRules = new Set(carried.map(row => `${row.voteAccount}/${ruleOfCode(row.code) ?? ''}`))
+  const blacklist = new Set([...listed, ...added.map(hit => hit.voteAccount), ...carried.map(row => row.voteAccount)])
   const kept = [...previousBlacklist]
     .filter(account => !blacklist.has(account) && !current.exempt.some(entry => entry.voteAccount === account))
     .sort()
@@ -96,13 +102,14 @@ export const decideBlacklist = (
   return {
     blacklist: new Set([...blacklist, ...kept]),
     added,
-    held: hold ? candidates : [],
+    held: hold ? candidates.filter(hit => !carriedRules.has(`${hit.voteAccount}/${hit.rule}`)) : [],
     kept,
+    carried,
   }
 }
 
-/** `vote_account,code` rows of the hits, sorted and without duplicates, with the header line. */
-export const renderBlacklistCsv = (hits: BlacklistHit[]): string => {
+/** `vote_account,code` rows, sorted and without duplicates, with the header line. */
+export const renderBlacklistCsv = (hits: { voteAccount: string; code: string }[]): string => {
   const lines = [...new Set(hits.map(hit => `${hit.voteAccount},${hit.code}`))].sort()
   return ['vote_account,code', ...lines].join('\n') + '\n'
 }

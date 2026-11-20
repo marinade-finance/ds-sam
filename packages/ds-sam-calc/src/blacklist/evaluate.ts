@@ -3,7 +3,7 @@ import { decideBlacklist } from './decide'
 import { sandwichHits } from './sandwich'
 import { hasStakedSlotTimes, slowSlotsHits, windowEpochs } from './slow-slots'
 
-import type { CurrentBlacklist } from './decide'
+import type { BlacklistRow, CurrentBlacklist } from './decide'
 import type { SandwichRow } from './sandwich'
 import type { SlotTimeRow } from './slow-slots'
 import type { BlacklistHit } from './types'
@@ -25,6 +25,7 @@ export type BlacklistAuctionDecision = {
   added: BlacklistHit[]
   held: BlacklistHit[]
   kept: string[]
+  carried: BlacklistRow[]
 }
 
 /** The epochs of data the configured rules read for an auction: a window ending at the last closed epoch. */
@@ -59,7 +60,7 @@ export const evaluateBlacklistRules = (
     hits.push(...slowSlotsHits(data.slotTimesByEpoch, data.stakesByEpoch, evaluatedEpoch, slowSlots))
   }
 
-  const { blacklist, added, held, kept } = decideBlacklist(
+  const { blacklist, added, held, kept, carried } = decideBlacklist(
     data.current,
     hits,
     auctionEpoch,
@@ -75,6 +76,7 @@ export const evaluateBlacklistRules = (
       added,
       held,
       kept,
+      carried,
     },
   }
 }

@@ -4,7 +4,7 @@ import path from 'path'
 
 import { CliUtilityService } from 'nest-commander'
 
-import { BlacklistRuleId, EPSILON } from '@marinade.finance/ds-sam-sdk'
+import { BlacklistRowSource, BlacklistRuleId, EPSILON } from '@marinade.finance/ds-sam-sdk'
 
 import { AuctionCommand } from '../src/commands/auction.cmd'
 
@@ -106,6 +106,7 @@ describe('auction storeResults', () => {
             added: [],
             held: [],
             kept: [],
+            carried: [],
             ...decision,
           },
         },
@@ -147,6 +148,33 @@ describe('auction storeResults', () => {
           path.join(outDir, 'blacklist-added.csv'),
         )
         expect(fs.readFileSync(path.join(outDir, 'blacklist-added.csv')).toString()).toBe('vote_account,code\n')
+      } finally {
+        fs.rmSync(outDir, { recursive: true, force: true })
+      }
+    })
+
+    it('re-emits carried rows with their codes', () => {
+      const outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ds-sam-store-results-'))
+      try {
+        new AuctionCommand(new CliUtilityService()).storeResults(
+          withDecision({
+            carried: [
+              {
+                voteAccount: 'C'.repeat(32),
+                code: 'MALICIOUS_SM_639',
+                source: BlacklistRowSource.AUCTION,
+                auctionEpoch: 641,
+              },
+            ],
+            held: [sandwichHit],
+          }),
+          path.join(outDir, 'results.json'),
+          path.join(outDir, 'summary.md'),
+          path.join(outDir, 'blacklist-added.csv'),
+        )
+        expect(fs.readFileSync(path.join(outDir, 'blacklist-added.csv')).toString()).toBe(
+          `vote_account,code\n${'C'.repeat(32)},MALICIOUS_SM_639\n`,
+        )
       } finally {
         fs.rmSync(outDir, { recursive: true, force: true })
       }

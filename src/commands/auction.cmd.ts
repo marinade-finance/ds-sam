@@ -90,7 +90,7 @@ export class AuctionCommand extends CommandRunner {
   storeResults(result: AuctionResult, resultsPath: string, summaryPath: string, blacklistAddedPath?: string) {
     const decision = result.auctionData.blacklistDecision
     if (decision && blacklistAddedPath) {
-      fs.writeFileSync(blacklistAddedPath, renderBlacklistCsv(decision.added))
+      fs.writeFileSync(blacklistAddedPath, renderBlacklistCsv([...decision.added, ...decision.carried]))
     }
     const resultsStr = JSON.stringify(
       {

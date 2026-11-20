@@ -208,11 +208,54 @@ describe('decideBlacklist previous auction', () => {
   })
 })
 
+describe('decideBlacklist held re-run', () => {
+  const own = row('v', 'MALICIOUS_SM_1084', BlacklistRowSource.AUCTION, A)
+
+  it('a held re-run keeps and carries the epoch own rows', () => {
+    const decision = decideBlacklist(
+      current([row('old', 'X'), own]),
+      [hit('v'), hit('a'), hit('b'), hit('c')],
+      A,
+      2,
+      NONE,
+    )
+    expect(decision.added).toEqual([])
+    expect(decision.carried).toEqual([own])
+    expect(decision.blacklist).toEqual(new Set(['old', 'v']))
+    expect(accounts(decision.held)).toEqual(['a', 'b', 'c'])
+  })
+
+  it('a held re-run carries a row whose hit is gone', () => {
+    const decision = decideBlacklist(current([row('old', 'X'), own]), [hit('a'), hit('b'), hit('c')], A, 2, NONE)
+    expect(decision.carried).toEqual([own])
+    expect(decision.blacklist.has('v')).toBe(true)
+  })
+
+  it('a held re-run does not carry rows of another epoch', () => {
+    const earlier = row('w', 'MALICIOUS_SM_1083', BlacklistRowSource.AUCTION, A - 1)
+    const decision = decideBlacklist(current([earlier, own]), [hit('a'), hit('b'), hit('c')], A, 2, NONE)
+    expect(decision.carried).toEqual([own])
+    expect(decision.blacklist).toEqual(new Set(['w', 'v']))
+  })
+
+  it('a non-holding re-run carries nothing', () => {
+    const decision = decideBlacklist(current([own]), [hit('v')], A, 10, NONE)
+    expect(decision.carried).toEqual([])
+    expect(accounts(decision.added)).toEqual(['v'])
+  })
+})
+
 describe('renderBlacklistCsv', () => {
   it('sorts and deduplicates the rows under a header', () => {
     expect(renderBlacklistCsv([hit('b'), hit('a'), hit('b')])).toBe(
       'vote_account,code\na,MALICIOUS_SM_1084\nb,MALICIOUS_SM_1084\n',
     )
     expect(renderBlacklistCsv([])).toBe('vote_account,code\n')
+  })
+
+  it('renders hits and carried rows with their own codes', () => {
+    expect(renderBlacklistCsv([hit('b'), row('a', 'MALICIOUS_SM_1083', BlacklistRowSource.AUCTION, A)])).toBe(
+      'vote_account,code\na,MALICIOUS_SM_1083\nb,MALICIOUS_SM_1084\n',
+    )
   })
 })

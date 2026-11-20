@@ -154,6 +154,27 @@ describe('blacklist decided in the auction', () => {
     ])
   })
 
+  it('a held re-run keeps the listings of its earlier run', async () => {
+    const fixture = setup()
+    const own = '7'.repeat(32)
+    const current = currentBlacklist()
+    current.rows.push({
+      vote_account: own,
+      code: `MALICIOUS_SM_${EVALUATED_EPOCH}`,
+      source: 'auction',
+      auction_epoch: CURRENT_EPOCH,
+    })
+    const result = await sdkFor({ blacklistRules: { ...RULES, maxNewListings: 0 } }, fixture, current).run()
+
+    const decision = result.auctionData.blacklistDecision
+    expect(result.auctionData.blacklist).toEqual(new Set([LEGACY_ACCOUNT, own]))
+    expect(decision?.carried.map(row => [row.voteAccount, row.code])).toEqual([
+      [own, `MALICIOUS_SM_${EVALUATED_EPOCH}`],
+    ])
+    expect(decision?.added).toEqual([])
+    expect(decision?.held.map(hit => hit.voteAccount)).toEqual([fixture.sandwicher.voteAccount])
+  })
+
   it('names the epoch without data and adds nothing', async () => {
     const fixture = { ...setup(), quality: new Map<number, RawValidatorQualityDto[]>() }
     const result = await sdkFor({}, fixture).run()
