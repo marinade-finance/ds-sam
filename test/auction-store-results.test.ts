@@ -105,6 +105,7 @@ describe('auction storeResults', () => {
             missingEpochs: [],
             added: [],
             held: [],
+            kept: [],
             ...decision,
           },
         },

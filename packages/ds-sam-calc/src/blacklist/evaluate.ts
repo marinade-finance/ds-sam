@@ -14,6 +14,7 @@ export type BlacklistRulesData = {
   sandwichesByEpoch: Map<number, SandwichRow[]>
   slotTimesByEpoch: Map<number, SlotTimeRow[]>
   stakesByEpoch: Map<number, Map<string, bigint>>
+  previousBlacklist: Set<string>
 }
 
 export type BlacklistAuctionDecision = {
@@ -23,6 +24,7 @@ export type BlacklistAuctionDecision = {
   missingEpochs: number[]
   added: BlacklistHit[]
   held: BlacklistHit[]
+  kept: string[]
 }
 
 /** The epochs of data the configured rules read for an auction: a window ending at the last closed epoch. */
@@ -57,7 +59,13 @@ export const evaluateBlacklistRules = (
     hits.push(...slowSlotsHits(data.slotTimesByEpoch, data.stakesByEpoch, evaluatedEpoch, slowSlots))
   }
 
-  const { blacklist, added, held } = decideBlacklist(data.current, hits, auctionEpoch, rules.maxNewListings)
+  const { blacklist, added, held, kept } = decideBlacklist(
+    data.current,
+    hits,
+    auctionEpoch,
+    rules.maxNewListings,
+    data.previousBlacklist,
+  )
   return {
     blacklist,
     decision: {
@@ -66,6 +74,7 @@ export const evaluateBlacklistRules = (
       missingEpochs: [...missingEpochs].sort((a, b) => a - b),
       added,
       held,
+      kept,
     },
   }
 }

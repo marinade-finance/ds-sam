@@ -117,6 +117,7 @@ export const blacklistRulesData = (
   inputs: RawBlacklistRulesInputs,
   validators: RawValidatorsResponseDto,
   source: string,
+  previousBlacklist: Set<string>,
 ): BlacklistRulesData => {
   const epochs = Object.entries(inputs.quality).map(([epoch, records]) => [Number(epoch), records] as const)
   for (const [epoch, records] of epochs) {
@@ -127,5 +128,6 @@ export const blacklistRulesData = (
     sandwichesByEpoch: new Map(epochs.map(([epoch, records]) => [epoch, sandwichRows(records)])),
     slotTimesByEpoch: new Map(epochs.map(([epoch, records]) => [epoch, slotTimeRows(records)])),
     stakesByEpoch: stakesByEpoch(validators),
+    previousBlacklist,
   }
 }

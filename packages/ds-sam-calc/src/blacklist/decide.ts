@@ -41,6 +41,8 @@ export type BlacklistDecision = {
   blacklist: Set<string>
   added: BlacklistHit[]
   held: BlacklistHit[]
+  // Blacklisted in the previous auction, missing from the current list and not exempt
+  kept: string[]
 }
 
 const CODE_PREFIXES: [string, BlacklistRuleId][] = [
@@ -64,13 +66,15 @@ const exempted = (hit: BlacklistHit, exempt: BlacklistExempt[]): boolean =>
 /**
  * The blacklist of auction `auctionEpoch`: the current list plus the rule hits that are neither
  * exempted nor already listed under the same rule. More than `maxNewListings` newly listed accounts
- * hold all hits back. The rows a previous run of the same auction added are judged again.
+ * hold all hits back. The rows a previous run of the same auction added are judged again. An account
+ * of the previous auction's blacklist leaves it only through an exemption.
  */
 export const decideBlacklist = (
   current: CurrentBlacklist,
   hits: BlacklistHit[],
   auctionEpoch: number,
   maxNewListings: number,
+  previousBlacklist: Set<string>,
 ): BlacklistDecision => {
   const previous = current.rows.filter(
     row => !(row.source === BlacklistRowSource.AUCTION && row.auctionEpoch === auctionEpoch),
@@ -84,11 +88,16 @@ export const decideBlacklist = (
   const newAccounts = new Set(candidates.map(hit => hit.voteAccount).filter(account => !listed.has(account)))
   const hold = newAccounts.size > maxNewListings
   const added = hold ? [] : candidates
+  const blacklist = new Set([...listed, ...added.map(hit => hit.voteAccount)])
+  const kept = [...previousBlacklist]
+    .filter(account => !blacklist.has(account) && !current.exempt.some(entry => entry.voteAccount === account))
+    .sort()
 
   return {
-    blacklist: new Set([...listed, ...added.map(hit => hit.voteAccount)]),
+    blacklist: new Set([...blacklist, ...kept]),
     added,
     held: hold ? candidates : [],
+    kept,
   }
 }
 

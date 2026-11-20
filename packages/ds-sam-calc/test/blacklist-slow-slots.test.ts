@@ -147,6 +147,7 @@ describe('slow slots rule', () => {
           [E, rows],
         ]),
         stakesByEpoch: new Map([[E, stakes]]),
+        previousBlacklist: new Set(),
       },
       E + 1,
     )

@@ -471,10 +471,27 @@ export class DataProvider {
     }
     const { blacklist, decision } = evaluateBlacklistRules(
       rules,
-      blacklistRulesData(data.blacklistRulesInputs, data.validators, this.config.blacklistApiBaseUrl),
+      blacklistRulesData(
+        data.blacklistRulesInputs,
+        data.validators,
+        this.config.blacklistApiBaseUrl,
+        this.previousBlacklist(data.auctions, auctionEpoch),
+      ),
       auctionEpoch,
     )
     return { blacklist, blacklistDecision: decision }
+  }
+
+  private previousBlacklist(auctions: RawScoredValidatorDto[], auctionEpoch: number): Set<string> {
+    const newest = new Map<string, boolean>()
+    for (const auction of this.processAuctions(auctions.filter(entry => entry.epoch < auctionEpoch))) {
+      for (const entry of auction.validators) {
+        if (!newest.has(entry.voteAccount)) {
+          newest.set(entry.voteAccount, entry.values?.samBlacklisted === true)
+        }
+      }
+    }
+    return new Set([...newest].filter(([, blacklisted]) => blacklisted).map(([account]) => account))
   }
 
   cacheSourceData(data: RawSourceData) {

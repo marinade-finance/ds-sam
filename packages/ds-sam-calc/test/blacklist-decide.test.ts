@@ -5,6 +5,7 @@ import type { BlacklistExempt, BlacklistRow, CurrentBlacklist } from '../src/bla
 import type { BlacklistHit } from '../src/blacklist/types'
 
 const A = 1085
+const NONE = new Set<string>()
 
 const hit = (voteAccount: string, rule = BlacklistRuleId.SANDWICH, epochs = [A - 1]): BlacklistHit => ({
   voteAccount,
@@ -36,20 +37,20 @@ const accounts = (hits: BlacklistHit[]) => hits.map(h => h.voteAccount)
 
 describe('decideBlacklist', () => {
   it('keeps every current row and adds new hits', () => {
-    const decision = decideBlacklist(current([row('old', 'BLACKLIST_COMMISSION_RUG')]), [hit('new')], A, 10)
+    const decision = decideBlacklist(current([row('old', 'BLACKLIST_COMMISSION_RUG')]), [hit('new')], A, 10, NONE)
     expect([...decision.blacklist].sort()).toEqual(['new', 'old'])
     expect(accounts(decision.added)).toEqual(['new'])
     expect(decision.held).toEqual([])
   })
 
   it('an active row of the same rule suppresses a second one', () => {
-    const decision = decideBlacklist(current([row('v', 'MALICIOUS_SM_1080')]), [hit('v')], A, 10)
+    const decision = decideBlacklist(current([row('v', 'MALICIOUS_SM_1080')]), [hit('v')], A, 10, NONE)
     expect(decision.added).toEqual([])
     expect(decision.blacklist).toEqual(new Set(['v']))
   })
 
   it('a row of another rule does not suppress the hit', () => {
-    const decision = decideBlacklist(current([row('v', 'SLOW_SLOTS_1080')]), [hit('v')], A, 10)
+    const decision = decideBlacklist(current([row('v', 'SLOW_SLOTS_1080')]), [hit('v')], A, 10, NONE)
     expect(accounts(decision.added)).toEqual(['v'])
   })
 
@@ -60,12 +61,13 @@ describe('decideBlacklist', () => {
       hits,
       A,
       10,
+      NONE,
     )
     expect(accounts(decision.added)).toEqual(['c'])
   })
 
   it('a legacy exemption does not suppress a rule hit', () => {
-    const decision = decideBlacklist(current([], [exempt('a', ExemptRule.LEGACY)]), [hit('a')], A, 10)
+    const decision = decideBlacklist(current([], [exempt('a', ExemptRule.LEGACY)]), [hit('a')], A, 10, NONE)
     expect(accounts(decision.added)).toEqual(['a'])
   })
 
@@ -76,8 +78,15 @@ describe('decideBlacklist', () => {
       [hit('v', BlacklistRuleId.SLOW_SLOTS, [1083, 1084])],
       A,
       10,
+      NONE,
     )
-    const kept = decideBlacklist(current([], exemption), [hit('v', BlacklistRuleId.SLOW_SLOTS, [1084, 1085])], A, 10)
+    const kept = decideBlacklist(
+      current([], exemption),
+      [hit('v', BlacklistRuleId.SLOW_SLOTS, [1084, 1085])],
+      A,
+      10,
+      NONE,
+    )
     expect(suppressed.added).toEqual([])
     expect(accounts(kept.added)).toEqual(['v'])
   })
@@ -88,18 +97,19 @@ describe('decideBlacklist', () => {
       [hit('v', BlacklistRuleId.SLOW_SLOTS, [1083, 1084])],
       A,
       10,
+      NONE,
     )
     expect(accounts(decision.added)).toEqual(['v'])
   })
 
   it('adds new accounts up to the limit', () => {
-    const decision = decideBlacklist(current([]), [hit('a'), hit('b')], A, 2)
+    const decision = decideBlacklist(current([]), [hit('a'), hit('b')], A, 2, NONE)
     expect(accounts(decision.added)).toEqual(['a', 'b'])
     expect(decision.held).toEqual([])
   })
 
   it('holds every hit back above the limit', () => {
-    const decision = decideBlacklist(current([row('old', 'X')]), [hit('a'), hit('b'), hit('c')], A, 2)
+    const decision = decideBlacklist(current([row('old', 'X')]), [hit('a'), hit('b'), hit('c')], A, 2, NONE)
     expect(decision.added).toEqual([])
     expect(accounts(decision.held)).toEqual(['a', 'b', 'c'])
     expect(decision.blacklist).toEqual(new Set(['old']))
@@ -111,22 +121,89 @@ describe('decideBlacklist', () => {
       [hit('a'), hit('b'), hit('c')],
       A,
       1,
+      NONE,
     )
     expect(accounts(decision.added)).toEqual(['a', 'b', 'c'])
   })
 
   it('a re-run of the auction judges its own rows again', () => {
     const rows = [row('v', 'MALICIOUS_SM_1084', BlacklistRowSource.AUCTION, A)]
-    const rerun = decideBlacklist(current(rows), [hit('v')], A, 10)
+    const rerun = decideBlacklist(current(rows), [hit('v')], A, 10, NONE)
     expect(accounts(rerun.added)).toEqual(['v'])
-    const dropped = decideBlacklist(current(rows), [], A, 10)
+    const dropped = decideBlacklist(current(rows), [], A, 10, NONE)
     expect(dropped.blacklist).toEqual(new Set())
   })
 
   it('an auction row of another epoch counts as listed', () => {
     const rows = [row('v', 'MALICIOUS_SM_1083', BlacklistRowSource.AUCTION, A - 1)]
-    const decision = decideBlacklist(current(rows), [hit('v')], A, 10)
+    const decision = decideBlacklist(current(rows), [hit('v')], A, 10, NONE)
     expect(decision.added).toEqual([])
+    expect(decision.blacklist).toEqual(new Set(['v']))
+  })
+})
+
+describe('decideBlacklist previous auction', () => {
+  it('keeps a previous account missing from the list', () => {
+    const decision = decideBlacklist(current([row('old', 'X')]), [], A, 10, new Set(['gone']))
+    expect(decision.blacklist).toEqual(new Set(['old', 'gone']))
+    expect(decision.kept).toEqual(['gone'])
+    expect(decision.added).toEqual([])
+  })
+
+  it('sorts kept accounts', () => {
+    const decision = decideBlacklist(current([row('old', 'X')]), [], A, 10, new Set(['b', 'a']))
+    expect(decision.kept).toEqual(['a', 'b'])
+  })
+
+  it.each([ExemptRule.ALL, ExemptRule.SANDWICH, ExemptRule.SLOW_SLOTS, ExemptRule.LEGACY])(
+    'any exempt entry releases the account (%s)',
+    rule => {
+      for (const untilEpoch of [null, 1]) {
+        const decision = decideBlacklist(
+          current([row('old', 'X')], [exempt('gone', rule, untilEpoch)]),
+          [],
+          A,
+          10,
+          new Set(['gone']),
+        )
+        expect(decision.kept).toEqual([])
+        expect(decision.blacklist.has('gone')).toBe(false)
+      }
+    },
+  )
+
+  it('an exempt entry of another account does not release', () => {
+    const decision = decideBlacklist(
+      current([row('old', 'X')], [exempt('other', ExemptRule.ALL)]),
+      [],
+      A,
+      10,
+      new Set(['gone']),
+    )
+    expect(decision.kept).toEqual(['gone'])
+  })
+
+  it('a listed or newly added account is not kept', () => {
+    const decision = decideBlacklist(current([row('old', 'X')]), [hit('new')], A, 10, new Set(['old', 'new']))
+    expect(decision.kept).toEqual([])
+    expect(decision.blacklist).toEqual(new Set(['old', 'new']))
+  })
+
+  it('no previous auction keeps nothing', () => {
+    expect(decideBlacklist(current([row('old', 'X')]), [], A, 10, NONE).kept).toEqual([])
+  })
+
+  it('kept accounts do not count against maxNewListings', () => {
+    const decision = decideBlacklist(current([row('old', 'X')]), [hit('new')], A, 1, new Set(['k1', 'k2']))
+    expect(accounts(decision.added)).toEqual(['new'])
+    expect(decision.held).toEqual([])
+    expect(decision.kept).toEqual(['k1', 'k2'])
+  })
+
+  it('a re-judged row that lost its hit is kept when the previous auction listed it', () => {
+    const rows = [row('v', 'MALICIOUS_SM_1084', BlacklistRowSource.AUCTION, A)]
+    const decision = decideBlacklist(current(rows), [], A, 10, new Set(['v']))
+    expect(decision.kept).toEqual(['v'])
     expect(decision.blacklist).toEqual(new Set(['v']))
   })
 })

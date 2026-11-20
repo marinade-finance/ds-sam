@@ -234,6 +234,63 @@ describe('blacklist decided in the auction', () => {
     }
   })
 
+  describe('previous auction', () => {
+    const historyEntry = (voteAccount: string, epoch: number, samBlacklisted: boolean) =>
+      ({ voteAccount, epoch, revShare: {}, values: { samBlacklisted } }) as unknown as RawScoredValidatorDto
+
+    it('keeps an account the previous auction blacklisted and the list no longer serves', async () => {
+      const fixture = setup()
+      const honest = fixture.honest.voteAccount
+      const history = [
+        ...fixture.history.filter(entry => entry.voteAccount !== honest),
+        historyEntry(honest, CURRENT_EPOCH - 1, true),
+      ]
+      const result = await sdkFor({}, { ...fixture, history }).run()
+
+      expect(result.auctionData.blacklist.has(honest)).toBe(true)
+      expect(result.auctionData.blacklistDecision?.kept).toEqual([honest])
+      const validator = findValidatorInResult(honest, result)
+      expect(validator?.values.samBlacklisted).toBe(true)
+      expect(validator?.revShare.blacklistPenaltyPmpe).toBe(0)
+    })
+
+    it('an exempt entry releases it', async () => {
+      const fixture = setup()
+      const honest = fixture.honest.voteAccount
+      const history = [
+        ...fixture.history.filter(entry => entry.voteAccount !== honest),
+        historyEntry(honest, CURRENT_EPOCH - 1, true),
+      ]
+      const current = currentBlacklist()
+      current.exempt.push({ vote_account: honest, rule: 'sandwich', until_epoch: null })
+      const result = await sdkFor({}, { ...fixture, history }, current).run()
+
+      expect(result.auctionData.blacklistDecision?.kept).toEqual([])
+      expect(findValidatorInResult(honest, result)?.values.samBlacklisted).toBe(false)
+    })
+
+    it('the newest history entry before the auction epoch decides', async () => {
+      const fixture = setup()
+      const honest = fixture.honest.voteAccount
+      const history = [
+        ...fixture.history,
+        historyEntry(honest, CURRENT_EPOCH - 2, true),
+        historyEntry(honest, CURRENT_EPOCH, true),
+      ]
+      const result = await sdkFor({}, { ...fixture, history }).run()
+
+      expect(result.auctionData.blacklistDecision?.kept).toEqual([])
+      expect(findValidatorInResult(honest, result)?.values.samBlacklisted).toBe(false)
+    })
+
+    it('no history keeps nothing', async () => {
+      const fixture = setup()
+      const result = await sdkFor({}, { ...fixture, history: [] }).run()
+
+      expect(result.auctionData.blacklistDecision?.kept).toEqual([])
+    })
+  })
+
   it('refuses a local blacklist file when the rules decide', () => {
     expect(() => new DsSamSDK({ blacklistRules: RULES, blacklistFilePath: './b.csv' })).toThrow(
       '--blacklist-file is not read when blacklistRules decide the blacklist',
