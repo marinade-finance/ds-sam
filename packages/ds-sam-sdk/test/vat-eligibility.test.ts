@@ -82,11 +82,16 @@ describe('VAT eligibility', () => {
       [false, undefined],
       [null, false],
     ]
+    const closedForecasts = [false, true]
     expect(
       await gatesOf(
-        boundaryBuilders(boundaries.map(([running, admitted]) => ({ running, admitted, closedForecast: false }))),
+        boundaryBuilders(
+          boundaries.flatMap(([running, admitted]) =>
+            closedForecasts.map(closedForecast => ({ running, admitted, closedForecast })),
+          ),
+        ),
       ),
-    ).toEqual(['vatIneligible', null, null, null, null, null])
+    ).toEqual(['vatIneligible', null, null, null, null, null].flatMap(gate => closedForecasts.map(() => gate)))
   })
 
   it('does not cut a validator the chain admitted, whatever the forecasts read', async () => {
@@ -152,17 +157,24 @@ describe('VAT eligibility', () => {
   it('warns only for staked validators below the minimum without a verdict', async () => {
     const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
     try {
-      const [staked, unstaked, aboveMinimum, keptByForecast] = boundaryBuilders([
+      const [staked, unstaked, aboveMinimum, forecastTrue, absentVerdict] = boundaryBuilders([
         { running: false, admitted: null, closedForecast: false },
         { running: false, admitted: null, closedForecast: false },
         { running: true, admitted: null, closedForecast: true },
         { running: false, admitted: null, closedForecast: true },
+        { running: false, admitted: undefined, closedForecast: false },
       ])
-      assert(staked && unstaked && aboveMinimum && keptByForecast)
+      assert(staked && unstaked && aboveMinimum && forecastTrue && absentVerdict)
       unstaked.withNativeStake(0).withLiquidStake(0).withExternalStake(0)
-      expect(await gatesOf([staked, unstaked, aboveMinimum, keptByForecast])).toEqual([null, null, null, null])
+      expect(await gatesOf([staked, unstaked, aboveMinimum, forecastTrue, absentVerdict])).toEqual([
+        null,
+        null,
+        null,
+        null,
+        null,
+      ])
       expect(vatVerdictWarnings(warn)).toEqual([
-        `No chain VAT verdict at the last epoch boundary for 2 staked validator(s) below the VAT minimum, not cut: ${staked.voteAccount}, ${keptByForecast.voteAccount}`,
+        `No chain VAT verdict at the last epoch boundary for 3 staked validator(s) below the VAT minimum, not cut: ${staked.voteAccount}, ${forecastTrue.voteAccount}, ${absentVerdict.voteAccount}`,
       ])
     } finally {
       warn.mockRestore()
