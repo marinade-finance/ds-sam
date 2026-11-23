@@ -843,7 +843,8 @@ describe('outOfSetGate reads samIneligibilityGate', () => {
     ['revShareBelowFloor', 'revShareBelowFloor'],
   ])('gate %s → kind %s', (samIneligibilityGate, kind) => {
     const validator = makeOutOfSet({ samEligible: false, samIneligibilityGate })
-    expect(outOfSetGate(validator, MIN_BOND_CONFIG)?.kind).toBe(kind)
+    const expected = kind === 'vatIneligible' ? { kind, reason: null } : { kind }
+    expect(outOfSetGate(validator, MIN_BOND_CONFIG)).toEqual(expected)
   })
 
   it.each([
@@ -895,22 +896,22 @@ describe('outOfSetGate reads samIneligibilityGate', () => {
     expect(outOfSetGate(makeOutOfSet({ samIneligibilityGate: null }), MIN_BOND_CONFIG)).toBeNull()
   })
 
-  it.each<[string, Record<string, unknown>, string]>([
-    ['vatEligible false', { vatEligible: false }, 'vatIneligible'],
-    ['no bond', { bondBalanceSol: 0, claimableBondBalanceSol: 0 }, 'bondBelowMin'],
-    ['nothing else', {}, 'ineligible'],
-  ])('null gate contradicting samEligible false falls back to inference: %s → %s', (_name, overrides, kind) => {
+  it.each<[string, Record<string, unknown>, Record<string, unknown>]>([
+    ['vatEligible false', { vatEligible: false }, { kind: 'vatIneligible', reason: null }],
+    ['no bond', { bondBalanceSol: 0, claimableBondBalanceSol: 0 }, { kind: 'bondBelowMin' }],
+    ['nothing else', {}, { kind: 'ineligible' }],
+  ])('null gate contradicting samEligible false falls back to inference: %s → %o', (_name, overrides, expected) => {
     const validator = makeOutOfSet({ samEligible: false, samIneligibilityGate: null, ...overrides })
-    expect(outOfSetGate(validator, MIN_BOND_CONFIG)?.kind).toBe(kind)
+    expect(outOfSetGate(validator, MIN_BOND_CONFIG)).toEqual(expected)
   })
 
-  it.each<[string, Record<string, unknown>, string]>([
-    ['vatEligible false', { vatEligible: false }, 'vatIneligible'],
-    ['no bond', { bondBalanceSol: 0, claimableBondBalanceSol: 0 }, 'bondBelowMin'],
-    ['nothing else', {}, 'ineligible'],
-  ])('undefined gate falls back to inference: %s → %s', (_name, overrides, kind) => {
+  it.each<[string, Record<string, unknown>, Record<string, unknown>]>([
+    ['vatEligible false', { vatEligible: false }, { kind: 'vatIneligible', reason: null }],
+    ['no bond', { bondBalanceSol: 0, claimableBondBalanceSol: 0 }, { kind: 'bondBelowMin' }],
+    ['nothing else', {}, { kind: 'ineligible' }],
+  ])('undefined gate falls back to inference: %s → %o', (_name, overrides, expected) => {
     const validator = makeOutOfSet({ samEligible: false, samIneligibilityGate: undefined, ...overrides })
-    expect(outOfSetGate(validator, MIN_BOND_CONFIG)?.kind).toBe(kind)
+    expect(outOfSetGate(validator, MIN_BOND_CONFIG)).toEqual(expected)
   })
 
   it.each([
@@ -960,6 +961,17 @@ describe('outOfSetGate / outOfSetCta agreement', () => {
 })
 
 describe('getValidatorTip for a VAT-ineligible validator', () => {
+  it.each([
+    ['no_bls_key', 'No BLS key on the vote account — add a BLS key to pay the VAT.'],
+    ['no_stake', 'No stake next epoch — get stake to pay the VAT.'],
+    ['low_balance', 'Vote account below VAT minimum — fund it to pay the VAT.'],
+    ['below_cutoff', 'Outside the top 2000 vote accounts by stake — get more stake to pay the VAT.'],
+    [undefined, 'Not admitted to the VAT — check the BLS key, the vote account balance and the stake rank.'],
+  ])('names the VAT reason %s, not the client version', (vatRejectionReason, text) => {
+    const validator = makeOutOfSet({ samEligible: false, vatEligible: false, vatRejectionReason })
+    expect(getValidatorTip(validator, MIN_BOND_CONFIG, 10).text).toBe(text)
+  })
+
   it('names the VAT, not the bid, when the bid is below the winning price', () => {
     const validator = makeOutOfSet({ samEligible: false, vatEligible: false, vatRejectionReason: 'low_balance' })
     const tip = getValidatorTip(validator, MIN_BOND_CONFIG, 100)
