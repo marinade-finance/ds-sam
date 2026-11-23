@@ -156,8 +156,10 @@ export class AuctionCommand extends CommandRunner {
     lines.push(`- Added = \`${decision.added.length}\``, ...decision.added.map(formatHit))
     if (decision.held.length > 0) {
       lines.push(
-        `- ⚠ Held = \`${decision.held.length}\`: more new accounts than \`blacklistRules.maxNewListings\`.` +
-          ' Approve by adding them as manual entries of the blacklist config.',
+        decision.maxNewListings === 0
+          ? `- Held = \`${decision.held.length}\`: dry run (\`blacklistRules.maxNewListings\` is 0), would-be listings, not for approval.`
+          : `- ⚠ Held = \`${decision.held.length}\`: more new accounts than \`blacklistRules.maxNewListings\`.` +
+              ' Approve by adding them as manual entries of the blacklist config.',
         ...decision.held.map(formatHit),
       )
     }

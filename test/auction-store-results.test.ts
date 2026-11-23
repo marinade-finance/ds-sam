@@ -104,6 +104,7 @@ describe('auction storeResults', () => {
             auctionEpoch: 641,
             evaluatedEpoch: 640,
             missingEpochs: [],
+            maxNewListings: 10,
             added: [],
             held: [],
             kept: [],
@@ -187,7 +188,20 @@ describe('auction storeResults', () => {
         withDecision({ held: [sandwichHit] }),
       )
       expect(summary).toContain('- Added = `0`')
-      expect(summary).toContain('- ⚠ Held = `1`: more new accounts than `blacklistRules.maxNewListings`.')
+      expect(summary).toContain(
+        '- ⚠ Held = `1`: more new accounts than `blacklistRules.maxNewListings`. Approve by adding them as manual entries of the blacklist config.',
+      )
+      expect(summary).toContain(`  - \`${'B'.repeat(32)}\` MALICIOUS_SM_640: single 8%`)
+    })
+
+    it('lists held hits of a dry run as not for approval', () => {
+      const summary = new AuctionCommand(new CliUtilityService()).formatResultSummary(
+        withDecision({ maxNewListings: 0, held: [sandwichHit] }),
+      )
+      expect(summary).toContain(
+        '- Held = `1`: dry run (`blacklistRules.maxNewListings` is 0), would-be listings, not for approval.',
+      )
+      expect(summary).not.toContain('Approve')
       expect(summary).toContain(`  - \`${'B'.repeat(32)}\` MALICIOUS_SM_640: single 8%`)
     })
 

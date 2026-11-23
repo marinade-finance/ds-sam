@@ -22,6 +22,7 @@ export type BlacklistAuctionDecision = {
   evaluatedEpoch: number
   // Epochs the rules needed that had no data or no stake; their rules gave no hits
   missingEpochs: number[]
+  maxNewListings: number
   added: BlacklistHit[]
   held: BlacklistHit[]
   kept: string[]
@@ -74,6 +75,7 @@ export const evaluateBlacklistRules = (
       auctionEpoch,
       evaluatedEpoch,
       missingEpochs: [...missingEpochs].sort((a, b) => a - b),
+      maxNewListings: rules.maxNewListings,
       added,
       held,
       kept,
