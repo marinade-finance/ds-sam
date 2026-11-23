@@ -153,8 +153,7 @@ export const DEFAULT_CONFIG: DsSamConfig = {
   validatorsApiBaseUrl: 'https://validators-api.marinade.finance',
   bondsApiBaseUrl: 'https://validator-bonds-api.marinade.finance',
   tvlInfoApiBaseUrl: 'https://api.marinade.finance',
-  // marinade proxy cache API, pointing to raw gh: 'https://raw.githubusercontent.com/marinade-finance/delegation-strategy-2/master'
-  blacklistApiBaseUrl: 'https://thru.marinade.finance/marinade-finance/delegation-strategy-2/master',
+  blacklistApiBaseUrl: 'https://validators-api.marinade.finance',
   scoringApiBaseUrl: 'https://scoring.marinade.finance',
 
   enableZeroCommissionBackstop: false,
