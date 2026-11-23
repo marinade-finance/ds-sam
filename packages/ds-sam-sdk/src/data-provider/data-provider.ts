@@ -42,13 +42,6 @@ import type {
   SlotParams,
 } from '@marinade.finance/ds-sam-calc'
 
-const newestClosedEpochStat = (validator: RawValidatorDto) =>
-  validator.epoch_stats
-    .filter(({ epoch_end_at }) => !!epoch_end_at)
-    .reduce<
-      RawValidatorDto['epoch_stats'][number] | null
-    >((newest, es) => (newest === null || es.epoch > newest.epoch ? es : newest), null)
-
 /** The epoch the auction runs in: one after the last epoch with an inflation estimate. */
 export const auctionEpochOf = (rewards: RawRewardsResponseDto): number =>
   rewards.rewards_inflation_est.reduce((epoch, entry) => Math.max(epoch, entry[0]), 0) + 1
@@ -334,23 +327,21 @@ export class DataProvider {
         new Decimal(validator.marinade_stake).add(validator.marinade_native_stake),
       ).toNumber()
 
-      // False when the last-boundary verdict (else the closed forecast) and the running epoch both fail VAT
+      // False only when the chain refused at the last boundary and the running epoch still fails VAT
       const lastBoundaryStat = validator.epoch_stats.find(es => es.epoch === runningEpoch - 1)
-      const closedForecastVatEligible = newestClosedEpochStat(validator)?.vat_eligible
+      const lastBoundaryVatAdmitted = lastBoundaryStat?.vat_admitted
       if (
         validator.vat_eligible === false &&
-        lastBoundaryStat?.vat_admitted == null &&
-        closedForecastVatEligible === false &&
+        lastBoundaryVatAdmitted == null &&
         new Decimal(lastBoundaryStat?.activated_stake ?? 0).gt(0)
       ) {
         unknownVatVerdict.push(validator.vote_account)
       }
       const runningEpochVatEligible = validator.vat_eligible
-      const lastBoundaryVatVerdict = lastBoundaryStat?.vat_admitted ?? closedForecastVatEligible
       let vatEligible: boolean | null = null
-      if (runningEpochVatEligible === false && lastBoundaryVatVerdict === false) {
+      if (runningEpochVatEligible === false && lastBoundaryVatAdmitted === false) {
         vatEligible = false
-      } else if (runningEpochVatEligible === true || lastBoundaryVatVerdict === true) {
+      } else if (runningEpochVatEligible === true || lastBoundaryVatAdmitted === true) {
         vatEligible = true
       }
 
@@ -420,7 +411,7 @@ export class DataProvider {
     })
     if (unknownVatVerdict.length > 0) {
       console.warn(
-        `No chain VAT verdict at the last epoch boundary for ${unknownVatVerdict.length} staked validator(s) below the VAT minimum, using the newest closed forecast: ${unknownVatVerdict.join(', ')}`,
+        `No chain VAT verdict at the last epoch boundary for ${unknownVatVerdict.length} staked validator(s) below the VAT minimum, not cut: ${unknownVatVerdict.join(', ')}`,
       )
     }
     return validators

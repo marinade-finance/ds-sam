@@ -28,8 +28,8 @@ const ELIGIBILITY_KEYS: readonly ('samEligible' | 'backstopEligible')[] = ['samE
 
 const REPLAY_EPOCHS = 3
 
-// Archives before 1086 predate the closed-epoch VAT gate; raise when results change on purpose.
-const REPLAY_FIRST_EPOCH = 1086
+// Archives before 1092 cut on the closed VAT forecast; raise when results change on purpose.
+const REPLAY_FIRST_EPOCH = 1092
 
 type StoredValidator = {
   voteAccount: string
