@@ -137,6 +137,7 @@ describe('blacklist decided in the auction', () => {
     expect(decision?.auctionEpoch).toBe(CURRENT_EPOCH)
     expect(decision?.evaluatedEpoch).toBe(EVALUATED_EPOCH)
     expect(decision?.missingEpochs).toEqual([])
+    expect(decision?.maxNewListings).toBe(RULES.maxNewListings)
     expect(decision?.added.map(hit => [hit.voteAccount, hit.code])).toEqual([
       [fixture.sandwicher.voteAccount, `MALICIOUS_SM_${EVALUATED_EPOCH}`],
     ])
@@ -149,6 +150,7 @@ describe('blacklist decided in the auction', () => {
 
     expect(findValidatorInResult(fixture.sandwicher.voteAccount, result)?.values.samBlacklisted).toBe(false)
     expect(result.auctionData.blacklist).toEqual(new Set([LEGACY_ACCOUNT]))
+    expect(result.auctionData.blacklistDecision?.maxNewListings).toBe(0)
     expect(result.auctionData.blacklistDecision?.held.map(hit => hit.voteAccount)).toEqual([
       fixture.sandwicher.voteAccount,
     ])
