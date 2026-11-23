@@ -1,3 +1,14 @@
+import type { SandwichParams } from './blacklist/sandwich'
+import type { SlowSlotsParams } from './blacklist/slow-slots'
+
+export type BlacklistRulesConfig = {
+  // More newly listed accounts in one auction hold all of its rule hits back for a human to approve
+  maxNewListings: number
+  // Unset fields take DEFAULT_SANDWICH_PARAMS; a missing section turns the rule off
+  sandwich?: Pick<SandwichParams, 'ratePct'> & Partial<SandwichParams>
+  slowSlots?: SlowSlotsParams
+}
+
 export enum InputsSource {
   APIS = 'APIS',
   FILES = 'FILES',
@@ -31,6 +42,9 @@ export type DsSamConfig = {
   blacklistFilePath?: string
   // Base URL of the scoring API
   scoringApiBaseUrl: string
+  // When set, the blacklist is decided in the auction from the list and data the blacklist and
+  // validators APIs serve; unset reads the decided list as it is
+  blacklistRules?: BlacklistRulesConfig
 
   // Use zero-commission validators for backstop
   enableZeroCommissionBackstop: boolean

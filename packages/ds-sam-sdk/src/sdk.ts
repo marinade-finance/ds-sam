@@ -6,6 +6,7 @@ import {
   isInflationCommissionUnresolved,
   ineligibleValidatorAggDefaults,
   validatorAggDefaults,
+  validateBlacklistRulesConfig,
 } from '@marinade.finance/ds-sam-calc'
 
 import { Auction } from './auction'
@@ -54,6 +55,16 @@ export class DsSamSDK {
       throw new Error(
         `Invalid config: bidTooLowPenaltyPermittedDeviationPmpe must be in interval [0.0, 1.0], got ${config.bidTooLowPenaltyPermittedDeviationPmpe}`,
       )
+    }
+    if (config.blacklistRules) {
+      validateBlacklistRulesConfig(config.blacklistRules)
+      const epochsWithStake = Math.max(config.validatorsUptimeEpochsCount, config.rewardsEpochsCount)
+      const consecutiveEpochs = config.blacklistRules.slowSlots?.consecutiveEpochs ?? 0
+      if (consecutiveEpochs > epochsWithStake) {
+        throw new Error(
+          `Invalid config: blacklistRules.slowSlots.consecutiveEpochs must be <= ${epochsWithStake}, the closed epochs the validators fetch covers, got ${consecutiveEpochs}`,
+        )
+      }
     }
   }
 
