@@ -7,6 +7,7 @@ import {
   evaluateBlacklistRules,
   InputsSource,
   effectiveCommissions,
+  VAT_REJECTION_REASONS,
   winningTotalPmpeOf,
 } from '@marinade.finance/ds-sam-calc'
 import { lamportsToSol } from '@marinade.finance/ts-common/dist/src/browser'
@@ -40,6 +41,7 @@ import type {
   BlacklistAuctionDecision,
   DsSamConfig,
   SlotParams,
+  VatRejectionReason,
 } from '@marinade.finance/ds-sam-calc'
 
 const newestClosedEpochStat = (validator: RawValidatorDto) =>
@@ -48,6 +50,10 @@ const newestClosedEpochStat = (validator: RawValidatorDto) =>
     .reduce<
       RawValidatorDto['epoch_stats'][number] | null
     >((newest, es) => (newest === null || es.epoch > newest.epoch ? es : newest), null)
+
+function parseVatRejectionReason(reason: string | null | undefined): VatRejectionReason | null {
+  return VAT_REJECTION_REASONS.find(known => known === reason) ?? null
+}
 
 /** The epoch the auction runs in: one after the last epoch with an inflation estimate. */
 export const auctionEpochOf = (rewards: RawRewardsResponseDto): number =>
@@ -345,6 +351,7 @@ export class DataProvider {
         clientVersion: validator.version ?? '0.0.0',
         voteCredits: validator.credits,
         vatEligible,
+        vatRejectionReason: parseVatRejectionReason(validator.vat_rejection_reason),
         aso: validator.dc_aso ?? 'Unknown',
         country: validator.dc_country ?? 'Unknown',
         bondBalanceSol,
