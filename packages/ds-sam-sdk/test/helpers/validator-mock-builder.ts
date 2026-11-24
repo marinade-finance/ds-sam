@@ -44,6 +44,7 @@ export class ValidatorMockBuilder {
   private lastEpochVatAdmitted: boolean | null | undefined = undefined
   // How many epochs back the newest closed epoch is; 2 leaves the last epoch open
   private newestClosedEpochAgo = 1
+  private vatRejectionReason: string | null | undefined = undefined
   private bond: BondDataType | null = null
   private country: string | null = null
   private aso: string | null = null
@@ -189,6 +190,11 @@ export class ValidatorMockBuilder {
     return this
   }
 
+  withVatRejectionReason(vatRejectionReason: string | null | undefined): this {
+    this.vatRejectionReason = vatRejectionReason
+    return this
+  }
+
   auctionOnly(): this {
     this.auctionOnlyFlag = true
     return this
@@ -319,6 +325,7 @@ export class ValidatorMockBuilder {
       self_stake: '0',
       foundation_stake: '0',
       ...(this.vatEligible === undefined ? {} : { vat_eligible: this.vatEligible }),
+      ...(this.vatRejectionReason === undefined ? {} : { vat_rejection_reason: this.vatRejectionReason }),
     }
   }
 }
