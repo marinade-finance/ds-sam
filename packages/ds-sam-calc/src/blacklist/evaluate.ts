@@ -30,10 +30,13 @@ export type BlacklistAuctionDecision = {
   carried: BlacklistRow[]
 }
 
-/** The epochs of data the configured rules read for an auction: a window ending at the last closed epoch. */
+/**
+ * The epochs of data the configured rules read for an auction: the windows ending at the last closed
+ * epoch and at the one before it.
+ */
 export const blacklistRulesEpochs = (rules: BlacklistRulesConfig, auctionEpoch: number): number[] => {
   const window = Math.max(rules.sandwich ? 1 : 0, rules.slowSlots?.consecutiveEpochs ?? 0)
-  return windowEpochs(auctionEpoch - 1, window)
+  return window === 0 ? [] : windowEpochs(auctionEpoch - 1, window + 1)
 }
 
 export const evaluateBlacklistRules = (

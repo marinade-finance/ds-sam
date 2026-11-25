@@ -224,6 +224,10 @@ describe('blacklist decided in the auction', () => {
     expect(fs.existsSync(path.join(dir, 'blacklist.json'))).toBe(true)
     expect(fs.existsSync(path.join(dir, 'validator-quality.json'))).toBe(true)
     expect(fs.existsSync(path.join(dir, 'blacklist.csv'))).toBe(false)
+    const cached = JSON.parse(fs.readFileSync(path.join(dir, 'validator-quality.json'), 'utf8')) as {
+      epochs: Record<string, unknown>
+    }
+    expect(Object.keys(cached.epochs)).toEqual([String(EVALUATED_EPOCH - 1), String(EVALUATED_EPOCH)])
 
     const replay = await new DsSamSDK({
       ...DEFAULT_CONFIG,
