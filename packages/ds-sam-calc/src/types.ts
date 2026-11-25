@@ -107,7 +107,7 @@ export type AggregatedValidator = {
   maxStakeWanted: number | null
   foundationStakeSol: number
   selfStakeSol: number
-  // SIMD-0357 balance check: false only when the running and the newest closed epoch both fail, null when unknown
+  // SIMD-0357: false only when the chain refused at the last boundary and still below minimum
   vatEligible?: boolean | null
   // The first SIMD-0357 check that fails; null when admitted, unknown or not one of these values
   vatRejectionReason?: VatRejectionReason | null
