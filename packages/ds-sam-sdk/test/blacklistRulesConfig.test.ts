@@ -45,9 +45,9 @@ describe('blacklistRules config', () => {
   it('bounds the slow-slots window by the epochs the validators fetch covers', () => {
     const rules = (consecutiveEpochs: number) => ({ ...VALID, slowSlots: { medianMult: 1.1, consecutiveEpochs } })
     const config = { validatorsUptimeEpochsCount: 3, rewardsEpochsCount: 7 }
-    expect(() => new DsSamSDK({ ...config, blacklistRules: rules(7) })).not.toThrow()
-    expect(() => new DsSamSDK({ ...config, blacklistRules: rules(8) })).toThrow(
-      'Invalid config: blacklistRules.slowSlots.consecutiveEpochs must be <= 7',
+    expect(() => new DsSamSDK({ ...config, blacklistRules: rules(6) })).not.toThrow()
+    expect(() => new DsSamSDK({ ...config, blacklistRules: rules(7) })).toThrow(
+      'Invalid config: blacklistRules.slowSlots.consecutiveEpochs must be <= 6',
     )
   })
 })
