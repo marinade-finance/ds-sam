@@ -274,6 +274,81 @@ describe('decideBlacklist held re-run', () => {
   })
 })
 
+describe('decideBlacklist hits of the earlier window', () => {
+  const previous = (code: string) => current([row('v', code, BlacklistRowSource.AUCTION, A - 1)])
+
+  it('a listing of the previous auction suppresses the same window judged again', () => {
+    for (const [code, judged] of [
+      ['SLOW_SLOTS_1083', hit('v', BlacklistRuleId.SLOW_SLOTS, [1082, 1083])],
+      ['MALICIOUS_SM_1083', hit('v', BlacklistRuleId.SANDWICH, [1083])],
+    ] as const) {
+      const decision = decideBlacklist(previous(code), [judged], A, 10, NONE)
+      expect(decision.added).toEqual([])
+      expect(decision.held).toEqual([])
+      expect(decision.carried).toEqual([])
+      expect(decision.blacklist).toEqual(new Set(['v']))
+    }
+  })
+
+  it('a listing of the previous auction suppresses a newer window of the same rule', () => {
+    const decision = decideBlacklist(
+      previous('SLOW_SLOTS_1083'),
+      [hit('v', BlacklistRuleId.SLOW_SLOTS, [1083, 1084])],
+      A,
+      10,
+      NONE,
+    )
+    expect(decision.added).toEqual([])
+    expect(decision.held).toEqual([])
+  })
+
+  it('a hit of the earlier window held by a dry run is judged again', () => {
+    const judged = hit('v', BlacklistRuleId.SLOW_SLOTS, [1082, 1083])
+    const decision = decideBlacklist(current([row('old', 'X')]), [judged], A, 0, NONE)
+    expect(decision.added).toEqual([])
+    expect(decision.held).toEqual([judged])
+    expect(decision.held[0]?.code).toBe('SLOW_SLOTS_1083')
+    expect(decision.blacklist).toEqual(new Set(['old']))
+  })
+
+  it('hits of the earlier window count against the limit and are held above it', () => {
+    const hits = [
+      hit('a', BlacklistRuleId.SANDWICH, [1084]),
+      hit('b', BlacklistRuleId.SANDWICH, [1083]),
+      hit('c', BlacklistRuleId.SANDWICH, [1083]),
+    ]
+    const held = decideBlacklist(current([]), hits, A, 2, NONE)
+    expect(held.added).toEqual([])
+    expect(accounts(held.held)).toEqual(['a', 'b', 'c'])
+    const added = decideBlacklist(current([]), hits, A, 3, NONE)
+    expect(accounts(added.added)).toEqual(['a', 'b', 'c'])
+    expect(added.held).toEqual([])
+  })
+
+  it('until epoch at the end of the earlier window exempts its hit', () => {
+    const decide = (rule: ExemptRule, untilEpoch: number, judged: BlacklistHit) =>
+      accounts(decideBlacklist(current([], [exempt('v', rule, untilEpoch)]), [judged], A, 10, NONE).added)
+    expect(decide(ExemptRule.SLOW_SLOTS, 1083, hit('v', BlacklistRuleId.SLOW_SLOTS, [1082, 1083]))).toEqual([])
+    expect(decide(ExemptRule.SLOW_SLOTS, 1083, hit('v', BlacklistRuleId.SLOW_SLOTS, [1083, 1084]))).toEqual(['v'])
+    expect(decide(ExemptRule.SLOW_SLOTS, 1082, hit('v', BlacklistRuleId.SLOW_SLOTS, [1082, 1083]))).toEqual(['v'])
+    expect(decide(ExemptRule.SANDWICH, 1083, hit('v', BlacklistRuleId.SANDWICH, [1083]))).toEqual([])
+    expect(decide(ExemptRule.SANDWICH, 1082, hit('v', BlacklistRuleId.SANDWICH, [1083]))).toEqual(['v'])
+  })
+
+  it('one account with hits of two rules from two windows is one new account', () => {
+    const decision = decideBlacklist(
+      current([]),
+      [hit('v', BlacklistRuleId.SANDWICH, [1083]), hit('v', BlacklistRuleId.SLOW_SLOTS, [1083, 1084])],
+      A,
+      1,
+      NONE,
+    )
+    expect(decision.added.map(h => h.code)).toEqual(['MALICIOUS_SM_1083', 'SLOW_SLOTS_1084'])
+    expect(decision.held).toEqual([])
+    expect(decision.blacklist).toEqual(new Set(['v']))
+  })
+})
+
 describe('renderBlacklistCsv', () => {
   it('sorts and deduplicates the rows under a header', () => {
     expect(renderBlacklistCsv([hit('b'), hit('a'), hit('b')])).toBe(
