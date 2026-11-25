@@ -282,7 +282,9 @@ describe('auction storeResults', () => {
       const summary = new AuctionCommand(new CliUtilityService()).formatResultSummary(
         withDecision({ missingEpochs: [639, 640] }),
       )
-      expect(summary).toContain('- ⚠ No validator quality data for epochs 639, 640; their rules did not run')
+      expect(summary).toContain(
+        '- ⚠ No validator quality data for epochs 639, 640; the rule windows that need them did not run',
+      )
     })
 
     it('has no blacklist section and no file without a decision', () => {
