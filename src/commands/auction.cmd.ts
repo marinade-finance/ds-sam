@@ -147,7 +147,10 @@ export class AuctionCommand extends CommandRunner {
     if (!decision) {
       return []
     }
-    const lines = ['\n### Blacklist', `- Evaluated epoch = \`${decision.evaluatedEpoch}\``]
+    const lines = [
+      '\n### Blacklist',
+      `- Evaluated windows ending at epochs \`${decision.evaluatedEpoch}\`, \`${decision.evaluatedEpoch - 1}\``,
+    ]
     if (decision.missingEpochs.length > 0) {
       lines.push(
         `- ⚠ No validator quality data for epochs ${decision.missingEpochs.join(', ')}; the rule windows that need them did not run`,

@@ -129,7 +129,7 @@ describe('auction storeResults', () => {
           `vote_account,code\n${'A'.repeat(32)},SLOW_SLOTS_640\n${'B'.repeat(32)},MALICIOUS_SM_640\n`,
         )
         const summary = fs.readFileSync(path.join(outDir, 'summary.md')).toString()
-        expect(summary).toContain('### Blacklist\n- Evaluated epoch = `640`\n- Added = `2`')
+        expect(summary).toContain('### Blacklist\n- Evaluated windows ending at epochs `640`, `639`\n- Added = `2`')
         expect(summary).toContain(
           `  - \`${'B'.repeat(32)}\` MALICIOUS_SM_640: single 8% (400/5000 blocks, cluster median 0.80%, p=1.50e-90)`,
         )
