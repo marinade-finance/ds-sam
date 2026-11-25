@@ -98,6 +98,7 @@ const setup = () => {
       }) as unknown as RawScoredValidatorDto,
   )
   const quality = new Map([
+    [EVALUATED_EPOCH - 1, [...background]],
     [
       EVALUATED_EPOCH,
       [
@@ -181,9 +182,60 @@ describe('blacklist decided in the auction', () => {
     const fixture = { ...setup(), quality: new Map<number, RawValidatorQualityDto[]>() }
     const result = await sdkFor({}, fixture).run()
 
-    expect(result.auctionData.blacklistDecision?.missingEpochs).toEqual([EVALUATED_EPOCH])
+    expect(result.auctionData.blacklistDecision?.missingEpochs).toEqual([EVALUATED_EPOCH - 1, EVALUATED_EPOCH])
     expect(result.auctionData.blacklistDecision?.added).toEqual([])
     expect(result.auctionData.blacklist).toEqual(new Set([LEGACY_ACCOUNT]))
+  })
+
+  it('lists a sandwicher of the epoch whose data came late, one auction later', async () => {
+    const fixture = setup()
+    const sandwicher = fixture.sandwicher.voteAccount
+    const quality = new Map([
+      [EVALUATED_EPOCH - 1, [...background, qualityRow(sandwicher, 5000, 400)]],
+      [EVALUATED_EPOCH, [...background, qualityRow(sandwicher, 5000, 39)]],
+    ])
+    const result = await sdkFor({}, { ...fixture, quality }).run()
+
+    const decision = result.auctionData.blacklistDecision
+    expect(decision?.added.map(hit => [hit.voteAccount, hit.code])).toEqual([
+      [sandwicher, `MALICIOUS_SM_${EVALUATED_EPOCH - 1}`],
+    ])
+    expect(decision?.missingEpochs).toEqual([])
+    expect(findValidatorInResult(sandwicher, result)?.values.samBlacklisted).toBe(true)
+    expect(result.auctionData.blacklist).toEqual(new Set([LEGACY_ACCOUNT, sandwicher]))
+  })
+
+  it('judges the earlier epoch when the newest has no data', async () => {
+    const fixture = setup()
+    const sandwicher = fixture.sandwicher.voteAccount
+    const quality = new Map([[EVALUATED_EPOCH - 1, [...background, qualityRow(sandwicher, 5000, 400)]]])
+    const result = await sdkFor({}, { ...fixture, quality }).run()
+
+    const decision = result.auctionData.blacklistDecision
+    expect(decision?.added.map(hit => [hit.voteAccount, hit.code])).toEqual([
+      [sandwicher, `MALICIOUS_SM_${EVALUATED_EPOCH - 1}`],
+    ])
+    expect(decision?.missingEpochs).toEqual([EVALUATED_EPOCH])
+  })
+
+  it('replays cached inputs that lack the earlier epoch and names it', async () => {
+    const fixture = setup()
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'ds-sam-blacklist-'))
+    const live = await sdkFor({ cacheInputs: true, inputsCacheDirPath: dir }, fixture).run()
+    const file = path.join(dir, 'validator-quality.json')
+    const cached = JSON.parse(fs.readFileSync(file, 'utf8')) as { epochs: Record<string, unknown> }
+    delete cached.epochs[String(EVALUATED_EPOCH - 1)]
+    fs.writeFileSync(file, JSON.stringify(cached))
+
+    const replay = await new DsSamSDK({
+      ...DEFAULT_CONFIG,
+      blacklistRules: RULES,
+      inputsSource: InputsSource.FILES,
+      inputsCacheDirPath: dir,
+    }).run()
+    expect(replay.auctionData.blacklist).toEqual(live.auctionData.blacklist)
+    expect(replay.auctionData.blacklistDecision?.added).toEqual(live.auctionData.blacklistDecision?.added)
+    expect(replay.auctionData.blacklistDecision?.missingEpochs).toEqual([EVALUATED_EPOCH - 1])
   })
 
   it('refuses to decide on an empty current list', async () => {
