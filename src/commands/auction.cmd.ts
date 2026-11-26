@@ -187,7 +187,7 @@ export class AuctionCommand extends CommandRunner {
     return [
       '\n### VAT',
       `- VAT-ineligible validators = \`${refused.length}\``,
-      `- ${vatOnlyCount > 0 ? '⚠ ' : ''}VAT is the only reason = \`${vatOnlyCount}\``,
+      `- ${vatOnlyCount > 0 ? '⚠ ' : ''}VAT is the only gate, with Marinade stake = \`${vatOnlyCount}\``,
       `- No chain VAT verdict, not cut = \`${unknownVatVerdict.length}\``,
       ...(refused.length > 0 ? details('VAT-ineligible validators', refused.map(row)) : []),
       ...(unknownVatVerdict.length > 0
@@ -199,7 +199,7 @@ export class AuctionCommand extends CommandRunner {
       ...details('ⓘ How it works', [
         'A validator is cut only when the chain refused it at the last epoch boundary (`vat_admitted` false) and it still fails VAT in the running epoch.' +
           ' Without a chain verdict it is not cut.' +
-          ' ⚠ marks a validator with a bond and Marinade stake that loses eligibility for VAT alone.',
+          ' ⚠ marks a validator with a bond and Marinade stake whose only failing gate is VAT; the bid floor is not checked for it.',
       ]),
     ]
   }
@@ -239,7 +239,7 @@ export class AuctionCommand extends CommandRunner {
           : `- ⚠ Held = \`${decision.held.length}\`: more new accounts than \`blacklistRules.maxNewListings\`.` +
             ' Approve by adding them as manual entries of the blacklist config.' +
             ' Exempt the rejected ones with until_epoch, or the next auction judges them again.') +
-          ` \`${newCount}\` new accounts, \`${heldAccounts.size - newCount}\` already blacklisted under another rule.`,
+          ` \`${newCount}\` new accounts, \`${heldAccounts.size - newCount}\` already blacklisted.`,
         ...details(
           'Held hits',
           decision.held.map(hit => formatHit(hit, note(hit))),

@@ -86,9 +86,10 @@ reads, or clone it with `new Decimal(value)`.
 
 ## Eligibility helpers
 
-`computeSamEligibilityThresholds`, `samIneligibilityGate`, `samIneligibilityGates`, `samPmpeThreshold` and `isBackstopEligible` (exported from
-the package root and from `./eligibility`) expose the SAM eligibility rule as pure functions, so a consumer can
-recompute a single validator's eligibility (e.g. after an override) with the SDK's own logic.
+`computeSamEligibilityThresholds`, `samIneligibilityGate`, `samIneligibilityGates`, `samPmpeThreshold` and
+`isBackstopEligible` (exported from the package root and from `./eligibility`) expose the SAM eligibility rule as pure
+functions, so a consumer can recompute a single validator's eligibility (e.g. after an override) with the SDK's own
+logic.
 
 `AuctionValidator.samIneligibilityGate` carries the gate that refused the validator, `'revShareBelowFloor'` when no
 gate fired but `revShare.totalPmpe` is below `samPmpeThreshold`, and `null` when eligible. `samIneligibilityGates`
@@ -97,7 +98,8 @@ lists every gate that refuses the validator, in gate order, and is empty when no
 The `vatIneligible` gate refuses a validator that the chain refused at the last epoch boundary (validators-api
 `epoch_stats[].vat_admitted: false`) and that is still below the VAT minimum in the running epoch (`vat_eligible:
 false`). When the verdict is unknown the validator is not cut, and a warning and `AuctionData.unknownVatVerdict` list
-the staked validators below the VAT minimum it leaves in. `null` never refuses a validator. `vatRejectionReason` keeps the first SIMD-0357 check that fails.
+the staked validators below the VAT minimum it leaves in. `null` never refuses a validator. `vatRejectionReason` keeps
+the first SIMD-0357 check that fails.
 
 ## Browser-safe entry
 

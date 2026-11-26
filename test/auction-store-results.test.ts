@@ -130,7 +130,7 @@ describe('auction storeResults', () => {
           bondBalanceSol: 22,
         }),
       ])
-      expect(summary).toContain('- ⚠ VAT is the only reason = `1`')
+      expect(summary).toContain('- ⚠ VAT is the only gate, with Marinade stake = `1`')
       expect(summary).toContain(
         `- ⚠ \`${'W'.repeat(32)}\` vatIneligible: \`low_balance\`, Marinade stake \`${(500_000).toLocaleString()}\` SOL, bond \`150\` SOL`,
       )
@@ -144,8 +144,8 @@ describe('auction storeResults', () => {
 
     it('counts no VAT-only validator without a warning', () => {
       const summary = summaryWith([vatValidator('Y'.repeat(32), ['vatIneligible', 'noBond'])])
-      expect(summary).toContain('- VAT is the only reason = `0`')
-      expect(summary).not.toContain('⚠ VAT is the only reason')
+      expect(summary).toContain('- VAT is the only gate, with Marinade stake = `0`')
+      expect(summary).not.toContain('⚠ VAT is the only gate, with Marinade stake')
     })
 
     it('prints a missing bond and a missing reason', () => {
@@ -417,7 +417,7 @@ describe('auction storeResults', () => {
       )
       expect(summary).toContain(
         '- Held = `2`: dry run (`blacklistRules.maxNewListings` is 0), would-be listings, not for approval.' +
-          ' `1` new accounts, `1` already blacklisted under another rule.\n',
+          ' `1` new accounts, `1` already blacklisted.\n',
       )
       expect(summary).toContain(
         `  - \`${A}\` SLOW_SLOTS_640: epoch 639 245ms vs network 200ms; epoch 640 250ms vs network 200ms (already listed: MALICIOUS_SM_600)\n`,
@@ -431,23 +431,21 @@ describe('auction storeResults', () => {
       const summary = new AuctionCommand(new CliUtilityService()).formatResultSummary(
         withDecision({ maxNewListings: 1, held: [sandwichHit, slowHit], newAccounts: [A, B] }),
       )
-      expect(summary).toContain(
-        ' or the next auction judges them again. `2` new accounts, `0` already blacklisted under another rule.',
-      )
+      expect(summary).toContain(' or the next auction judges them again. `2` new accounts, `0` already blacklisted.')
     })
 
     it('counts an account with two held hits once', () => {
       const summary = new AuctionCommand(new CliUtilityService()).formatResultSummary(
         withDecision({ maxNewListings: 0, held: [sandwichHit, { ...slowHit, voteAccount: B }], newAccounts: [B] }),
       )
-      expect(summary).toContain('`1` new accounts, `0` already blacklisted under another rule.')
+      expect(summary).toContain('`1` new accounts, `0` already blacklisted.')
     })
 
     it('marks a held account of the previous auction without a current row', () => {
       const summary = new AuctionCommand(new CliUtilityService()).formatResultSummary(
         withDecision({ maxNewListings: 0, held: [sandwichHit, slowHit], newAccounts: [A] }),
       )
-      expect(summary).toContain('`1` new accounts, `1` already blacklisted under another rule.')
+      expect(summary).toContain('`1` new accounts, `1` already blacklisted.')
       expect(summary).toContain('p=1.50e-90) (blacklisted in previous auction)\n')
     })
 
@@ -502,7 +500,7 @@ describe('auction storeResults', () => {
       )
       expect(summary).toContain(
         ' `1` from the window ending at epoch `639`, reported by the previous auction unless its data was late.' +
-          ' `2` new accounts, `0` already blacklisted under another rule.',
+          ' `2` new accounts, `0` already blacklisted.',
       )
     })
 
