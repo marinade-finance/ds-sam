@@ -42,6 +42,7 @@ describe('Auction.updatePaidUndelegation (simplified)', () => {
       rewards: { inflationPmpe: NaN, mevPmpe: NaN, blockPmpe: NaN },
       slotParams: BASE_SLOT_PARAMS,
       blacklist: new Set<string>(),
+      unknownVatVerdict: [],
     }
     const auction = new Auction(
       data,

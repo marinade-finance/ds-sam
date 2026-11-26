@@ -30,6 +30,9 @@ const gatesOf = async (validators: ValidatorMockBuilder[]) => {
   })
 }
 
+const unknownVatVerdictOf = async (validators: ValidatorMockBuilder[]) =>
+  (await new DsSamSDK({}, defaultStaticDataProviderBuilder(validators)).getAggregatedData()).unknownVatVerdict
+
 const gatesFor = (kinds: EpochKind[], vatEligible: VatVerdict[], admitted: VatVerdict = false) => {
   const votes = generateVoteAccounts('vat')
   const ids = generateIdentities()
@@ -128,6 +131,7 @@ describe('VAT eligibility', () => {
       expect(vatVerdictWarnings(warn)).toEqual([
         `No chain VAT verdict at the last epoch boundary for 2 staked validator(s) below the VAT minimum, not cut: ${first.voteAccount}, ${second.voteAccount}`,
       ])
+      expect(await unknownVatVerdictOf(builders)).toEqual([first.voteAccount, second.voteAccount])
     } finally {
       warn.mockRestore()
     }
@@ -143,12 +147,13 @@ describe('VAT eligibility', () => {
       assert(fresh && veteran)
       fresh.withCredits(null).withVoteRewards(STAKE)
       // One epoch fails the uptime gate first, so the VAT outcome is read where the gate reads it
-      const { validators } = await new DsSamSDK(
+      const { validators, unknownVatVerdict } = await new DsSamSDK(
         {},
         defaultStaticDataProviderBuilder([fresh, veteran]),
       ).getAggregatedData()
       expect(validators.find(v => v.voteAccount === fresh.voteAccount)?.vatEligible).toBeNull()
       expect(vatVerdictWarnings(warn)).toEqual([])
+      expect(unknownVatVerdict).toEqual([])
     } finally {
       warn.mockRestore()
     }
@@ -176,6 +181,27 @@ describe('VAT eligibility', () => {
       expect(vatVerdictWarnings(warn)).toEqual([
         `No chain VAT verdict at the last epoch boundary for 3 staked validator(s) below the VAT minimum, not cut: ${staked.voteAccount}, ${forecastTrue.voteAccount}, ${absentVerdict.voteAccount}`,
       ])
+      expect(await unknownVatVerdictOf([staked, unstaked, aboveMinimum, forecastTrue, absentVerdict])).toEqual([
+        staked.voteAccount,
+        forecastTrue.voteAccount,
+        absentVerdict.voteAccount,
+      ])
+    } finally {
+      warn.mockRestore()
+    }
+  })
+
+  it('carries the validators without a verdict into the auction result', async () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      const builders = boundaryBuilders([
+        { running: false, admitted: null, closedForecast: false },
+        { running: false, admitted: false, closedForecast: false },
+      ])
+      const [unknown] = builders
+      assert(unknown)
+      const result = await new DsSamSDK({}, defaultStaticDataProviderBuilder(builders)).run()
+      expect(result.auctionData.unknownVatVerdict).toEqual([unknown.voteAccount])
     } finally {
       warn.mockRestore()
     }

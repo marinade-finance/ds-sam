@@ -26,6 +26,8 @@ export type AggregatedData = {
   slotParams: SlotParams
   stakeAmounts: StakeAmounts
   blacklist: Set<string>
+  // Staked validators below the VAT minimum left in because the chain gave no verdict
+  unknownVatVerdict: string[]
   // Set when `blacklistRules` decided the blacklist in this auction
   blacklistDecision?: BlacklistAuctionDecision
 }
