@@ -86,12 +86,13 @@ reads, or clone it with `new Decimal(value)`.
 
 ## Eligibility helpers
 
-`computeSamEligibilityThresholds`, `samIneligibilityGate`, `samPmpeThreshold` and `isBackstopEligible` (exported from
+`computeSamEligibilityThresholds`, `samIneligibilityGate`, `samIneligibilityGates`, `samPmpeThreshold` and `isBackstopEligible` (exported from
 the package root and from `./eligibility`) expose the SAM eligibility rule as pure functions, so a consumer can
 recompute a single validator's eligibility (e.g. after an override) with the SDK's own logic.
 
 `AuctionValidator.samIneligibilityGate` carries the gate that refused the validator, `'revShareBelowFloor'` when no
-gate fired but `revShare.totalPmpe` is below `samPmpeThreshold`, and `null` when eligible.
+gate fired but `revShare.totalPmpe` is below `samPmpeThreshold`, and `null` when eligible. `samIneligibilityGates`
+lists every gate that refuses the validator, in gate order, and is empty when none fired.
 
 The `vatIneligible` gate refuses a validator that the chain refused at the last epoch boundary (validators-api
 `epoch_stats[].vat_admitted: false`) and that is still below the VAT minimum in the running epoch (`vat_eligible:

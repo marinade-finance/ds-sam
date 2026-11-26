@@ -16,7 +16,7 @@ import { Debug } from './debug'
 import {
   computeSamEligibilityThresholds,
   isBackstopEligible,
-  samIneligibilityGate,
+  samIneligibilityGates,
   samPmpeThreshold,
 } from './eligibility'
 import { buildAuctionConstraintsConfig } from './engine-config'
@@ -109,7 +109,8 @@ export class DsSamSDK {
         externalActivatedSol: validator.totalActivatedStakeSol - validator.marinadeActivatedStakeSol,
         marinadeSamTargetSol: 0,
       }
-      const gate = samIneligibilityGate(validator, blacklist, thresholds, this.config)
+      const gates = samIneligibilityGates(validator, blacklist, thresholds, this.config)
+      const gate = gates[0] ?? null
       if (gate !== null && gate !== 'noBond') {
         return {
           ...validator,
@@ -117,6 +118,7 @@ export class DsSamSDK {
           auctionStake,
           ...ineligibleValidatorAggDefaults(),
           samIneligibilityGate: gate,
+          samIneligibilityGates: gates,
         }
       }
       const backstopEligible = isBackstopEligible(revShare, rewards, this.config)
@@ -128,6 +130,7 @@ export class DsSamSDK {
           ...ineligibleValidatorAggDefaults(),
           backstopEligible,
           samIneligibilityGate: gate,
+          samIneligibilityGates: gates,
         }
       }
       const samEligible = revShare.totalPmpe >= samPmpeThreshold(thresholds)
@@ -138,6 +141,7 @@ export class DsSamSDK {
         auctionStake,
         samEligible,
         samIneligibilityGate: samEligible ? null : 'revShareBelowFloor',
+        samIneligibilityGates: gates,
         backstopEligible,
         ...validatorAggDefaults(),
       }

@@ -79,6 +79,7 @@ export function makeUnitValidator(overrides: Partial<AuctionValidator>): Auction
     },
     samEligible: true,
     samIneligibilityGate: null,
+    samIneligibilityGates: [] as AuctionValidator['samIneligibilityGates'],
     samBlocked: false,
     stakePriority: NaN,
     unstakePriority: NaN,

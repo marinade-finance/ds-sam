@@ -228,7 +228,9 @@ describe('VAT eligibility', () => {
 
     assertValidatorIneligible(findValidatorInResult(refused.voteAccount, result))
     expect(findValidatorInResult(refused.voteAccount, result)?.samIneligibilityGate).toBe('vatIneligible')
+    expect(findValidatorInResult(refused.voteAccount, result)?.samIneligibilityGates).toEqual(['vatIneligible'])
     expect(findValidatorInResult(admitted.voteAccount, result)?.samEligible).toBe(true)
+    expect(findValidatorInResult(admitted.voteAccount, result)?.samIneligibilityGates).toEqual([])
   })
 
   it('refuses a bondless VAT-ineligible validator for the backstop too', async () => {
@@ -257,6 +259,11 @@ describe('VAT eligibility', () => {
     ).run()
 
     expect(findValidatorInResult(refused.voteAccount, result)?.backstopEligible).toBe(false)
+    expect(findValidatorInResult(refused.voteAccount, result)?.samIneligibilityGates).toEqual([
+      'vatIneligible',
+      'noBond',
+    ])
     expect(findValidatorInResult(admitted.voteAccount, result)?.backstopEligible).toBe(true)
+    expect(findValidatorInResult(admitted.voteAccount, result)?.samIneligibilityGates).toEqual(['noBond'])
   })
 })

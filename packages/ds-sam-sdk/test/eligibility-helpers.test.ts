@@ -103,6 +103,7 @@ describe('samIneligibilityGate', () => {
     expect(transformed.revShare.totalPmpe).toBeLessThan(samPmpeThreshold(thresholds))
     expect(transformed.samEligible).toBe(false)
     expect(transformed.samIneligibilityGate).toBe('revShareBelowFloor')
+    expect(transformed.samIneligibilityGates).toEqual([])
   })
 })
 
