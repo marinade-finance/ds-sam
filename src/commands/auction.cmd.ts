@@ -138,9 +138,59 @@ export class AuctionCommand extends CommandRunner {
       `- Auction winning rev share = \`${result.winningTotalPmpe}\` PMPE`,
       `- Eligible validators count = \`${eligibleValidators.toLocaleString()}\``,
       `- Staked validators count = \`${stakedValidators.toLocaleString()}\``,
+      ...this.formatVatSummary(validators, result.auctionData.unknownVatVerdict),
       ...this.formatBlacklistSummary(result.auctionData.blacklistDecision, validators),
       '',
     ].join('\n')
+  }
+
+  formatVatSummary(validators: AuctionValidator[], unknownVatVerdict: string[]): string[] {
+    const refused = validators
+      .filter(({ vatEligible }) => vatEligible === false)
+      .sort(
+        (a, b) => b.marinadeActivatedStakeSol - a.marinadeActivatedStakeSol || (a.voteAccount < b.voteAccount ? -1 : 1),
+      )
+    if (refused.length === 0 && unknownVatVerdict.length === 0) {
+      return []
+    }
+    const vatOnly = (v: AuctionValidator) =>
+      v.samIneligibilityGates.length === 1 &&
+      v.samIneligibilityGates[0] === 'vatIneligible' &&
+      v.marinadeActivatedStakeSol > 0
+    const vatOnlyCount = refused.filter(vatOnly).length
+    const sol = (value: number) => value.toLocaleString(undefined, { maximumFractionDigits: 4 })
+    const row = (v: AuctionValidator) => {
+      const [first, ...rest] = v.samIneligibilityGates
+      const gates = rest.length > 0 ? `${first} (also: ${rest.join(', ')})` : String(first)
+      const bond = v.bondBalanceSol === null ? 'bond none' : `bond \`${sol(v.bondBalanceSol)}\` SOL`
+      return `- ${vatOnly(v) ? '⚠ ' : ''}\`${v.voteAccount}\` ${gates}: \`${v.vatRejectionReason ?? 'unknown reason'}\`, Marinade stake \`${sol(v.marinadeActivatedStakeSol)}\` SOL, ${bond}`
+    }
+    const details = (summary: string, lines: string[]) => [
+      '',
+      `<details><summary>${summary}</summary>`,
+      '',
+      ...lines,
+      '',
+      '</details>',
+    ]
+    return [
+      '\n### VAT',
+      `- VAT-ineligible validators = \`${refused.length}\``,
+      `- ${vatOnlyCount > 0 ? '⚠ ' : ''}VAT is the only reason = \`${vatOnlyCount}\``,
+      `- No chain VAT verdict, not cut = \`${unknownVatVerdict.length}\``,
+      ...(refused.length > 0 ? details('VAT-ineligible validators', refused.map(row)) : []),
+      ...(unknownVatVerdict.length > 0
+        ? details(
+            'No chain VAT verdict, not cut',
+            unknownVatVerdict.map(account => `- \`${account}\``),
+          )
+        : []),
+      ...details('ⓘ How it works', [
+        'A validator is cut only when the chain refused it at the last epoch boundary (`vat_admitted` false) and it still fails VAT in the running epoch.' +
+          ' Without a chain verdict it is not cut.' +
+          ' ⚠ marks a validator with a bond and Marinade stake that loses eligibility for VAT alone.',
+      ]),
+    ]
   }
 
   formatBlacklistSummary(decision: BlacklistAuctionDecision | undefined, validators: AuctionValidator[]): string[] {
