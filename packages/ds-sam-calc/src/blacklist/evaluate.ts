@@ -28,6 +28,8 @@ export type BlacklistAuctionDecision = {
   kept: string[]
   removed: string[]
   carried: BlacklistRow[]
+  newAccounts: string[]
+  alreadyListed: BlacklistRow[]
 }
 
 /**
@@ -85,7 +87,7 @@ export const evaluateBlacklistRules = (
       return true
     })
 
-  const { blacklist, added, held, kept, removed, carried } = decideBlacklist(
+  const { blacklist, added, held, kept, removed, carried, newAccounts, alreadyListed } = decideBlacklist(
     data.current,
     hits,
     auctionEpoch,
@@ -104,6 +106,8 @@ export const evaluateBlacklistRules = (
       kept,
       removed,
       carried,
+      newAccounts,
+      alreadyListed,
     },
   }
 }

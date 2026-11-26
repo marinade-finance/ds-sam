@@ -349,6 +349,45 @@ describe('decideBlacklist hits of the earlier window', () => {
   })
 })
 
+describe('decideBlacklist new and already listed accounts', () => {
+  it('reports the row of an account listed under another rule and keeps it out of the new accounts', () => {
+    const listed = row('v', 'SLOW_SLOTS_1080')
+    const decision = decideBlacklist(current([listed, row('other', 'X')]), [hit('v'), hit('n')], A, 0, NONE)
+    expect(accounts(decision.held)).toEqual(['v', 'n'])
+    expect(decision.newAccounts).toEqual(['n'])
+    expect(decision.alreadyListed).toEqual([listed])
+  })
+
+  it('an account of the previous auction without a row is neither new nor already listed', () => {
+    const decision = decideBlacklist(current([]), [hit('k'), hit('n')], A, 0, new Set(['k']))
+    expect(decision.newAccounts).toEqual(['n'])
+    expect(decision.alreadyListed).toEqual([])
+  })
+
+  it('never reports a row of this auction as already listed', () => {
+    const own = row('v', 'MALICIOUS_SM_1084', BlacklistRowSource.AUCTION, A)
+    const decision = decideBlacklist(current([own]), [hit('v', BlacklistRuleId.SLOW_SLOTS, [A - 2, A - 1])], A, 0, NONE)
+    expect(decision.alreadyListed).toEqual([])
+    expect(decision.newAccounts).toEqual(['v'])
+  })
+
+  it('sorts the rows of an account by code', () => {
+    const rows = [row('v', 'SLOW_SLOTS_1080'), row('v', 'BLACKLIST_COMMISSION_RUG')]
+    const decision = decideBlacklist(current(rows), [hit('v')], A, 0, NONE)
+    expect(decision.alreadyListed.map(r => r.code)).toEqual(['BLACKLIST_COMMISSION_RUG', 'SLOW_SLOTS_1080'])
+  })
+
+  it('counts the same new accounts that the limit compares', () => {
+    const hits = [hit('b'), hit('a'), hit('c')]
+    const atLimit = decideBlacklist(current([]), hits, A, 3, NONE)
+    expect(atLimit.newAccounts).toEqual(['a', 'b', 'c'])
+    expect(atLimit.held).toEqual([])
+    const aboveLimit = decideBlacklist(current([]), hits, A, 2, NONE)
+    expect(aboveLimit.newAccounts).toEqual(['a', 'b', 'c'])
+    expect(aboveLimit.added).toEqual([])
+  })
+})
+
 describe('renderBlacklistCsv', () => {
   it('sorts and deduplicates the rows under a header', () => {
     expect(renderBlacklistCsv([hit('b'), hit('a'), hit('b')])).toBe(

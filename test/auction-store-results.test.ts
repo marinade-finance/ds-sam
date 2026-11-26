@@ -250,6 +250,8 @@ describe('auction storeResults', () => {
             kept: [],
             removed: [],
             carried: [],
+            newAccounts: [],
+            alreadyListed: [],
             ...decision,
           },
         },

@@ -47,6 +47,10 @@ export type BlacklistDecision = {
   removed: string[]
   // This auction's rows of an earlier run, kept while the hits are held
   carried: BlacklistRow[]
+  // Candidate accounts counted against maxNewListings
+  newAccounts: string[]
+  // Current rows, other than this auction's own, of the accounts with a candidate hit
+  alreadyListed: BlacklistRow[]
 }
 
 const CODE_PREFIXES: [string, BlacklistRuleId][] = [
@@ -114,6 +118,10 @@ export const decideBlacklist = (
     kept,
     removed,
     carried,
+    newAccounts: [...newAccounts].sort(),
+    alreadyListed: previous
+      .filter(row => candidates.some(hit => hit.voteAccount === row.voteAccount))
+      .sort((a, b) => byVoteAccount(a, b) || (a.code < b.code ? -1 : 1)),
   }
 }
 

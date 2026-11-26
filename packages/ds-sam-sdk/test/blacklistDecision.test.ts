@@ -155,6 +155,8 @@ describe('blacklist decided in the auction', () => {
     expect(result.auctionData.blacklistDecision?.held.map(hit => hit.voteAccount)).toEqual([
       fixture.sandwicher.voteAccount,
     ])
+    expect(result.auctionData.blacklistDecision?.newAccounts).toEqual([fixture.sandwicher.voteAccount])
+    expect(result.auctionData.blacklistDecision?.alreadyListed).toEqual([])
   })
 
   it('a held re-run keeps the listings of its earlier run', async () => {
