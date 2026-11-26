@@ -283,6 +283,44 @@ describe('auction storeResults', () => {
       }
     })
 
+    it('writes the held hits to their own file', () => {
+      const outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ds-sam-store-results-'))
+      try {
+        new AuctionCommand(new CliUtilityService()).storeResults(
+          withDecision({ maxNewListings: 0, held: [sandwichHit, slowHit] }),
+          path.join(outDir, 'results.json'),
+          path.join(outDir, 'summary.md'),
+          path.join(outDir, 'blacklist-added.csv'),
+          path.join(outDir, 'blacklist-held.csv'),
+        )
+        expect(fs.readFileSync(path.join(outDir, 'blacklist-held.csv')).toString()).toBe(
+          `vote_account,code\n${'A'.repeat(32)},SLOW_SLOTS_640\n${'B'.repeat(32)},MALICIOUS_SM_640\n`,
+        )
+        expect(fs.readFileSync(path.join(outDir, 'blacklist-added.csv')).toString()).toBe('vote_account,code\n')
+      } finally {
+        fs.rmSync(outDir, { recursive: true, force: true })
+      }
+    })
+
+    it('writes a header-only held file when nothing was held', () => {
+      const outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ds-sam-store-results-'))
+      try {
+        new AuctionCommand(new CliUtilityService()).storeResults(
+          withDecision({ added: [sandwichHit] }),
+          path.join(outDir, 'results.json'),
+          path.join(outDir, 'summary.md'),
+          path.join(outDir, 'blacklist-added.csv'),
+          path.join(outDir, 'blacklist-held.csv'),
+        )
+        expect(fs.readFileSync(path.join(outDir, 'blacklist-held.csv')).toString()).toBe('vote_account,code\n')
+        expect(fs.readFileSync(path.join(outDir, 'blacklist-added.csv')).toString()).toBe(
+          `vote_account,code\n${'B'.repeat(32)},MALICIOUS_SM_640\n`,
+        )
+      } finally {
+        fs.rmSync(outDir, { recursive: true, force: true })
+      }
+    })
+
     it('writes a header-only file when nothing was added', () => {
       const outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ds-sam-store-results-'))
       try {
@@ -558,8 +596,10 @@ describe('auction storeResults', () => {
           path.join(outDir, 'results.json'),
           path.join(outDir, 'summary.md'),
           path.join(outDir, 'blacklist-added.csv'),
+          path.join(outDir, 'blacklist-held.csv'),
         )
         expect(fs.existsSync(path.join(outDir, 'blacklist-added.csv'))).toBe(false)
+        expect(fs.existsSync(path.join(outDir, 'blacklist-held.csv'))).toBe(false)
         const summary = fs.readFileSync(path.join(outDir, 'summary.md')).toString()
         expect(summary).not.toContain('### Blacklist')
         expect(summary).not.toContain('Removed')
