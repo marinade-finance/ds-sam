@@ -147,19 +147,27 @@ export class AuctionCommand extends CommandRunner {
     if (!decision) {
       return []
     }
-    const lines = ['\n### Blacklist', `- Evaluated epoch = \`${decision.evaluatedEpoch}\``]
+    const lines = [
+      '\n### Blacklist',
+      `- Evaluated windows ending at epochs \`${decision.evaluatedEpoch}\`, \`${decision.evaluatedEpoch - 1}\``,
+    ]
     if (decision.missingEpochs.length > 0) {
       lines.push(
-        `- ⚠ No validator quality data for epochs ${decision.missingEpochs.join(', ')}; their rules did not run`,
+        `- ⚠ Missing sandwich rows, slot times or stake for epochs ${decision.missingEpochs.join(', ')}; a rule window that lacks them gave no hits`,
       )
     }
     lines.push(`- Added = \`${decision.added.length}\``, ...decision.added.map(formatHit))
     if (decision.held.length > 0) {
+      const earlierWindow = decision.held.filter(hit => Math.max(...hit.epochs) < decision.evaluatedEpoch).length
       lines.push(
         decision.maxNewListings === 0
-          ? `- Held = \`${decision.held.length}\`: dry run (\`blacklistRules.maxNewListings\` is 0), would-be listings, not for approval.`
+          ? `- Held = \`${decision.held.length}\`: dry run (\`blacklistRules.maxNewListings\` is 0), would-be listings, not for approval.` +
+              (earlierWindow > 0
+                ? ` \`${earlierWindow}\` from the window ending at epoch \`${decision.evaluatedEpoch - 1}\`, reported by the previous auction unless its data was late.`
+                : '')
           : `- ⚠ Held = \`${decision.held.length}\`: more new accounts than \`blacklistRules.maxNewListings\`.` +
-              ' Approve by adding them as manual entries of the blacklist config.',
+              ' Approve by adding them as manual entries of the blacklist config.' +
+              ' Exempt the rejected ones with until_epoch, or the next auction judges them again.',
         ...decision.held.map(formatHit),
       )
     }

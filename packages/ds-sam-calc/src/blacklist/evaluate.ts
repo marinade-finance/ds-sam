@@ -20,7 +20,7 @@ export type BlacklistRulesData = {
 export type BlacklistAuctionDecision = {
   auctionEpoch: number
   evaluatedEpoch: number
-  // Epochs the rules needed that had no data or no stake; their rules gave no hits
+  // Epochs a rule window needed that had no data or no stake; the windows holding them gave no hits
   missingEpochs: number[]
   maxNewListings: number
   added: BlacklistHit[]
@@ -30,10 +30,39 @@ export type BlacklistAuctionDecision = {
   carried: BlacklistRow[]
 }
 
-/** The epochs of data the configured rules read for an auction: a window ending at the last closed epoch. */
+/**
+ * The epochs of data the configured rules read for an auction: the windows ending at the last closed
+ * epoch and at the one before it.
+ */
 export const blacklistRulesEpochs = (rules: BlacklistRulesConfig, auctionEpoch: number): number[] => {
   const window = Math.max(rules.sandwich ? 1 : 0, rules.slowSlots?.consecutiveEpochs ?? 0)
-  return windowEpochs(auctionEpoch - 1, window)
+  return window === 0 ? [] : windowEpochs(auctionEpoch - 1, window + 1)
+}
+
+const windowHits = (
+  rules: BlacklistRulesConfig,
+  data: BlacklistRulesData,
+  end: number,
+  missingEpochs: Set<number>,
+): BlacklistHit[] => {
+  const hits: BlacklistHit[] = []
+  if (rules.sandwich) {
+    const rows = data.sandwichesByEpoch.get(end) ?? []
+    if (rows.length === 0) {
+      missingEpochs.add(end)
+    }
+    hits.push(...sandwichHits(rows, end, sandwichParams(rules.sandwich)))
+  }
+  if (rules.slowSlots) {
+    const slowSlots = rules.slowSlots
+    for (const epoch of windowEpochs(end, slowSlots.consecutiveEpochs)) {
+      if (!hasStakedSlotTimes(data.slotTimesByEpoch.get(epoch) ?? [], data.stakesByEpoch.get(epoch))) {
+        missingEpochs.add(epoch)
+      }
+    }
+    hits.push(...slowSlotsHits(data.slotTimesByEpoch, data.stakesByEpoch, end, slowSlots))
+  }
+  return hits
 }
 
 export const evaluateBlacklistRules = (
@@ -42,25 +71,19 @@ export const evaluateBlacklistRules = (
   auctionEpoch: number,
 ): { blacklist: Set<string>; decision: BlacklistAuctionDecision } => {
   const evaluatedEpoch = auctionEpoch - 1
-  const hits: BlacklistHit[] = []
   const missingEpochs = new Set<number>()
-
-  if (rules.sandwich) {
-    const rows = data.sandwichesByEpoch.get(evaluatedEpoch) ?? []
-    if (rows.length === 0) {
-      missingEpochs.add(evaluatedEpoch)
-    }
-    hits.push(...sandwichHits(rows, evaluatedEpoch, sandwichParams(rules.sandwich)))
-  }
-  if (rules.slowSlots) {
-    const slowSlots = rules.slowSlots
-    for (const epoch of windowEpochs(evaluatedEpoch, slowSlots.consecutiveEpochs)) {
-      if (!hasStakedSlotTimes(data.slotTimesByEpoch.get(epoch) ?? [], data.stakesByEpoch.get(epoch))) {
-        missingEpochs.add(epoch)
+  const seen = new Set<string>()
+  // Newest window first: an account and rule keep the newest window's hit only
+  const hits = [evaluatedEpoch, evaluatedEpoch - 1]
+    .flatMap(end => windowHits(rules, data, end, missingEpochs))
+    .filter(hit => {
+      const key = `${hit.voteAccount}/${hit.rule}`
+      if (seen.has(key)) {
+        return false
       }
-    }
-    hits.push(...slowSlotsHits(data.slotTimesByEpoch, data.stakesByEpoch, evaluatedEpoch, slowSlots))
-  }
+      seen.add(key)
+      return true
+    })
 
   const { blacklist, added, held, kept, removed, carried } = decideBlacklist(
     data.current,

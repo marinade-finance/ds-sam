@@ -129,7 +129,7 @@ describe('auction storeResults', () => {
           `vote_account,code\n${'A'.repeat(32)},SLOW_SLOTS_640\n${'B'.repeat(32)},MALICIOUS_SM_640\n`,
         )
         const summary = fs.readFileSync(path.join(outDir, 'summary.md')).toString()
-        expect(summary).toContain('### Blacklist\n- Evaluated epoch = `640`\n- Added = `2`')
+        expect(summary).toContain('### Blacklist\n- Evaluated windows ending at epochs `640`, `639`\n- Added = `2`')
         expect(summary).toContain(
           `  - \`${'B'.repeat(32)}\` MALICIOUS_SM_640: single 8% (400/5000 blocks, cluster median 0.80%, p=1.50e-90)`,
         )
@@ -189,7 +189,7 @@ describe('auction storeResults', () => {
       )
       expect(summary).toContain('- Added = `0`')
       expect(summary).toContain(
-        '- ⚠ Held = `1`: more new accounts than `blacklistRules.maxNewListings`. Approve by adding them as manual entries of the blacklist config.',
+        '- ⚠ Held = `1`: more new accounts than `blacklistRules.maxNewListings`. Approve by adding them as manual entries of the blacklist config. Exempt the rejected ones with until_epoch, or the next auction judges them again.',
       )
       expect(summary).toContain(`  - \`${'B'.repeat(32)}\` MALICIOUS_SM_640: single 8%`)
     })
@@ -202,7 +202,19 @@ describe('auction storeResults', () => {
         '- Held = `1`: dry run (`blacklistRules.maxNewListings` is 0), would-be listings, not for approval.',
       )
       expect(summary).not.toContain('Approve')
+      expect(summary).not.toContain('from the window ending')
       expect(summary).toContain(`  - \`${'B'.repeat(32)}\` MALICIOUS_SM_640: single 8%`)
+    })
+
+    it('counts the dry-run held hits of the earlier window', () => {
+      const earlierHit = { ...slowHit, code: 'SLOW_SLOTS_639', epochs: [638, 639] }
+      const summary = new AuctionCommand(new CliUtilityService()).formatResultSummary(
+        withDecision({ maxNewListings: 0, held: [sandwichHit, earlierHit] }),
+      )
+      expect(summary).toContain(
+        '- Held = `2`: dry run (`blacklistRules.maxNewListings` is 0), would-be listings, not for approval.' +
+          ' `1` from the window ending at epoch `639`, reported by the previous auction unless its data was late.',
+      )
     })
 
     const validator = (
@@ -282,7 +294,9 @@ describe('auction storeResults', () => {
       const summary = new AuctionCommand(new CliUtilityService()).formatResultSummary(
         withDecision({ missingEpochs: [639, 640] }),
       )
-      expect(summary).toContain('- ⚠ No validator quality data for epochs 639, 640; their rules did not run')
+      expect(summary).toContain(
+        '- ⚠ Missing sandwich rows, slot times or stake for epochs 639, 640; a rule window that lacks them gave no hits',
+      )
     })
 
     it('has no blacklist section and no file without a decision', () => {

@@ -143,10 +143,14 @@ describe('slow slots rule', () => {
         current: { rows: [], exempt: [] },
         sandwichesByEpoch: new Map(),
         slotTimesByEpoch: new Map([
+          [E - 2, rows],
           [E - 1, rows],
           [E, rows],
         ]),
-        stakesByEpoch: new Map([[E, stakes]]),
+        stakesByEpoch: new Map([
+          [E - 2, stakes],
+          [E, stakes],
+        ]),
         previousBlacklist: new Set(),
       },
       E + 1,
