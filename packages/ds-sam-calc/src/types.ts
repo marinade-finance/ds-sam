@@ -70,7 +70,7 @@ export type AuctionValidator = AggregatedValidator & {
   bondForcedUndelegation: BondForcedUndelegation
   samEligible: boolean
   samIneligibilityGate: SamIneligibilityGate | null
-  // Every gate that refuses the validator, in gate order; samIneligibilityGate is the first
+  // Failing gates in gate order. When not empty, the first is samIneligibilityGate
   samIneligibilityGates: Exclude<SamIneligibilityGate, 'revShareBelowFloor'>[]
   backstopEligible: boolean
   samBlocked: boolean

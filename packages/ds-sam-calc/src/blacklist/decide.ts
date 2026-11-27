@@ -74,9 +74,9 @@ const exempted = (hit: BlacklistHit, exempt: BlacklistExempt[]): boolean =>
 /**
  * The blacklist of auction `auctionEpoch`: the current list plus the rule hits that are neither
  * exempted nor already listed under the same rule. More than `maxNewListings` newly listed accounts
- * hold all hits back, and `maxNewListings` 0 holds every hit (a dry run). The rows a previous run of the same auction added are judged again, or carried
- * over when the hits are held. An account of the previous auction's blacklist leaves it only through
- * an exemption without `untilEpoch`.
+ * hold all hits back, and `maxNewListings` 0 holds every hit (a dry run). The rows a previous run
+ * of the same auction added are judged again, or carried over when the hits are held. An account of
+ * the previous auction's blacklist leaves it only through an exemption without `untilEpoch`.
  */
 export const decideBlacklist = (
   current: CurrentBlacklist,

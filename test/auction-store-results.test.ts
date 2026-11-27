@@ -431,7 +431,22 @@ describe('auction storeResults', () => {
       const summary = new AuctionCommand(new CliUtilityService()).formatResultSummary(
         withDecision({ maxNewListings: 1, held: [sandwichHit, slowHit], newAccounts: [A, B] }),
       )
-      expect(summary).toContain(' or the next auction judges them again. `2` new accounts, `0` already blacklisted.')
+      expect(summary).toContain(' or the next auction judges them again. `2` new accounts, `0` already blacklisted.\n')
+    })
+
+    it('counts the new accounts whose hits are all carried', () => {
+      const C = 'C'.repeat(32)
+      const summary = new AuctionCommand(new CliUtilityService()).formatResultSummary(
+        withDecision({
+          maxNewListings: 2,
+          held: [sandwichHit, slowHit],
+          newAccounts: [A, B, C],
+          carried: [
+            { voteAccount: C, code: 'MALICIOUS_SM_640', source: BlacklistRowSource.AUCTION, auctionEpoch: 641 },
+          ],
+        }),
+      )
+      expect(summary).toContain(' `2` new accounts, `0` already blacklisted. `1` more new accounts are carried.\n')
     })
 
     it('counts an account with two held hits once', () => {

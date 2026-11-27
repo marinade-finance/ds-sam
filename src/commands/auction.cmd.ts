@@ -223,6 +223,7 @@ export class AuctionCommand extends CommandRunner {
       const newAccounts = new Set(decision.newAccounts)
       const heldAccounts = new Set(decision.held.map(hit => hit.voteAccount))
       const newCount = [...heldAccounts].filter(account => newAccounts.has(account)).length
+      const carriedNewCount = newAccounts.size - newCount
       const note = (hit: BlacklistHit) => {
         if (newAccounts.has(hit.voteAccount)) {
           return ''
@@ -239,7 +240,8 @@ export class AuctionCommand extends CommandRunner {
           : `- ⚠ Held = \`${decision.held.length}\`: more new accounts than \`blacklistRules.maxNewListings\`.` +
             ' Approve by adding them as manual entries of the blacklist config.' +
             ' Exempt the rejected ones with until_epoch, or the next auction judges them again.') +
-          ` \`${newCount}\` new accounts, \`${heldAccounts.size - newCount}\` already blacklisted.`,
+          ` \`${newCount}\` new accounts, \`${heldAccounts.size - newCount}\` already blacklisted.` +
+          (carriedNewCount > 0 ? ` \`${carriedNewCount}\` more new accounts are carried.` : ''),
         ...details(
           'Held hits',
           decision.held.map(hit => formatHit(hit, note(hit))),
