@@ -217,10 +217,16 @@ export class AuctionCommand extends CommandRunner {
         `- ⚠ Missing sandwich rows, slot times or stake for epochs ${decision.missingEpochs.join(', ')}; a rule window that lacks them gave no hits`,
       )
     }
-    lines.push(`- Added = \`${decision.added.length}\``, ...decision.added.map(hit => formatHit(hit)))
+    const newAccounts = new Set(decision.newAccounts)
+    const addedNewCount = new Set(
+      decision.added.map(hit => hit.voteAccount).filter(account => newAccounts.has(account)),
+    ).size
+    lines.push(
+      `- Added = \`${decision.added.length}\` hits on \`${addedNewCount}\` new accounts (\`blacklistRules.maxNewListings\` \`${decision.maxNewListings}\`)`,
+      ...decision.added.map(hit => formatHit(hit)),
+    )
     if (decision.held.length > 0) {
       const earlierWindow = decision.held.filter(hit => Math.max(...hit.epochs) < decision.evaluatedEpoch).length
-      const newAccounts = new Set(decision.newAccounts)
       const heldAccounts = new Set(decision.held.map(hit => hit.voteAccount))
       const newCount = [...heldAccounts].filter(account => newAccounts.has(account)).length
       const carriedNewCount = newAccounts.size - newCount

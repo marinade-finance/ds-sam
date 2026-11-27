@@ -259,7 +259,7 @@ describe('auction storeResults', () => {
 
     it('writes the added rows and lists their evidence in the summary', () => {
       const outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ds-sam-store-results-'))
-      const result = withDecision({ added: [sandwichHit, slowHit] })
+      const result = withDecision({ added: [sandwichHit, slowHit], newAccounts: ['A'.repeat(32), 'B'.repeat(32)] })
       try {
         new AuctionCommand(new CliUtilityService()).storeResults(
           result,
@@ -271,7 +271,9 @@ describe('auction storeResults', () => {
           `vote_account,code\n${'A'.repeat(32)},SLOW_SLOTS_640\n${'B'.repeat(32)},MALICIOUS_SM_640\n`,
         )
         const summary = fs.readFileSync(path.join(outDir, 'summary.md')).toString()
-        expect(summary).toContain('### Blacklist\n- Evaluated windows ending at epochs `640`, `639`\n- Added = `2`')
+        expect(summary).toContain(
+          '### Blacklist\n- Evaluated windows ending at epochs `640`, `639`\n- Added = `2` hits on `2` new accounts (`blacklistRules.maxNewListings` `10`)\n',
+        )
         expect(summary).toContain(
           `  - \`${'B'.repeat(32)}\` MALICIOUS_SM_640: single 8% (400/5000 blocks, cluster median 0.80%, p=1.50e-90)`,
         )
@@ -367,7 +369,7 @@ describe('auction storeResults', () => {
       const summary = new AuctionCommand(new CliUtilityService()).formatResultSummary(
         withDecision({ held: [sandwichHit] }),
       )
-      expect(summary).toContain('- Added = `0`')
+      expect(summary).toContain('- Added = `0` hits on `0` new accounts (`blacklistRules.maxNewListings` `10`)\n')
       expect(summary).toContain(
         '- ⚠ Held = `1`: more new accounts than `blacklistRules.maxNewListings`. Approve by adding them as manual entries of the blacklist config. Exempt the rejected ones with until_epoch, or the next auction judges them again.',
       )
@@ -492,6 +494,32 @@ describe('auction storeResults', () => {
       expect(summary).toContain(
         `  - \`${'C'.repeat(32)}\` SLOW_SLOTS_640: epoch 639 245ms vs network 200ms; epoch 640 250ms vs network 200ms\n`,
       )
+    })
+
+    it('shows the cap on the added line of a dry run without hits', () => {
+      const summary = new AuctionCommand(new CliUtilityService()).formatResultSummary(
+        withDecision({ maxNewListings: 0 }),
+      )
+      expect(summary).toContain('- Added = `0` hits on `0` new accounts (`blacklistRules.maxNewListings` `0`)\n')
+      expect(summary).not.toContain('- Held')
+    })
+
+    it('counts an account with two added hits once', () => {
+      const summary = new AuctionCommand(new CliUtilityService()).formatResultSummary(
+        withDecision({ added: [sandwichHit, { ...slowHit, voteAccount: B }], newAccounts: [B] }),
+      )
+      expect(summary).toContain('- Added = `2` hits on `1` new accounts (`blacklistRules.maxNewListings` `10`)\n')
+    })
+
+    it('leaves an added hit of an already blacklisted account out of the new accounts', () => {
+      const summary = new AuctionCommand(new CliUtilityService()).formatResultSummary(
+        withDecision({
+          added: [sandwichHit, slowHit],
+          newAccounts: [B],
+          alreadyListed: [listedRow(A, 'MALICIOUS_SM_600')],
+        }),
+      )
+      expect(summary).toContain('- Added = `2` hits on `1` new accounts (`blacklistRules.maxNewListings` `10`)\n')
     })
 
     it('has no held block without held hits', () => {
