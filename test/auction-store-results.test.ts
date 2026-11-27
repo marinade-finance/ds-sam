@@ -234,6 +234,17 @@ describe('auction storeResults', () => {
         },
       },
     }
+    const earlierHit: BlacklistHit = {
+      ...slowHit,
+      code: 'SLOW_SLOTS_639',
+      epochs: [638, 639],
+      evidence: {
+        epochs: {
+          '638': { slotDurationMedianMs: 245, networkMedianMs: 200 },
+          '639': { slotDurationMedianMs: 250, networkMedianMs: 200 },
+        },
+      },
+    }
     const withDecision = (decision: Partial<BlacklistAuctionDecision>, validators: unknown[] = []) =>
       ({
         ...auctionResult,
@@ -259,7 +270,7 @@ describe('auction storeResults', () => {
 
     it('writes the added rows and lists their evidence in the summary', () => {
       const outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ds-sam-store-results-'))
-      const result = withDecision({ added: [sandwichHit, slowHit] })
+      const result = withDecision({ added: [sandwichHit, slowHit], newAccounts: ['A'.repeat(32), 'B'.repeat(32)] })
       try {
         new AuctionCommand(new CliUtilityService()).storeResults(
           result,
@@ -271,7 +282,9 @@ describe('auction storeResults', () => {
           `vote_account,code\n${'A'.repeat(32)},SLOW_SLOTS_640\n${'B'.repeat(32)},MALICIOUS_SM_640\n`,
         )
         const summary = fs.readFileSync(path.join(outDir, 'summary.md')).toString()
-        expect(summary).toContain('### Blacklist\n- Evaluated windows ending at epochs `640`, `639`\n- Added = `2`')
+        expect(summary).toContain(
+          '### Blacklist\n- Evaluated windows ending at epochs `640`, `639`\n- Added = `2` hits on `2` new accounts (`blacklistRules.maxNewListings` `10`)\n',
+        )
         expect(summary).toContain(
           `  - \`${'B'.repeat(32)}\` MALICIOUS_SM_640: single 8% (400/5000 blocks, cluster median 0.80%, p=1.50e-90)`,
         )
@@ -363,38 +376,55 @@ describe('auction storeResults', () => {
       }
     })
 
-    it('lists held hits and how to approve them', () => {
+    const dryRun =
+      'dry run (`blacklistRules.maxNewListings` is 0), no held hit is listed. Listing all of them needs `blacklistRules.maxNewListings` ≥'
+    const overCapTail =
+      'so no held hit is listed. Approving some by manual entry in the blacklist config lowers the count, and the next auction judges the rest again against the cap. Exempt the rejected ones with until_epoch.'
+
+    it('lists held hits above the cap with the numbers', () => {
       const summary = new AuctionCommand(new CliUtilityService()).formatResultSummary(
-        withDecision({ held: [sandwichHit] }),
+        withDecision({
+          maxNewListings: 1,
+          held: [sandwichHit, slowHit],
+          newAccounts: ['A'.repeat(32), 'B'.repeat(32)],
+        }),
       )
-      expect(summary).toContain('- Added = `0`')
+      expect(summary).toContain('- Added = `0` hits on `0` new accounts (`blacklistRules.maxNewListings` `1`)\n')
       expect(summary).toContain(
-        '- ⚠ Held = `1`: more new accounts than `blacklistRules.maxNewListings`. Approve by adding them as manual entries of the blacklist config. Exempt the rejected ones with until_epoch, or the next auction judges them again.',
+        '- ⚠ Held = `2` hits on `2` new and `0` already blacklisted accounts: `2` new accounts exceed `blacklistRules.maxNewListings` `1`, ' +
+          overCapTail +
+          '\n',
       )
       expect(summary).toContain(`  - \`${'B'.repeat(32)}\` MALICIOUS_SM_640: single 8%`)
     })
 
-    it('lists held hits of a dry run as not for approval', () => {
+    it('lists held hits of a dry run as not listed', () => {
       const summary = new AuctionCommand(new CliUtilityService()).formatResultSummary(
-        withDecision({ maxNewListings: 0, held: [sandwichHit] }),
+        withDecision({ maxNewListings: 0, held: [sandwichHit], newAccounts: ['B'.repeat(32)] }),
       )
       expect(summary).toContain(
-        '- Held = `1`: dry run (`blacklistRules.maxNewListings` is 0), would-be listings, not for approval.',
+        '- Held = `1` hits on `1` new and `0` already blacklisted accounts: ' + dryRun + ' `1`.\n',
       )
-      expect(summary).not.toContain('Approve')
-      expect(summary).not.toContain('from the window ending')
+      expect(summary).not.toContain('Approving')
+      expect(summary).not.toContain('would-be')
+      expect(summary).not.toContain('come only from the older window')
       expect(summary).toContain(`  - \`${'B'.repeat(32)}\` MALICIOUS_SM_640: single 8%`)
     })
 
-    it('counts the dry-run held hits of the earlier window', () => {
-      const earlierHit = { ...slowHit, code: 'SLOW_SLOTS_639', epochs: [638, 639] }
+    it('counts the dry-run held hits of the older window', () => {
       const summary = new AuctionCommand(new CliUtilityService()).formatResultSummary(
-        withDecision({ maxNewListings: 0, held: [sandwichHit, earlierHit] }),
+        withDecision({
+          maxNewListings: 0,
+          held: [sandwichHit, earlierHit],
+          newAccounts: ['A'.repeat(32), 'B'.repeat(32)],
+        }),
       )
       expect(summary).toContain(
-        '- Held = `2`: dry run (`blacklistRules.maxNewListings` is 0), would-be listings, not for approval.' +
-          ' `1` from the window ending at epoch `639`, reported by the previous auction unless its data was late.',
+        '- Held = `2` hits on `2` new and `0` already blacklisted accounts: ' +
+          dryRun +
+          ' `2`. `1` hits come only from the older window ending `639`, not from the newest one.\n',
       )
+      expect(summary).not.toContain('reported by the previous auction')
     })
 
     const listedRow = (voteAccount: string, code: string) => ({
@@ -416,8 +446,7 @@ describe('auction storeResults', () => {
         }),
       )
       expect(summary).toContain(
-        '- Held = `2`: dry run (`blacklistRules.maxNewListings` is 0), would-be listings, not for approval.' +
-          ' `1` new accounts, `1` already blacklisted.\n',
+        '- Held = `2` hits on `1` new and `1` already blacklisted accounts: ' + dryRun + ' `1`.\n',
       )
       expect(summary).toContain(
         `  - \`${A}\` SLOW_SLOTS_640: epoch 639 245ms vs network 200ms; epoch 640 250ms vs network 200ms (already listed: MALICIOUS_SM_600)\n`,
@@ -428,10 +457,20 @@ describe('auction storeResults', () => {
     })
 
     it('splits the held accounts on a hold above maxNewListings', () => {
+      const C = 'C'.repeat(32)
       const summary = new AuctionCommand(new CliUtilityService()).formatResultSummary(
-        withDecision({ maxNewListings: 1, held: [sandwichHit, slowHit], newAccounts: [A, B] }),
+        withDecision({
+          maxNewListings: 1,
+          held: [sandwichHit, slowHit, { ...sandwichHit, voteAccount: C }],
+          newAccounts: [B, C],
+          alreadyListed: [listedRow(A, 'MALICIOUS_SM_600')],
+        }),
       )
-      expect(summary).toContain(' or the next auction judges them again. `2` new accounts, `0` already blacklisted.\n')
+      expect(summary).toContain(
+        '- ⚠ Held = `3` hits on `2` new and `1` already blacklisted accounts: `2` new accounts exceed `blacklistRules.maxNewListings` `1`, ' +
+          overCapTail +
+          '\n',
+      )
     })
 
     it('counts the new accounts whose hits are all carried', () => {
@@ -446,21 +485,25 @@ describe('auction storeResults', () => {
           ],
         }),
       )
-      expect(summary).toContain(' `2` new accounts, `0` already blacklisted. `1` more new accounts are carried.\n')
+      expect(summary).toContain(
+        '- ⚠ Held = `2` hits on `2` new and `0` already blacklisted accounts: `3` new accounts exceed `blacklistRules.maxNewListings` `2`, ' +
+          overCapTail +
+          ' `1` more new accounts are carried.\n',
+      )
     })
 
     it('counts an account with two held hits once', () => {
       const summary = new AuctionCommand(new CliUtilityService()).formatResultSummary(
         withDecision({ maxNewListings: 0, held: [sandwichHit, { ...slowHit, voteAccount: B }], newAccounts: [B] }),
       )
-      expect(summary).toContain('`1` new accounts, `0` already blacklisted.')
+      expect(summary).toContain('- Held = `2` hits on `1` new and `0` already blacklisted accounts: dry run')
     })
 
     it('marks a held account of the previous auction without a current row', () => {
       const summary = new AuctionCommand(new CliUtilityService()).formatResultSummary(
         withDecision({ maxNewListings: 0, held: [sandwichHit, slowHit], newAccounts: [A] }),
       )
-      expect(summary).toContain('`1` new accounts, `1` already blacklisted.')
+      expect(summary).toContain('- Held = `2` hits on `1` new and `1` already blacklisted accounts: dry run')
       expect(summary).toContain('p=1.50e-90) (blacklisted in previous auction)\n')
     })
 
@@ -494,6 +537,25 @@ describe('auction storeResults', () => {
       )
     })
 
+    it('shows the cap on the added line of a dry run without hits', () => {
+      const summary = new AuctionCommand(new CliUtilityService()).formatResultSummary(
+        withDecision({ maxNewListings: 0 }),
+      )
+      expect(summary).toContain('- Added = `0` hits on `0` new accounts (`blacklistRules.maxNewListings` `0`)\n')
+      expect(summary).not.toContain('- Held')
+    })
+
+    it('counts each new added account once and leaves already blacklisted ones out', () => {
+      const summary = new AuctionCommand(new CliUtilityService()).formatResultSummary(
+        withDecision({
+          added: [sandwichHit, { ...slowHit, voteAccount: B }, slowHit],
+          newAccounts: [B],
+          alreadyListed: [listedRow(A, 'MALICIOUS_SM_600')],
+        }),
+      )
+      expect(summary).toContain('- Added = `3` hits on `1` new accounts (`blacklistRules.maxNewListings` `10`)\n')
+    })
+
     it('has no held block without held hits', () => {
       const summary = new AuctionCommand(new CliUtilityService()).formatResultSummary(withDecision({}))
       expect(summary).not.toContain('Held hits')
@@ -508,14 +570,66 @@ describe('auction storeResults', () => {
       expect(summary).toContain('`blacklistRules.maxNewListings` (now `7`) holds every hit and adds none')
     })
 
-    it('keeps the earlier-window sentence before the split', () => {
-      const earlierHit = { ...slowHit, code: 'SLOW_SLOTS_639', epochs: [638, 639] }
+    it('puts the older-window sentence before the carried clause', () => {
+      const C = 'C'.repeat(32)
+      const summary = new AuctionCommand(new CliUtilityService()).formatResultSummary(
+        withDecision({
+          maxNewListings: 1,
+          held: [sandwichHit, earlierHit],
+          newAccounts: [A, B, C],
+          carried: [
+            { voteAccount: C, code: 'MALICIOUS_SM_640', source: BlacklistRowSource.AUCTION, auctionEpoch: 641 },
+          ],
+        }),
+      )
+      expect(summary).toContain(
+        ' Exempt the rejected ones with until_epoch. `1` hits come only from the older window ending `639`, not from the newest one. `1` more new accounts are carried.\n',
+      )
+    })
+
+    const earlierLine = `  - \`${'A'.repeat(32)}\` SLOW_SLOTS_639: epoch 638 245ms vs network 200ms; epoch 639 250ms vs network 200ms`
+    const newestLine = `  - \`${'B'.repeat(32)}\` MALICIOUS_SM_640: single 8% (400/5000 blocks, cluster median 0.80%, p=1.50e-90)\n`
+    const olderTag = ' (window ending 639 only; not hit in newest window ending 640)\n'
+
+    it('tags a held hit of the older window', () => {
       const summary = new AuctionCommand(new CliUtilityService()).formatResultSummary(
         withDecision({ maxNewListings: 0, held: [sandwichHit, earlierHit], newAccounts: [A, B] }),
       )
+      expect(summary).toContain(earlierLine + olderTag)
+      expect(summary).toContain(newestLine)
+    })
+
+    it('tags a held hit of the older window when the evaluated epoch is missing', () => {
+      const summary = new AuctionCommand(new CliUtilityService()).formatResultSummary(
+        withDecision({ maxNewListings: 0, missingEpochs: [640], held: [sandwichHit, earlierHit], newAccounts: [A, B] }),
+      )
       expect(summary).toContain(
-        ' `1` from the window ending at epoch `639`, reported by the previous auction unless its data was late.' +
-          ' `2` new accounts, `0` already blacklisted.',
+        earlierLine + ' (window ending 639 only; not hit in newest window ending 640, or epoch 640 data was missing)\n',
+      )
+      expect(summary).toContain(newestLine)
+    })
+
+    it('keeps the plain older-window tag when another epoch is missing', () => {
+      const summary = new AuctionCommand(new CliUtilityService()).formatResultSummary(
+        withDecision({ maxNewListings: 0, missingEpochs: [637], held: [sandwichHit, earlierHit], newAccounts: [A, B] }),
+      )
+      expect(summary).toContain(earlierLine + olderTag)
+      expect(summary).not.toContain('data was missing')
+    })
+
+    it('puts the older-window tag after the already-listed note', () => {
+      const summary = new AuctionCommand(new CliUtilityService()).formatResultSummary(
+        withDecision({ maxNewListings: 0, held: [earlierHit], alreadyListed: [listedRow(A, 'MALICIOUS_SM_600')] }),
+      )
+      expect(summary).toContain(earlierLine + ' (already listed: MALICIOUS_SM_600)' + olderTag)
+    })
+
+    it('asks for a cap of one when the dry run holds only already blacklisted accounts', () => {
+      const summary = new AuctionCommand(new CliUtilityService()).formatResultSummary(
+        withDecision({ maxNewListings: 0, held: [slowHit], alreadyListed: [listedRow(A, 'MALICIOUS_SM_600')] }),
+      )
+      expect(summary).toContain(
+        '- Held = `1` hits on `0` new and `1` already blacklisted accounts: ' + dryRun + ' `1`.\n',
       )
     })
 

@@ -217,30 +217,42 @@ export class AuctionCommand extends CommandRunner {
         `- ⚠ Missing sandwich rows, slot times or stake for epochs ${decision.missingEpochs.join(', ')}; a rule window that lacks them gave no hits`,
       )
     }
-    lines.push(`- Added = \`${decision.added.length}\``, ...decision.added.map(hit => formatHit(hit)))
+    const newAccounts = new Set(decision.newAccounts)
+    const addedNewCount = new Set(
+      decision.added.map(hit => hit.voteAccount).filter(account => newAccounts.has(account)),
+    ).size
+    lines.push(
+      `- Added = \`${decision.added.length}\` hits on \`${addedNewCount}\` new accounts (\`blacklistRules.maxNewListings\` \`${decision.maxNewListings}\`)`,
+      ...decision.added.map(hit => formatHit(hit)),
+    )
     if (decision.held.length > 0) {
-      const earlierWindow = decision.held.filter(hit => Math.max(...hit.epochs) < decision.evaluatedEpoch).length
-      const newAccounts = new Set(decision.newAccounts)
+      const isOlder = (hit: BlacklistHit) => Math.max(...hit.epochs) < decision.evaluatedEpoch
+      const earlierWindow = decision.held.filter(isOlder).length
       const heldAccounts = new Set(decision.held.map(hit => hit.voteAccount))
       const newCount = [...heldAccounts].filter(account => newAccounts.has(account)).length
       const carriedNewCount = newAccounts.size - newCount
-      const note = (hit: BlacklistHit) => {
+      const evaluated = decision.evaluatedEpoch
+      const missingNote = decision.missingEpochs.includes(evaluated) ? `, or epoch ${evaluated} data was missing` : ''
+      const olderTag = ` (window ending ${evaluated - 1} only; not hit in newest window ending ${evaluated}${missingNote})`
+      const listedNote = (hit: BlacklistHit) => {
         if (newAccounts.has(hit.voteAccount)) {
           return ''
         }
         const codes = decision.alreadyListed.filter(row => row.voteAccount === hit.voteAccount).map(row => row.code)
         return codes.length > 0 ? ` (already listed: ${codes.join(', ')})` : ' (blacklisted in previous auction)'
       }
+      const note = (hit: BlacklistHit) => listedNote(hit) + (isOlder(hit) ? olderTag : '')
+      const held = `Held = \`${decision.held.length}\` hits on \`${newCount}\` new and \`${heldAccounts.size - newCount}\` already blacklisted accounts:`
       lines.push(
         (decision.maxNewListings === 0
-          ? `- Held = \`${decision.held.length}\`: dry run (\`blacklistRules.maxNewListings\` is 0), would-be listings, not for approval.` +
-            (earlierWindow > 0
-              ? ` \`${earlierWindow}\` from the window ending at epoch \`${decision.evaluatedEpoch - 1}\`, reported by the previous auction unless its data was late.`
-              : '')
-          : `- ⚠ Held = \`${decision.held.length}\`: more new accounts than \`blacklistRules.maxNewListings\`.` +
-            ' Approve by adding them as manual entries of the blacklist config.' +
-            ' Exempt the rejected ones with until_epoch, or the next auction judges them again.') +
-          ` \`${newCount}\` new accounts, \`${heldAccounts.size - newCount}\` already blacklisted.` +
+          ? `- ${held} dry run (\`blacklistRules.maxNewListings\` is 0), no held hit is listed.` +
+            ` Listing all of them needs \`blacklistRules.maxNewListings\` ≥ \`${Math.max(1, newAccounts.size)}\`.`
+          : `- ⚠ ${held} \`${newAccounts.size}\` new accounts exceed \`blacklistRules.maxNewListings\` \`${decision.maxNewListings}\`, so no held hit is listed.` +
+            ' Approving some by manual entry in the blacklist config lowers the count, and the next auction judges the rest again against the cap.' +
+            ' Exempt the rejected ones with until_epoch.') +
+          (earlierWindow > 0
+            ? ` \`${earlierWindow}\` hits come only from the older window ending \`${evaluated - 1}\`, not from the newest one.`
+            : '') +
           (carriedNewCount > 0 ? ` \`${carriedNewCount}\` more new accounts are carried.` : ''),
         ...details(
           'Held hits',
@@ -270,7 +282,8 @@ export class AuctionCommand extends CommandRunner {
       `- Penalties = \`${penalized.length}\` validators, estimated \`${penaltySol.toLocaleString(undefined, { maximumFractionDigits: 4 })}\` SOL`,
       ...details('ⓘ How it works', [
         `Each hit is one rule matching one validator. More new accounts than \`blacklistRules.maxNewListings\` (now \`${decision.maxNewListings}\`) holds every hit and adds none; \`0\` is a dry run.` +
-          ' An account already listed under the same rule gives no hit.',
+          ' An account already listed under the same rule gives no hit.' +
+          " A hit only from the older window was already judged by the previous auction, unless that auction's summary reports missing epochs.",
       ]),
     )
     return lines
