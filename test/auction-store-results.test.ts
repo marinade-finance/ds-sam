@@ -575,6 +575,11 @@ describe('auction storeResults', () => {
       const explainer = summary.indexOf('<details><summary>ⓘ How it works</summary>')
       expect(explainer).toBeGreaterThan(summary.indexOf('- Penalties'))
       expect(summary).toContain('`blacklistRules.maxNewListings` (now `7`) holds every hit and adds none')
+      expect(summary).toContain(
+        'Each hit is one rule matching one validator. More new accounts than `blacklistRules.maxNewListings` (now `7`) holds every hit and adds none; `0` is a dry run.' +
+          ' An account already listed under the same rule gives no hit.' +
+          " A hit only from the older window was already in the previous auction's Held list, unless that auction's summary reports missing epochs.\n",
+      )
     })
 
     it('puts the older-window sentence before the carried clause', () => {

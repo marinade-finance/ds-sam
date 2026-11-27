@@ -283,7 +283,8 @@ export class AuctionCommand extends CommandRunner {
       `- Penalties = \`${penalized.length}\` validators, estimated \`${penaltySol.toLocaleString(undefined, { maximumFractionDigits: 4 })}\` SOL`,
       ...details('ⓘ How it works', [
         `Each hit is one rule matching one validator. More new accounts than \`blacklistRules.maxNewListings\` (now \`${decision.maxNewListings}\`) holds every hit and adds none; \`0\` is a dry run.` +
-          ' An account already listed under the same rule gives no hit.',
+          ' An account already listed under the same rule gives no hit.' +
+          " A hit only from the older window was already in the previous auction's Held list, unless that auction's summary reports missing epochs.",
       ]),
     )
     return lines
