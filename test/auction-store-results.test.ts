@@ -377,9 +377,9 @@ describe('auction storeResults', () => {
     })
 
     const dryRun =
-      'dry run (`blacklistRules.maxNewListings` is 0), nothing is listed. Listing all of them needs `blacklistRules.maxNewListings` ≥'
+      'dry run (`blacklistRules.maxNewListings` is 0), no held hit is listed. Listing all of them needs `blacklistRules.maxNewListings` ≥'
     const overCapTail =
-      'so none is listed. Approving some by manual entry in the blacklist config can bring the rest under the cap, and the next auction lists them. Exempt the rejected ones with until_epoch.'
+      'so no held hit is listed. Approving some by manual entry in the blacklist config can bring the rest under the cap, and the next auction lists those that still hit. Exempt the rejected ones with until_epoch.'
 
     it('lists held hits above the cap with the numbers', () => {
       const summary = new AuctionCommand(new CliUtilityService()).formatResultSummary(
@@ -578,7 +578,7 @@ describe('auction storeResults', () => {
       expect(summary).toContain(
         'Each hit is one rule matching one validator. More new accounts than `blacklistRules.maxNewListings` (now `7`) holds every hit and adds none; `0` is a dry run.' +
           ' An account already listed under the same rule gives no hit.' +
-          " A hit only from the older window was already in the previous auction's Held list, unless that auction's summary reports missing epochs.\n",
+          " A hit only from the older window was already judged by the previous auction, unless that auction's summary reports missing epochs.\n",
       )
     })
 
@@ -616,8 +616,7 @@ describe('auction storeResults', () => {
         withDecision({ maxNewListings: 0, missingEpochs: [640], held: [sandwichHit, earlierHit], newAccounts: [A, B] }),
       )
       expect(summary).toContain(
-        earlierLine +
-          " (window ending 639 only; not hit in newest window ending 640, or it lacked this rule's data: epoch 640 is missing)\n",
+        earlierLine + ' (window ending 639 only; not hit in newest window ending 640, or epoch 640 data was missing)\n',
       )
       expect(summary).toContain(newestLine)
     })
@@ -627,7 +626,7 @@ describe('auction storeResults', () => {
         withDecision({ maxNewListings: 0, missingEpochs: [637], held: [sandwichHit, earlierHit], newAccounts: [A, B] }),
       )
       expect(summary).toContain(earlierLine + olderTag)
-      expect(summary).not.toContain('is missing)')
+      expect(summary).not.toContain('data was missing')
     })
 
     it('puts the older-window tag after the already-listed note', () => {

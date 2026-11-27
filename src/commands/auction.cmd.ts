@@ -231,10 +231,9 @@ export class AuctionCommand extends CommandRunner {
       const heldAccounts = new Set(decision.held.map(hit => hit.voteAccount))
       const newCount = [...heldAccounts].filter(account => newAccounts.has(account)).length
       const carriedNewCount = newAccounts.size - newCount
-      const newest = decision.evaluatedEpoch
-      const olderTag = decision.missingEpochs.includes(newest)
-        ? ` (window ending ${newest - 1} only; not hit in newest window ending ${newest}, or it lacked this rule's data: epoch ${newest} is missing)`
-        : ` (window ending ${newest - 1} only; not hit in newest window ending ${newest})`
+      const evaluated = decision.evaluatedEpoch
+      const missingNote = decision.missingEpochs.includes(evaluated) ? `, or epoch ${evaluated} data was missing` : ''
+      const olderTag = ` (window ending ${evaluated - 1} only; not hit in newest window ending ${evaluated}${missingNote})`
       const listedNote = (hit: BlacklistHit) => {
         if (newAccounts.has(hit.voteAccount)) {
           return ''
@@ -246,13 +245,13 @@ export class AuctionCommand extends CommandRunner {
       const held = `Held = \`${decision.held.length}\` hits on \`${newCount}\` new and \`${heldAccounts.size - newCount}\` already blacklisted accounts:`
       lines.push(
         (decision.maxNewListings === 0
-          ? `- ${held} dry run (\`blacklistRules.maxNewListings\` is 0), nothing is listed.` +
+          ? `- ${held} dry run (\`blacklistRules.maxNewListings\` is 0), no held hit is listed.` +
             ` Listing all of them needs \`blacklistRules.maxNewListings\` ≥ \`${Math.max(1, newAccounts.size)}\`.`
-          : `- ⚠ ${held} \`${newAccounts.size}\` new accounts exceed \`blacklistRules.maxNewListings\` \`${decision.maxNewListings}\`, so none is listed.` +
-            ' Approving some by manual entry in the blacklist config can bring the rest under the cap, and the next auction lists them.' +
+          : `- ⚠ ${held} \`${newAccounts.size}\` new accounts exceed \`blacklistRules.maxNewListings\` \`${decision.maxNewListings}\`, so no held hit is listed.` +
+            ' Approving some by manual entry in the blacklist config can bring the rest under the cap, and the next auction lists those that still hit.' +
             ' Exempt the rejected ones with until_epoch.') +
           (earlierWindow > 0
-            ? ` \`${earlierWindow}\` hits come only from the older window ending \`${decision.evaluatedEpoch - 1}\`, not from the newest one.`
+            ? ` \`${earlierWindow}\` hits come only from the older window ending \`${evaluated - 1}\`, not from the newest one.`
             : '') +
           (carriedNewCount > 0 ? ` \`${carriedNewCount}\` more new accounts are carried.` : ''),
         ...details(
@@ -284,7 +283,7 @@ export class AuctionCommand extends CommandRunner {
       ...details('ⓘ How it works', [
         `Each hit is one rule matching one validator. More new accounts than \`blacklistRules.maxNewListings\` (now \`${decision.maxNewListings}\`) holds every hit and adds none; \`0\` is a dry run.` +
           ' An account already listed under the same rule gives no hit.' +
-          " A hit only from the older window was already in the previous auction's Held list, unless that auction's summary reports missing epochs.",
+          " A hit only from the older window was already judged by the previous auction, unless that auction's summary reports missing epochs.",
       ]),
     )
     return lines
