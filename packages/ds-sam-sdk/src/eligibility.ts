@@ -39,36 +39,46 @@ export const computeSamEligibilityThresholds = (
   return { uptimeEpochs, minEffectiveRevSharePmpe, minSamRevSharePmpe }
 }
 
-export const samIneligibilityGate = (
+/** Every gate that refuses the validator, in gate order; empty when none does. */
+export const samIneligibilityGates = (
   validator: AggregatedValidator,
   blacklist: Set<string>,
   thresholds: SamEligibilityThresholds,
   config: DsSamConfig,
-): Exclude<SamIneligibilityGate, 'revShareBelowFloor'> | null => {
+): Exclude<SamIneligibilityGate, 'revShareBelowFloor'>[] => {
+  const gates: Exclude<SamIneligibilityGate, 'revShareBelowFloor'>[] = []
   if (blacklist.has(validator.voteAccount)) {
-    return 'blacklist'
+    gates.push('blacklist')
   }
   if (
     !semver.satisfies(validator.clientVersion, config.validatorsClientVersionSemverExpr, {
       includePrerelease: true,
     })
   ) {
-    return 'clientVersion'
+    gates.push('clientVersion')
   }
   if (!passesUptime(validator, thresholds.uptimeEpochs, config.validatorsUptimeThresholdDec)) {
-    return 'uptime'
+    gates.push('uptime')
   }
   if (isInflationCommissionUnresolved(validator.values.commissions)) {
-    return 'unresolvedCommission'
+    gates.push('unresolvedCommission')
   }
   if (validator.vatEligible === false) {
-    return 'vatIneligible'
+    gates.push('vatIneligible')
   }
   if (validator.bondBalanceSol === null || validator.bondBalanceSol <= config.noBondBalanceSol) {
-    return 'noBond'
+    gates.push('noBond')
   }
-  return null
+  return gates
 }
+
+export const samIneligibilityGate = (
+  validator: AggregatedValidator,
+  blacklist: Set<string>,
+  thresholds: SamEligibilityThresholds,
+  config: DsSamConfig,
+): Exclude<SamIneligibilityGate, 'revShareBelowFloor'> | null =>
+  samIneligibilityGates(validator, blacklist, thresholds, config)[0] ?? null
 
 export const samPmpeThreshold = (
   thresholds: Pick<SamEligibilityThresholds, 'minEffectiveRevSharePmpe' | 'minSamRevSharePmpe'>,

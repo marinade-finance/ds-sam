@@ -26,6 +26,8 @@ export type AggregatedData = {
   slotParams: SlotParams
   stakeAmounts: StakeAmounts
   blacklist: Set<string>
+  // Staked validators below the VAT minimum left in because the chain gave no verdict
+  unknownVatVerdict: string[]
   // Set when `blacklistRules` decided the blacklist in this auction
   blacklistDecision?: BlacklistAuctionDecision
 }
@@ -68,6 +70,8 @@ export type AuctionValidator = AggregatedValidator & {
   bondForcedUndelegation: BondForcedUndelegation
   samEligible: boolean
   samIneligibilityGate: SamIneligibilityGate | null
+  // Failing gates in gate order. When not empty, the first is samIneligibilityGate
+  samIneligibilityGates: Exclude<SamIneligibilityGate, 'revShareBelowFloor'>[]
   backstopEligible: boolean
   samBlocked: boolean
   auctionStake: ValidatorAuctionStake

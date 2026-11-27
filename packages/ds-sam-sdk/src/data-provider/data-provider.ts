@@ -237,7 +237,7 @@ export class DataProvider {
     data: RawSourceData,
     blacklist: Set<string>,
     dataOverrides: SourceDataOverrides | null = null,
-  ): AggregatedValidator[] {
+  ): { validators: AggregatedValidator[]; unknownVatVerdict: string[] } {
     const auctionHistoriesData = this.processAuctions(data.auctions)
     const runningEpoch = data.validators.validators.reduce(
       (max, v) => v.epoch_stats.reduce((m, es) => Math.max(m, es.epoch), max),
@@ -421,7 +421,7 @@ export class DataProvider {
         `No chain VAT verdict at the last epoch boundary for ${unknownVatVerdict.length} staked validator(s) below the VAT minimum, not cut: ${unknownVatVerdict.join(', ')}`,
       )
     }
-    return validators
+    return { validators, unknownVatVerdict }
   }
 
   aggregateData(data: RawSourceData, dataOverrides: SourceDataOverrides | null = null): AggregatedData {
@@ -440,11 +440,12 @@ export class DataProvider {
     const epoch = auctionEpochOf(data.rewards)
     const { blacklist, blacklistDecision } = this.resolveBlacklist(data, epoch)
     const slotParams: SlotParams = { slotsPerYear: this.resolveSlotsPerYear(data.rewards, epoch), epoch }
+    const { validators, unknownVatVerdict } = this.aggregateValidators(data, blacklist, dataOverrides)
 
     console.log('tvl', tvlSol)
     return {
       epoch,
-      validators: this.aggregateValidators(data, blacklist, dataOverrides),
+      validators,
       rewards: {
         inflationPmpe: this.aggregateInflationRecords(activatedStakePerEpochs, data.rewards, slotParams.slotsPerYear),
         mevPmpe: this.aggregateRewardsRecords(activatedStakePerEpochs, data.rewards.rewards_mev, 'mev'),
@@ -459,6 +460,7 @@ export class DataProvider {
         marinadeRemainingSamSol: tvlSol,
       },
       blacklist,
+      unknownVatVerdict,
       ...(blacklistDecision ? { blacklistDecision } : {}),
     }
   }

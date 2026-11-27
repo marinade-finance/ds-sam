@@ -229,6 +229,8 @@ describe('evaluateBlacklistRules on two windows', () => {
       ['y', 'SLOW_SLOTS_1084'],
       ['x', 'SLOW_SLOTS_1083'],
     ])
+    expect(overCap.decision.newAccounts).toEqual(['x', 'y'])
+    expect(overCap.decision.alreadyListed).toEqual([])
   })
 
   it('until epoch exempts the earlier window and not the newer one', () => {

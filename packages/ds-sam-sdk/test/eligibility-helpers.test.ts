@@ -5,6 +5,7 @@ import {
   computeSamEligibilityThresholds,
   isBackstopEligible,
   samIneligibilityGate,
+  samIneligibilityGates,
   samPmpeThreshold,
 } from '../src/eligibility'
 import { defaultStaticDataProviderBuilder } from './helpers/static-data-provider-builder'
@@ -102,6 +103,62 @@ describe('samIneligibilityGate', () => {
     expect(transformed.revShare.totalPmpe).toBeLessThan(samPmpeThreshold(thresholds))
     expect(transformed.samEligible).toBe(false)
     expect(transformed.samIneligibilityGate).toBe('revShareBelowFloor')
+    expect(transformed.samIneligibilityGates).toEqual([])
+  })
+})
+
+describe('samIneligibilityGates', () => {
+  it('lists every failing gate in gate order and agrees with samIneligibilityGate', async () => {
+    const voteAccounts = generateVoteAccounts('all-gates')
+    const identities = generateIdentities()
+    const builder = () =>
+      new ValidatorMockBuilder(voteAccounts.next().value, identities.next().value)
+        .withEligibleDefaults()
+        .withLastEpochVatAdmitted(false)
+    const eligibleVal = builder().withBond({ stakeWanted: 0, cpmpe: 1, balance: 10 })
+    const uptimeVatVal = builder()
+      .withBadPerformance()
+      .withVatEligible(false)
+      .withBond({ stakeWanted: 0, cpmpe: 1, balance: 10 })
+    const vatFloorBondVal = builder().withVatEligible(false).withBond({ stakeWanted: 0, cpmpe: 1, balance: 1.00228288 })
+    const uptimeVatNoBondVal = builder().withBadPerformance().withVatEligible(false).withBond(null)
+    const blacklistVersionVal = builder()
+      .blacklisted()
+      .withVersion('1.16.0')
+      .withBond({ stakeWanted: 0, cpmpe: 1, balance: 10 })
+    const pmpeOnlyVal = builder()
+      .withMevCommission(100)
+      .withInflationCommission(8)
+      .withBond({ stakeWanted: 0, cpmpe: 1, balance: 10 })
+
+    const validators = [
+      eligibleVal,
+      uptimeVatVal,
+      vatFloorBondVal,
+      uptimeVatNoBondVal,
+      blacklistVersionVal,
+      pmpeOnlyVal,
+    ]
+    const dsSam = new DsSamSDK(
+      { validatorsClientVersionSemverExpr: '>=1.17.0' },
+      defaultStaticDataProviderBuilder(validators),
+    )
+    const aggregatedData = await dsSam.getAggregatedData()
+    const thresholds = computeSamEligibilityThresholds(aggregatedData, dsSam.config)
+    const gatesFor = (voteAccount: string) => {
+      const validator = aggregatedData.validators.find(v => v.voteAccount === voteAccount)
+      assert(validator)
+      const gates = samIneligibilityGates(validator, aggregatedData.blacklist, thresholds, dsSam.config)
+      expect(samIneligibilityGate(validator, aggregatedData.blacklist, thresholds, dsSam.config)).toBe(gates[0] ?? null)
+      return gates
+    }
+
+    expect(gatesFor(eligibleVal.voteAccount)).toEqual([])
+    expect(gatesFor(uptimeVatVal.voteAccount)).toEqual(['uptime', 'vatIneligible'])
+    expect(gatesFor(vatFloorBondVal.voteAccount)).toEqual(['vatIneligible', 'noBond'])
+    expect(gatesFor(uptimeVatNoBondVal.voteAccount)).toEqual(['uptime', 'vatIneligible', 'noBond'])
+    expect(gatesFor(blacklistVersionVal.voteAccount)).toEqual(['blacklist', 'clientVersion'])
+    expect(gatesFor(pmpeOnlyVal.voteAccount)).toEqual([])
   })
 })
 

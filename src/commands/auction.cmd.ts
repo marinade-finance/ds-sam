@@ -26,19 +26,28 @@ const COMMAND_NAME = 'auction'
 const formatSandwich = (kind: string, o: SandwichObservation) =>
   `${kind} ${o.rate30dPct}% (${o.blocksWithSandwiches}/${o.blocksProduced} blocks, cluster median ${o.clusterMedianPct.toFixed(2)}%, p=${o.pValue.toExponential(2)})`
 
-const formatHit = (hit: BlacklistHit): string => {
+const formatHit = (hit: BlacklistHit, note = ''): string => {
   if (hit.rule === BlacklistRuleId.SANDWICH) {
     const { single, wide } = hit.evidence as SandwichEvidence
     const observed = [single && formatSandwich('single', single), wide && formatSandwich('wide', wide)]
-    return `  - \`${hit.voteAccount}\` ${hit.code}: ${observed.filter(Boolean).join('; ')}`
+    return `  - \`${hit.voteAccount}\` ${hit.code}: ${observed.filter(Boolean).join('; ')}${note}`
   }
   const { epochs } = hit.evidence as SlowSlotsEvidence
   const observed = Object.entries(epochs).map(
     ([epoch, { slotDurationMedianMs, networkMedianMs }]) =>
       `epoch ${epoch} ${slotDurationMedianMs}ms vs network ${networkMedianMs}ms`,
   )
-  return `  - \`${hit.voteAccount}\` ${hit.code}: ${observed.join('; ')}`
+  return `  - \`${hit.voteAccount}\` ${hit.code}: ${observed.join('; ')}${note}`
 }
+
+const details = (summary: string, lines: string[]): string[] => [
+  '',
+  `<details><summary>${summary}</summary>`,
+  '',
+  ...lines,
+  '',
+  '</details>',
+]
 
 type AuctionCommandOptions = Partial<
   DsSamConfig & {
@@ -85,14 +94,24 @@ export class AuctionCommand extends CommandRunner {
         `${config.outputDirPath}/results.json`,
         `${config.outputDirPath}/summary.md`,
         `${config.outputDirPath}/blacklist-added.csv`,
+        `${config.outputDirPath}/blacklist-held.csv`,
       )
     }
   }
 
-  storeResults(result: AuctionResult, resultsPath: string, summaryPath: string, blacklistAddedPath?: string) {
+  storeResults(
+    result: AuctionResult,
+    resultsPath: string,
+    summaryPath: string,
+    blacklistAddedPath?: string,
+    blacklistHeldPath?: string,
+  ) {
     const decision = result.auctionData.blacklistDecision
     if (decision && blacklistAddedPath) {
       fs.writeFileSync(blacklistAddedPath, renderBlacklistCsv([...decision.added, ...decision.carried]))
+    }
+    if (decision && blacklistHeldPath) {
+      fs.writeFileSync(blacklistHeldPath, renderBlacklistCsv(decision.held))
     }
     const resultsStr = JSON.stringify(
       {
@@ -138,9 +157,51 @@ export class AuctionCommand extends CommandRunner {
       `- Auction winning rev share = \`${result.winningTotalPmpe}\` PMPE`,
       `- Eligible validators count = \`${eligibleValidators.toLocaleString()}\``,
       `- Staked validators count = \`${stakedValidators.toLocaleString()}\``,
+      ...this.formatVatSummary(validators, result.auctionData.unknownVatVerdict),
       ...this.formatBlacklistSummary(result.auctionData.blacklistDecision, validators),
       '',
     ].join('\n')
+  }
+
+  formatVatSummary(validators: AuctionValidator[], unknownVatVerdict: string[]): string[] {
+    const refused = validators
+      .filter(({ vatEligible }) => vatEligible === false)
+      .sort(
+        (a, b) => b.marinadeActivatedStakeSol - a.marinadeActivatedStakeSol || (a.voteAccount < b.voteAccount ? -1 : 1),
+      )
+    if (refused.length === 0 && unknownVatVerdict.length === 0) {
+      return []
+    }
+    const vatOnly = (v: AuctionValidator) =>
+      v.samIneligibilityGates.length === 1 &&
+      v.samIneligibilityGates[0] === 'vatIneligible' &&
+      v.marinadeActivatedStakeSol > 0
+    const vatOnlyCount = refused.filter(vatOnly).length
+    const sol = (value: number) => value.toLocaleString(undefined, { maximumFractionDigits: 4 })
+    const row = (v: AuctionValidator) => {
+      const [first, ...rest] = v.samIneligibilityGates
+      const gates = rest.length > 0 ? `${first} (also: ${rest.join(', ')})` : String(first)
+      const bond = v.bondBalanceSol === null ? 'bond none' : `bond \`${sol(v.bondBalanceSol)}\` SOL`
+      return `- ${vatOnly(v) ? '⚠ ' : ''}\`${v.voteAccount}\` ${gates}: \`${v.vatRejectionReason ?? 'unknown reason'}\`, Marinade stake \`${sol(v.marinadeActivatedStakeSol)}\` SOL, ${bond}`
+    }
+    return [
+      '\n### VAT',
+      `- VAT-ineligible validators = \`${refused.length}\``,
+      `- ${vatOnlyCount > 0 ? '⚠ ' : ''}VAT is the only gate, with Marinade stake = \`${vatOnlyCount}\``,
+      `- No chain VAT verdict, not cut = \`${unknownVatVerdict.length}\``,
+      ...(refused.length > 0 ? details('VAT-ineligible validators', refused.map(row)) : []),
+      ...(unknownVatVerdict.length > 0
+        ? details(
+            'No chain VAT verdict, not cut',
+            unknownVatVerdict.map(account => `- \`${account}\``),
+          )
+        : []),
+      ...details('ⓘ How it works', [
+        'A validator is cut only when the chain refused it at the last epoch boundary (`vat_admitted` false) and it still fails VAT in the running epoch.' +
+          ' Without a chain verdict it is not cut.' +
+          ' ⚠ marks a validator with a bond and Marinade stake whose only failing gate is VAT; the bid floor is not checked for it.',
+      ]),
+    ]
   }
 
   formatBlacklistSummary(decision: BlacklistAuctionDecision | undefined, validators: AuctionValidator[]): string[] {
@@ -156,19 +217,36 @@ export class AuctionCommand extends CommandRunner {
         `- ⚠ Missing sandwich rows, slot times or stake for epochs ${decision.missingEpochs.join(', ')}; a rule window that lacks them gave no hits`,
       )
     }
-    lines.push(`- Added = \`${decision.added.length}\``, ...decision.added.map(formatHit))
+    lines.push(`- Added = \`${decision.added.length}\``, ...decision.added.map(hit => formatHit(hit)))
     if (decision.held.length > 0) {
       const earlierWindow = decision.held.filter(hit => Math.max(...hit.epochs) < decision.evaluatedEpoch).length
+      const newAccounts = new Set(decision.newAccounts)
+      const heldAccounts = new Set(decision.held.map(hit => hit.voteAccount))
+      const newCount = [...heldAccounts].filter(account => newAccounts.has(account)).length
+      const carriedNewCount = newAccounts.size - newCount
+      const note = (hit: BlacklistHit) => {
+        if (newAccounts.has(hit.voteAccount)) {
+          return ''
+        }
+        const codes = decision.alreadyListed.filter(row => row.voteAccount === hit.voteAccount).map(row => row.code)
+        return codes.length > 0 ? ` (already listed: ${codes.join(', ')})` : ' (blacklisted in previous auction)'
+      }
       lines.push(
-        decision.maxNewListings === 0
+        (decision.maxNewListings === 0
           ? `- Held = \`${decision.held.length}\`: dry run (\`blacklistRules.maxNewListings\` is 0), would-be listings, not for approval.` +
-              (earlierWindow > 0
-                ? ` \`${earlierWindow}\` from the window ending at epoch \`${decision.evaluatedEpoch - 1}\`, reported by the previous auction unless its data was late.`
-                : '')
+            (earlierWindow > 0
+              ? ` \`${earlierWindow}\` from the window ending at epoch \`${decision.evaluatedEpoch - 1}\`, reported by the previous auction unless its data was late.`
+              : '')
           : `- ⚠ Held = \`${decision.held.length}\`: more new accounts than \`blacklistRules.maxNewListings\`.` +
-              ' Approve by adding them as manual entries of the blacklist config.' +
-              ' Exempt the rejected ones with until_epoch, or the next auction judges them again.',
-        ...decision.held.map(formatHit),
+            ' Approve by adding them as manual entries of the blacklist config.' +
+            ' Exempt the rejected ones with until_epoch, or the next auction judges them again.') +
+          ` \`${newCount}\` new accounts, \`${heldAccounts.size - newCount}\` already blacklisted.` +
+          (carriedNewCount > 0 ? ` \`${carriedNewCount}\` more new accounts are carried.` : ''),
+        ...details(
+          'Held hits',
+          decision.held.map(hit => formatHit(hit, note(hit))),
+        ),
+        '',
       )
     }
     if (decision.kept.length > 0) {
@@ -190,6 +268,10 @@ export class AuctionCommand extends CommandRunner {
       `- Removed = \`${decision.removed.length}\``,
       ...decision.removed.map(account => `  - \`${account}\``),
       `- Penalties = \`${penalized.length}\` validators, estimated \`${penaltySol.toLocaleString(undefined, { maximumFractionDigits: 4 })}\` SOL`,
+      ...details('ⓘ How it works', [
+        `Each hit is one rule matching one validator. More new accounts than \`blacklistRules.maxNewListings\` (now \`${decision.maxNewListings}\`) holds every hit and adds none; \`0\` is a dry run.` +
+          ' An account already listed under the same rule gives no hit.',
+      ]),
     )
     return lines
   }
