@@ -231,13 +231,18 @@ export class AuctionCommand extends CommandRunner {
       const heldAccounts = new Set(decision.held.map(hit => hit.voteAccount))
       const newCount = [...heldAccounts].filter(account => newAccounts.has(account)).length
       const carriedNewCount = newAccounts.size - newCount
-      const note = (hit: BlacklistHit) => {
+      const newest = decision.evaluatedEpoch
+      const olderTag = decision.missingEpochs.includes(newest)
+        ? ` (window ending ${newest - 1} only; not hit in newest window ending ${newest}, or it lacked this rule's data: epoch ${newest} is missing)`
+        : ` (window ending ${newest - 1} only; not hit in newest window ending ${newest})`
+      const listedNote = (hit: BlacklistHit) => {
         if (newAccounts.has(hit.voteAccount)) {
           return ''
         }
         const codes = decision.alreadyListed.filter(row => row.voteAccount === hit.voteAccount).map(row => row.code)
         return codes.length > 0 ? ` (already listed: ${codes.join(', ')})` : ' (blacklisted in previous auction)'
       }
+      const note = (hit: BlacklistHit) => listedNote(hit) + (isOlder(hit) ? olderTag : '')
       const held = `Held = \`${decision.held.length}\` hits on \`${newCount}\` new and \`${heldAccounts.size - newCount}\` already blacklisted accounts:`
       lines.push(
         (decision.maxNewListings === 0

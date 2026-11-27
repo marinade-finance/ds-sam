@@ -594,6 +594,51 @@ describe('auction storeResults', () => {
       )
     })
 
+    const earlierLine = `  - \`${'A'.repeat(32)}\` SLOW_SLOTS_639: epoch 638 245ms vs network 200ms; epoch 639 250ms vs network 200ms`
+    const newestLine = `  - \`${'B'.repeat(32)}\` MALICIOUS_SM_640: single 8% (400/5000 blocks, cluster median 0.80%, p=1.50e-90)\n`
+    const olderTag = ' (window ending 639 only; not hit in newest window ending 640)\n'
+
+    it('tags a held hit of the older window', () => {
+      const summary = new AuctionCommand(new CliUtilityService()).formatResultSummary(
+        withDecision({ maxNewListings: 0, held: [sandwichHit, earlierHit], newAccounts: [A, B] }),
+      )
+      expect(summary).toContain(earlierLine + olderTag)
+      expect(summary).toContain(newestLine)
+    })
+
+    it('tags a held hit of the older window when the evaluated epoch is missing', () => {
+      const summary = new AuctionCommand(new CliUtilityService()).formatResultSummary(
+        withDecision({ maxNewListings: 0, missingEpochs: [640], held: [sandwichHit, earlierHit], newAccounts: [A, B] }),
+      )
+      expect(summary).toContain(
+        earlierLine +
+          " (window ending 639 only; not hit in newest window ending 640, or it lacked this rule's data: epoch 640 is missing)\n",
+      )
+      expect(summary).toContain(newestLine)
+    })
+
+    it('keeps the plain older-window tag when another epoch is missing', () => {
+      const summary = new AuctionCommand(new CliUtilityService()).formatResultSummary(
+        withDecision({ maxNewListings: 0, missingEpochs: [637], held: [sandwichHit, earlierHit], newAccounts: [A, B] }),
+      )
+      expect(summary).toContain(earlierLine + olderTag)
+      expect(summary).not.toContain('is missing)')
+    })
+
+    it('puts the older-window tag after the already-listed note', () => {
+      const summary = new AuctionCommand(new CliUtilityService()).formatResultSummary(
+        withDecision({ maxNewListings: 0, held: [earlierHit], alreadyListed: [listedRow(A, 'MALICIOUS_SM_600')] }),
+      )
+      expect(summary).toContain(earlierLine + ' (already listed: MALICIOUS_SM_600)' + olderTag)
+    })
+
+    it('puts the older-window tag after the previous-auction note', () => {
+      const summary = new AuctionCommand(new CliUtilityService()).formatResultSummary(
+        withDecision({ maxNewListings: 0, held: [sandwichHit, earlierHit], newAccounts: [B] }),
+      )
+      expect(summary).toContain(earlierLine + ' (blacklisted in previous auction)' + olderTag)
+    })
+
     it('asks for a cap of one when the dry run holds only already blacklisted accounts', () => {
       const summary = new AuctionCommand(new CliUtilityService()).formatResultSummary(
         withDecision({ maxNewListings: 0, held: [slowHit], alreadyListed: [listedRow(A, 'MALICIOUS_SM_600')] }),
