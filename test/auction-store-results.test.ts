@@ -379,7 +379,7 @@ describe('auction storeResults', () => {
     const dryRun =
       'dry run (`blacklistRules.maxNewListings` is 0), no held hit is listed. Listing all of them needs `blacklistRules.maxNewListings` ≥'
     const overCapTail =
-      'so no held hit is listed. Approving some by manual entry in the blacklist config can bring the rest under the cap, and the next auction lists those that still hit. Exempt the rejected ones with until_epoch.'
+      'so no held hit is listed. Approving some by manual entry in the blacklist config lowers the count, and the next auction judges the rest again against the cap. Exempt the rejected ones with until_epoch.'
 
     it('lists held hits above the cap with the numbers', () => {
       const summary = new AuctionCommand(new CliUtilityService()).formatResultSummary(

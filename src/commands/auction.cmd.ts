@@ -248,7 +248,7 @@ export class AuctionCommand extends CommandRunner {
           ? `- ${held} dry run (\`blacklistRules.maxNewListings\` is 0), no held hit is listed.` +
             ` Listing all of them needs \`blacklistRules.maxNewListings\` ≥ \`${Math.max(1, newAccounts.size)}\`.`
           : `- ⚠ ${held} \`${newAccounts.size}\` new accounts exceed \`blacklistRules.maxNewListings\` \`${decision.maxNewListings}\`, so no held hit is listed.` +
-            ' Approving some by manual entry in the blacklist config can bring the rest under the cap, and the next auction lists those that still hit.' +
+            ' Approving some by manual entry in the blacklist config lowers the count, and the next auction judges the rest again against the cap.' +
             ' Exempt the rejected ones with until_epoch.') +
           (earlierWindow > 0
             ? ` \`${earlierWindow}\` hits come only from the older window ending \`${evaluated - 1}\`, not from the newest one.`
